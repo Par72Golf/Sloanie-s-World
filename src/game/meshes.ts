@@ -462,27 +462,20 @@ export function makeHands(skin: string, dress: string): Hands {
     // (-x), then X by +90 turns the palm to face the eye (+z). The thumb is
     // built on the -x side so after the turn it comes toward the eye, up
     // over the click wheel.
-    // The grip is built in the iPod's own frame so it always wraps the
-    // device: a palm behind it, four fingers hooked round its left edge with
-    // the tips showing on the bezel, and a thumb resting on the click wheel.
+    // Mitten hands, the same rounded shapes as her third-person hands. Built
+    // in the iPod's frame: a rounded palm behind the device, one smooth
+    // finger mass curling round its left edge, and a thumb over the wheel.
     const ip = new THREE.Group();
     ip.position.set(-0.035, 0.05, 0.03);
     ip.rotation.set(-0.3, -0.18, -0.12);
-    ip.add(p(boxGeo, skin, 0.085, 0.11, 0.03, 0.0, -0.02, -0.03)); // palm
-    ip.add(p(boxGeo, skin, 0.06, 0.05, 0.03, 0.01, -0.09, -0.028)); // heel of the hand
-    for (let i = 0; i < 4; i++) {
-      const y = 0.06 - i * 0.031;
-      const w = i === 3 ? 0.015 : 0.018;
-      ip.add(p(boxGeo, skin, 0.03, w, 0.022, -0.068, y, -0.01)); // behind, reaching the edge
-      ip.add(p(boxGeo, skin, 0.02, w, 0.032, -0.078, y, 0.008)); // round the edge
-      ip.add(p(boxGeo, skin, 0.028, w, 0.016, -0.056, y, 0.026)); // tip on the bezel
-    }
-    const thumb1 = p(boxGeo, skin, 0.022, 0.045, 0.02, 0.055, -0.085, 0.012);
-    thumb1.rotation.z = -0.5;
-    ip.add(thumb1);
-    const thumb2 = p(boxGeo, skin, 0.02, 0.05, 0.018, 0.028, -0.055, 0.026);
-    thumb2.rotation.z = -0.75;
-    ip.add(thumb2);
+    const palm = p(sphereGeo, skin, 0.05, 0.07, 0.03, 0.0, -0.02, -0.03);
+    ip.add(palm);
+    const fingers = p(sphereGeo, skin, 0.03, 0.065, 0.032, -0.072, 0.02, 0.006);
+    fingers.rotation.z = 0.1;
+    ip.add(fingers);
+    const thumb = p(sphereGeo, skin, 0.02, 0.036, 0.018, 0.035, -0.06, 0.028);
+    thumb.rotation.z = -0.7;
+    ip.add(thumb);
     ip.add(p(boxGeo, "#1c1c1f", 0.12, 0.2, 0.028, 0, 0, 0, 0.32));
     const screen = new THREE.Mesh(beveledBox(0.09, 0.07, 0.006), ipodScreenMaterial());
     screen.position.set(0, 0.05, 0.016);
@@ -503,14 +496,18 @@ export function makeHands(skin: string, dress: string): Hands {
   right.rotation.y = -0.22;
   group.add(right);
 
-  // ---- left hand: relaxed, back of the hand toward the eye ---------------
+  // ---- left hand: a relaxed mitten, back of the hand toward the eye -------
   const left = new THREE.Group();
   left.add(forearm(-1));
   {
-    const h = hand(-1, 0.55, 0.7, 0.3);
-    // palm down and away, fingers ahead, a touch rolled inward
-    h.rotation.set(-0.55, 0.25, 0.35);
-    h.position.set(0, 0.02, 0);
+    const h = new THREE.Group();
+    h.add(p(sphereGeo, skin, 0.05, 0.03, 0.062, 0, 0, 0)); // palm
+    const curl = p(sphereGeo, skin, 0.045, 0.03, 0.03, 0, -0.012, -0.06); // fingers, tucked
+    curl.rotation.x = 0.5;
+    h.add(curl);
+    h.add(p(sphereGeo, skin, 0.017, 0.016, 0.03, -0.055, 0.0, -0.01)); // thumb
+    h.rotation.set(-0.5, 0.2, 0.3);
+    h.position.set(0, 0.03, 0);
     left.add(h);
   }
   left.position.set(-0.23, -0.29, -0.62);
