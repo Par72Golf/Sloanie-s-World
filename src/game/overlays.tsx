@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
+  Gamepad2,
   HelpCircle,
   Maximize,
   Minimize,
@@ -163,6 +164,7 @@ function TitleScreen() {
   const [showTimes, setShowTimes] = useState(false);
   const fullscreen = useFullscreen();
   const toggleWardrobe = useGame((s) => s.toggleWardrobe);
+  const setControls = useGame((s) => s.setControls);
 
   return (
     <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-end overflow-y-auto bg-ink/25 p-4 pb-6 pt-10 sm:justify-center sm:pb-10">
@@ -249,6 +251,17 @@ function TitleScreen() {
           <Btn variant="secondary" onClick={() => setHelp((v) => !v)} className="gap-2">
             <HelpCircle className="size-4" />
             How to play
+          </Btn>
+          <Btn
+            variant="secondary"
+            onClick={() => {
+              sfx.click();
+              setControls(true);
+            }}
+            className="gap-2"
+          >
+            <Gamepad2 className="size-4" />
+            Controls
           </Btn>
           <Btn
             variant="secondary"
@@ -373,6 +386,7 @@ function HUD() {
   const clearHint = useGame((s) => s.clearHint);
   const phase = useGame((s) => s.phase);
   const rideNear = useGame((s) => s.rideNear);
+  const setControls = useGame((s) => s.setControls);
   const level = LEVELS[levelIndex]!;
   const found = collected[levelIndex]?.length ?? 0;
 
@@ -427,6 +441,9 @@ function HUD() {
           </p>
         </Panel>
         <div className="pointer-events-auto flex gap-2">
+          <IconBtn label="Controls" onClick={() => setControls(true)}>
+            <Gamepad2 className="size-5" />
+          </IconBtn>
           <IconBtn label="Journal" onClick={toggleJournal}>
             <BookOpen className="size-5" />
           </IconBtn>
@@ -1098,6 +1115,9 @@ function PauseScreen() {
   const toTitle = useGame((s) => s.toTitle);
   const fullscreen = useFullscreen();
   const toggleWardrobe = useGame((s) => s.toggleWardrobe);
+  const setControls = useGame((s) => s.setControls);
+  const view = useGame((s) => s.view);
+  const toggleView = useGame((s) => s.toggleView);
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
       <Panel className="w-full max-w-sm p-6 text-center">
@@ -1111,6 +1131,13 @@ function PauseScreen() {
           <Btn variant="secondary" onClick={toggleWardrobe} className="gap-2">
             <Shirt className="size-4" />
             Wardrobe
+          </Btn>
+          <Btn variant="secondary" onClick={() => setControls(true)} className="gap-2">
+            <Gamepad2 className="size-4" />
+            Controls
+          </Btn>
+          <Btn variant="secondary" onClick={toggleView} className="gap-2">
+            {view === "first" ? "Third person view" : "First person view"}
           </Btn>
           {canFullscreen() && (
             <Btn variant="secondary" onClick={() => void toggleFullscreen()} className="gap-2">
@@ -1212,6 +1239,7 @@ export function Overlays() {
   const phase = useGame((s) => s.phase);
   const muted = useGame((s) => s.muted);
   const wardrobeOpen = useGame((s) => s.wardrobeOpen);
+  const controlsOpen = useGame((s) => s.controlsOpen);
 
   useEffect(() => {
     setMuted(muted);
@@ -1230,7 +1258,95 @@ export function Overlays() {
       {phase === "complete" && <CompleteScreen />}
       {phase === "victory" && <VictoryScreen />}
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
+      {controlsOpen && <ControlsPanel />}
       {debugEnabled() && <DebugOverlay />}
+    </div>
+  );
+}
+
+const CONTROLS: { title: string; rows: [string, string][] }[] = [
+  {
+    title: "Controller",
+    rows: [
+      ["Left stick", "Walk"],
+      ["Right stick", "Look around (up and down in first person)"],
+      ["A", "Jump"],
+      ["X", "Collect a dumpling, ride the ferris wheel"],
+      ["B", "Big map"],
+      ["Y", "Hint"],
+      ["LB / RB", "Turn the camera"],
+      ["LT", "First person on and off"],
+      ["Back", "Dumpling journal"],
+      ["Start", "Pause"],
+    ],
+  },
+  {
+    title: "Keyboard",
+    rows: [
+      ["W A S D or arrows", "Walk"],
+      ["Space", "Jump"],
+      ["E or F", "Collect a dumpling, ride the ferris wheel"],
+      ["Q / E", "Turn the camera"],
+      ["Drag the mouse", "Look around"],
+      ["M", "Big map"],
+      ["H", "Hint"],
+      ["J", "Dumpling journal"],
+      ["V", "First person on and off"],
+      ["Esc or P", "Pause"],
+    ],
+  },
+  {
+    title: "Touch",
+    rows: [
+      ["Joystick", "Walk"],
+      ["Drag the screen", "Look around"],
+      ["Jump / Collect buttons", "Jump, collect, ride"],
+      ["Tap the map", "Big map"],
+    ],
+  },
+];
+
+/** Every control in one place, reachable from the title, the pause menu and the HUD. */
+function ControlsPanel() {
+  const setControls = useGame((s) => s.setControls);
+  return (
+    <div
+      className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-ink/45 p-4"
+      onClick={() => setControls(false)}
+    >
+      <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <Panel className="relative max-h-[86vh] overflow-y-auto p-5 sm:p-6">
+          <button
+            type="button"
+            aria-label="Close controls"
+            onClick={() => setControls(false)}
+            className="absolute right-3 top-3 rounded-full border border-line bg-surface p-1.5 text-ink"
+          >
+            <X className="size-4" />
+          </button>
+          <h2 className="font-display text-2xl font-semibold">Controls</h2>
+          {CONTROLS.map((group) => (
+            <div key={group.title} className="mt-4">
+              <p className="font-display text-base font-semibold text-ink">{group.title}</p>
+              <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                {group.rows.map(([k, v]) => (
+                  <Fragment key={k}>
+                    <dt className="rounded bg-surface-2 px-2 py-0.5 font-mono text-xs font-semibold text-ink">
+                      {k}
+                    </dt>
+                    <dd className="text-ink-soft">{v}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            </div>
+          ))}
+          <div className="mt-5">
+            <Btn onClick={() => setControls(false)} className="w-full">
+              Got it
+            </Btn>
+          </div>
+        </Panel>
+      </div>
     </div>
   );
 }

@@ -10,6 +10,8 @@ export let padPause = false;
 export let padJournal = false;
 /** Big map toggle: B on the pad, M on the keyboard. */
 export let padMap = false;
+/** First-person toggle: left trigger on the pad, V on the keyboard. */
+export let padView = false;
 let padCamQ = false;
 let padCamE = false;
 const padPrev = new Uint8Array(16);
@@ -33,6 +35,7 @@ const GAME_CODES = new Set([
   "KeyF",
   "KeyE",
   "KeyM",
+  "KeyV",
 ]);
 
 function activeSet(): Set<string> {
@@ -123,6 +126,12 @@ export function consumePadMap() {
   return v;
 }
 
+export function consumePadView() {
+  const v = padView;
+  padView = false;
+  return v;
+}
+
 export function padCamLeft() {
   return padCamQ;
 }
@@ -149,6 +158,7 @@ export function bindInput() {
     held.add(e.code);
     if (e.code === "Space") jumpTap = true;
     if (e.code === "KeyM") padMap = true;
+    if (e.code === "KeyV") padView = true;
     if (GAME_CODES.has(e.code)) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
@@ -186,6 +196,8 @@ export function pollGamepad(axes: { x: number; z: number }) {
 
     const rs = stick(2, 3, 0.2);
     look.dx += rs.x * 10;
+    // up/down only matters in first person, where it pitches the view
+    look.dy += rs.y * 7;
 
     if (pad.buttons[14]?.pressed) axes.x -= 1;
     if (pad.buttons[15]?.pressed) axes.x += 1;
@@ -196,6 +208,7 @@ export function pollGamepad(axes: { x: number; z: number }) {
     const edge = (i: number) => down(i) && !padPrev[i];
     if (edge(0)) jumpTap = true;
     if (edge(1)) padMap = true;
+    if (edge(6)) padView = true;
     if (edge(2)) padInteract = true;
     if (edge(3)) padHint = true;
     if (edge(8)) padJournal = true;

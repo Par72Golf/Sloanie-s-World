@@ -157,10 +157,16 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   torso.add(skirt);
-  torso.add(part(boxGeo, dress, 0.44, 0.46, 0.26, 0, 0.26, 0));
-  torso.add(part(sphereGeo, dress, 0.25, 0.1, 0.16, 0, 0.5, 0));
+  // upper body parts are tagged so first person can hide everything from the
+  // shoulders up (and the arms), leaving the skirt and legs when she looks down
+  const fp = <T extends THREE.Object3D>(o: T): T => {
+    o.userData.fpHide = true;
+    return o;
+  };
+  torso.add(fp(part(boxGeo, dress, 0.44, 0.46, 0.26, 0, 0.26, 0)));
+  torso.add(fp(part(sphereGeo, dress, 0.25, 0.1, 0.16, 0, 0.5, 0)));
   // neck
-  torso.add(part(cylGeo, skin, 0.075, 0.14, 0.075, 0, 0.6, 0.02));
+  torso.add(fp(part(cylGeo, skin, 0.075, 0.14, 0.075, 0, 0.6, 0.02)));
 
   const makeArm = (side: number) => {
     const g = new THREE.Group();
@@ -171,8 +177,8 @@ export function makeGirl(skin: string, hair: string, dress: string) {
     g.add(part(sphereGeo, skin, 0.03, 0.045, 0.03, side * -0.06, -0.5, 0.03, false)); // thumb
     return g;
   };
-  const leftArm = makeArm(-1);
-  const rightArm = makeArm(1);
+  const leftArm = fp(makeArm(-1));
+  const rightArm = fp(makeArm(1));
   torso.add(leftArm, rightArm);
 
   // ---- iPod classic in the right hand -----------------------------------
@@ -194,7 +200,7 @@ export function makeGirl(skin: string, hair: string, dress: string) {
     rightArm.add(along);
   }
 
-  const head = new THREE.Group();
+  const head = fp(new THREE.Group());
   head.position.set(0, 0.67, 0);
   // oval head with a softer jaw, and ears
   head.add(part(sphereGeo, skin, 0.29, 0.325, 0.28, 0, 0.32, 0.03));
@@ -277,7 +283,7 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   }
   // cord across the shoulder to the arm
   {
-    const across = part(cylGeo, cord, 0.008, 0.2, 0.008, 0.32, 0.54, 0.05, false, 0.7);
+    const across = fp(part(cylGeo, cord, 0.008, 0.2, 0.008, 0.32, 0.54, 0.05, false, 0.7));
     across.rotation.z = -0.5;
     torso.add(across);
   }
@@ -296,6 +302,79 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   root.userData.braidL = braidL;
   root.userData.braidR = braidR;
   return root;
+}
+
+/** Show or hide the parts that would sit inside a first-person camera. */
+export function setFirstPersonBody(root: THREE.Group, firstPerson: boolean) {
+  root.traverse((o) => {
+    if (o.userData.fpHide) o.visible = !firstPerson;
+  });
+}
+
+export type Hands = { group: THREE.Group; left: THREE.Group; right: THREE.Group };
+
+/**
+ * First-person hands: two forearms coming up from the bottom corners of the
+ * view, the right one holding the iPod. Built in camera space (forward is
+ * -z) and parented to nothing; the runtime copies the camera's transform
+ * onto the group each frame and adds bob and sway.
+ */
+export function makeHands(skin: string, dress: string): Hands {
+  const group = new THREE.Group();
+  const flat = (c: string, roughness = 0.55) => lam(c, { flat: true, roughness });
+  const p = (
+    geo: THREE.BufferGeometry,
+    color: string,
+    sx: number,
+    sy: number,
+    sz: number,
+    x: number,
+    y: number,
+    z: number,
+    roughness = 0.55,
+  ) => {
+    const m = new THREE.Mesh(geo === boxGeo ? beveledBox(sx, sy, sz) : geo, flat(color, roughness));
+    if (geo !== boxGeo) m.scale.set(sx, sy, sz);
+    m.position.set(x, y, z);
+    m.castShadow = false;
+    m.receiveShadow = false;
+    return m;
+  };
+  const makeSide = (side: number) => {
+    const g = new THREE.Group();
+    // forearm angled from the bottom corner up toward the centre
+    const arm = p(cylGeo, skin, 0.055, 0.5, 0.055, 0, -0.2, 0.18);
+    arm.rotation.x = -0.9;
+    arm.rotation.z = side * 0.25;
+    g.add(arm);
+    const sleeve = p(cylGeo, dress, 0.07, 0.12, 0.07, side * 0.06, -0.4, 0.36);
+    sleeve.rotation.x = -0.9;
+    g.add(sleeve);
+    g.add(p(sphereGeo, skin, 0.07, 0.08, 0.065, 0, 0.02, 0));
+    g.add(p(sphereGeo, skin, 0.028, 0.045, 0.028, side * -0.05, 0.04, -0.02));
+    // inside the frame at a 70 degree field of view, a little below centre
+    g.position.set(side * 0.2, -0.27, -0.62);
+    g.rotation.y = -side * 0.3;
+    group.add(g);
+    return g;
+  };
+  const left = makeSide(-1);
+  const right = makeSide(1);
+  // the iPod in the right hand, tilted so the screen faces the eye
+  const ip = new THREE.Group();
+  ip.position.set(-0.01, 0.1, 0.0);
+  ip.rotation.set(-0.65, -0.15, 0.05);
+  ip.add(p(boxGeo, "#1c1c1f", 0.12, 0.2, 0.03, 0, 0, 0, 0.32));
+  ip.add(p(boxGeo, "#8c95a3", 0.09, 0.07, 0.006, 0, 0.05, 0.016, 0.25));
+  const w = p(cylGeo, "#d9d9de", 0.042, 0.004, 0.042, 0, -0.05, 0.016, 0.35);
+  w.rotation.x = Math.PI / 2;
+  ip.add(w);
+  right.add(ip);
+  // cord dropping out of view
+  const cordM = p(cylGeo, "#f0f0f0", 0.006, 0.3, 0.006, 0.02, -0.06, 0.05, 0.7);
+  cordM.rotation.x = 0.3;
+  right.add(cordM);
+  return { group, left, right };
 }
 
 export type GirlMood = "none" | "cheer" | "boost" | "sad";

@@ -7,7 +7,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { animateGirl, makeGirl, makeSky } from "./meshes";
+import { animateGirl, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import {
   bindInput,
@@ -18,6 +18,7 @@ import {
   consumePadInteract,
   consumePadJournal,
   consumePadMap,
+  consumePadView,
   consumePadPause,
   getMoveAxes,
   isDown,
@@ -141,6 +142,11 @@ export class GameRuntime {
   /** ferris wheel ride in progress: which gondola she is in and how far round */
   ride: { gondola: number; turned: number } | null = null;
   private rideSeat = new THREE.Vector3();
+  /** first person: look pitch, the hands viewmodel, and whether it is active */
+  firstPerson = false;
+  pitch = 0;
+  hands!: Hands;
+  private fpDir = new THREE.Vector3();
   camTarget = new THREE.Vector3();
   wish = new THREE.Vector3();
   fwd = new THREE.Vector3();
@@ -230,6 +236,9 @@ export class GameRuntime {
     this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress]);
     this.girl.castShadow = true;
     this.scene.add(this.girl);
+    this.hands = makeHands("#e8b489", DRESS[st.dress]);
+    this.hands.group.visible = false;
+    this.scene.add(this.hands.group);
     this.blob = new THREE.Mesh(
       new THREE.CircleGeometry(0.55, 20),
       new THREE.MeshBasicMaterial({
@@ -624,6 +633,37 @@ export class GameRuntime {
     this.lastHair = st.hair;
     applyWorn(this.girl, st.worn);
     this.lastWornGen = st.wornGen;
+    setFirstPersonBody(this.girl, this.firstPerson);
+    this.scene.remove(this.hands.group);
+    this.hands = makeHands("#e8b489", DRESS[st.dress]);
+    this.hands.group.visible = this.firstPerson;
+    this.scene.add(this.hands.group);
+  }
+
+  /** Switch camera modes: body parts, hands, field of view. */
+  setFirstPerson(on: boolean) {
+    if (this.firstPerson === on) return;
+    this.firstPerson = on;
+    setFirstPersonBody(this.girl, on);
+    this.hands.group.visible = on;
+    this.camera.fov = on ? 70 : 58;
+    this.camera.updateProjectionMatrix();
+    this.pitch = 0;
+    if (on) this.cameraYaw = this.yaw;
+    this.syncCamera(true);
+  }
+
+  /** Hands follow the camera, with a walk bob and a lean into turns. */
+  updateHands() {
+    const g = this.hands.group;
+    g.position.copy(this.camera.position);
+    g.quaternion.copy(this.camera.quaternion);
+    const pace = THREE.MathUtils.clamp(this.speed / WALK, 0, 1.6);
+    const bob = Math.sin(this.clock * 9.5) * 0.018 * pace;
+    const sway = Math.cos(this.clock * 4.75) * 0.012 * pace;
+    g.translateY(bob - (this.grounded ? 0 : 0.03));
+    g.translateX(sway);
+    g.rotateZ(-this.turnRate * 0.08);
   }
 
   start() {
@@ -959,6 +999,16 @@ export class GameRuntime {
       // the spokes. Watch from the platform side instead, rising with her.
       const w = this.world.ride;
       desired.set(w.origin.x + 2.5, this.cap.y + 3.0, w.origin.z + 14.5);
+    } else if (this.firstPerson && !title) {
+      // eyes: a touch forward of the capsule centre, with a little walk bob
+      const pace = THREE.MathUtils.clamp(this.speed / WALK, 0, 1.6);
+      const bob = Math.sin(this.clock * 9.5) * 0.02 * pace;
+      this.fpDir.set(-Math.sin(this.cameraYaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.cameraYaw) * Math.cos(this.pitch));
+      desired.set(this.cap.x - Math.sin(this.cameraYaw) * 0.1, this.cap.y + 1.42 + bob, this.cap.z - Math.cos(this.cameraYaw) * 0.1);
+      this.camera.position.copy(desired);
+      this.lookAt.copy(desired).add(this.fpDir);
+      this.camera.lookAt(this.lookAt);
+      return;
     } else {
       // Placement lives in camera.ts so tools/camera.ts can walk routes with it.
       const res = placeCamera(
@@ -1007,6 +1057,9 @@ export class GameRuntime {
       this.cameraYaw -= lookDelta.dx * 0.0055;
       if (isDown("KeyQ") || padCamLeft()) this.cameraYaw += dt * 1.6;
       if (isDown("KeyE") || padCamRight()) this.cameraYaw -= dt * 1.6;
+      if (this.firstPerson) {
+        this.pitch = THREE.MathUtils.clamp(this.pitch - lookDelta.dy * 0.0045, -1.15, 1.0);
+      }
     }
 
     const axes = getMoveAxes();
@@ -1022,7 +1075,10 @@ export class GameRuntime {
     const wishLen = this.wish.length();
     if (wishLen > 1) this.wish.multiplyScalar(1 / wishLen);
 
-    if (wishLen > 0.05) {
+    if (this.firstPerson) {
+      // she faces wherever the camera looks; strafing does not turn her
+      this.yaw = this.cameraYaw;
+    } else if (wishLen > 0.05) {
       const targetYaw = Math.atan2(-this.wish.x, -this.wish.z);
       let diff = targetYaw - this.yaw;
       while (diff > Math.PI) diff -= Math.PI * 2;
@@ -1347,6 +1403,9 @@ export class GameRuntime {
     else consumePadJournal();
     if (st.phase === "playing" && consumePadMap()) st.toggleMap();
     else consumePadMap();
+    if (st.phase === "playing" && consumePadView()) st.toggleView();
+    else consumePadView();
+    this.setFirstPerson(st.view === "first" && st.phase !== "title");
 
     const collectedNow = st.collected[st.levelIndex] ?? [];
     if (this.world) {
@@ -1374,6 +1433,9 @@ export class GameRuntime {
     }
     this.animateWorld(raw);
     this.hud(raw);
+    if (this.firstPerson && !this.ride) this.updateHands();
+    else this.hands.group.visible = false;
+    if (this.firstPerson && !this.ride) this.hands.group.visible = true;
     // Roblox has no outlines; the bevel highlight does the edge definition now
     this.renderFrame();
 

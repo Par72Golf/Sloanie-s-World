@@ -84,6 +84,12 @@ export type GameStore = {
   /** Standing near the wheel's platform: the HUD explains how to ride. */
   rideNear: boolean;
   setRideNear: (v: boolean) => void;
+  /** Camera view; the runtime reads it every frame. */
+  view: "third" | "first";
+  toggleView: () => void;
+  setView: (v: "third" | "first") => void;
+  controlsOpen: boolean;
+  setControls: (v: boolean) => void;
   findAccessory: (id: AccessoryId) => void;
   setWorn: (slot: Slot, id: AccessoryId | null) => void;
   toggleWardrobe: () => void;
@@ -146,6 +152,7 @@ function persistSlice(s: GameStore) {
     layout: s.layout,
     foundAccessories: s.foundAccessories,
     worn: s.worn,
+    view: s.view,
   });
 }
 
@@ -192,6 +199,17 @@ export const useGame = create<GameStore>((set, get) => ({
   setRideNear: (rideNear) => {
     if (get().rideNear !== rideNear) set({ rideNear });
   },
+  view: saved.view,
+  toggleView: () => {
+    set({ view: get().view === "first" ? "third" : "first" });
+    persistSlice(get());
+  },
+  setView: (view) => {
+    set({ view });
+    persistSlice(get());
+  },
+  controlsOpen: false,
+  setControls: (controlsOpen) => set({ controlsOpen }),
   findAccessory: (id) => {
     const found = get().foundAccessories;
     if (found.includes(id)) return;

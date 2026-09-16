@@ -67,6 +67,15 @@ Current version: **v2.9**.
   each with a spur off the ring road. The pool is two water zones so she swims
   slowly in it. Quiz operands never include 1. The HUD explains the wheel when she
   is within 9m of its platform (`rideNear`).
+- First person (`view` in the store, saved; LT on the pad, V on the keyboard, buttons
+  on the pause menu): camera at eye height 1.42m with pitch from the right stick or
+  mouse drag, field of view 70 (58 in third person), she faces the camera yaw. Body
+  parts tagged `userData.fpHide` (head, arms, shoulders, neck) hide; skirt and legs
+  stay. Hands are a separate viewmodel (`makeHands`) the runtime pins to the camera
+  each frame with bob and sway; rebuilt with the girl when the dress changes. The
+  ride camera overrides both modes. Third person is the default; first person is
+  opt-in because a big TV can make a 7-year-old queasy.
+- Controls panel (`ControlsPanel`): title, pause menu and a HUD gamepad icon.
 - Load time is the world build in the first frame: props ~2s, grass ~0.2s, merge
   ~0.5s on the Windows laptop. `[build]` in the console breaks it down. The grass
   mask has a spatial grid; before it, grass placement alone was 6s.

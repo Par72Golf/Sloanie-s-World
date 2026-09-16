@@ -28,6 +28,8 @@ export type SaveData = {
   foundAccessories: string[];
   /** What she is wearing, by slot. */
   worn: Record<string, string | null>;
+  /** Camera: third person by default, first person opt-in. */
+  view: "third" | "first";
 };
 
 const DEFAULT: SaveData = {
@@ -43,6 +45,7 @@ const DEFAULT: SaveData = {
   layout: 0,
   foundAccessories: [],
   worn: { head: null, hair: null, face: null, back: null },
+  view: "third",
 };
 
 function migrate(raw: SaveData): SaveData {
@@ -69,6 +72,7 @@ function migrate(raw: SaveData): SaveData {
     face: typeof s.worn.face === "string" ? s.worn.face : null,
     back: typeof s.worn.back === "string" ? s.worn.back : null,
   };
+  if (s.view !== "first") s.view = "third";
   s.version = SAVE_VERSION;
   return s;
 }
