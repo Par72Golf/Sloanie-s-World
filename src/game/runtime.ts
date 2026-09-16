@@ -1287,7 +1287,9 @@ export class GameRuntime {
       d.def.pos[2] - this.cap.z,
     );
     useGame.getState().setHud({
-      temp: tempFromDist(distXZ),
+      // height counts once it is more than a step-up away, or standing under
+      // the ferris wheel dumpling reads "burning" from the ground
+      temp: tempFromDist(Math.max(distXZ, Math.abs(d.def.pos[1] - this.cap.y) > 1.6 ? dist3 : 0)),
       nearestName: d.def.name,
       nearestDist: distXZ,
       nearCollect: dist3 <= COLLECT_R,

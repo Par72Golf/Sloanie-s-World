@@ -65,6 +65,13 @@ Current version: **v2.9**.
 - Load time is the world build in the first frame: props ~2s, grass ~0.2s, merge
   ~0.5s on the Windows laptop. `[build]` in the console breaks it down. The grass
   mask has a spatial grid; before it, grass placement alone was 6s.
+- The picnic park has 16 dumplings. The first (peachy) is always beside the spawn.
+  Four live in the outer band: acorn (woods clearing), smore (campground), maple
+  (pavilion table), and sky, which hangs at the top of the ferris wheel's arc and is
+  collected by pressing Collect while the gondola passes the top (about a 4-second
+  window; the HUD says "Press Collect!"). The layout checker labels sky as "ride"
+  instead of floating or unreachable. Nothing hard-codes twelve any more; the crown
+  is awarded when `collected.length >= level.dumplings.length`.
 - After editing a module the game imports, Vite's hot reload can leave two copies
   of `store.ts` alive (React on one, the runtime on the other), so the DOM stops
   matching `__gameTest.store()`. Do a full page reload before trusting any test.

@@ -247,15 +247,17 @@ const picnicDumplings: DumplingDef[] = [
     name: "Peachy Bao",
     color: "#f3c4a0",
     accent: "#e8a070",
-    pos: [8, 0.62, -3.6],
+    // the first one is always in plain sight of the spawn, so the hunt starts
+    // with a win rather than a search
+    pos: [3.5, 0.62, 16],
     finish: "plain",
     hide: "easy",
-    region: "the picnic blanket",
-    hint: "Somebody left one on the picnic blanket near the gazebo.",
- 
+    region: "the start of the path",
+    hint: "Right by where you start, on the grass beside the path.",
+
     alts: [
-      { pos: [12.5, 0.62, 3.5], region: "the park lawn", hint: "Out on the open grass near the main path, not far from where you start." },
-      { pos: [-7, 0.62, -12], region: "the crossing paths", hint: "Sitting right out in the open where two paths cross." },
+      { pos: [-3.5, 0.62, 15], region: "the start of the path", hint: "Right by where you start, on the other side of the path." },
+      { pos: [8, 0.62, -3.6], region: "the picnic blanket", hint: "Somebody left one on the picnic blanket near the gazebo." },
     ],
   },
   {
@@ -271,7 +273,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [98, 1.05, 69.6], region: "the east picnic lawn", hint: "On a different picnic table out past the east gate." },
-      { pos: [128, 0.95, 60], region: "the pavilion", hint: "On a table under the big red roof, out past the east ring road." },
+      { pos: [102, 0.62, 76], region: "the barbecue", hint: "Next to the barbecue on the east picnic lawn." },
     ],
   },
   {
@@ -362,7 +364,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-15.5, 0.62, 112.5], region: "the houses on the north street", hint: "In a back yard on the north street, behind a hedge." },
-      { pos: [125, 0.62, 124], region: "the campground", hint: "Up at the campground in the far north-east corner, by the campfire." },
+      { pos: [56.5, 0.62, 112.5], region: "the houses on the north street", hint: "In the back yard of the house at the far end of the street." },
     ],
   },
   {
@@ -378,7 +380,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [52, 3.95, -55.5], region: "the treehouse", hint: "Up in the treehouse, over in the far corner of the deck." },
-      { pos: [-143, 0.62, 16], region: "the woods clearing", hint: "Follow the trail into the deep woods west of the park, right to the clearing." },
+      { pos: [56.5, 0.62, -47], region: "the woods", hint: "Down among the trees below the treehouse." },
     ],
   },
   {
@@ -428,6 +430,65 @@ const picnicDumplings: DumplingDef[] = [
       { pos: [101, 0.62, 16], region: "the tennis courts", hint: "Inside the far tennis court, in the back corner." },
       { pos: [88.75, 0.62, 33], region: "the tennis courts", hint: "On the near tennis court, close to the net post." },
     ],
+  },
+  // ---- the outer band, added with the park expansion ----------------------
+  {
+    id: "acorn",
+    name: "Acorn Bun",
+    color: "#c9a06a",
+    accent: "#8a5a32",
+    pos: [-141, 0.62, 13],
+    finish: "plain",
+    hide: "medium",
+    region: "the woods clearing",
+    hint: "Follow the trail into the deep woods west of the park, all the way to the clearing.",
+    alts: [
+      { pos: [-131, 0.62, 6.5], region: "the woods trail", hint: "On the woods trail west of the park, at one of the bends." },
+      { pos: [-108, 0.62, 5.5], region: "the woods trail", hint: "By the little signpost where the woods trail begins, west of the ring road." },
+    ],
+  },
+  {
+    id: "smore",
+    name: "S'more Puff",
+    color: "#e8d3b0",
+    accent: "#8a5a32",
+    pos: [121, 0.62, 121],
+    finish: "pearl",
+    hide: "medium",
+    region: "the campground",
+    hint: "At the campground in the far north-east corner, tucked behind the orange tent.",
+    alts: [
+      { pos: [119, 0.95, 134], region: "the campground", hint: "On the picnic table at the campground, north-east corner of the park." },
+      { pos: [138, 1.0, 133], region: "the campground hammock", hint: "Lying in the hammock at the campground." },
+    ],
+  },
+  {
+    id: "maple",
+    name: "Maple Bao",
+    color: "#e0a060",
+    accent: "#b05a30",
+    pos: [128, 0.95, 60],
+    finish: "iridescent",
+    hide: "medium",
+    region: "the pavilion",
+    hint: "On a table under the big red roof of the pavilion, out past the east ring road.",
+    alts: [
+      { pos: [136, 0.95, 60], region: "the pavilion", hint: "On the other table under the pavilion roof, east side of the park." },
+      { pos: [126.5, 0.62, 57.8], region: "the pavilion", hint: "Under the noticeboard on the pavilion's corner post." },
+    ],
+  },
+  {
+    id: "sky",
+    name: "Sky Dumpling",
+    color: "#cfe6ff",
+    accent: "#7ec4e8",
+    // sits at the top of the ferris wheel's arc: she rides up to it and has to
+    // press Collect while her gondola passes the top
+    pos: [30, 13.3, 58],
+    finish: "glow",
+    hide: "hard",
+    region: "the top of the ferris wheel",
+    hint: "Ride the ferris wheel on the east lawn and press Collect right at the very top!",
   },
 ];
 
@@ -863,6 +924,8 @@ function picnicPark(): LevelDef {
     { name: "the splash pad", say: "It's at the splash pad!", pos: [-95, 0.62, 28] as [number, number, number] },
     { name: "home plate", say: "Check home plate!", pos: [0, 0.62, -95] as [number, number, number] },
     { name: "the barbecue", say: "It's by the barbecue!", pos: [100, 0.62, 76] as [number, number, number] },
+    { name: "the campfire", say: "I took it to the campfire!", pos: [124, 0.62, 128] as [number, number, number] },
+    { name: "the pavilion", say: "It's under the pavilion roof!", pos: [132, 0.62, 64] as [number, number, number] },
   ];
 
   return {

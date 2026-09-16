@@ -32,7 +32,7 @@ export const ACCESSORIES: AccessoryDef[] = [
   { id: "bow", name: "Big bow", slot: "hair", hint: "By the sandbox." },
   { id: "backpack", name: "Backpack", slot: "back", hint: "Out on the ball field." },
   { id: "flowercrown", name: "Flower crown", slot: "head", hint: "On the picnic lawn." },
-  { id: "crown", name: "Golden crown", slot: "head", hint: "Find every dumpling in the park.", reward: "all twelve dumplings" },
+  { id: "crown", name: "Golden crown", slot: "head", hint: "Find every dumpling in the park.", reward: "every dumpling in the park" },
 ];
 
 export const SLOTS: Slot[] = ["head", "hair", "face", "back"];

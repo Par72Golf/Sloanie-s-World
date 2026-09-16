@@ -326,7 +326,9 @@ for (const d of level.dumplings) {
     }
   }
   const gap = d.pos[1] - bestTop;
-  const flag = gap > 0.75 ? "FLOATING" : gap < -0.05 ? "SUNK" : "ok      ";
+  // the ferris wheel one hangs in the air on purpose; she rides up to it
+  const onRide = d.region.includes("ferris wheel");
+  const flag = onRide ? "ride    " : gap > 0.75 ? "FLOATING" : gap < -0.05 ? "SUNK" : "ok      ";
   console.log(
     `  ${flag} ${d.id.padEnd(7)} y=${d.pos[1].toFixed(2)} rests on ${what} (top ${bestTop.toFixed(2)}, gap ${gap.toFixed(2)})`,
   );
@@ -340,6 +342,10 @@ if (reach.startBlocked) {
 } else {
   let unreachable = 0;
   for (const d of level.dumplings) {
+    if (d.region.includes("ferris wheel")) {
+      console.log(`  ride:        ${d.id} is reached by riding the wheel`);
+      continue;
+    }
     const i = reach.idx!(d.pos[0], d.pos[2]);
     if (i < 0 || !reach.seen[i]) {
       unreachable++;
