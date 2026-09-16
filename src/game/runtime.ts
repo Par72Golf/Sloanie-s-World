@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import { placeCamera } from "./camera";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { animateGirl, makeGirl, makeSky } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import {
@@ -125,6 +129,8 @@ export class GameRuntime {
   highlightUntil = 0;
   highlighted: DumplingHandle | null = null;
   camPos = new THREE.Vector3();
+  composer!: EffectComposer;
+  bloom!: UnrealBloomPass;
   camTarget = new THREE.Vector3();
   wish = new THREE.Vector3();
   fwd = new THREE.Vector3();
@@ -160,6 +166,23 @@ export class GameRuntime {
     this.sky = makeSky();
     noOutline(this.sky);
     this.scene.add(this.sky);
+
+    // Post-processing: scene -> bloom -> tone map + sRGB. The render target is
+    // half-float so bloom has real highlights to work with, and multisampled
+    // so the toy edges stay smooth (the canvas antialias flag does nothing
+    // once rendering goes through a composer). Bloom is thresholded high so
+    // only the glowing dumplings, the sun and specular pops bloom, not lawns.
+    const size = new THREE.Vector2();
+    this.renderer.getDrawingBufferSize(size);
+    const target = new THREE.WebGLRenderTarget(size.x, size.y, {
+      type: THREE.HalfFloatType,
+      samples: 4,
+    });
+    this.composer = new EffectComposer(this.renderer, target);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(size, 0.5, 0.5, 0.78);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
 
     this.hemi = new THREE.HemisphereLight("#dff1ff", "#86b860", 1.05);
     this.scene.add(this.hemi);
@@ -274,7 +297,7 @@ export class GameRuntime {
       renderOnce: (sync = true) => {
         const gl = this.renderer.getContext();
         const t0 = performance.now();
-        this.renderer.render(this.scene, this.camera);
+        this.renderFrame();
         const submit = performance.now() - t0;
         if (sync) gl.finish();
         return sync ? performance.now() - t0 : submit;
@@ -313,6 +336,10 @@ export class GameRuntime {
         });
       },
       scene: () => this.scene,
+      setBloom: (on: boolean, strength?: number) => {
+        this.bloom.enabled = on;
+        if (strength != null) this.bloom.strength = strength;
+      },
     };
   }
 
@@ -546,6 +573,7 @@ export class GameRuntime {
     this.disposed = true;
     this.stop();
     if (this.world) disposeWorld(this.world);
+    this.composer.dispose();
     this.renderer.dispose();
     delete window.__controlsTest;
     delete window.__gameTest;
@@ -558,6 +586,17 @@ export class GameRuntime {
     this.camera.aspect = Math.max(0.4, w / Math.max(1, h));
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
+    this.composer.setPixelRatio(this.renderer.getPixelRatio());
+    this.composer.setSize(w, h);
+  }
+
+  /** One frame through the post-processing chain. */
+  renderFrame() {
+    // the composer makes several render() calls per frame; count them all so
+    // the info() probe reports the real draw-call total, not the last pass
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
+    this.composer.render();
   }
 
   nearestUnfound(): DumplingHandle | null {
@@ -1109,7 +1148,7 @@ export class GameRuntime {
     this.animateWorld(raw);
     this.hud(raw);
     // Roblox has no outlines; the bevel highlight does the edge definition now
-    this.renderer.render(this.scene, this.camera);
+    this.renderFrame();
   }
 }
 
@@ -1139,6 +1178,7 @@ declare global {
       setPixelRatio: (r: number) => void;
       setShadows: (on: boolean, mapSize?: number) => void;
       scene: () => THREE.Scene;
+      setBloom: (on: boolean, strength?: number) => void;
     };
   }
 }
