@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { animateGirl, makeGirl, makeSky } from "./meshes";
-import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import {
   bindInput,
@@ -27,7 +26,7 @@ import { sfx, unlockAudio } from "./audio";
 import { noOutline } from "./scenery";
 import { resetPose, worldPose } from "./pose";
 import { BOOST_MULTIPLIER, BOOST_SECONDS, Emmett, type JuicePickup } from "./emmett";
-import { animateFace, makeJuiceBox } from "./meshes";
+import { animateFace, makeJuiceBox, type GirlMood } from "./meshes";
 import { useGame } from "./store";
 import { DRESS, HAIR, type LevelDef } from "./types";
 
@@ -82,7 +81,6 @@ export class GameRuntime {
   fill: THREE.DirectionalLight;
   sky: THREE.Mesh;
   blob: THREE.Mesh;
-  outline: OutlineEffect;
   girl: THREE.Group;
   world: BuiltWorld | null = null;
   level: LevelDef;
@@ -108,6 +106,14 @@ export class GameRuntime {
   boostLeft = 0;
   private lastRpsKey = "";
   private runAccum = 0;
+  private indoor = 0;
+  private lastYaw = 0;
+  private turnRate = 0;
+  private mood: GirlMood = "none";
+  private moodT = 0;
+  /** While Emmett is riding off with one, the real dumpling stays hidden. */
+  private stolenId: string | null = null;
+  private stolenUntil = 0;
   private celebrating: {
     d: { group: THREE.Group; spark: THREE.PointLight; def: { id: string; name: string; color: string; accent: string; pos: [number, number, number] } };
     t: number;
@@ -183,7 +189,7 @@ export class GameRuntime {
     pmrem.dispose();
 
     const st = useGame.getState();
-    this.girl = makeGirl("#f3c6a8", HAIR.brown, DRESS[st.dress]);
+    this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress]);
     this.girl.castShadow = true;
     this.scene.add(this.girl);
     this.blob = new THREE.Mesh(
@@ -200,11 +206,6 @@ export class GameRuntime {
     noOutline(this.blob);
     this.scene.add(this.blob);
 
-    this.outline = new OutlineEffect(this.renderer, {
-      defaultThickness: 0.0048,
-      defaultColor: [0.16, 0.1, 0.07],
-      defaultAlpha: 0.85,
-    });
     this.lastDress = st.dress;
     this.lastHair = st.hair;
 
@@ -274,6 +275,7 @@ export class GameRuntime {
     }
     this.level = levelByIndex(index);
     resetQuizBank();
+    this.level = { ...this.level, layout: useGame.getState().layout };
     this.world = buildWorld(this.level);
     this.scene.add(this.world.group);
     noOutline(this.world.ground);
@@ -417,9 +419,13 @@ export class GameRuntime {
         if (rps.result === "win") {
           sfx.correct();
           st.setEmmettNotice("Aw, you win! Keep it.");
+          this.emmett.mood = "lose";
           this.emmett.leave();
         } else if (rps.result === "lose") {
           sfx.wrong();
+          this.mood = "sad";
+          this.moodT = 2.2;
+          this.emmett.mood = "win";
           this.emmettTakesOne();
           this.emmett.leave();
         }
@@ -442,6 +448,11 @@ export class GameRuntime {
 
     st.uncollectDumpling(id);
     this.burst(this.cap.x, 1.2, this.cap.z, d.def.color);
+    // he carries it away over his head rather than it teleporting, so the real
+    // one stays out of sight until he is gone
+    this.emmett?.carry(d.def.color, d.def.accent);
+    this.stolenId = id;
+    this.stolenUntil = this.clock + 9;
 
     // nudge off the exact landmark centre so repeats are not identical
     const nx = spot.pos[0] + (Math.random() - 0.5) * 3.5;
@@ -453,8 +464,8 @@ export class GameRuntime {
     d.def.region = spot.name;
     d.def.hint = `Emmett hid it at ${spot.name}.`;
     d.group.position.set(nx, spot.pos[1], nz);
-    d.group.visible = true;
-    d.spark.visible = true;
+    d.group.visible = false;
+    d.spark.visible = false;
     d.spark.position.set(nx, spot.pos[1] + 0.6, nz);
     d.beam.position.set(nx, spot.pos[1] + 3, nz);
     this.highlighted = null;
@@ -465,7 +476,7 @@ export class GameRuntime {
   rebuildGirl() {
     const st = useGame.getState();
     this.scene.remove(this.girl);
-    this.girl = makeGirl("#f3c6a8", HAIR.brown, DRESS[st.dress]);
+    this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress]);
     this.scene.add(this.girl);
     this.lastDress = st.dress;
     this.lastHair = st.hair;
@@ -499,7 +510,6 @@ export class GameRuntime {
     this.camera.aspect = Math.max(0.4, w / Math.max(1, h));
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
-    this.outline.setSize(w, h);
   }
 
   nearestUnfound(): DumplingHandle | null {
@@ -606,6 +616,8 @@ export class GameRuntime {
     d.beam.visible = false;
     this.burst(d.def.pos[0], d.def.pos[1], d.def.pos[2], d.def.color);
     sfx.collect();
+    this.mood = "cheer";
+    this.moodT = 1.9;
 
     // it floats up over her head, shows off its name, then shrinks into her
     this.celebrating = {
@@ -691,29 +703,36 @@ export class GameRuntime {
 
   syncCamera(snap = false) {
     const title = useGame.getState().phase === "title";
-    const cfX = -Math.sin(this.cameraYaw);
-    const cfZ = -Math.cos(this.cameraYaw);
-    const dist = title ? 4.6 : 7.4;
-    const height = title ? 1.7 : 3.9;
-    const desired = this.camPos;
-    desired.set(
-      this.cap.x - cfX * dist,
-      this.cap.y + height,
-      this.cap.z - cfZ * dist,
-    );
-    if (this.world && !title) {
-      const boxes = this.world.colliders;
+    const boxes = this.world?.colliders ?? [];
 
-      // Duck under a low ceiling instead of trying to climb through it.
-      // Without this, standing in a cave the camera aims for head height + 3.9,
-      // gets blocked, and collapses onto her shoulders.
-      let ceiling = Infinity;
+    // ---- is she under a roof? ------------------------------------------
+    // Checked first, because indoors the whole camera rig changes rather than
+    // just getting clamped. A 7.4m boom does not fit in a cave at any room
+    // size: near a wall it either clips through or slams into her back.
+    let ceiling = Infinity;
+    if (!title) {
       for (const b of boxes) {
         if (b.minY < this.cap.y + 1.7) continue;
         if (this.cap.x < b.minX - 1.2 || this.cap.x > b.maxX + 1.2) continue;
         if (this.cap.z < b.minZ - 1.2 || this.cap.z > b.maxZ + 1.2) continue;
         ceiling = Math.min(ceiling, b.minY);
       }
+    }
+    const wantIndoor = ceiling < this.cap.y + 7 ? 1 : 0;
+    const blend = snap ? 1 : 1 - Math.exp(-3.4 * FIXED);
+    this.indoor += (wantIndoor - this.indoor) * blend;
+    if (this.indoor < 0.001) this.indoor = 0;
+    if (this.indoor > 0.999) this.indoor = 1;
+
+    const cfX = -Math.sin(this.cameraYaw);
+    const cfZ = -Math.cos(this.cameraYaw);
+    const dist = title ? 4.6 : THREE.MathUtils.lerp(7.4, 3.6, this.indoor);
+    const height = title ? 1.7 : THREE.MathUtils.lerp(3.9, 1.75, this.indoor);
+
+    const desired = this.camPos;
+    desired.set(this.cap.x - cfX * dist, this.cap.y + height, this.cap.z - cfZ * dist);
+
+    if (this.world && !title) {
       if (ceiling < Infinity) {
         desired.y = Math.min(desired.y, ceiling - 0.45);
         desired.y = Math.max(desired.y, this.cap.y + 0.9);
@@ -736,33 +755,42 @@ export class GameRuntime {
       };
 
       const STEPS = 16;
+      const eyeY = this.cap.y + 1.2;
       for (let i = 1; i <= STEPS; i++) {
         const t = i / STEPS;
         const x = this.cap.x + (desired.x - this.cap.x) * t;
-        const y = this.cap.y + 1.2 + (desired.y - this.cap.y - 1.2) * t;
+        const y = eyeY + (desired.y - eyeY) * t;
         const z = this.cap.z + (desired.z - this.cap.z) * t;
-        if (inside(x, y, z, 0.35)) {
-          const u = Math.max(0.18, (i - 1) / STEPS);
+        if (inside(x, y, z, 0.3)) {
+          const u = Math.max(0.16, (i - 1) / STEPS);
           desired.set(
             this.cap.x + (desired.x - this.cap.x) * u,
-            this.cap.y + 1.2 + (desired.y - this.cap.y - 1.2) * u,
+            eyeY + (desired.y - eyeY) * u,
             this.cap.z + (desired.z - this.cap.z) * u,
           );
           break;
         }
       }
 
-      // last resort: if it still landed in rock, sit just above her head
       if (inside(desired.x, desired.y, desired.z, 0.1)) {
         desired.set(this.cap.x, this.cap.y + 1.9, this.cap.z);
       }
     }
+
     if (snap) this.camera.position.copy(desired);
     else {
-      const k = 1 - Math.exp(-5.2 * FIXED);
+      // ease in faster than out, so pushing past a pillar does not lurch
+      const closer = desired.distanceTo(this.camera.position) > 0 &&
+        desired.distanceToSquared(this.lookAt) < this.camera.position.distanceToSquared(this.lookAt);
+      const rate = closer ? 11 : 5.2;
+      const k = 1 - Math.exp(-rate * FIXED);
       this.camera.position.lerp(desired, k);
     }
-    this.lookAt.set(this.cap.x, this.cap.y + (title ? 0.2 : 1.25), this.cap.z);
+    this.lookAt.set(
+      this.cap.x,
+      this.cap.y + (title ? 0.2 : THREE.MathUtils.lerp(1.25, 1.0, this.indoor)),
+      this.cap.z,
+    );
     this.camera.lookAt(this.lookAt);
   }
 
@@ -803,6 +831,14 @@ export class GameRuntime {
       const turn = 1 - Math.exp(-14 * dt);
       this.yaw += diff * turn;
     }
+
+    // how hard she is turning, smoothed, for the lean
+    let dy = this.yaw - this.lastYaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    this.lastYaw = this.yaw;
+    const instant = dt > 0 ? THREE.MathUtils.clamp(dy / dt / 3.2, -1, 1) : 0;
+    this.turnRate = THREE.MathUtils.lerp(this.turnRate, instant, 0.18);
 
     let vx = 0;
     let vz = 0;
@@ -860,7 +896,21 @@ export class GameRuntime {
     this.girl.position.set(this.cap.x, this.cap.y, this.cap.z);
     this.girl.rotation.y =
       st.phase === "title" && !qa ? this.cameraYaw : this.yaw + Math.PI;
-    animateGirl(this.girl, this.speed > 0.4 && this.grounded, this.grounded, this.clock, dt);
+    if (this.moodT > 0) {
+      this.moodT -= dt;
+      if (this.moodT <= 0) this.mood = "none";
+    }
+    // running on a juice box is its own posture, but only while actually moving
+    const mood: GirlMood =
+      this.mood !== "none" ? this.mood : this.boostLeft > 0 && this.speed > 2 ? "boost" : "none";
+    const moodT = this.mood !== "none" ? this.moodT : 1;
+
+    animateGirl(this.girl, this.speed > 0.4 && this.grounded, this.grounded, this.clock, dt, {
+      speed01: THREE.MathUtils.clamp(this.speed / 6.4, 0, 1.6),
+      turn: this.turnRate,
+      mood,
+      moodT,
+    });
 
     if (this.speed > 1 && this.grounded) {
       this.stepT += dt;
@@ -1044,10 +1094,12 @@ export class GameRuntime {
         // the one mid-celebration is still visible on purpose, so do not
         // re-trigger it every frame
         if (got && d.group.visible && this.celebrating?.d !== d) this.onCollected(d.def.id);
-        if (!got && !d.group.visible) {
+        const hidden = this.stolenId === d.def.id && this.clock < this.stolenUntil;
+        if (!got && !d.group.visible && !hidden) {
           d.group.visible = true;
           d.spark.visible = true;
           d.beam.visible = true;
+          if (this.stolenId === d.def.id) this.stolenId = null;
         }
       }
     }
@@ -1061,7 +1113,8 @@ export class GameRuntime {
     }
     this.animateWorld(raw);
     this.hud(raw);
-    this.outline.render(this.scene, this.camera);
+    // Roblox has no outlines; the bevel highlight does the edge definition now
+    this.renderer.render(this.scene, this.camera);
   }
 }
 

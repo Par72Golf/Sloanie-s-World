@@ -187,7 +187,16 @@ function reachability(level: LevelDef, boxes: Box[], start: [number, number]) {
   return { seen, w, h, step, blocked, startBlocked: false, idx };
 }
 
-const level = LEVELS[0]!;
+const LAYOUT = Number(process.env.LAYOUT ?? "0");
+const base = LEVELS[0]!;
+const level: LevelDef = {
+  ...base,
+  dumplings: base.dumplings.map((d) => {
+    const alt = LAYOUT > 0 ? d.alts?.[LAYOUT - 1] : undefined;
+    return alt ? { ...d, pos: alt.pos, region: alt.region, hint: alt.hint } : d;
+  }),
+};
+console.log(`LAYOUT ${LAYOUT}`);
 const boxes = collidersFor(level);
 if (level.id === "picnic") {
   MESH_COLLIDERS.forEach(([label, x, y, z, w, h, d], i) =>

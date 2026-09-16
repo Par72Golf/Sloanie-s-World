@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { AABB } from "./collision";
-import { animateEmmett, makeEmmett, type EmmettRig } from "./meshes";
+import { setHumLevel, startHum, stopHum } from "./audio";
+import { animateEmmett, makeDumpling, makeEmmett, type EmmettMood, type EmmettRig } from "./meshes";
 
 /**
  * Emmett.
@@ -21,6 +22,8 @@ const COOLDOWN = 90; // after an encounter, before he can come back
 const SPEED = 5.1; // player walk is 6.4
 const CATCH_R = 2.6;
 const MIN_FOUND = 2;
+
+let humIsOnCached = false;
 
 export type EmmettState = "away" | "arriving" | "chasing" | "leaving" | "talking";
 
@@ -45,6 +48,8 @@ export class Emmett {
   private detour: THREE.Vector3 | null = null;
   private detourFor = 0;
   private detourSide = 1;
+  mood: EmmettMood = "ride";
+  private carried: THREE.Object3D | null = null;
   private bestDist = Infinity;
   private noProgressFor = 0;
 
@@ -60,13 +65,34 @@ export class Emmett {
   }
 
   dispose(scene: THREE.Object3D) {
+    stopHum();
+    humIsOnCached = false;
     scene.remove(this.group);
+  }
+
+  /** Show a stolen dumpling riding above his head until he is gone. */
+  carry(color: string, accent: string) {
+    this.dropCarried();
+    const d = makeDumpling(color, accent);
+    d.scale.setScalar(0.62);
+    this.rig.carry.add(d);
+    this.carried = d;
+  }
+
+  dropCarried() {
+    if (this.carried) {
+      this.rig.carry.remove(this.carried);
+      this.carried = null;
+    }
   }
 
   reset() {
     this.state = "away";
     this.timer = FIRST_DELAY;
     this.group.visible = false;
+    this.mood = "ride";
+    this.dropCarried();
+    setHumLevel(0);
   }
 
   /** Send him off after an encounter. */
@@ -88,6 +114,11 @@ export class Emmett {
   }
 
   private spawnNear(px: number, pz: number) {
+    if (!humIsOnCached) {
+      startHum();
+      humIsOnCached = true;
+    }
+    this.mood = "ride";
     const b = this.bounds;
     let x = px;
     let z = pz;
@@ -124,6 +155,7 @@ export class Emmett {
     if (paused) return false;
 
     if (this.state === "away") {
+      setHumLevel(0);
       this.timer -= dt;
       // he only starts turning up once she is into the game, and he leaves the
       // last one alone so she can always finish
@@ -133,7 +165,14 @@ export class Emmett {
       return false;
     }
 
-    if (this.state === "talking") return false;
+    if (this.state === "talking") {
+      setHumLevel(0.25);
+      return false;
+    }
+
+    // audible well before he is visible, so noticing him is enough to escape
+    const away = Math.hypot(px - this.group.position.x, pz - this.group.position.z);
+    setHumLevel(THREE.MathUtils.clamp(1 - (away - 4) / 34, 0, 1));
 
     this.timer -= dt;
 
@@ -163,6 +202,9 @@ export class Emmett {
       // far enough away, park him until next time
       this.group.visible = false;
       this.state = "away";
+      this.mood = "ride";
+      this.dropCarried();
+      setHumLevel(0);
       this.timer = Math.max(this.timer, GAP_MIN * 0.5);
       return false;
     }
@@ -237,7 +279,12 @@ export class Emmett {
     pos.z = THREE.MathUtils.clamp(pos.z, this.bounds.minZ + 3, this.bounds.maxZ - 3);
 
     this.group.rotation.y = this.facing;
-    animateEmmett(this.rig, this.speed, t, this.turn);
+    // he glances over at her while he rides
+    const look =
+      this.state === "chasing"
+        ? Math.atan2(px - pos.x, pz - pos.z) - this.facing
+        : null;
+    animateEmmett(this.rig, this.speed, t, this.turn, { mood: this.mood, lookAt: look });
 
     if (this.state === "chasing") {
       const toPlayer = Math.hypot(px - pos.x, pz - pos.z);

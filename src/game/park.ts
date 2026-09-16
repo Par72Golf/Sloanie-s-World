@@ -116,7 +116,7 @@ export function tennisCourts(cx: number, cz: number, count = 2): Prop[] {
     // net: posts plus a sagging band, plus the white tape along the top
     p.push(box(x - cw / 2 - 0.3, 0.55, cz, 0.28, 1.1, 0.28, "#5a6a70"));
     p.push(box(x + cw / 2 + 0.3, 0.55, cz, 0.28, 1.1, 0.28, "#5a6a70"));
-    p.push(box(x, 0.46, cz, cw + 0.6, 0.86, 0.14, "#3a4448"));
+    p.push(box(x, 0.46, cz, cw + 0.6, 0.86, 0.14, "#3a4448", false));
     p.push(box(x, 0.9, cz, cw + 0.6, 0.1, 0.14, C.line, false));
 
     // a ball or two left behind

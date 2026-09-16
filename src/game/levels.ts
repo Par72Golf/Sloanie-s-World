@@ -157,8 +157,10 @@ function climbStairs(
     const hz = cz + pz * (width * 0.5 + 0.08);
     const hx2 = cx - px * (width * 0.5 + 0.08);
     const hz2 = cz - pz * (width * 0.5 + 0.08);
-    out.push(box(hx, top + 0.45, hz, 0.12, 0.9, 0.12, rail));
-    out.push(box(hx2, top + 0.45, hz2, 0.12, 0.9, 0.12, rail));
+    // handrails are decoration; at 0.12m square they are invisible edge-on
+    // and would stand as unexplained walls wherever a path meets a stair top
+    out.push(box(hx, top + 0.45, hz, 0.12, 0.9, 0.12, rail, false));
+    out.push(box(hx2, top + 0.45, hz2, 0.12, 0.9, 0.12, rail, false));
   }
   const endX = x + nx * (steps - 1) * run;
   const endZ = z + nz * (steps - 1) * run;
@@ -186,6 +188,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "easy",
     region: "the picnic blanket",
     hint: "Somebody left one on the picnic blanket near the gazebo.",
+ 
+    alts: [
+      { pos: [12.5, 0.62, 3.5], region: "the park lawn", hint: "Out on the open grass near the main path, not far from where you start." },
+      { pos: [-7, 0.62, -12], region: "the crossing paths", hint: "Sitting right out in the open where two paths cross." },
+    ],
   },
   {
     id: "sesame",
@@ -197,17 +204,27 @@ const picnicDumplings: DumplingDef[] = [
     hide: "easy",
     region: "the east picnic lawn",
     hint: "Sitting on a picnic table on the lawn past the east gate.",
+ 
+    alts: [
+      { pos: [98, 1.05, 69.6], region: "the east picnic lawn", hint: "On a different picnic table out past the east gate." },
+      { pos: [102, 0.62, 76], region: "the barbecue", hint: "Next to the barbecue on the east picnic lawn." },
+    ],
   },
   {
     id: "clover",
     name: "Clover Bun",
     color: "#b7d48a",
     accent: "#7aaa54",
-    pos: [-82.6, 0.62, -23.4],
+    pos: [7.5, 0.62, -48],
     finish: "plain",
     hide: "easy",
-    region: "the sandbox",
-    hint: "Half buried in the sandbox at the playground, way out west.",
+    region: "the big pond",
+    hint: "Down at the big pond with the fountain, tucked in the reeds on the bank.",
+ 
+    alts: [
+      { pos: [-9.5, 0.62, -46.5], region: "the big pond", hint: "On the far side of the pond from the path, near the water." },
+      { pos: [3, 0.62, -32], region: "the pond lawn", hint: "On the grass just north of the big pond." },
+    ],
   },
   {
     id: "honey",
@@ -219,6 +236,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "medium",
     region: "the pitcher's mound",
     hint: "Right in the middle of the ball diamond, on the little dirt hill.",
+ 
+    alts: [
+      { pos: [0, 0.85, -96], region: "home plate", hint: "Standing right on home plate at the ball diamond." },
+      { pos: [-12, 0.85, -97.1], region: "the first base dugout", hint: "On the bench inside one of the dugouts." },
+    ],
   },
   {
     id: "berry",
@@ -230,6 +252,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "medium",
     region: "the basketball court",
     hint: "Behind the far basketball hoop, tucked against the post.",
+ 
+    alts: [
+      { pos: [95, 0.62, -19.5], region: "the basketball court", hint: "Behind the near basketball hoop." },
+      { pos: [95, 0.62, -34], region: "the basketball court", hint: "Right in the middle of the basketball court." },
+    ],
   },
   {
     id: "lemon",
@@ -252,6 +279,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "hard",
     region: "the climbing tower",
     hint: "Up high at the playground. Climb the steps, then get on the roof.",
+ 
+    alts: [
+      { pos: [-91.5, 2.15, -33.5], region: "the climbing tower", hint: "Climb the steps at the playground and look in the corner of the platform." },
+      { pos: [-13, 8.85, 64], region: "the lookout summit", hint: "Take the zigzag steps up the west side of the big hill, right to the top." },
+    ],
   },
   {
     id: "mint",
@@ -263,6 +295,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "hard",
     region: "the houses on the north street",
     hint: "In a back yard on the north street, hiding behind a hedge.",
+ 
+    alts: [
+      { pos: [-15.5, 0.62, 112.5], region: "the houses on the north street", hint: "In a back yard on the north street, behind a hedge." },
+      { pos: [56.5, 0.62, 112.5], region: "the houses on the north street", hint: "In the back yard of the house at the far end of the street." },
+    ],
   },
   {
     id: "star",
@@ -274,17 +311,27 @@ const picnicDumplings: DumplingDef[] = [
     hide: "hard",
     region: "the treehouse",
     hint: "Climb the steps to the treehouse in the woods, then look behind the trunk.",
+ 
+    alts: [
+      { pos: [52, 3.95, -55.5], region: "the treehouse", hint: "Up in the treehouse, over in the far corner of the deck." },
+      { pos: [56.5, 0.62, -47], region: "the woods", hint: "Down among the trees below the treehouse." },
+    ],
   },
   {
     id: "moon",
     name: "Moon Gyoza",
     color: "#d8dce8",
     accent: "#9aa4c4",
-    pos: [-12, 0.62, 62.2],
+    pos: [-17, 1.82, 66.5],
     finish: "glow",
     hide: "hard",
     region: "the hill cave",
-    hint: "There is a dark cave mouth on the south face of the lookout hill. Go inside.",
+    hint: "Go into the hill cave, round the rock in the middle, then up the little steps at the back.",
+ 
+    alts: [
+      { pos: [-8, 1.82, 66.5], region: "the hill cave", hint: "Inside the cave, up the steps and along to the far end of the ledge." },
+      { pos: [-12.5, 1.82, 67.2], region: "the hill cave", hint: "Inside the cave, up the steps, right at the back." },
+    ],
   },
   {
     id: "blush",
@@ -296,6 +343,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "medium",
     region: "the splash pad",
     hint: "On the long bench at the splash pad, where you would leave a towel.",
+ 
+    alts: [
+      { pos: [-102, 0.62, 25.8], region: "the splash pad", hint: "Right under the big tipping bucket at the splash pad." },
+      { pos: [-85.2, 0.62, 34.2], region: "the splash pad", hint: "Beside one of the flower sprinklers at the splash pad." },
+    ],
   },
   {
     id: "rain",
@@ -307,6 +359,11 @@ const picnicDumplings: DumplingDef[] = [
     hide: "medium",
     region: "the tennis courts",
     hint: "On the bench beside the tennis courts. Look for the way in through the fence.",
+ 
+    alts: [
+      { pos: [101, 0.62, 16], region: "the tennis courts", hint: "Inside the far tennis court, in the back corner." },
+      { pos: [88.75, 0.62, 33], region: "the tennis courts", hint: "On the near tennis court, close to the net post." },
+    ],
   },
 ];
 
@@ -377,12 +434,18 @@ function picnicPark(): LevelDef {
      * The mouth is 6m wide on the south face so the exit stays in view.
      * Sized to stop short of the park wall at z 70 and the central path.
      */
-    box(-22, 2.1, 63, 6, 4.2, 12, "#7aaa62"),
-    box(-5, 2.1, 63, 4, 4.2, 12, "#7aaa62"),
-    box(-13, 2.1, 68, 12, 4.2, 2, "#7aaa62"),
-    box(-17.5, 2.1, 58, 3, 4.2, 2, "#6e9e58"),
-    box(-8.5, 2.1, 58, 3, 4.2, 2, "#6e9e58"),
-    box(-13, 4.9, 63, 12, 1.4, 12, "#6e9e58"),
+    box(-23, 2.1, 63.2, 4, 4.2, 12.4, "#7aaa62"),
+    box(-4, 2.1, 63.5, 2, 4.2, 13, "#7aaa62"),
+    box(-13.5, 2.1, 68.75, 17, 4.2, 1.5, "#7aaa62"),
+    box(-19, 2.1, 58.5, 4, 4.2, 3, "#6e9e58"),
+    box(-8, 2.1, 58.5, 4, 4.2, 3, "#6e9e58"),
+    box(-13.5, 4.9, 63.5, 17, 1.4, 13, "#6e9e58"),
+    // Baffle across the middle of the chamber: standing at the mouth you see
+    // rock, not the prize. You go round it on either side.
+    box(-12, 2.1, 62, 10, 4.2, 1.2, "#6a655d"),
+    // raised back ledge, reached by steps on the west side
+    box(-13, 0.6, 66.5, 16, 1.2, 3, "#5f5a53"),
+    ...climbStairs(-19, 62.8, 0, 1, 3, 0.4, 0.9, 3.4, "#6f6a62"),
     box(-13, 5.9, 63, 20, 1.6, 12, "#7aaa62"),
     box(-13, 7.0, 63.5, 14, 1.4, 9, "#6e9e58"),
     box(-13, 7.9, 64, 8, 1.2, 6, "#649454"),
@@ -395,7 +458,8 @@ function picnicPark(): LevelDef {
     box(-20, 8.37, 67.3, 12, 0.3, 2.2, "#8aba6a"),
     // summit rail, so standing up there feels like a lookout
     box(-13, 8.85, 61.2, 8, 0.7, 0.2, "#a07848"),
-    box(-17.2, 8.85, 64, 0.2, 0.7, 6, "#a07848"),
+    // stops short of the walkway, which arrives across z 66..68
+    box(-17.2, 8.85, 63.1, 0.2, 0.7, 4.2, "#a07848"),
     box(-8.8, 8.85, 64, 0.2, 0.7, 6, "#a07848"),
 
     // stairs stop at the treehouse deck; the structure itself is a mesh now

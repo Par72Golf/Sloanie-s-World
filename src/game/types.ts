@@ -96,6 +96,8 @@ export type DumplingDef = {
   hide: Hide;
   region: string;
   hint: string;
+  /** Alternate hiding spots, so a replay is not a memory test. */
+  alts?: { pos: Vec3; region: string; hint: string }[];
   /** Visual treatment. Rarer finishes belong on the harder hiding spots. */
   finish?: Finish;
 };
@@ -117,6 +119,8 @@ export type LevelDef = {
   props: Prop[];
   dumplings: DumplingDef[];
   water?: WaterZone[];
+  /** Which set of hiding spots to use: 0 is the authored one. */
+  layout?: number;
   /** Juice box pickup spots, ground level. */
   juice?: [number, number][];
   /** Areas Emmett will not ride into: maze corridors, walled gardens. */

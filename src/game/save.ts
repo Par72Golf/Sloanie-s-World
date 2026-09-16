@@ -20,6 +20,8 @@ export type SaveData = {
   collected: string[][];
   muted: boolean;
   levelIndex: number;
+  /** Which set of hiding spots the current run is using. */
+  layout: number;
   /** Best runs per park, fastest first. */
   leaderboard: RunRecord[][];
 };
@@ -34,6 +36,7 @@ const DEFAULT: SaveData = {
   muted: false,
   levelIndex: 0,
   leaderboard: [[], [], []],
+  layout: 0,
 };
 
 function migrate(raw: SaveData): SaveData {
@@ -50,6 +53,7 @@ function migrate(raw: SaveData): SaveData {
   s.leaderboard = [0, 1, 2].map((i) =>
     Array.isArray(s.leaderboard[i]) ? s.leaderboard[i]!.slice() : [],
   );
+  if (typeof s.layout !== "number") s.layout = 0;
   s.version = SAVE_VERSION;
   return s;
 }
@@ -57,11 +61,11 @@ function migrate(raw: SaveData): SaveData {
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULT, collected: [[], [], []], leaderboard: [[], [], []] };
+    if (!raw) return { ...DEFAULT, collected: [[], [], []], leaderboard: [[], [], []], layout: 0 };
     const parsed = JSON.parse(raw) as SaveData;
     return migrate(parsed);
   } catch {
-    return { ...DEFAULT, collected: [[], [], []], leaderboard: [[], [], []] };
+    return { ...DEFAULT, collected: [[], [], []], leaderboard: [[], [], []], layout: 0 };
   }
 }
 

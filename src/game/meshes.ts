@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { beveledBox } from "./beveled";
 import { texturesFor, type TexKind } from "./textures";
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -31,7 +32,8 @@ export function lam(
     const tex = rep ? texturesFor(color, rep, extras?.tex) : null;
     m = new THREE.MeshStandardMaterial({
       color,
-      roughness: extras?.roughness ?? 0.58,
+      roughness: extras?.roughness ?? 0.42,
+      envMapIntensity: 0.85,
       metalness: 0.04,
       transparent: extras?.transparent ?? (extras?.opacity != null && extras.opacity < 1),
       opacity: extras?.opacity ?? 1,
@@ -57,8 +59,11 @@ function mesh(
   z: number,
   shadow = true,
 ) {
-  const o = new THREE.Mesh(geo, lam(color));
-  o.scale.set(sx, sy, sz);
+  // boxes get a real beveled geometry at their true size; everything else
+  // (spheres, cylinders, cones) still scales a shared primitive
+  const box = geo === boxGeo;
+  const o = new THREE.Mesh(box ? beveledBox(sx, sy, sz) : geo, lam(color));
+  if (!box) o.scale.set(sx, sy, sz);
   o.position.set(x, y, z);
   o.castShadow = shadow;
   o.receiveShadow = true;
@@ -91,31 +96,38 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   rightLeg.add(mesh(sphereGeo, shoe, 0.15, 0.1, 0.2, 0, -0.62, 0.05));
   hips.add(rightLeg);
 
+  // Everything above the waist hangs off a torso pivot, so she can lean into
+  // turns, twist as she walks and breathe. Previously these were parented to
+  // the root, which meant the upper body could not move independently at all.
+  const torso = new THREE.Group();
+  torso.position.y = 0.95;
+  root.add(torso);
+
   const skirt = new THREE.Mesh(coneGeo, lam(dress, { roughness: 0.5 }));
   skirt.scale.set(0.52, 0.55, 0.48);
-  skirt.position.y = 0.92;
+  skirt.position.y = -0.03;
   skirt.castShadow = true;
   skirt.receiveShadow = true;
-  root.add(skirt);
-  root.add(mesh(cylGeo, dress, 0.28, 0.48, 0.22, 0, 1.22, 0));
-  root.add(mesh(sphereGeo, dress, 0.3, 0.16, 0.24, 0, 1.42, 0));
+  torso.add(skirt);
+  torso.add(mesh(cylGeo, dress, 0.28, 0.48, 0.22, 0, 0.27, 0));
+  torso.add(mesh(sphereGeo, dress, 0.3, 0.16, 0.24, 0, 0.47, 0));
 
   const leftArm = new THREE.Group();
-  leftArm.position.set(-0.4, 1.34, 0);
+  leftArm.position.set(-0.4, 0.39, 0);
   leftArm.add(mesh(cylGeo, dress, 0.1, 0.34, 0.1, 0, -0.1, 0));
   leftArm.add(mesh(cylGeo, skin, 0.09, 0.26, 0.09, 0, -0.38, 0));
   leftArm.add(mesh(sphereGeo, skin, 0.1, 0.1, 0.1, 0, -0.54, 0));
-  root.add(leftArm);
+  torso.add(leftArm);
 
   const rightArm = new THREE.Group();
-  rightArm.position.set(0.4, 1.34, 0);
+  rightArm.position.set(0.4, 0.39, 0);
   rightArm.add(mesh(cylGeo, dress, 0.1, 0.34, 0.1, 0, -0.1, 0));
   rightArm.add(mesh(cylGeo, skin, 0.09, 0.26, 0.09, 0, -0.38, 0));
   rightArm.add(mesh(sphereGeo, skin, 0.1, 0.1, 0.1, 0, -0.54, 0));
-  root.add(rightArm);
+  torso.add(rightArm);
 
   const head = new THREE.Group();
-  head.position.set(0, 1.62, 0);
+  head.position.set(0, 0.67, 0);
   head.add(mesh(sphereGeo, skin, 0.34, 0.33, 0.32, 0, 0.3, 0.05));
   head.add(mesh(sphereGeo, blush, 0.09, 0.07, 0.07, -0.2, 0.22, 0.22, false));
   head.add(mesh(sphereGeo, blush, 0.09, 0.07, 0.07, 0.2, 0.22, 0.22, false));
@@ -175,8 +187,11 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   head.add(eyeR);
 
   head.add(mesh(sphereGeo, "#c45a5a", 0.07, 0.025, 0.02, 0, 0.17, 0.33, false));
-  root.add(head);
+  torso.add(head);
 
+  root.userData.torso = torso;
+  root.userData.hips = hips;
+  root.userData.skirt = skirt;
   root.userData.leftLeg = leftLeg;
   root.userData.rightLeg = rightLeg;
   root.userData.leftArm = leftArm;
@@ -189,33 +204,132 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   return root;
 }
 
+export type GirlMood = "none" | "cheer" | "boost" | "sad";
+
+/**
+ * Sloan's animation.
+ *
+ * She is on screen every frame, so the idle matters more than the walk. The
+ * old version froze every joint the instant she stopped moving and never
+ * reacted to anything that happened in the game.
+ */
 export function animateGirl(
   root: THREE.Group,
   moving: boolean,
   onGround: boolean,
   t: number,
   dt: number,
+  opts?: { speed01?: number; turn?: number; mood?: GirlMood; moodT?: number },
 ) {
-  const speed = moving ? 11 : 0;
-  root.userData.walkT = (root.userData.walkT ?? 0) + dt * speed;
-  const swing = moving ? Math.sin(root.userData.walkT) * 0.55 : 0;
-  (root.userData.leftLeg as THREE.Group).rotation.x = swing;
-  (root.userData.rightLeg as THREE.Group).rotation.x = -swing;
-  (root.userData.leftArm as THREE.Group).rotation.x = -swing * 0.7;
-  (root.userData.rightArm as THREE.Group).rotation.x = swing * 0.7;
-  const bob = moving ? Math.abs(Math.sin(root.userData.walkT)) * 0.04 : Math.sin(t * 2) * 0.015;
-  (root.userData.head as THREE.Group).position.y = 1.62 + bob;
+  const u = root.userData;
+  const torso = u.torso as THREE.Group;
+  const head = u.head as THREE.Group;
+  const hips = u.hips as THREE.Group;
+  const lLeg = u.leftLeg as THREE.Group;
+  const rLeg = u.rightLeg as THREE.Group;
+  const lArm = u.leftArm as THREE.Group;
+  const rArm = u.rightArm as THREE.Group;
+
+  // her own clock, so she is not locked to the same global sine as everything else
+  u.clock = (u.clock ?? Math.random() * 40) + dt;
+  const own = u.clock as number;
+
+  const pace = opts?.speed01 ?? (moving ? 1 : 0);
+  const turn = opts?.turn ?? 0;
+  const mood = opts?.mood ?? "none";
+  const moodT = opts?.moodT ?? 0;
+
+  // ---- gait -------------------------------------------------------------
+  // stride rate rises with speed, so the juice boost actually reads as running
+  const rate = 7 + pace * 7;
+  u.walkT = (u.walkT ?? 0) + dt * rate * (pace > 0.05 ? 1 : 0);
+  const w = u.walkT as number;
+  const swing = Math.sin(w) * (0.3 + pace * 0.45);
+
+  // ---- idle -------------------------------------------------------------
+  const idle = 1 - Math.min(1, pace * 3);
+  const breath = Math.sin(own * 1.5) * 0.02 * idle;
+  // slow weight shift from one foot to the other, on a long cycle
+  const shift = Math.sin(own * 0.6) * idle;
+  // every so often she glances around
+  const glanceCycle = (own * 0.35) % 1;
+  const glance = idle * (glanceCycle > 0.82 ? Math.sin((glanceCycle - 0.82) * 19.6) : 0);
+
+  lLeg.rotation.x = swing + shift * 0.04;
+  rLeg.rotation.x = -swing - shift * 0.04;
+  lArm.rotation.x = -swing * 0.75;
+  rArm.rotation.x = swing * 0.75;
+  // arms hang slightly out from the body and lift as she speeds up
+  lArm.rotation.z = 0.06 + pace * 0.1 + shift * 0.02;
+  rArm.rotation.z = -0.06 - pace * 0.1 - shift * 0.02;
+
+  hips.rotation.y = Math.sin(w) * 0.06 * pace;
+  hips.position.y = 0.72 + shift * 0.012;
+
+  torso.rotation.y = -Math.sin(w) * 0.09 * pace;
+  // lean forward as she runs, and into the turn
+  torso.rotation.x = pace * 0.13 + breath;
+  torso.rotation.z = THREE.MathUtils.lerp(torso.rotation.z, -turn * 0.28, 0.14);
+  torso.position.y = 0.95 + (moving ? Math.abs(Math.sin(w)) * 0.04 : breath * 1.6);
+
+  head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, glance * 0.8 + turn * 0.25, 0.12);
+  head.rotation.x = -pace * 0.08;
+  head.position.y = 0.67;
+
   if (!onGround) {
-    (root.userData.leftLeg as THREE.Group).rotation.x = 0.35;
-    (root.userData.rightLeg as THREE.Group).rotation.x = -0.15;
+    // tuck on the way up, reach on the way down
+    lLeg.rotation.x = 0.5;
+    rLeg.rotation.x = -0.25;
+    lArm.rotation.x = -0.9;
+    rArm.rotation.x = -0.9;
+    lArm.rotation.z = 0.5;
+    rArm.rotation.z = -0.5;
+    torso.rotation.x = 0.1;
   }
-  const blink = Math.sin(t * 0.9 + 1.7);
-  const squish = blink > 0.97 ? 0.12 : 1;
-  (root.userData.eyeL as THREE.Group).scale.y = squish;
-  (root.userData.eyeR as THREE.Group).scale.y = squish;
-  const braid = Math.sin(t * 2.4) * (moving ? 0.1 : 0.035);
-  (root.userData.braidL as THREE.Group).rotation.z = -0.2 + braid;
-  (root.userData.braidR as THREE.Group).rotation.z = 0.2 - braid;
+
+  // ---- reactions --------------------------------------------------------
+  if (mood !== "none" && moodT > 0) {
+    const k = Math.min(1, moodT);
+    if (mood === "cheer") {
+      // both arms up, a little hop in the spine, head tipped back
+      const pump = Math.sin(moodT * 11) * 0.25;
+      lArm.rotation.x = -2.5 + pump;
+      rArm.rotation.x = -2.5 - pump;
+      lArm.rotation.z = 0.55;
+      rArm.rotation.z = -0.55;
+      torso.rotation.x = -0.18;
+      head.rotation.x = -0.22;
+      torso.position.y = 0.95 + Math.abs(Math.sin(moodT * 8)) * 0.06;
+    } else if (mood === "sad") {
+      // shoulders down, head down, arms slack
+      torso.rotation.x = 0.26 * k;
+      head.rotation.x = 0.32 * k;
+      lArm.rotation.x = 0.18;
+      rArm.rotation.x = 0.18;
+      lArm.rotation.z = 0.02;
+      rArm.rotation.z = -0.02;
+    } else if (mood === "boost") {
+      // arms swept back, deep forward lean
+      torso.rotation.x = 0.3;
+      lArm.rotation.z = 0.34;
+      rArm.rotation.z = -0.34;
+      head.rotation.x = -0.1;
+    }
+  }
+
+  // ---- blink and braids -------------------------------------------------
+  const blinkCycle = (own + 2.3) % 3.6;
+  const squish = blinkCycle < 0.12 ? 0.12 : 1;
+  (u.eyeL as THREE.Group).scale.y = squish;
+  (u.eyeR as THREE.Group).scale.y = squish;
+
+  // braids trail behind her and swing wider the faster she goes
+  const braidSwing = Math.sin(own * 2.4) * (0.035 + pace * 0.12);
+  const braidLag = -turn * 0.35;
+  (u.braidL as THREE.Group).rotation.z = -0.2 + braidSwing + braidLag;
+  (u.braidR as THREE.Group).rotation.z = 0.2 - braidSwing + braidLag;
+  (u.braidL as THREE.Group).rotation.x = pace * 0.25;
+  (u.braidR as THREE.Group).rotation.x = pace * 0.25;
 }
 
 export function makeDumpling(color: string, accent: string) {
@@ -791,37 +905,9 @@ export function makeCaveMouth(width = 5, height = 3.6, depth = 7.5) {
     g.add(t);
   }
 
-  // ---- pillars down the sides, leaving the middle clear so the way out
-  // is always in view from anywhere in the chamber
-  for (let i = 0; i < 3; i++) {
-    const z = -2.6 - i * (depth / 4);
-    for (const sx of [-1, 1]) {
-      const x = (sx * width) / 2 - sx * 0.9;
-      g.add(mesh(cylGeo, rock, 0.55, height, 0.55, x, height / 2, z));
-      g.add(mesh(sphereGeo, rockLight, 0.75, 0.45, 0.75, x, 0.2, z, false));
-      g.add(mesh(sphereGeo, rockDark, 0.8, 0.4, 0.8, x, height - 0.2, z, false));
-    }
-  }
-
-  // a shallow pool at the back, because caves should have one
-  g.add(mesh(cylGeo, "#2f4c56", width * 0.3, 0.12, width * 0.3, 0, 0.08, -depth * 0.74, false));
-  g.add(mesh(cylGeo, "#4d7f8c", width * 0.26, 0.1, width * 0.26, 0, 0.13, -depth * 0.74, false));
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2;
-    g.add(
-      mesh(
-        sphereGeo,
-        i % 2 ? rock : rockLight,
-        0.4,
-        0.26,
-        0.36,
-        Math.cos(a) * width * 0.33,
-        0.14,
-        -depth * 0.74 + Math.sin(a) * width * 0.33,
-        false,
-      ),
-    );
-  }
+  // (pillars and the pool used to live here; the chamber now has a baffle
+  // wall, steps and a raised ledge, and more rock in the middle made the
+  // room hard to read)
 
   // ---- a few crystals, so the dark has something to catch the glow
   for (let i = 0; i < 14; i++) {
@@ -1021,7 +1107,7 @@ export { boxGeo, sphereGeo, cylGeo, coneGeo, cone4Geo };
  */
 export function makeEmmett() {
   const root = new THREE.Group();
-  const skin = "#f0c9a8";
+  const skin = "#e5ab80";
   const hair = "#4a2f1e";
   const shirt = "#4f93c4";
   const shorts = "#33527a";
@@ -1127,6 +1213,7 @@ export function makeEmmett() {
   }
 
   // arms out to the handlebars
+  const arms: THREE.Group[] = [];
   for (const s of [-1, 1]) {
     const arm = new THREE.Group();
     arm.position.set(s * 0.28, 0.34, 0);
@@ -1138,6 +1225,7 @@ export function makeEmmett() {
     arm.add(fore);
     arm.add(mesh(sphereGeo, skin, 0.08, 0.08, 0.08, 0, -0.1, 0.5, false));
     body.add(arm);
+    arms.push(arm);
   }
 
   // head
@@ -1146,16 +1234,26 @@ export function makeEmmett() {
   head.add(mesh(sphereGeo, skin, 0.27, 0.27, 0.26, 0, 0.12, 0.02));
   head.add(mesh(sphereGeo, hair, 0.28, 0.14, 0.26, 0, 0.26, -0.02, false));
   head.add(mesh(sphereGeo, skin, 0.045, 0.04, 0.04, 0, 0.08, 0.26, false));
-  head.add(mesh(sphereGeo, "#e8a090", 0.07, 0.055, 0.055, -0.16, 0.05, 0.19, false));
-  head.add(mesh(sphereGeo, "#e8a090", 0.07, 0.055, 0.055, 0.16, 0.05, 0.19, false));
-  // grin
-  head.add(mesh(boxGeo, "#8a4a42", 0.14, 0.035, 0.03, 0, -0.02, 0.26, false));
+  head.add(mesh(sphereGeo, "#d98a6a", 0.07, 0.055, 0.055, -0.16, 0.05, 0.19, false));
+  head.add(mesh(sphereGeo, "#d98a6a", 0.07, 0.055, 0.055, 0.16, 0.05, 0.19, false));
+  // mouth: a grin by default, an open whoop when he wins, a flat line when he does not
+  const grin = mesh(boxGeo, "#8a4a42", 0.16, 0.04, 0.03, 0, -0.03, 0.26, false);
+  head.add(grin);
+  const whoop = mesh(sphereGeo, "#7a3a34", 0.13, 0.12, 0.06, 0, -0.05, 0.25, false);
+  whoop.visible = false;
+  head.add(whoop);
+  const flat = mesh(boxGeo, "#8a4a42", 0.13, 0.03, 0.03, 0, -0.06, 0.26, false);
+  flat.visible = false;
+  head.add(flat);
 
   // red sunglasses
   head.add(mesh(boxGeo, shades, 0.4, 0.11, 0.05, 0, 0.14, 0.24, false));
   head.add(mesh(boxGeo, shades, 0.06, 0.05, 0.22, -0.2, 0.15, 0.13, false));
   head.add(mesh(boxGeo, shades, 0.06, 0.05, 0.22, 0.2, 0.15, 0.13, false));
   head.add(mesh(boxGeo, "#2a2a2e", 0.34, 0.07, 0.02, 0, 0.14, 0.27, false));
+  // a highlight on the lenses so they read as glass, not a painted bar
+  head.add(mesh(boxGeo, "#ff9a90", 0.08, 0.025, 0.02, -0.12, 0.17, 0.275, false));
+  head.add(mesh(boxGeo, "#ff9a90", 0.05, 0.02, 0.02, 0.14, 0.16, 0.275, false));
 
   // black cap, brim forward
   head.add(mesh(sphereGeo, cap, 0.3, 0.2, 0.29, 0, 0.3, -0.01, false));
@@ -1164,17 +1262,32 @@ export function makeEmmett() {
 
   body.add(head);
 
+  // where a stolen dumpling rides
+  const carry = new THREE.Group();
+  carry.position.set(0, 1.35, -0.1);
+  body.add(carry);
+
   root.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) o.castShadow = true;
   });
 
-  return { root, frontWheel, backWheels, pedals, body, head, legs, bars };
+  return { root, frontWheel, backWheels, pedals, body, head, legs, bars, arms, carry, grin, whoop, flat };
 }
 
 export type EmmettRig = ReturnType<typeof makeEmmett>;
 
 /** Pedalling, wheel spin, and a bit of lean while turning. */
-export function animateEmmett(rig: EmmettRig, speed: number, t: number, turn: number) {
+export type EmmettMood = "ride" | "win" | "lose";
+
+/** Pedalling, wheel spin, lean, and a face that does something. */
+export function animateEmmett(
+  rig: EmmettRig,
+  speed: number,
+  t: number,
+  turn: number,
+  opts?: { mood?: EmmettMood; lookAt?: number | null },
+) {
+  const mood = opts?.mood ?? "ride";
   const spin = speed * 1.9;
   rig.frontWheel.rotation.x -= spin * 0.016;
   for (const w of rig.backWheels) w.rotation.x -= spin * 0.024;
@@ -1182,9 +1295,56 @@ export function animateEmmett(rig: EmmettRig, speed: number, t: number, turn: nu
   for (let i = 0; i < rig.legs.length; i++) {
     rig.legs[i]!.rotation.x = Math.sin(t * spin + i * Math.PI) * 0.34;
   }
+
   rig.body.rotation.z = THREE.MathUtils.lerp(rig.body.rotation.z, -turn * 0.3, 0.12);
   rig.body.position.y = 0.56 + Math.sin(t * spin * 2) * 0.015;
   rig.bars.rotation.y = THREE.MathUtils.lerp(rig.bars.rotation.y, -turn * 0.5, 0.15);
+
+  rig.grin.visible = mood === "ride";
+  rig.whoop.visible = mood === "win";
+  rig.flat.visible = mood === "lose";
+
+  const [armL, armR] = rig.arms;
+
+  if (mood === "win") {
+    // one fist up, wheelie, head tipped back
+    const pump = Math.sin(t * 12) * 0.3;
+    if (armL) {
+      armL.rotation.x = -2.2 + pump;
+      armL.rotation.z = 0.5;
+    }
+    if (armR) armR.rotation.x = 0;
+    rig.body.rotation.x = -0.22;
+    rig.head.rotation.x = -0.2;
+    rig.root.rotation.x = -0.14 + Math.sin(t * 6) * 0.03;
+  } else if (mood === "lose") {
+    // slumped over the handlebars
+    if (armL) {
+      armL.rotation.x = 0.1;
+      armL.rotation.z = 0;
+    }
+    if (armR) armR.rotation.x = 0.1;
+    rig.body.rotation.x = 0.3;
+    rig.head.rotation.x = 0.3;
+    rig.root.rotation.x = 0;
+  } else {
+    if (armL) {
+      armL.rotation.x = THREE.MathUtils.lerp(armL.rotation.x, 0, 0.12);
+      armL.rotation.z = THREE.MathUtils.lerp(armL.rotation.z, 0, 0.12);
+    }
+    if (armR) armR.rotation.x = THREE.MathUtils.lerp(armR.rotation.x, 0, 0.12);
+    rig.body.rotation.x = THREE.MathUtils.lerp(rig.body.rotation.x, 0, 0.12);
+    rig.root.rotation.x = THREE.MathUtils.lerp(rig.root.rotation.x, 0, 0.12);
+    // he looks over at her while he rides
+    const look = opts?.lookAt;
+    const want = look == null ? 0 : THREE.MathUtils.clamp(look, -1.0, 1.0);
+    rig.head.rotation.y = THREE.MathUtils.lerp(rig.head.rotation.y, want, 0.1);
+    rig.head.rotation.x = THREE.MathUtils.lerp(rig.head.rotation.x, 0, 0.12);
+  }
+
+  // whatever he is carrying bounces along with him
+  rig.carry.rotation.y += 0.03;
+  rig.carry.position.y = 1.35 + Math.sin(t * 7) * 0.04;
 }
 
 /** Juice box pickup: carton, straw, and a foil tab. */

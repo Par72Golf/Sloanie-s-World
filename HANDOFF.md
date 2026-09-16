@@ -1,0 +1,338 @@
+# Sloanie's World — Handoff
+
+A 3D dumpling-hunting game built as a birthday present for Sloan, turning 7 in late
+September 2026. Played on a PC hooked up to a TV, keyboard or controller.
+
+This document is written to be dropped into the repo root so Claude Code reads it as
+context. It covers what exists, what the tooling is for, the bugs that cost the most
+time and why, what "finished" would actually require, and how to prompt effectively
+on this specific project.
+
+Current version: **v2.8**.
+
+---
+
+## 1. What this is
+
+Sloan explores a park, finds 12 hidden dumplings, and answers a small maths question
+to keep each one. Her little brother Emmett turns up on a tricycle every few minutes
+and plays rock paper scissors for one. Juice boxes give a temporary speed boost.
+Runs are timed and posted to a local leaderboard.
+
+Three parks exist. **Only the first one is finished.** See section 6.
+
+### Stack
+
+- TanStack Start + React + Vite, originally scaffolded by Grok
+- Three.js r186, no physics engine, no ECS
+- Zustand store (`src/game/store.ts`) bridges the game loop and the React UI
+- Everything is procedural: no model files, no texture files, no audio files.
+  Meshes are built from primitives, textures are drawn to canvas at load, and all
+  sound is synthesised with Web Audio. The game works offline with nothing to fetch.
+
+---
+
+## 2. Architecture
+
+| File | Responsibility |
+| --- | --- |
+| `game/runtime.ts` | The game loop. Movement, camera, collisions, dumpling state, Emmett and juice updates, celebration animation, run clock. The biggest file and the one most worth reading first. |
+| `game/levels.ts` | Level data as flat prop arrays. Also the placement logic that positions berms, hedges and tree lines by search rather than by hand. |
+| `game/world-build.ts` | Turns level data into meshes and colliders. **The solidity rule lives here** and is the single highest-leverage function in the codebase. |
+| `game/meshes.ts` | Every procedural mesh and character animation: Sloan, Emmett, dumplings, fountain, treehouse, cave, juice boxes. |
+| `game/park.ts` | Composite zone builders: tennis, baseball, splash pad, playground, houses, berms. |
+| `game/placement.ts` | Occupancy maps and clear-space search. Nothing should be hand-placed without checking against this. |
+| `game/collision.ts` | Capsule vs AABB, height-aware, with a 0.62m auto step-up. |
+| `game/scenery.ts` | Instanced grass and flowers with a wind shader, plus the grass exclusion mask. |
+| `game/textures.ts` | Ten procedural texture generators plus an explicit colour→texture table. |
+| `game/beveled.ts` | Per-size cached rounded-box geometry. This is what gives the Roblox look. |
+| `game/finishes.ts` | Dumpling treatments: gold, pearl, iridescent, rainbow, glow. |
+| `game/emmett.ts` | Emmett's AI: appearance schedule, pursuit, keep-out zones, give-up timer. |
+| `game/minimap.tsx` | Cached static map layer plus live markers, driven by `pose.ts`. |
+| `game/overlays.tsx` | All UI. Title, HUD, quiz, rock paper scissors, pause, results, leaderboard. |
+| `game/pad-menu.tsx` | Gamepad menu navigation via DOM focus. |
+| `game/math-quiz.ts` | Question and distractor generation. |
+
+### Two rules that keep performance sane
+
+1. **The game loop never writes to the Zustand store per frame.** Positions go into
+   the plain mutable object in `pose.ts`, which the minimap reads on its own
+   animation frame. The run clock and boost timer only push whole seconds. Breaking
+   this will re-render the entire HUD 60 times a second.
+2. **Materials and geometries are cached and shared.** `lam()` caches by colour,
+   opacity, roughness, texture repeat and kind. `beveledBox()` caches by quantised
+   size. 733 boxes need only 245 geometries.
+
+---
+
+## 3. The tooling — read this before changing geometry
+
+Nothing in this environment can render a frame. Every geometry bug in this project
+was found either by a human playing it or by one of these scripts. Run them with
+`npx jiti tools/<name>.ts`.
+
+| Tool | What it proves |
+| --- | --- |
+| `check-layout.ts` | The main one. Rebuilds the exact colliders the engine builds, then reports overlapping solids, coplanar surfaces that will z-fight, dumplings that are floating or buried, boundary containment, and reachability by flood fill from the spawn. `LAYOUT=1 npx jiti tools/check-layout.ts` checks an alternate dumpling layout. |
+| `probe.ts` | Tall props that are not solid (walk-through walls) and solid props too faint to see (invisible walls). |
+| `thin.ts` | Thin solid props, the other source of invisible walls. |
+| `climb.ts` | Walks a route and reports the height change at each step, flagging anything above the 0.62m step-up. |
+| `cavewalk.ts` | Same, for the route into the cave and up to the ledge. |
+| `los.ts` | Line of sight from the cave mouth to the dumpling, from 15 positions. Proves it is actually hidden. |
+| `spread.ts` | Nearest-neighbour distance between dumplings, to catch clustering. |
+| `coplanar.ts` | Near-coplanar faces in the hill region. |
+| `bevel.ts` | How many distinct geometries the bevel cache needs. |
+| `textures.ts` | Texture coverage: how many props are textured vs flat. |
+| `quizprobe.ts` | Answer position and magnitude distribution across 6000 generated questions. |
+| `board.ts` | Leaderboard logic, headless. |
+| `layoutroll.ts` | Layout rotation distribution and repeat rate. |
+| `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
+| `diamond.ts`, `cave.ts`, `summit.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. |
+
+**The tools are worth more than any single feature in this repo.** When a new class
+of bug appears, the right response is to write a check for it, not just to fix the
+instance.
+
+---
+
+## 4. Hard-won constraints
+
+These are the bugs that cost real time. Each one is a trap that will be re-entered
+by anyone who does not know about it.
+
+**`OutlineEffect` read `outlineParameters` from the material's userData, not the
+object's.** Setting it on the mesh silently did nothing, so the sky sphere wore a
+brown outline shell and that brown dome was mistaken for a missing sky. The outline
+pass has since been removed entirely, but the general lesson stands: three.js addons
+read config from places you would not guess.
+
+**Never infer material behaviour from colour.** Water was detected with a prefix
+match on `#5aa`, which also matched `#5aaa62`, the green of the maze and garden
+hedges, silently turning every one of them into a walk-through wall. The fix to
+"check whether blue is the dominant channel" was worse: it caught the dugout roofs,
+fence posts and bleacher supports. It is now an explicit list of six liquid colours
+in `world-build.ts`. Do not replace it with a heuristic.
+
+**Solidity is a single rule in `world-build.ts`, and it is delicate.** Everything is
+solid except liquid, spray, and props the author explicitly marked non-colliding
+*that are also under 0.35m in both horizontal dimensions*. That last clause exists
+because a blanket "everything is solid" rule turned 60 stair handrails at 0.12m
+square into invisible walls. Widening or narrowing this rule will create or destroy
+whole classes of bug.
+
+**Colliders ignore rotation.** `addBox` pushes an axis-aligned AABB at the unrotated
+dimensions. A rotated tall box will have a collider that does not match its visual.
+There are currently none, and it should stay that way.
+
+**Flat surfaces that share a top face will z-fight.** `park.ts` defines a `TOP`
+constant assigning every surface class its own band: lawn, apron, drive, path,
+court, inner, line, mark. New flat geometry must pick a band, and overlapping
+same-class surfaces must be given distinct heights.
+
+**The overlay root is `pointer-events: none`.** Every interactive panel has to opt
+back in with `pointer-events-auto`, or it renders perfectly and receives nothing.
+This shipped once in the rock paper scissors panel.
+
+**Bulk regex edits on this codebase have caused two real bugs.** A refactor to make
+the baseball diamond flippable produced `Z(7.6) + i * 0.85`, a sign error that made
+the bleachers march into the backstop. A separate splice deleted two whole React
+components. Every scripted edit should assert that its match succeeded; a silent
+no-op led to "fixed" being reported when nothing had changed.
+
+**The ground is a hard floor at y 0.** `collision.ts` clamps to it. There is no
+below-ground. Caves and basements have to go up and around, not down.
+
+**The camera has an indoor mode.** Below a ceiling it blends to a 3.6m boom at 1.75m
+height. A 7.4m third-person boom does not fit in any interior at any room size.
+
+---
+
+## 5. Known limitations
+
+- The reachability flood fill is 2D. It handles step-up and walking under overhangs,
+  but not jumping or climbing, so it reports dumplings on tables, roofs and decks as
+  unreachable. Those are expected; three in layout 0.
+- One z-fighting sliver remains, 2.4m by 0.4m, between two stair treads in Grok's
+  original code.
+- No renderer is available in this environment, so nothing visual has ever been
+  verified except by a human playing it.
+- Performance is entirely untested. Up to 95,000 grass instances, ~950 props, 2048
+  shadow maps, roughly 45 canvas textures generated at load.
+
+---
+
+## 6. What "a finished indie game" would require
+
+Ordered by how much it matters.
+
+### 6.1 Content — the biggest gap by far
+
+Run `npx jiti tools/coverage.ts`:
+
+```
+picnic    props  953  juice 12  rehideSpots 4  keepOut 2  alts 11  finishes 9  bounds 240m
+village   props   66  juice  0  rehideSpots 0  keepOut 0  alts  0  finishes 0  bounds  90m
+sky       props  124  juice  0  rehideSpots 0  keepOut 0  alts  0  finishes 0  bounds  90m
+```
+
+Parks 2 and 3 are still Grok's v1. They are a fourteenth the size, have no juice
+boxes, no Emmett support, no dumpling finishes and no alternate layouts. **Two
+thirds of the advertised game does not exist yet.** Everything global (textures,
+bevels, characters, camera, UI) applies to them, but the level content does not.
+
+This is the single largest piece of work remaining and the one that decides whether
+this is a demo or a game.
+
+### 6.2 Audio
+
+Currently a synthesised music bed, a handful of sound effects and Emmett's hum. A
+finished game needs footsteps that vary by surface, ambience per zone (birds, water
+at the pond, splash pad noise), and positional audio rather than distance-scaled
+gain. Web Audio's `PannerNode` would do it.
+
+### 6.3 Performance and the launch path
+
+Untested at the target resolution. Needs a frame budget, an options screen with
+grass density and shadow quality, and a proper build the player launches from a
+desktop shortcut in fullscreen, not a dev server in a terminal.
+
+### 6.4 Onboarding
+
+There is a "how to play" panel and nothing else. A finished game teaches through
+play: a first dumpling placed where she cannot miss it, Emmett introduced with a
+scripted first encounter, the juice box explained by being placed in her path.
+
+### 6.5 Save robustness
+
+`localStorage` on one browser profile. Clearing browsing data wipes everything,
+including the leaderboard. Export and import would be cheap insurance.
+
+### 6.6 Accessibility
+
+Reduced-motion is respected on button presses only. Needs a colourblind check on the
+hot-and-cold meter and the dumpling finishes, a subtitle option for spoken cues, and
+a difficulty setting that adjusts sparkle radius and Emmett's frequency.
+
+### 6.7 Art direction
+
+The Roblox pass (bevels, plastic sheen, no outlines) is coherent. What is missing is
+a lighting pass per park, better skies, and post-processing. Bloom on the glowing
+dumpling and gentle ambient occlusion would lift everything. Note that adding an
+`EffectComposer` conflicts with nothing now that the outline pass is gone.
+
+---
+
+## 7. How to prompt on this project
+
+This section is the distilled version of what worked and what wasted time over the
+course of building v1 through v2.8.
+
+### 7.1 Ask for the proof, not just the fix
+
+The highest-value prompt pattern on this project, by a wide margin:
+
+> Before you change anything, write a check that would have caught this, run it, and
+> show me the output.
+
+Every recurring bug class here was eventually solved by a script rather than by
+care. Coordinates typed by hand were wrong roughly a third of the time. Coordinates
+verified by a tool were wrong almost never. When a fix is claimed, ask what proves
+it.
+
+### 7.2 Remember the model cannot see
+
+It has no renderer. It can prove that geometry does not overlap and that a route is
+walkable, and it cannot tell you whether anything looks good. Treat it as a
+structural engineer, not an art director.
+
+That makes your screenshots the only visual feedback loop. Good bug reports on this
+project looked like:
+
+> Invisible wall at the top of the stairs up the hill, and the ball diamond still
+> has one.
+
+Location, plus what it felt like. That was enough to find both. What does not work
+is "it looks off", because there is no way to act on it.
+
+### 7.3 Demand the root cause
+
+Ask "what caused this?" rather than "can you fix this?". On this project the stated
+symptom was frequently not the real problem:
+
+- "The sky isn't rendering" was an outline shell painted over it.
+- "A hedge you can walk through" was every hedge in the game, from a colour
+  heuristic.
+- "The cave is too small" was really the camera, which does not fit indoors at any
+  room size.
+- "The correct answer looks highlighted" was the answer being the middle of three
+  numbers 99.7% of the time.
+
+A fix that does not explain the cause will usually be the wrong fix.
+
+### 7.4 One visual change at a time
+
+Structural work batches fine. Visual work does not. When bevels, plastic material
+and outline removal all landed together, there was no way to attribute the result to
+any one of them. If you dislike the outcome, ask for them separately.
+
+### 7.5 Ask what is untested
+
+Useful at the end of any work session:
+
+> What did you change that I have not seen? What are you least confident about?
+
+The answer tells you where to look first, and it surfaces the difference between
+"builds clean" and "works", which is where almost every bug in this project lived.
+
+### 7.6 Push back on unearned confidence
+
+"Fixed" was reported at least twice on this project when nothing had changed,
+because a scripted edit silently failed to match. If a fix sounds too easy, ask to
+see the diff or the test output.
+
+### 7.7 Prompt patterns worth reusing
+
+```
+Add <feature>. Before writing it, tell me what could go wrong and what you will
+check afterwards. Then build it and run the checks.
+```
+
+```
+<symptom>, at <location>. Do not guess: find what is actually there first.
+```
+
+```
+Port everything the picnic park has to the village: juice boxes, Emmett keep-out
+zones, rehide spots, dumpling finishes, alternate layouts. Run check-layout.ts
+against all three layouts before you tell me it is done.
+```
+
+```
+Review <file> and tell me what is weakest about it. Be honest, do not be nice.
+```
+
+### 7.8 Working in Claude Code specifically
+
+- Keep this file in the repo root so it is read as context.
+- Ask it to run `npx jiti tools/check-layout.ts` after any geometry change, and to
+  paste the output.
+- `npx tsc --noEmit` and `npx vite build` both pass today. Treat either failing as a
+  stop condition.
+- It can run the dev server, which this environment could not, so ask it to confirm
+  the game boots after structural changes.
+- Have it add to the `tools/` folder rather than writing throwaway checks. The suite
+  compounds.
+
+---
+
+## 8. Immediate next steps
+
+1. Play v2.8 end to end. A lot has changed since the last full playthrough: bevels,
+   plastic material, no outlines, Sloan's rebuilt animation, Emmett's humming and
+   reactions, the cave interior.
+2. Test performance on the actual TV at the actual resolution.
+3. Confirm the controller works through every menu.
+4. Then bring the village up to the picnic park's standard, using `coverage.ts` as
+   the checklist.
+
+The birthday build only needs park one to be good. The finished game needs all three.

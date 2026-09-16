@@ -3,7 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Sloanie's World v2.7";
+const APP_NAME = "Sloanie's World v2.8";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Sloanie's World v2.7 — a 3D dumpling hunt. Help Sloan find hidden dumplings and solve little math questions.",
+          "Sloanie's World v2.8 — a 3D dumpling hunt. Help Sloan find hidden dumplings and solve little math questions.",
       },
     ],
     links: [

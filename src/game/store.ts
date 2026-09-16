@@ -290,9 +290,8 @@ export const useGame = create<GameStore>((set, get) => ({
   completeLevel: () => {
     const st = get();
     const { levelIndex, unlocked, runActive, runSeconds, hintsUsedThisRun, playerName } = st;
-    // Birthday ship: do not unlock Candy Village / Cloud Castle yet.
-    const nextUnlock = Math.max(unlocked, 0);
-    const last = true; // finishing the playable park is the birthday victory
+    const nextUnlock = Math.max(unlocked, levelIndex + 1);
+    const last = levelIndex >= 2;
 
     let board = st.leaderboard.map((row) => row.slice());
     let lastRun: GameStore["lastRun"] = null;

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { aabbFromCenter, type AABB } from "./collision";
+import { beveledBox } from "./beveled";
 import { applyFinish, type FinishRig } from "./finishes";
 import type { FaceRig } from "./meshes";
 import { makeGrassField, normalFromTexture, scatterMask, type GrassField } from "./scenery";
@@ -63,10 +64,9 @@ function addBox(
   // tile the texture with the size of the face so big slabs do not smear
   const repeat = Math.max(1, Math.min(8, Math.round(Math.max(sx, sz, sy) / 2.6)));
   const m = new THREE.Mesh(
-    boxGeo,
+    beveledBox(sx, sy, sz),
     lam(color, opacity < 1 ? { transparent: true, opacity, repeat } : { repeat }),
   );
-  m.scale.set(sx, sy, sz);
   m.position.set(x, y, z);
   m.rotation.y = ry;
   m.castShadow = collide;
@@ -162,7 +162,11 @@ export function buildWorld(level: LevelDef): BuiltWorld {
         p.size[1],
         p.size[2],
         p.color,
-        isSolidProp(p.color),
+        // Solid by default, but a prop the level author explicitly marked
+        // non-colliding AND that is thin enough to be invisible edge-on stays
+        // walk-through. Handrails, trim and tape should not be walls.
+        isSolidProp(p.color) &&
+          !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35),
         p.ry ?? 0,
         p.opacity ?? 1,
       );
@@ -244,17 +248,20 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     // dark mouth set into the gap through the lookout hill
     // Turned to face south, out of the hill. Without this the hollow pointed
     // away from the hillside and the mouth opened into solid ground.
-    const cave = makeCaveMouth(6, 4, 8);
-    cave.position.set(-13, 0, 58.6);
+    // Sized to sit just inside the carved chamber. It used to be 7m wide in a
+    // 16m room, leaving bare green hill either side, and its back wall landed
+    // on the park wall at z 70, which is what was flickering.
+    const cave = makeCaveMouth(15.2, 4, 7.8);
+    cave.position.set(-13, 0, 59.8);
     cave.rotation.y = Math.PI;
     group.add(cave);
     // two fills: one at the mouth so the way out is always visible from
     // inside, one deeper in so the chamber reads as a space
     const caveGlow = new THREE.PointLight("#8fd8e8", 0.7, 22);
-    caveGlow.position.set(-13, 2.4, 64);
+    caveGlow.position.set(-13.5, 2.4, 65);
     group.add(caveGlow);
     const mouthGlow = new THREE.PointLight("#ffeec4", 0.9, 16);
-    mouthGlow.position.set(-13, 2.6, 59.6);
+    mouthGlow.position.set(-13.5, 2.6, 60.5);
     group.add(mouthGlow);
   }
   if (level.id === "village") {
@@ -264,10 +271,15 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     colliders.push(aabbFromCenter(0, 0.7, 0, 4.2, 1.4, 4.2));
   }
 
+  // Layout 0 is the authored spot; 1 and 2 come from each dumpling's alts.
+  // Picked per run so finding them once does not solve the park forever.
+  const layout = level.layout ?? 0;
   const dumplings: DumplingHandle[] = level.dumplings.map((def, i) => {
+    const alt = layout > 0 ? def.alts?.[layout - 1] : undefined;
+    const src = alt ? { ...def, pos: alt.pos, region: alt.region, hint: alt.hint } : def;
     const live = {
-      ...def,
-      pos: [def.pos[0], def.pos[1], def.pos[2]] as [number, number, number],
+      ...src,
+      pos: [src.pos[0], src.pos[1], src.pos[2]] as [number, number, number],
     };
     const g = makeDumpling(live.color, live.accent);
     const finish = applyFinish(g, live.finish ?? "plain", live.color, live.accent);

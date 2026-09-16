@@ -277,7 +277,9 @@ export function MiniMap() {
         className={
           open
             ? "pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-4"
-            : "pointer-events-auto absolute bottom-3 right-3 z-20"
+            : // On phones the bottom right corner is Collect, Hint and Jump, so
+              // the map sits under the icon row instead. Desktop keeps it low.
+              "pointer-events-auto absolute right-3 top-[4.75rem] z-20 sm:bottom-3 sm:right-3 sm:top-auto"
         }
         onClick={() => open && setOpen(false)}
       >
@@ -292,8 +294,8 @@ export function MiniMap() {
             onClick={() => !open && setOpen(true)}
             className={
               open
-                ? "rounded-xl border-2 border-line bg-surface shadow-[0_18px_40px_-24px_rgb(42_33_24_/_0.6)]"
-                : "size-[168px] cursor-pointer rounded-lg border-2 border-line bg-surface/90 shadow-[0_10px_24px_-16px_rgb(42_33_24_/_0.6)]"
+                ? "h-[min(86vw,86vh,620px)] w-[min(86vw,86vh,620px)] rounded-xl border-2 border-line bg-surface shadow-[0_18px_40px_-24px_rgb(42_33_24_/_0.6)]"
+                : "size-[112px] cursor-pointer rounded-lg border-2 border-line bg-surface/90 shadow-[0_10px_24px_-16px_rgb(42_33_24_/_0.6)] sm:size-[168px]"
             }
           />
           {open ? (

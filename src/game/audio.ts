@@ -26,6 +26,7 @@ export function setMuted(v: boolean) {
     master.gain.setTargetAtTime(v ? 0 : 0.22, ensure().currentTime, 0.03);
   }
   setMusicMuted(v);
+  setHumLevel(humLevel);
 }
 
 function tone(
@@ -208,4 +209,95 @@ export function setMusicMuted(v: boolean) {
   if (musicGain && ctx) {
     musicGain.gain.setTargetAtTime(v ? 0 : MUSIC_LEVEL, ctx.currentTime, 0.08);
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * Emmett's humming
+ * He has to be audible before he is visible, or the only way to avoid him is
+ * to happen to be looking the right way. Volume follows distance, set by the
+ * runtime each frame.
+ * ------------------------------------------------------------------------- */
+
+let humGain: GainNode | null = null;
+let humTimer: number | null = null;
+let humOn = false;
+let humNext = 0;
+let humStep = 0;
+let humLevel = 0;
+
+// a scrappy little motif a kid would hum, not a tune
+const HUM = [392.0, 440.0, 392.0, 329.63, 349.23, 392.0, 329.63, 0];
+
+function ensureHumGain() {
+  const c = ensure();
+  if (!humGain) {
+    humGain = c.createGain();
+    humGain.gain.value = 0;
+    humGain.connect(c.destination);
+  }
+  return humGain;
+}
+
+function humNote(freq: number, start: number, dur: number) {
+  if (!freq) return;
+  const c = ensure();
+  const g = ensureHumGain();
+  const osc = c.createOscillator();
+  const env = c.createGain();
+  const filt = c.createBiquadFilter();
+  filt.type = "lowpass";
+  filt.frequency.setValueAtTime(900, start);
+  osc.type = "sine";
+  // wobble, so it sounds hummed rather than played
+  osc.frequency.setValueAtTime(freq * (0.99 + Math.random() * 0.02), start);
+  env.gain.setValueAtTime(0.0001, start);
+  env.gain.exponentialRampToValueAtTime(0.3, start + 0.06);
+  env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  osc.connect(filt);
+  filt.connect(env);
+  env.connect(g);
+  osc.start(start);
+  osc.stop(start + dur + 0.05);
+}
+
+export function startHum() {
+  if (humOn) return;
+  const c = ensure();
+  if (c.state === "suspended") void c.resume();
+  ensureHumGain();
+  humOn = true;
+  humNext = c.currentTime + 0.1;
+  const tick = () => {
+    if (!humOn || !ctx) return;
+    while (humNext < ctx.currentTime + 1) {
+      const note = HUM[humStep % HUM.length]!;
+      const dur = note ? 0.34 : 0.5;
+      humNote(note, humNext, dur);
+      humNext += dur + 0.06;
+      humStep++;
+    }
+  };
+  tick();
+  humTimer = window.setInterval(tick, 350);
+}
+
+export function stopHum() {
+  humOn = false;
+  if (humTimer != null) {
+    window.clearInterval(humTimer);
+    humTimer = null;
+  }
+  humLevel = 0;
+  if (humGain && ctx) humGain.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
+}
+
+/** 0 when he is far away or gone, 1 when he is right behind her. */
+export function setHumLevel(level: number) {
+  humLevel = level;
+  if (!humGain || !ctx) return;
+  humGain.gain.setTargetAtTime(muted ? 0 : level * 0.22, ctx.currentTime, 0.12);
+}
+
+export function humIsOn() {
+  return humOn;
 }

@@ -156,3 +156,12 @@
     opacity: 1;
   }
 }
+
+/* Controller focus needs to be obvious from a couch, and JS-driven focus does
+   not trigger :focus-visible, so style :focus directly inside the overlay. */
+.overlay-root button:focus,
+.overlay-root input:focus,
+.overlay-root [tabindex]:focus {
+  outline: 4px solid var(--color-accent);
+  outline-offset: 3px;
+}

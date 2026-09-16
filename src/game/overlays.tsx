@@ -159,13 +159,13 @@ function TitleScreen() {
   return (
     <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-end overflow-y-auto bg-ink/25 p-4 pb-6 pt-10 sm:justify-center sm:pb-10">
       <Panel className="w-full max-w-lg p-5 sm:p-7">
-        <p className="text-sm font-semibold tracking-wide text-ink-soft">v2.9</p>
+        <p className="text-sm font-semibold tracking-wide text-ink-soft">v2.8</p>
         <h1 className="mt-1 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
           Sloanie's World
         </h1>
         <p className="mt-2 text-base leading-relaxed text-ink-soft">
-          Help Sloan hunt hidden dumplings in Sunny Picnic Park, then solve a little math to keep
-          each one. More parks are coming soon.
+          Help Sloan hunt hidden dumplings across giant parks, then solve a little math to keep
+          each one. Parks unlock one at a time.
         </p>
 
         <label className="mt-5 block text-sm font-semibold text-ink">
@@ -197,9 +197,7 @@ function TitleScreen() {
 
         <div className="mt-5 grid gap-2">
           {LEVELS.map((lv, i) => {
-            // Birthday gift ship: only Sunny Picnic Park is playable. Other parks stay Coming soon.
-            const comingSoon = i > 0;
-            const locked = comingSoon || i > unlocked;
+            const locked = i > unlocked;
             const found = collected[i]?.length ?? 0;
             return (
               <button
@@ -207,7 +205,6 @@ function TitleScreen() {
                 type="button"
                 disabled={locked}
                 onClick={() => {
-                  if (comingSoon) return;
                   unlockAudio();
                   sfx.click();
                   startLevel(i);
@@ -219,26 +216,18 @@ function TitleScreen() {
               >
                 <span>
                   <span className="block font-display text-lg font-medium">
-                    {comingSoon ? lv.name : locked ? "Locked park" : lv.name}
+                    {locked ? "Locked park" : lv.name}
                   </span>
                   <span className="block text-sm text-ink-soft">
-                    {comingSoon
-                      ? "Coming soon"
-                      : locked
-                        ? "Finish the park before this one"
-                        : `${lv.tagline}  ·  ${found}/${lv.dumplings.length} found`}
+                    {locked
+                      ? "Finish the park before this one"
+                      : `${lv.tagline}  ·  ${found}/${lv.dumplings.length} found`}
                   </span>
                 </span>
-                {comingSoon ? (
-                  <span className="rounded-full bg-surface px-3 py-1 text-sm font-semibold text-muted">
-                    Soon
+                {!locked && i === 0 && (
+                  <span className="rounded-full bg-accent px-3 py-1 text-sm font-semibold text-accent-fg">
+                    Start
                   </span>
-                ) : (
-                  !locked && i === 0 && (
-                    <span className="rounded-full bg-accent px-3 py-1 text-sm font-semibold text-accent-fg">
-                      Start
-                    </span>
-                  )
                 )}
               </button>
             );
@@ -1090,10 +1079,12 @@ function PauseScreen() {
 function CompleteScreen() {
   const levelIndex = useGame((s) => s.levelIndex);
   const playerName = useGame((s) => s.playerName);
+  const nextLevel = useGame((s) => s.nextLevel);
   const replayLevel = useGame((s) => s.replayLevel);
   const toTitle = useGame((s) => s.toTitle);
   const lastRun = useGame((s) => s.lastRun);
   const level = LEVELS[levelIndex]!;
+  const next = LEVELS[levelIndex + 1];
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
       <Panel className="max-h-full w-full max-w-lg overflow-y-auto p-6 text-center">
@@ -1127,6 +1118,7 @@ function CompleteScreen() {
         <p className="mt-5 font-display text-lg font-semibold">Best times</p>
         <BestTimes levelIndex={levelIndex} highlight={lastRun?.rank} />
         <div className="mt-5 grid gap-2">
+          {next && <Btn onClick={nextLevel}>Play {next.name}</Btn>}
           <Btn variant="secondary" onClick={replayLevel}>
             Hunt this park again
           </Btn>
@@ -1151,8 +1143,8 @@ function VictoryScreen() {
           Happy birthday{playerName ? `, ${playerName}` : ", Sloan"}
         </h2>
         <p className="mt-2 leading-relaxed text-ink-soft">
-          You searched all of Sunny Picnic Park. Every squishy dumpling is home — happy birthday!
-          More parks are coming soon.
+          You searched the park, the village, and the castle in the clouds. Every squishy dumpling
+          is home.
         </p>
         <div className="mt-5 grid gap-2">
           <Btn onClick={replayLevel}>Play Cloud Castle again</Btn>
