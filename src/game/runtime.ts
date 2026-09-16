@@ -145,9 +145,12 @@ export class GameRuntime {
     this.renderer.setSize(canvas.clientWidth || 1280, canvas.clientHeight || 800, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.14;
+    // PCFSoftShadowMap was removed in r186; PCF with a blur radius is the soft
+    // shadow now. Neutral tone mapping keeps the toy colours saturated where
+    // ACES pulled everything toward grey.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
 
     this.scene = new THREE.Scene();
     this.level = levelByIndex(0);
@@ -158,12 +161,13 @@ export class GameRuntime {
     noOutline(this.sky);
     this.scene.add(this.sky);
 
-    this.hemi = new THREE.HemisphereLight("#d4eefe", "#7aaa58", 0.95);
+    this.hemi = new THREE.HemisphereLight("#dff1ff", "#86b860", 1.05);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight("#fff3d0", 1.55);
+    this.sun = new THREE.DirectionalLight("#fff1c8", 2.0);
     this.sun.position.set(28, 46, 16);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.radius = 4;
     this.sun.shadow.camera.near = 2;
     this.sun.shadow.camera.far = 110;
     this.sun.shadow.camera.left = -38;
@@ -177,7 +181,7 @@ export class GameRuntime {
     this.fill = new THREE.DirectionalLight("#b7d8ff", 0.32);
     this.fill.position.set(-18, 18, -12);
     this.scene.add(this.fill);
-    this.scene.add(new THREE.AmbientLight("#fff4e8", 0.28));
+    this.scene.add(new THREE.AmbientLight("#fff4e8", 0.34));
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     const envScene = new THREE.Scene();
