@@ -710,6 +710,11 @@ function picnicPark(): LevelDef {
     { minX: -64, maxX: -48, minZ: 16, maxZ: 38 },
   ];
 
+  // She jumps 2.7m and the hedges are 1.7m. The zone reaches 23m from the maze
+  // centre: the outer hedge is at 13.2m and a boosted running jump can land on
+  // a 1.7m top from 9.3m away. tools/maze.ts checks the arithmetic.
+  const noJump = [{ minX: -65, maxX: -19, minZ: -41, maxZ: 5, why: "the hedge maze" }];
+
   const rehideSpots = [
     { name: "the gazebo", say: "I put it by the gazebo!", pos: [8, 0.62, -6] as [number, number, number] },
     { name: "the splash pad", say: "It's at the splash pad!", pos: [-95, 0.62, 28] as [number, number, number] },
@@ -734,6 +739,7 @@ function picnicPark(): LevelDef {
     juice,
     rehideSpots,
     emmettKeepOut,
+    noJump,
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

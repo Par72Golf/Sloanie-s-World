@@ -127,6 +127,12 @@ export type LevelDef = {
   emmettKeepOut?: { minX: number; maxX: number; minZ: number; maxZ: number }[];
   /** Landmarks Emmett rehides a dumpling to, so a loss is never a mystery. */
   rehideSpots?: { name: string; say: string; pos: Vec3 }[];
+  /**
+   * Areas where jumping is disabled. Must extend past the thing being
+   * protected by at least her jump reach, or she can jump onto it from outside.
+   * tools/maze.ts checks this for the hedge maze.
+   */
+  noJump?: { minX: number; maxX: number; minZ: number; maxZ: number; why: string }[];
 };
 
 export type QuizQ = {

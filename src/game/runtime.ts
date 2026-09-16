@@ -31,9 +31,7 @@ import { animateFace, makeJuiceBox, type GirlMood } from "./meshes";
 import { useGame } from "./store";
 import { DRESS, HAIR, type LevelDef } from "./types";
 
-const WALK = 6.4;
-const JUMP = 11.2;
-const GRAVITY = 23;
+import { GRAVITY, JUMP, WALK } from "./tuning";
 const PLAYER_H = 1.62;
 const PLAYER_W = 0.34;
 const FIXED = 1 / 60;
@@ -843,7 +841,12 @@ export class GameRuntime {
     if (this.grounded) this.coyote = 0.12;
     else this.coyote = Math.max(0, this.coyote - dt);
 
-    const jump = live && consumeJumpTap();
+    // No-jump zones: the hedge maze is 1.7m and she jumps 2.7m, so without
+    // this she hops onto the hedges and walks over the puzzle.
+    const noJump = this.level.noJump?.some(
+      (z) => this.cap.x >= z.minX && this.cap.x <= z.maxX && this.cap.z >= z.minZ && this.cap.z <= z.maxZ,
+    );
+    const jump = live && consumeJumpTap() && !noJump;
     if (jump && this.coyote > 0) {
       this.velY = JUMP;
       this.grounded = false;

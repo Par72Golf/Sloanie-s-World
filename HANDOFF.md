@@ -114,6 +114,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `layoutroll.ts` | Layout rotation distribution and repeat rate. |
 | `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
 | `camera.ts` | Walks the hedge maze at 60Hz with the camera yaw fixed and following, and reports how often the camera is pulled in, lurches, or falls back to sitting on her head. This is what proved the maze camera bug (58% of frames pulled in, 330 emergency frames) and the low-obstacle lift fix (0 and 0). |
+| `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
 | `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
 | `diamond.ts`, `cave.ts`, `summit.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. |
 
@@ -186,6 +187,12 @@ below-ground. Caves and basements have to go up and around, not down.
 
 **The camera has an indoor mode.** Below a ceiling it blends to a 3.6m boom at 1.75m
 height. A 7.4m third-person boom does not fit in any interior at any room size.
+
+**She jumps 2.7m and the hedges are 1.7m.** Nothing stops her landing on a hedge top
+and walking over the maze except the `noJump` zone on the level, which has to reach
+her jump range (9.3m boosted) past the outer hedge. Movement constants live in
+`tuning.ts` so tools can do this arithmetic. If you make hedges taller instead, the
+camera's low-obstacle lift stops applying above 2.4m and the maze camera bug returns.
 
 **The camera looks over low obstacles instead of pulling in for them.** Camera
 placement is a pure function in `camera.ts`. When the eye-to-camera line is cut by
