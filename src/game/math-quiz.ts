@@ -61,10 +61,14 @@ function uniqueChoices(answer: number, extras: number[]) {
   return shuffle(Array.from(set)).slice(0, 3);
 }
 
+// No operand is ever 1: "7 + 1" is counting, not adding, and it was the most
+// common early question. Both numbers start at 2.
+const MIN_OPERAND = 2;
+
 function addWithin(minA: number, maxA: number, maxSum: number, dots: boolean): QuizQ {
-  const a = minA + Math.floor(Math.random() * (maxA - minA + 1));
+  const a = Math.max(MIN_OPERAND, minA) + Math.floor(Math.random() * (maxA - Math.max(MIN_OPERAND, minA) + 1));
   const maxB = Math.min(9, maxSum - a);
-  const b = 1 + Math.floor(Math.random() * Math.max(1, maxB));
+  const b = MIN_OPERAND + Math.floor(Math.random() * Math.max(1, maxB - MIN_OPERAND + 1));
   const answer = a + b;
   return {
     prompt: `${a} + ${b}`,
@@ -76,7 +80,8 @@ function addWithin(minA: number, maxA: number, maxSum: number, dots: boolean): Q
 
 function subWithin(minA: number, maxA: number): QuizQ {
   const a = minA + Math.floor(Math.random() * (maxA - minA + 1));
-  const b = 1 + Math.floor(Math.random() * Math.min(9, a - 1));
+  // b from 2 up to 9, never leaving an answer below 1
+  const b = MIN_OPERAND + Math.floor(Math.random() * Math.max(1, Math.min(9, a - 1) - MIN_OPERAND + 1));
   const answer = a - b;
   return {
     prompt: `${a} − ${b}`,
@@ -86,7 +91,7 @@ function subWithin(minA: number, maxA: number): QuizQ {
 }
 
 function generate(found: number): QuizQ {
-  if (found < 4) return addWithin(1, 8, 10, true);
+  if (found < 4) return addWithin(2, 8, 10, true);
   if (found < 8) {
     return Math.random() < 0.65 ? addWithin(4, 9, 18, false) : subWithin(6, 12);
   }

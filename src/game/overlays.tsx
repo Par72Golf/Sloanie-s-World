@@ -372,6 +372,7 @@ function HUD() {
   const runActive = useGame((s) => s.runActive);
   const clearHint = useGame((s) => s.clearHint);
   const phase = useGame((s) => s.phase);
+  const rideNear = useGame((s) => s.rideNear);
   const level = LEVELS[levelIndex]!;
   const found = collected[levelIndex]?.length ?? 0;
 
@@ -382,9 +383,11 @@ function HUD() {
     ? fleeNotice
     : nearCollect
       ? `${playerName ? `${playerName}, ` : ""}this is ${nearestName}. Press Collect!`
-      : close
-        ? "Getting warmer…"
-        : "Search the park";
+      : rideNear
+        ? "Ferris wheel! Stand on the yellow platform and press Collect to ride."
+        : close
+          ? "Getting warmer…"
+          : "Search the park";
 
   useEffect(() => {
     if (!emmettNotice) return;

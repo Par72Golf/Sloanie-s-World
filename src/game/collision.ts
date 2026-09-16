@@ -102,11 +102,17 @@ export function moveAndCollide(
     }
   }
 
+  // Each axis sweep only resolves against a box whose face she crossed on
+  // that axis this step. Without that, landing beside the long side of a
+  // 34m berm made the X sweep "push her out" through the far end, 20m away.
+  const prevX = c.x;
   c.x += vx * dt;
   for (const b of boxes) {
     if (b.maxY - c.y <= FLOOR_TOLERANCE) continue;
     if (!overlapZY(c, b)) continue;
     if (c.x + c.hw <= b.minX || c.x - c.hw >= b.maxX) continue;
+    const wasInsideX = prevX + c.hw > b.minX && prevX - c.hw < b.maxX;
+    if (wasInsideX) continue;
     if (vx > 0) c.x = b.minX - c.hw - SKIN;
     else if (vx < 0) c.x = b.maxX + c.hw + SKIN;
     else {
@@ -117,11 +123,14 @@ export function moveAndCollide(
     vx = 0;
   }
 
+  const prevZ = c.z;
   c.z += vz * dt;
   for (const b of boxes) {
     if (b.maxY - c.y <= FLOOR_TOLERANCE) continue;
     if (!overlapXY(c, b)) continue;
     if (c.z + c.hd <= b.minZ || c.z - c.hd >= b.maxZ) continue;
+    const wasInsideZ = prevZ + c.hd > b.minZ && prevZ - c.hd < b.maxZ;
+    if (wasInsideZ) continue;
     if (vz > 0) c.z = b.minZ - c.hd - SKIN;
     else if (vz < 0) c.z = b.maxZ + c.hd + SKIN;
     else {

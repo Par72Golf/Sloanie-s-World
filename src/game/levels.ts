@@ -5,8 +5,13 @@ import {
   basketballCourt,
   boundaryWall,
   campground,
+  farm,
   forest,
+  miniGolf,
+  outdoorGym,
   pavilion,
+  soccerPitch,
+  swimmingPool,
   berm,
   hedge,
   houseRow,
@@ -372,14 +377,15 @@ const picnicDumplings: DumplingDef[] = [
     name: "Star Bao",
     color: "#f2e6a0",
     accent: "#d4b84a",
-    pos: [54.2, 3.95, -54.2],
+    // inside the little house on the deck, the back corner away from the steps
+    pos: [56.0, 3.95, -54.8],
     finish: "gold",
     hide: "hard",
     region: "the treehouse",
-    hint: "Climb the steps to the treehouse in the woods, then look behind the trunk.",
- 
+    hint: "Climb the steps to the treehouse in the woods and go right inside, into the back corner.",
+
     alts: [
-      { pos: [52, 3.95, -55.5], region: "the treehouse", hint: "Up in the treehouse, over in the far corner of the deck." },
+      { pos: [52.3, 3.95, -54.6], region: "the treehouse", hint: "Inside the treehouse, in the other back corner." },
       { pos: [56.5, 0.62, -47], region: "the woods", hint: "Down among the trees below the treehouse." },
     ],
   },
@@ -731,8 +737,21 @@ function picnicPark(): LevelDef {
     rectAt(-158, 0, 8, 320),
   ];
 
+  // the second round of fills: behind the houses, the south band, the east band
+  const POOL = { x: -40, z: 136 };
+  const GYM = { x: 8, z: 136 };
+  const FARM = { x: -60, z: -132 };
+  const GOLF = { x: 20, z: -132 };
+  const PITCH = { x: 130, z: -60 };
+
   const zones: Prop[] = [
     ...houseRow(-63, 110, 8, 18, 1),
+    ...swimmingPool(POOL.x, POOL.z),
+    ...outdoorGym(GYM.x, GYM.z),
+    ...farm(FARM.x, FARM.z),
+    ...miniGolf(GOLF.x, GOLF.z),
+    ...soccerPitch(PITCH.x, PITCH.z),
+    ...forest(108, 152, -152, -100, 40, 4471, []),
     ...baseballDiamond(0, -96, true),
     ...tennisCourts(95, 26, 2),
     ...basketballCourt(95, -34),
@@ -762,6 +781,13 @@ function picnicPark(): LevelDef {
     // spurs from the ring road out to the pavilion and the campground; the
     // pavilion one overlaps the ring road's edge so it sits a hair higher
     box(118, 0.055, 60, 26, 0.12, 4.4, "#d8c49a", false),
+    // north: up to the pool and the gym; south: down to the farm and mini golf;
+    // east: across to the pitch. All stop a hair short of the ring road.
+    ...parkPath(-40, 115, 4.4, 19),
+    ...parkPath(8, 115, 4.4, 19),
+    ...parkPath(-60, -110, 4.4, 9),
+    ...parkPath(20, -110, 4.4, 9),
+    box(112, 0.055, -60, 14, 0.12, 4.4, "#d8c49a", false),
     ...parkPath(112, 103, 4.4, 24),
     ...parkPath(112, 122, 4.4, 14),
   ];
@@ -792,6 +818,16 @@ function picnicPark(): LevelDef {
     rectAt(PAV.x, PAV.z, 20, 16),
     rectAt(118, 60, 30, 8),
     rectAt(112, 114, 8, 44),
+    rectAt(POOL.x, POOL.z, 40, 28),
+    rectAt(GYM.x, GYM.z, 32, 24),
+    rectAt(FARM.x, FARM.z, 58, 42),
+    rectAt(GOLF.x, GOLF.z, 38, 30),
+    rectAt(PITCH.x, PITCH.z, 52, 40),
+    rectAt(-40, 115, 8, 24),
+    rectAt(8, 115, 8, 24),
+    rectAt(-60, -110, 8, 14),
+    rectAt(20, -110, 8, 14),
+    rectAt(112, -60, 18, 8),
     ...trailRects,
   ];
   taken.push(...keepClear);
@@ -848,11 +884,9 @@ function picnicPark(): LevelDef {
     [-150, 154, 150, 154, 30],
     [-150, -154, 150, -154, 30],
     [154, -146, 154, 146, 30],
-    // a hedge of trees along the old wall line on the north, south and east,
-    // so the band beyond the ring road still has some structure
-    [-100, 119.5, 100, 119.5, 18],
-    [-100, -119.5, 100, -119.5, 18],
-    [119.5, -100, 119.5, 40, 12],
+    // a few trees along the old wall line on the east, between the pitch and
+    // the pavilion; the north and south bands are full now
+    [119.5, -30, 119.5, 40, 6],
     [-116, 76, -22, 76, 10],
     [22, 76, 116, 76, 10],
     [-116, -76, -22, -76, 10],
@@ -954,6 +988,9 @@ function picnicPark(): LevelDef {
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },
+      // the pool, as two circles under its 20x10 rectangle
+      { kind: "water", x: POOL.x - 5, z: POOL.z, r: 5 },
+      { kind: "water", x: POOL.x + 5, z: POOL.z, r: 5 },
     ],
   };
 }

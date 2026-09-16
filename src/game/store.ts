@@ -81,6 +81,9 @@ export type GameStore = {
   /** On the ferris wheel: input, Emmett and the run clock all pause. */
   riding: boolean;
   setRiding: (v: boolean) => void;
+  /** Standing near the wheel's platform: the HUD explains how to ride. */
+  rideNear: boolean;
+  setRideNear: (v: boolean) => void;
   findAccessory: (id: AccessoryId) => void;
   setWorn: (slot: Slot, id: AccessoryId | null) => void;
   toggleWardrobe: () => void;
@@ -185,6 +188,10 @@ export const useGame = create<GameStore>((set, get) => ({
   wardrobeOpen: false,
   riding: false,
   setRiding: (riding) => set({ riding }),
+  rideNear: false,
+  setRideNear: (rideNear) => {
+    if (get().rideNear !== rideNear) set({ rideNear });
+  },
   findAccessory: (id) => {
     const found = get().foundAccessories;
     if (found.includes(id)) return;

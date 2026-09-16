@@ -62,6 +62,11 @@ Current version: **v2.9**.
   with three arches whose spray is a live mesh (`makeSprayArches`, `level.splash`)
   animated in sequence by the runtime, plus the slide. Ring road unchanged. Trail
   slabs are stepped in height because same-height slabs z-fight end to end.
+- Second fill round: pool and outdoor gym behind the houses (north band), farm and
+  mini golf in the south band, soccer pitch and a tree cluster in the east band,
+  each with a spur off the ring road. The pool is two water zones so she swims
+  slowly in it. Quiz operands never include 1. The HUD explains the wheel when she
+  is within 9m of its platform (`rideNear`).
 - Load time is the world build in the first frame: props ~2s, grass ~0.2s, merge
   ~0.5s on the Windows laptop. `[build]` in the console breaks it down. The grass
   mask has a spatial grid; before it, grass placement alone was 6s.
@@ -164,6 +169,8 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `board.ts` | Leaderboard logic, headless. |
 | `layoutroll.ts` | Layout rotation distribution and repeat rate. |
 | `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
+| `jump.ts` | Jump stress test: 1200 random run-and-jump attempts at berms, stairs, the maze, the playground, the wheel platform and the campground through the real collision code; fails if she ever moves more than 2m sideways in one frame. Found the berm "reset" (an axis sweep pushing her out through the far face of a 34m box). |
+| `ones.ts` | Proves no quiz question uses 1 as an operand and none has a zero or negative answer. |
 | `walk.ts` | Invisible-wall detector. Walks her through the real collision code along lines across the whole park (or around a point: `walk.ts x z radius`) and reports every stall where the blocker's top is within the step-up. Found both 16 Sept reports; must print 0 stalls. |
 | `near.ts` | `near.ts x z radius` lists every solid collider near a point with the usual suspects flagged: rotated boxes, low opacity, ledges above the step-up. The first thing to run on any "invisible wall at <place>" report. |
 | `camera.ts` | Walks the hedge maze at 60Hz with the camera yaw fixed and following, and reports how often the camera is pulled in, lurches, or falls back to sitting on her head. This is what proved the maze camera bug (58% of frames pulled in, 330 emergency frames) and the low-obstacle lift fix (0 and 0). |
@@ -231,6 +238,11 @@ shader, so hiding one light recompiles every material at once: a 2-second freeze
 after every catch, when the caught dumpling's spark light was hidden. Lights are
 dimmed with `intensity = 0` instead. The `?debug=1` overlay is what found this: it
 logs any frame over 120ms with what the game was doing at the time.
+
+**An axis sweep only resolves against a face she crossed that step.** The X sweep
+used to push her out of any box she overlapped in Y and Z, so landing beside the
+long side of a berm sent her out through its far end, up to 20m away ("the hedge
+resets you"). `tools/jump.ts` guards this.
 
 **Colliders ignore rotation.** `addBox` pushes an axis-aligned AABB at the unrotated
 dimensions. A rotated tall box will have a collider that does not match its visual.

@@ -421,6 +421,12 @@ if (reach.startBlocked) {
     ["campground hammock", 138, 130],
     ["pavilion", 132, 60],
     ["splash pad slide", -85, 18],
+    ["pool deck", -40, 122],
+    ["gym", 8, 140],
+    ["farm barn door", -60, -128],
+    ["farm paddock", -62, -138],
+    ["mini golf", 20, -122],
+    ["soccer pitch", 130, -60],
   ];
   // containment: the flood fill must not escape past the boundary wall
   let escaped = 0;

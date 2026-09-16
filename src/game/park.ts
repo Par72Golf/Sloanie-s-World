@@ -391,6 +391,261 @@ export function pavilion(cx: number, cz: number): Prop[] {
   return p;
 }
 
+/* -------------------------------------------------------------------- pool */
+
+/**
+ * Outdoor pool behind the houses. A raised deck with a rim, water inside it
+ * (liquid colour, so no collider; the level adds water zones so she swims
+ * slowly), lane ropes, a diving board, a lifeguard chair, loungers, a kiddie
+ * pool and a changing hut.
+ */
+export function swimmingPool(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  p.push(surf(cx, TOP.apron, cz, 34, 22, "#dcd6c8"));
+  // rim around a 20x10 pool, as four low walls she can step over
+  const w = 20;
+  const d = 10;
+  p.push(box(cx, 0.25, cz - d / 2 - 0.3, w + 1.2, 0.5, 0.6, "#c8dbe8"));
+  p.push(box(cx, 0.25, cz + d / 2 + 0.3, w + 1.2, 0.5, 0.6, "#c8dbe8"));
+  p.push(box(cx - w / 2 - 0.3, 0.25, cz, 0.6, 0.5, d, "#c8dbe8"));
+  p.push(box(cx + w / 2 + 0.3, 0.25, cz, 0.6, 0.5, d, "#c8dbe8"));
+  // water, slightly below the rim
+  p.push(box(cx, 0.2, cz, w, 0.4, d, "#5aa8c8", false));
+  p.push(box(cx, 0.42, cz, w - 0.4, 0.04, d - 0.4, "#6cb8d4", false));
+  // lane ropes
+  for (let i = -1; i <= 1; i++) {
+    p.push(box(cx, 0.47, cz + i * 2.5, w - 0.6, 0.06, 0.08, i === 0 ? "#e8455f" : "#ffc53d", false));
+  }
+  // diving board at the deep end
+  p.push(box(cx - w / 2 - 2.2, 0.55, cz, 0.5, 1.1, 0.5, C.chrome));
+  p.push(box(cx - w / 2 - 1.2, 1.15, cz, 3.2, 0.12, 0.6, "#4f93c4"));
+  p.push(box(cx - w / 2 - 2.6, 0.75, cz, 0.4, 0.3, 0.4, C.chrome, false));
+  // ladders
+  for (const s of [-1, 1]) {
+    p.push(box(cx + w / 2 + 0.9, 0.6, cz + s * 3, 0.08, 1.2, 0.08, C.chrome, false));
+    p.push(box(cx + w / 2 + 0.9, 0.6, cz + s * 3 + 0.5, 0.08, 1.2, 0.08, C.chrome, false));
+  }
+  // lifeguard chair
+  p.push(box(cx + 6, 1.4, cz - d / 2 - 3, 0.9, 2.8, 0.9, "#f7f3ee"));
+  p.push(box(cx + 6, 3.0, cz - d / 2 - 3, 1.2, 0.5, 1.1, "#e8455f", false));
+  p.push(box(cx + 6, 2.5, cz - d / 2 - 3.3, 0.14, 1.0, 0.14, "#e8455f", false));
+  // loungers along the far side
+  for (let i = 0; i < 4; i++) {
+    const lx = cx - 7 + i * 4.5;
+    p.push(box(lx, 0.3, cz + d / 2 + 3, 0.9, 0.2, 2.2, "#f7f3ee"));
+    p.push(box(lx, 0.65, cz + d / 2 + 3.9, 0.9, 0.5, 0.2, "#f7f3ee", false));
+    p.push(box(lx, 0.42, cz + d / 2 + 3, 0.8, 0.06, 2.0, i % 2 ? "#4f93c4" : "#ffc53d", false));
+  }
+  // kiddie pool
+  p.push(disc(cx + 12, TOP.inner, cz + 7, 2.6, "#c8dbe8", 0.4));
+  p.push(disc(cx + 12, TOP.inner + 0.02, cz + 7, 2.2, "#9fd4ea", 0.3));
+  // changing hut
+  p.push({ kind: "house", x: cx + 13, z: cz - 7, body: "#f3eadc", roof: "#4f93c4", w: 5, d: 4 });
+  return p;
+}
+
+/* --------------------------------------------------------------------- gym */
+
+/**
+ * Outdoor gym: rubber floor, pull-up and parallel bars, monkey bars, sit-up
+ * benches, a balance beam, a tyre to flip and a small shed. Thin bars are
+ * marked non-colliding and are under 0.35m, so they never become walls or
+ * ceilings; the posts are solid.
+ */
+export function outdoorGym(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  p.push(surf(cx, TOP.apron, cz, 26, 18, C.rubber));
+  p.push(surf(cx, TOP.court, cz, 8, 8, C.rubberWarm));
+  // pull-up bars, three heights
+  for (let i = 0; i < 3; i++) {
+    const x = cx - 10 + i * 2.2;
+    const h = 1.6 + i * 0.4;
+    p.push(box(x - 0.8, h / 2, cz - 6, 0.14, h, 0.14, C.chrome));
+    p.push(box(x + 0.8, h / 2, cz - 6, 0.14, h, 0.14, C.chrome));
+    p.push(box(x, h, cz - 6, 1.7, 0.08, 0.08, C.chrome, false));
+  }
+  // parallel bars
+  for (const s of [-1, 1]) {
+    p.push(box(cx - 2 - 1.2, 0.7, cz - 6 + s * 0.5, 0.14, 1.4, 0.14, C.chrome));
+    p.push(box(cx - 2 + 1.2, 0.7, cz - 6 + s * 0.5, 0.14, 1.4, 0.14, C.chrome));
+    p.push(box(cx - 2, 1.4, cz - 6 + s * 0.5, 2.6, 0.08, 0.08, C.chrome, false));
+  }
+  // monkey bars
+  for (const s of [-1, 1]) {
+    p.push(box(cx + 6 + s * 2.4, 1.1, cz - 6 - 0.5, 0.14, 2.2, 0.14, C.paint));
+    p.push(box(cx + 6 + s * 2.4, 1.1, cz - 6 + 0.5, 0.14, 2.2, 0.14, C.paint));
+    p.push(box(cx + 6, 2.2, cz - 6 + s * 0.5, 5.0, 0.08, 0.08, C.paint, false));
+  }
+  for (let i = 0; i < 7; i++) {
+    p.push(box(cx + 6 - 2.1 + i * 0.7, 2.2, cz - 6, 0.06, 0.06, 1.1, C.chrome, false));
+  }
+  // sit-up benches and a balance beam
+  for (let i = 0; i < 2; i++) {
+    p.push(box(cx - 8 + i * 3, 0.35, cz + 3, 0.7, 0.2, 2.2, "#4f93c4"));
+    p.push(box(cx - 8 + i * 3, 0.15, cz + 3, 0.5, 0.3, 0.3, C.chrome));
+  }
+  p.push(box(cx + 2, 0.22, cz + 4, 0.3, 0.45, 6, "#8a5a32"));
+  // tyre and a couple of kettlebells
+  p.push(cyl(cx + 8, 0.16, cz + 4, 0.9, 0.32, "#2f2a26"));
+  p.push(cyl(cx + 8, 0.16, cz + 4, 0.35, 0.34, C.rubber, false));
+  p.push(cyl(cx + 10.5, 0.2, cz + 2, 0.22, 0.4, "#2f2a26", false));
+  p.push(cyl(cx + 11.2, 0.2, cz + 2.8, 0.22, 0.4, "#2f2a26", false));
+  // shed
+  p.push({ kind: "house", x: cx - 9, z: cz + 7.5, body: "#7ec4e8", roof: "#2f6f8f", w: 4, d: 3 });
+  return p;
+}
+
+/* -------------------------------------------------------------------- farm */
+
+/**
+ * Little farm: red barn, fenced paddock with a trough and hay bales, vegetable
+ * beds in rows, a scarecrow, a tractor and a windmill pump.
+ */
+export function farm(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  p.push(surf(cx, TOP.lawn, cz, 52, 36, "#8fbf62"));
+  p.push({ kind: "house", x: cx - 16, z: cz - 8, body: "#c9442f", roof: "#6a3a28", w: 10, d: 8 });
+  // paddock: posts solid, rails thin
+  const px = cx + 8;
+  const pz = cz - 6;
+  const pw = 22;
+  const pd = 14;
+  const post = (x: number, z: number) => p.push(box(x, 0.5, z, 0.22, 1.0, 0.22, C.wood));
+  for (let i = 0; i <= 8; i++) {
+    post(px - pw / 2 + (i * pw) / 8, pz - pd / 2);
+    post(px - pw / 2 + (i * pw) / 8, pz + pd / 2);
+  }
+  for (let i = 1; i < 5; i++) {
+    post(px - pw / 2, pz - pd / 2 + (i * pd) / 5);
+    post(px + pw / 2, pz - pd / 2 + (i * pd) / 5);
+  }
+  for (const y of [0.4, 0.8]) {
+    p.push(box(px, y, pz - pd / 2, pw, 0.08, 0.08, C.woodLight, false));
+    p.push(box(px, y, pz + pd / 2, pw, 0.08, 0.08, C.woodLight, false));
+    // the gate side has a gap in the middle so she can walk in
+    p.push(box(px - pw / 2, y, pz - pd / 4 - 0.75, 0.08, 0.08, pd / 2 - 1.5, C.woodLight, false));
+    p.push(box(px - pw / 2, y, pz + pd / 4 + 0.75, 0.08, 0.08, pd / 2 - 1.5, C.woodLight, false));
+    p.push(box(px + pw / 2, y, pz, 0.08, 0.08, pd, C.woodLight, false));
+  }
+  p.push(surf(px, TOP.apron, pz, pw - 1, pd - 1, "#c7a97a"));
+  p.push(box(px + 6, 0.3, pz + 3, 2.2, 0.6, 0.8, C.chrome));
+  p.push(box(px + 6, 0.55, pz + 3, 2.0, 0.06, 0.6, "#6cb8d4", false));
+  for (const [hx, hz] of [
+    [px - 5, pz - 3],
+    [px - 3.6, pz - 3],
+    [px - 4.3, pz - 3.9],
+  ]) {
+    p.push(box(hx, 0.45, hz, 1.3, 0.9, 1.0, "#e8c46a"));
+  }
+  // vegetable beds
+  for (let i = 0; i < 4; i++) {
+    const bz = cz + 8 + i * 2.4;
+    p.push(box(cx - 14, 0.16, bz, 16, 0.32, 1.2, "#7a5232"));
+    p.push(box(cx - 14, 0.42, bz, 15, 0.22, 0.6, i % 2 ? "#3fa35c" : "#e8734a", false));
+  }
+  // scarecrow
+  p.push(box(cx - 4, 1.2, cz + 12, 0.16, 2.4, 0.16, C.wood));
+  p.push(box(cx - 4, 1.9, cz + 12, 1.6, 0.16, 0.16, C.wood, false));
+  p.push(box(cx - 4, 1.6, cz + 12, 0.7, 0.9, 0.4, "#4f93c4", false));
+  p.push(box(cx - 4, 2.35, cz + 12, 0.45, 0.45, 0.45, "#e8c46a", false));
+  p.push(box(cx - 4, 2.68, cz + 12, 0.9, 0.12, 0.9, "#8a5a32", false));
+  // tractor
+  p.push(box(cx + 6, 0.9, cz + 11, 2.4, 1.0, 1.4, "#c9442f"));
+  p.push(box(cx + 5.2, 1.7, cz + 11, 1.0, 0.7, 1.2, "#2f2a26", false));
+  p.push(cyl(cx + 7.2, 0.7, cz + 11.9, 0.7, 0.4, "#2f2a26", false));
+  p.push(cyl(cx + 7.2, 0.7, cz + 10.1, 0.7, 0.4, "#2f2a26", false));
+  p.push(cyl(cx + 4.9, 0.45, cz + 11.9, 0.45, 0.3, "#2f2a26", false));
+  p.push(cyl(cx + 4.9, 0.45, cz + 10.1, 0.45, 0.3, "#2f2a26", false));
+  p.push(box(cx + 7, 1.9, cz + 11, 0.16, 1.0, 0.16, "#5a6470", false));
+  // windmill pump
+  p.push(box(cx + 20, 3.2, cz + 8, 0.6, 6.4, 0.6, "#8a9aa4"));
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    p.push(box(cx + 20 + Math.cos(a) * 1.2, 6.6 + Math.sin(a) * 1.2, cz + 8.5, 0.3, 0.3, 0.1, "#f7f3ee", false));
+  }
+  return p;
+}
+
+/* --------------------------------------------------------------- mini golf */
+
+/** Four mini-golf holes side by side, with low borders, obstacles and flags. */
+export function miniGolf(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  p.push(surf(cx, TOP.apron, cz, 32, 24, "#d8c49a"));
+  for (let i = 0; i < 4; i++) {
+    const hx = cx - 12 + i * 8;
+    p.push(surf(hx, TOP.court, cz, 5, 18, "#4fa056"));
+    // borders
+    p.push(box(hx - 2.7, 0.18, cz, 0.4, 0.36, 18.4, "#8a5a32"));
+    p.push(box(hx + 2.7, 0.18, cz, 0.4, 0.36, 18.4, "#8a5a32"));
+    p.push(box(hx, 0.18, cz - 9.2, 5.8, 0.36, 0.4, "#8a5a32"));
+    p.push(box(hx, 0.18, cz + 9.2, 5.8, 0.36, 0.4, "#8a5a32"));
+    // tee mat and the hole with its flag
+    p.push(surf(hx, TOP.line, cz + 7.5, 1.2, 1.2, "#2f6f8f", 0.05));
+    p.push(disc(hx, TOP.line, cz - 7, 0.35, "#2f2a26", 0.05));
+    p.push(box(hx, 0.9, cz - 7, 0.06, 1.8, 0.06, C.chrome, false));
+    p.push(box(hx + 0.35, 1.55, cz - 7, 0.6, 0.35, 0.05, ["#e8455f", "#ffc53d", "#4f93c4", "#3fa35c"][i]!, false));
+    // an obstacle per hole
+    if (i === 0) {
+      p.push(box(hx, 0.4, cz, 2.2, 0.8, 0.6, "#a05040"));
+    } else if (i === 1) {
+      // windmill: house with a wheel of blades
+      p.push({ kind: "house", x: hx, z: cz, body: "#f3eadc", roof: "#a05040", w: 2.6, d: 2.2 });
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2;
+        p.push(box(hx + Math.cos(a) * 1.0, 3.1 + Math.sin(a) * 1.0, cz + 1.3, 0.3, 0.3, 0.08, "#4f93c4", false));
+      }
+    } else if (i === 2) {
+      p.push(cyl(hx - 1.2, 0.35, cz + 1.5, 0.5, 0.7, "#ffc53d"));
+      p.push(cyl(hx + 1.2, 0.35, cz - 1.5, 0.5, 0.7, "#ffc53d"));
+    } else {
+      p.push(box(hx - 1.4, 0.3, cz, 1.4, 0.6, 0.5, "#4f93c4"));
+      p.push(box(hx + 1.4, 0.3, cz - 3, 1.4, 0.6, 0.5, "#4f93c4"));
+    }
+  }
+  // kiosk
+  p.push({ kind: "house", x: cx + 13, z: cz + 8, body: "#ffc53d", roof: "#d45a4a", w: 4, d: 3 });
+  return p;
+}
+
+/* -------------------------------------------------------------- soccer pitch */
+
+export function soccerPitch(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  const w = 40;
+  const d = 26;
+  p.push(surf(cx, TOP.lawn, cz, w + 6, d + 6, "#63ac5e"));
+  p.push(surf(cx, TOP.apron, cz, w, d, "#5fb05a"));
+  // lines
+  p.push(surf(cx, TOP.line, cz - d / 2 + 0.1, w, 0.2, C.line, 0.05));
+  p.push(surf(cx, TOP.line, cz + d / 2 - 0.1, w, 0.2, C.line, 0.05));
+  p.push(surf(cx - w / 2 + 0.1, TOP.line, cz, 0.2, d, C.line, 0.05));
+  p.push(surf(cx + w / 2 - 0.1, TOP.line, cz, 0.2, d, C.line, 0.05));
+  p.push(surf(cx, TOP.line, cz, 0.2, d, C.line, 0.05));
+  p.push(disc(cx, TOP.line, cz, 4, C.line, 0.05));
+  p.push(disc(cx, TOP.mark, cz, 3.8, "#5fb05a", 0.05));
+  // goals: posts solid, crossbar and net thin
+  for (const s of [-1, 1]) {
+    const gx = cx + (s * w) / 2;
+    p.push(box(gx, 1.2, cz - 3, 0.16, 2.4, 0.16, C.line));
+    p.push(box(gx, 1.2, cz + 3, 0.16, 2.4, 0.16, C.line));
+    p.push(box(gx, 2.4, cz, 0.12, 0.12, 6.2, C.line, false));
+    p.push(box(gx + s * 0.9, 1.2, cz, 0.06, 2.4, 6.2, "#e8f0f4", false, { opacity: 0.5 }));
+    p.push(box(gx + s * 0.9, 2.4, cz, 1.9, 0.06, 6.2, "#e8f0f4", false, { opacity: 0.5 }));
+  }
+  // benches and corner flags
+  for (const s of [-1, 1]) {
+    p.push(box(cx + s * 8, 0.45, cz + d / 2 + 4, 4, 0.16, 0.6, C.woodLight));
+    p.push(box(cx + s * 8 - 1.7, 0.2, cz + d / 2 + 4, 0.2, 0.4, 0.5, C.wood));
+    p.push(box(cx + s * 8 + 1.7, 0.2, cz + d / 2 + 4, 0.2, 0.4, 0.5, C.wood));
+    for (const t of [-1, 1]) {
+      p.push(box(cx + (s * w) / 2, 0.8, cz + (t * d) / 2, 0.06, 1.6, 0.06, C.chrome, false));
+      p.push(box(cx + (s * w) / 2 + 0.25, 1.45, cz + (t * d) / 2, 0.5, 0.3, 0.04, "#e8455f", false));
+    }
+  }
+  return p;
+}
+
 /* ------------------------------------------------------------------- woods */
 
 /**

@@ -1270,6 +1270,16 @@ export class GameRuntime {
     this.hudT += dt;
     if (this.hudT < 0.12) return;
     this.hudT = 0;
+    // near the wheel's platform and not riding: show how to ride
+    {
+      const w = this.world?.ride;
+      const near =
+        !!w &&
+        !this.ride &&
+        Math.hypot(this.cap.x - (w.origin.x + w.boardLocal.x), this.cap.z - (w.origin.z + w.boardLocal.z)) < 9 &&
+        this.cap.y < 2;
+      useGame.getState().setRideNear(near);
+    }
     const d = this.nearestUnfound();
     if (!d) {
       useGame.getState().setHud({
