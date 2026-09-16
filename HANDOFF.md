@@ -73,6 +73,11 @@ Current version: **v2.9**.
   parts tagged `userData.fpHide` (head, arms, shoulders, neck) hide; skirt and legs
   stay. Hands are a separate viewmodel (`makeHands`) the runtime pins to the camera
   each frame with bob and sway; rebuilt with the girl when the dress changes. The
+  right-hand grip is built in the iPod's own frame (palm behind, fingers round the
+  left edge, thumb on the wheel) because posing a palm with Euler rotations kept
+  hiding the fingers behind the device. The iPod screen is a canvas texture with a
+  small apple-style logo (`ipodScreenTexture`), used on both the character and the
+  viewmodel. The
   ride camera overrides both modes. Third person is the default; first person is
   opt-in because a big TV can make a 7-year-old queasy.
 - Controls panel (`ControlsPanel`): title, pause menu and a HUD gamepad icon.
