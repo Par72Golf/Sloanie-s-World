@@ -445,7 +445,7 @@ function HUD() {
         </div>
       </div>
 
-      {(nearCollect || fleeNotice || close) && (
+      {(nearCollect || fleeNotice || close || rideNear) && (
         <div className="pointer-events-none absolute inset-x-0 top-24 flex justify-center px-3">
           <Panel className="pointer-events-auto relative max-w-sm px-4 py-2 pr-10 text-center">
             <p className="text-sm font-semibold text-ink">{status}</p>
