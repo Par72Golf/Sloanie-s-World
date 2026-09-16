@@ -70,6 +70,19 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
     }
   });
 
+  // the ferris wheel: foot pads, fence and boarding platform; nothing that moves
+  if (level.ride) {
+    const { x, z } = level.ride;
+    for (const dz of [-2.2, 2.2]) for (const s of [-1, 1]) push(aabbFromCenter(x + s * 3.6, 0.25, z + dz, 0.9, 0.5, 0.9), "wheel foot", -1);
+    push(aabbFromCenter(x, 0.45, z - 3.2, 14.4, 0.9, 0.12), "wheel fence", -1);
+    push(aabbFromCenter(x - 7.2, 0.45, z, 0.12, 0.9, 6.4), "wheel fence", -1);
+    push(aabbFromCenter(x + 7.2, 0.45, z, 0.12, 0.9, 6.4), "wheel fence", -1);
+    push(aabbFromCenter(x - 4.5, 0.45, z + 3.2, 5.4, 0.9, 0.12), "wheel fence", -1);
+    push(aabbFromCenter(x + 4.5, 0.45, z + 3.2, 5.4, 0.9, 0.12), "wheel fence", -1);
+    push(aabbFromCenter(x, 0.3, z + 4.0, 3.2, 0.6, 1.6), "wheel platform", -1);
+    push(aabbFromCenter(x, 0.15, z + 5.2, 3.2, 0.3, 0.8), "wheel step", -1);
+  }
+
   // composite meshes the builder places by hand
   if (level.id === "picnic") {
     push(aabbFromCenter(22, 1.3, 8, 2.2, 2.6, 2.2), "slide", -1);

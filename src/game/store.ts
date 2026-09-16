@@ -78,6 +78,9 @@ export type GameStore = {
   /** Bumped on every change to worn, so the runtime re-dresses her once. */
   wornGen: number;
   wardrobeOpen: boolean;
+  /** On the ferris wheel: input, Emmett and the run clock all pause. */
+  riding: boolean;
+  setRiding: (v: boolean) => void;
   findAccessory: (id: AccessoryId) => void;
   setWorn: (slot: Slot, id: AccessoryId | null) => void;
   toggleWardrobe: () => void;
@@ -180,6 +183,8 @@ export const useGame = create<GameStore>((set, get) => ({
   worn: { ...NOTHING_WORN, ...(saved.worn as Partial<Worn>) },
   wornGen: 0,
   wardrobeOpen: false,
+  riding: false,
+  setRiding: (riding) => set({ riding }),
   findAccessory: (id) => {
     const found = get().foundAccessories;
     if (found.includes(id)) return;

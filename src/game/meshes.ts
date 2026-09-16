@@ -1195,6 +1195,137 @@ export function makeWaterMaterial(hex: string) {
 
 export { boxGeo, sphereGeo, cylGeo, coneGeo, cone4Geo };
 
+export type FerrisWheel = {
+  group: THREE.Group;
+  /** rotates about z; gondolas hang from it */
+  hub: THREE.Group;
+  gondolas: THREE.Group[];
+  radius: number;
+  hubY: number;
+  /** where she stands to board, in the wheel's local frame */
+  boardLocal: THREE.Vector3;
+  /** the wheel's own frame: origin at the ground under the hub */
+  origin: THREE.Vector3;
+};
+
+const wheelRimGeo = new THREE.TorusGeometry(1, 0.11, 8, 48);
+
+/**
+ * A ferris wheel she can ride. The wheel turns in the x-y plane about a
+ * z axis; two A-frames hold the hub, two rims carry eight gondolas that
+ * counter-rotate every frame so they hang level. Colliders for the foot pads,
+ * the fence and the boarding platform are in colliders.ts; the moving parts
+ * have none, and the whole thing is kept out of the static merge.
+ */
+export function makeFerrisWheel(radius = 6, hubY = 7.8, count = 8): FerrisWheel {
+  const group = new THREE.Group();
+  const frame = "#d45a4a";
+  const steel = "#5a6470";
+  const pale = "#f4f0ea";
+  const flat = (c: string, roughness = 0.5) => lam(c, { flat: true, roughness });
+
+  // A-frames: slanted legs from foot pads up to the hub, on both sides
+  const legLen = Math.hypot(3.6, hubY);
+  const legTilt = Math.atan2(3.6, hubY);
+  for (const z of [-2.2, 2.2]) {
+    for (const s of [-1, 1]) {
+      const leg = new THREE.Mesh(cylGeo, flat(frame));
+      leg.scale.set(0.22, legLen, 0.22);
+      leg.position.set(s * 1.8, hubY / 2, z);
+      leg.rotation.z = s * legTilt;
+      leg.castShadow = true;
+      group.add(leg);
+      const pad = mesh(boxGeo, steel, 0.9, 0.5, 0.9, s * 3.6, 0.25, z);
+      group.add(pad);
+    }
+    // a brace between the legs part way up
+    group.add(mesh(boxGeo, frame, 3.2, 0.18, 0.18, 0, hubY * 0.55, z, false));
+  }
+  // axle through both A-frames
+  const axle = new THREE.Mesh(cylGeo, flat(steel, 0.35));
+  axle.scale.set(0.28, 5.4, 0.28);
+  axle.position.set(0, hubY, 0);
+  axle.rotation.x = Math.PI / 2;
+  group.add(axle);
+
+  // the rotating hub
+  const hub = new THREE.Group();
+  hub.position.set(0, hubY, 0);
+  group.add(hub);
+  for (const z of [-1.4, 1.4]) {
+    const rim = new THREE.Mesh(wheelRimGeo, flat(frame));
+    rim.scale.set(radius, radius, 1);
+    rim.position.z = z;
+    rim.castShadow = true;
+    hub.add(rim);
+    const cap = new THREE.Mesh(cylGeo, flat(pale, 0.35));
+    cap.scale.set(0.55, 0.3, 0.55);
+    cap.position.z = z;
+    cap.rotation.x = Math.PI / 2;
+    hub.add(cap);
+  }
+  const gondolas: THREE.Group[] = [];
+  const colours = ["#4f93c4", "#ffc53d", "#3fa35c", "#e8455f", "#d47a96", "#7ec4e8", "#d4894a", "#b8e0c8"];
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    // spokes on both rims
+    for (const z of [-1.4, 1.4]) {
+      const spoke = new THREE.Mesh(cylGeo, flat(frame));
+      spoke.scale.set(0.09, radius, 0.09);
+      spoke.position.set((Math.cos(a) * radius) / 2, (Math.sin(a) * radius) / 2, z);
+      spoke.rotation.z = a - Math.PI / 2;
+      hub.add(spoke);
+    }
+    // hanger bar across the two rims, and the gondola pivoting from its middle
+    const bar = new THREE.Mesh(cylGeo, flat(steel, 0.35));
+    bar.scale.set(0.08, 2.8, 0.08);
+    bar.position.set(Math.cos(a) * radius, Math.sin(a) * radius, 0);
+    bar.rotation.x = Math.PI / 2;
+    hub.add(bar);
+
+    const g = new THREE.Group();
+    g.position.set(Math.cos(a) * radius, Math.sin(a) * radius, 0);
+    const c = colours[i % colours.length]!;
+    // hangers, bucket, roof
+    g.add(mesh(boxGeo, steel, 0.08, 0.8, 0.08, -0.6, -0.4, 0, false));
+    g.add(mesh(boxGeo, steel, 0.08, 0.8, 0.08, 0.6, -0.4, 0, false));
+    g.add(mesh(boxGeo, c, 1.6, 0.9, 1.4, 0, -1.25, 0));
+    g.add(mesh(boxGeo, "#f7f3ee", 1.4, 0.1, 1.2, 0, -0.85, 0, false)); // rail top
+    g.add(mesh(boxGeo, c, 1.75, 0.12, 1.55, 0, -0.05, 0, false)); // roof
+    g.userData.seatY = -1.7; // where her feet go, relative to the pivot
+    hub.add(g);
+    gondolas.push(g);
+  }
+
+  // fence around the sweep, open on the +z side where the platform is
+  const fenceY = 0.45;
+  const fh = 0.9;
+  group.add(mesh(boxGeo, pale, 14.4, fh, 0.12, 0, fenceY, -3.2, false));
+  group.add(mesh(boxGeo, pale, 0.12, fh, 6.4, -7.2, fenceY, 0, false));
+  group.add(mesh(boxGeo, pale, 0.12, fh, 6.4, 7.2, fenceY, 0, false));
+  group.add(mesh(boxGeo, pale, 5.4, fh, 0.12, -4.5, fenceY, 3.2, false));
+  group.add(mesh(boxGeo, pale, 5.4, fh, 0.12, 4.5, fenceY, 3.2, false));
+  // boarding platform, with a step, in the fence gap
+  group.add(mesh(boxGeo, steel, 3.2, 0.6, 1.6, 0, 0.3, 4.0));
+  group.add(mesh(boxGeo, steel, 3.2, 0.3, 0.8, 0, 0.15, 5.2));
+  group.add(mesh(boxGeo, "#ffc53d", 3.2, 0.08, 1.6, 0, 0.62, 4.0, false));
+
+  return {
+    group,
+    hub,
+    gondolas,
+    radius,
+    hubY,
+    boardLocal: new THREE.Vector3(0, 0.6, 4.0),
+    origin: new THREE.Vector3(),
+  };
+}
+
+/** Keep every gondola hanging level as the hub turns. */
+export function levelGondolas(wheel: FerrisWheel) {
+  for (const g of wheel.gondolas) g.rotation.z = -wheel.hub.rotation.z;
+}
+
 /**
  * Emmett: a small boy on a tricycle, black cap, red sunglasses.
  * Returns the root plus the parts that need animating.

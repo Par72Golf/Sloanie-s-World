@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { placeCamera } from "./camera";
 import { perf, recordFrame } from "./debug";
 import { applyWorn, makePickup, type AccessoryId } from "./accessories";
+import { levelGondolas } from "./meshes";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -137,6 +138,9 @@ export class GameRuntime {
   /** accessory pickups in the current park */
   pickups: { id: AccessoryId; group: THREE.Group; pos: [number, number, number]; phase: number }[] = [];
   lastWornGen = -1;
+  /** ferris wheel ride in progress: which gondola she is in and how far round */
+  ride: { gondola: number; turned: number } | null = null;
+  private rideSeat = new THREE.Vector3();
   camTarget = new THREE.Vector3();
   wish = new THREE.Vector3();
   fwd = new THREE.Vector3();
@@ -401,6 +405,8 @@ export class GameRuntime {
     this.runAccum = useGame.getState().runSeconds;
     this.spawnJuice();
     this.spawnPickups();
+    this.ride = null;
+    useGame.getState().setRiding(false);
     if (this.emmett) this.emmett.dispose(this.scene);
     this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? []);
     this.boostLeft = 0;
@@ -526,7 +532,7 @@ export class GameRuntime {
   updateEmmett(dt: number) {
     if (!this.emmett || !this.world) return;
     const st = useGame.getState();
-    const busy = st.phase !== "playing" || st.quiz != null || st.rps != null;
+    const busy = st.phase !== "playing" || st.quiz != null || st.rps != null || st.riding;
 
     const collected = st.collected[st.levelIndex] ?? [];
     const caught = this.emmett.update(
@@ -739,9 +745,71 @@ export class GameRuntime {
     this.highlightUntil = 0;
   }
 
+  /** Standing on the boarding platform and pressing Collect starts a ride. */
+  tryBoard(): boolean {
+    const wheel = this.world?.ride;
+    if (!wheel || this.ride) return false;
+    const bx = wheel.origin.x + wheel.boardLocal.x;
+    const bz = wheel.origin.z + wheel.boardLocal.z;
+    if (Math.hypot(this.cap.x - bx, this.cap.z - bz) > 2.4 || this.cap.y > 1.4) return false;
+    // the gondola nearest the bottom of the wheel is the one she steps into
+    let best = 0;
+    let bestY = Infinity;
+    wheel.gondolas.forEach((g, i) => {
+      const a = (i / wheel.gondolas.length) * Math.PI * 2 + wheel.hub.rotation.z;
+      const y = Math.sin(a);
+      if (y < bestY) {
+        bestY = y;
+        best = i;
+      }
+    });
+    this.ride = { gondola: best, turned: 0 };
+    this.velY = 0;
+    this.speed = 0;
+    sfx.click();
+    const st = useGame.getState();
+    st.setRiding(true);
+    st.setEmmettNotice("Wheee! Hold on tight!");
+    return true;
+  }
+
+  /** Turns the wheel: slowly when idle, one full lap when she is aboard. */
+  updateRide(dt: number) {
+    const wheel = this.world?.ride;
+    if (!wheel) return;
+    const IDLE = (Math.PI * 2) / 140;
+    const RIDE = (Math.PI * 2) / 42;
+    if (this.ride) {
+      const step = dt * RIDE;
+      wheel.hub.rotation.z += step;
+      this.ride.turned += step;
+      levelGondolas(wheel);
+      wheel.group.updateMatrixWorld(true);
+      const g = wheel.gondolas[this.ride.gondola]!;
+      g.getWorldPosition(this.rideSeat);
+      this.cap.x = this.rideSeat.x;
+      this.cap.y = this.rideSeat.y + (g.userData.seatY as number);
+      this.cap.z = this.rideSeat.z;
+      if (this.ride.turned >= Math.PI * 2) {
+        // back at the bottom: step off onto the platform
+        this.ride = null;
+        this.cap.x = wheel.origin.x + wheel.boardLocal.x;
+        this.cap.y = wheel.boardLocal.y + 0.01;
+        this.cap.z = wheel.origin.z + wheel.boardLocal.z;
+        const st = useGame.getState();
+        st.setRiding(false);
+        st.setEmmettNotice("What a view! Ride again any time.");
+      }
+    } else {
+      wheel.hub.rotation.z += dt * IDLE;
+      levelGondolas(wheel);
+    }
+  }
+
   tryCollect() {
     const st = useGame.getState();
     if (st.phase !== "playing") return;
+    if (this.tryBoard()) return;
     const d = this.nearestUnfound();
     if (!d) return;
     const dist = Math.hypot(
@@ -886,20 +954,27 @@ export class GameRuntime {
   syncCamera(snap = false) {
     const title = useGame.getState().phase === "title";
     const desired = this.camPos;
-    // Placement lives in camera.ts so tools/camera.ts can walk routes with it.
-    const res = placeCamera(
-      {
-        boxes: this.world?.colliders ?? [],
-        cap: this.cap,
-        cameraYaw: this.cameraYaw,
-        indoor: this.indoor,
-        title,
-        snap,
-        dt: FIXED,
-      },
-      desired,
-    );
-    this.indoor = res.indoor;
+    if (this.ride && this.world?.ride) {
+      // On the wheel the normal boom would sit inside the rim looking through
+      // the spokes. Watch from the platform side instead, rising with her.
+      const w = this.world.ride;
+      desired.set(w.origin.x + 2.5, this.cap.y + 3.0, w.origin.z + 14.5);
+    } else {
+      // Placement lives in camera.ts so tools/camera.ts can walk routes with it.
+      const res = placeCamera(
+        {
+          boxes: this.world?.colliders ?? [],
+          cap: this.cap,
+          cameraYaw: this.cameraYaw,
+          indoor: this.indoor,
+          title,
+          snap,
+          dt: FIXED,
+        },
+        desired,
+      );
+      this.indoor = res.indoor;
+    }
 
     if (snap) this.camera.position.copy(desired);
     else {
@@ -922,7 +997,7 @@ export class GameRuntime {
     const st = useGame.getState();
     const qa = Boolean(window.__controlsTest && (isDown("KeyW") || isDown("KeyA") || isDown("KeyD") || isDown("KeyS")));
     // rock paper scissors freezes her in place, like the quiz does
-    const live = (st.phase === "playing" && st.rps == null) || (st.phase === "title" && qa);
+    const live = ((st.phase === "playing" && st.rps == null) || (st.phase === "title" && qa)) && !this.ride;
     if (!live) consumeJumpTap();
 
     const lookDelta = consumeLook();
@@ -992,18 +1067,25 @@ export class GameRuntime {
       sfx.jump();
     }
 
-    this.velY -= GRAVITY * dt;
-    const moved = moveAndCollide(
-      this.cap,
-      vx,
-      this.velY,
-      vz,
-      this.world?.colliders ?? [],
-      dt,
-      this.level.groundY,
-    );
-    this.velY = moved.vy;
-    this.grounded = moved.grounded;
+    if (this.ride) {
+      // the wheel carries her; updateRide sets the capsule each frame
+      this.velY = 0;
+      this.grounded = true;
+      this.speed = 0;
+    } else {
+      this.velY -= GRAVITY * dt;
+      const moved = moveAndCollide(
+        this.cap,
+        vx,
+        this.velY,
+        vz,
+        this.world?.colliders ?? [],
+        dt,
+        this.level.groundY,
+      );
+      this.velY = moved.vy;
+      this.grounded = moved.grounded;
+    }
 
     this.sun.position.set(this.cap.x + 24, 48, this.cap.z + 14);
     this.sun.target.position.set(this.cap.x, 1, this.cap.z);
@@ -1132,6 +1214,7 @@ export class GameRuntime {
     }
     this.updateJuice(dt);
     this.updatePickups(dt);
+    this.updateRide(dt);
     this.updateEmmett(dt);
     this.updateCelebration(dt);
 
@@ -1140,7 +1223,7 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const ticking =
-        st.runActive && st.phase === "playing" && st.quiz == null && st.rps == null;
+        st.runActive && st.phase === "playing" && st.quiz == null && st.rps == null && !st.riding;
       if (ticking) {
         this.runAccum += dt;
         if (Math.floor(this.runAccum) !== Math.floor(st.runSeconds)) {

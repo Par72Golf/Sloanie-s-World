@@ -48,6 +48,13 @@ Current version: **v2.9**.
   attached to the head or torso group and tagged `userData.accessory`; the runtime
   re-dresses her whenever the store's `wornGen` changes. Wardrobe panel is on the
   title and pause screens.
+- Ferris wheel (`makeFerrisWheel` in `meshes.ts`, placed by `level.ride`): eight
+  gondolas kept level every frame, idles slowly, one 42-second lap when she boards.
+  Boarding is Collect on the platform (`tryBoard` runs before the dumpling check).
+  While riding: input off, gravity off, Emmett paused, run clock paused, and the
+  camera is a fixed side view from the platform side (the boom would sit inside the
+  rim). Only the foot pads, fence and platform are colliders (`colliders.ts`); the
+  whole group is in the merge's live set.
 - After editing a module the game imports, Vite's hot reload can leave two copies
   of `store.ts` alive (React on one, the runtime on the other), so the DOM stops
   matching `__gameTest.store()`. Do a full page reload before trusting any test.

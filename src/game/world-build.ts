@@ -13,6 +13,8 @@ import {
   lam,
   makeCloud,
   makeDumpling,
+  makeFerrisWheel,
+  type FerrisWheel,
   makeCaveMouth,
   makeFountain,
   makeGazebo,
@@ -50,6 +52,7 @@ export type BuiltWorld = {
   /** Geometries created by the static merge, owned by this world. */
   merged: THREE.BufferGeometry[];
   mergeReport: MergeReport;
+  ride: FerrisWheel | null;
 };
 
 function addBox(
@@ -178,6 +181,14 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       l.position.set(p.x, 0, p.z);
       group.add(l);
     }
+  }
+
+  let ride: FerrisWheel | null = null;
+  if (level.ride) {
+    ride = makeFerrisWheel();
+    ride.group.position.set(level.ride.x, 0, level.ride.z);
+    ride.origin.set(level.ride.x, 0, level.ride.z);
+    group.add(ride.group);
   }
 
   // Composite meshes. Their colliders are listed in colliders.ts; keep the
@@ -352,6 +363,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     live.add(d.group);
     live.add(d.beam);
   }
+  if (ride) live.add(ride.group);
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.
   const noMerge =
@@ -374,6 +386,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     grassField,
     merged,
     mergeReport,
+    ride,
   };
 }
 

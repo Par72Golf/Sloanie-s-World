@@ -135,6 +135,8 @@ export type LevelDef = {
   noJump?: { minX: number; maxX: number; minZ: number; maxZ: number; why: string }[];
   /** Accessories hidden in this park, ground level: id and where. */
   accessories?: { id: string; pos: [number, number, number]; region: string }[];
+  /** A ferris wheel, centred here; the boarding platform is 4m to +z. */
+  ride?: { x: number; z: number };
 };
 
 export type QuizQ = {

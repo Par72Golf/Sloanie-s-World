@@ -819,6 +819,8 @@ function picnicPark(): LevelDef {
     emmettKeepOut,
     noJump,
     accessories,
+    // on the east lawn; the reachability check covers (30, 65) in front of it
+    ride: { x: 30, z: 58 },
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

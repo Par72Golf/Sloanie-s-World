@@ -365,6 +365,14 @@ if (reach.startBlocked) {
   }
   if (!unreachable) console.log("  all dumplings reachable");
 
+  if (level.ride) {
+    const px = level.ride.x;
+    const pz = level.ride.z + 6.2; // just past the step, where she walks up
+    const i = reach.idx!(px, pz);
+    const ok = i >= 0 && reach.seen[i] === 1;
+    console.log(`  ${ok ? "ok         " : "BLOCKED    "} ferris wheel boarding @ (${px}, ${pz})`);
+  }
+
   // accessory pickups are walked into, so every one must be on reachable ground
   for (const a of level.accessories ?? []) {
     const i = reach.idx!(a.pos[0], a.pos[2]);
