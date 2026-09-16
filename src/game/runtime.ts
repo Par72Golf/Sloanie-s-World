@@ -624,8 +624,20 @@ export class GameRuntime {
     if (this.running) return;
     this.running = true;
     this.last = performance.now();
-    this.renderer.setAnimationLoop((t) => this.frame(t));
+    // One thrown error inside the loop would otherwise end the animation loop
+    // for good, with no way back short of a reload. Log it and keep going.
+    this.renderer.setAnimationLoop((t) => {
+      try {
+        this.frame(t);
+      } catch (err) {
+        this.frameErrors++;
+        if (this.frameErrors <= 5) console.error("[game] frame error", err);
+        this.last = t;
+      }
+    });
   }
+
+  frameErrors = 0;
 
   stop() {
     this.running = false;
