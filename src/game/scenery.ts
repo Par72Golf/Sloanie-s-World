@@ -139,8 +139,9 @@ export function makeGrassField(
 
   // density has to follow the footprint or a bigger park just looks balder
   const area = spanX * spanZ;
-  const bladeTarget = opts?.blades ?? Math.round(THREE.MathUtils.clamp(area * 2.4, 30000, 95000));
-  const flowerTarget = opts?.flowers ?? Math.round(THREE.MathUtils.clamp(area * 0.09, 900, 3600));
+  // caps raised for the 320m park; one instanced draw call either way
+  const bladeTarget = opts?.blades ?? Math.round(THREE.MathUtils.clamp(area * 2.0, 30000, 150000));
+  const flowerTarget = opts?.flowers ?? Math.round(THREE.MathUtils.clamp(area * 0.08, 900, 5000));
 
   const uniforms = { uTime: { value: 0 } };
 

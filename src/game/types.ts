@@ -70,13 +70,21 @@ export type LollipopProp = {
   candy: string;
 };
 
+export type TentProp = {
+  kind: "tent";
+  x: number;
+  z: number;
+  color: string;
+};
+
 export type Prop =
   | BoxProp
   | CylinderProp
   | TreeProp
   | HouseProp
   | CloudProp
-  | LollipopProp;
+  | LollipopProp
+  | TentProp;
 
 export type WaterZone = {
   kind: "water";
@@ -137,6 +145,10 @@ export type LevelDef = {
   accessories?: { id: string; pos: [number, number, number]; region: string }[];
   /** A ferris wheel, centred here; the boarding platform is 4m to +z. */
   ride?: { x: number; z: number };
+  /** Splash pad centre: the animated spray arches and the little slide go here. */
+  splash?: { x: number; z: number };
+  /** Campfire position: flames flicker and there is a warm light. */
+  campfire?: { x: number; z: number };
 };
 
 export type QuizQ = {

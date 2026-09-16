@@ -35,6 +35,7 @@ type Bounds = LevelDef["bounds"];
 function categorise(p: Prop): { fill: string; layer: number } | null {
   if (p.kind === "tree") return { fill: COL.tree, layer: 3 };
   if (p.kind === "house") return { fill: COL.roof, layer: 3 };
+  if (p.kind === "tent") return { fill: p.color, layer: 3 };
   if (p.kind === "cloud" || p.kind === "lollipop") return null;
 
   const color = (p as { color?: string }).color?.toLowerCase() ?? "";
@@ -99,6 +100,9 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
         const w = (p.w ?? 6) * s;
         const d = (p.d ?? 5) * s;
         g.fillRect(wx(p.x) - w / 2, wz(p.z) - d / 2, w, d);
+      } else if (p.kind === "tent") {
+        const w = 2.6 * s;
+        g.fillRect(wx(p.x) - w / 2, wz(p.z) - w / 2, w, w);
       } else if (p.kind === "cyl") {
         g.beginPath();
         g.arc(wx(p.pos[0]), wz(p.pos[2]), Math.max(1, p.r * s), 0, Math.PI * 2);

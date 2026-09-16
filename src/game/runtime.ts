@@ -1197,6 +1197,30 @@ export class GameRuntime {
     for (const mat of this.world.waterMats) {
       mat.uniforms.uTime.value = this.clock;
     }
+    // splash pad arches spray in sequence: each arch on for a beat in turn
+    if (this.world.spray) {
+      const arches = this.world.spray.columns;
+      const period = 2.2;
+      for (let a = 0; a < arches.length; a++) {
+        const phase = ((this.clock / period + a / arches.length) % 1 + 1) % 1;
+        const on = phase < 0.55 ? 1 : Math.max(0.08, 1 - (phase - 0.55) / 0.15);
+        const wobble = 1 + Math.sin(this.clock * 9 + a) * 0.06;
+        for (const c of arches[a]!) {
+          c.scale.y = 3.0 * on * wobble;
+          c.position.y = 3.35 - (3.0 * on * wobble) / 2;
+        }
+      }
+    }
+    if (this.world.campfire) {
+      const f = this.world.campfire;
+      for (let i = 0; i < f.flames.length; i++) {
+        const fl = f.flames[i]!;
+        const s = 1 + Math.sin(this.clock * (7 + i * 2.3) + i) * 0.16;
+        fl.scale.y = (0.9 - i * 0.15) * s;
+        fl.rotation.y += dt * (1.5 + i);
+      }
+      f.light.intensity = 1.2 + Math.sin(this.clock * 11) * 0.25 + Math.sin(this.clock * 5.3) * 0.15;
+    }
     if (this.world?.grassField) {
       this.world.grassField.update(this.clock);
     }

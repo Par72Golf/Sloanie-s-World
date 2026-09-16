@@ -15,6 +15,11 @@ import {
   makeDumpling,
   makeFerrisWheel,
   type FerrisWheel,
+  makeTent,
+  makeCampfire,
+  type Campfire,
+  makeSprayArches,
+  type SprayArches,
   makeCaveMouth,
   makeFountain,
   makeGazebo,
@@ -53,6 +58,8 @@ export type BuiltWorld = {
   merged: THREE.BufferGeometry[];
   mergeReport: MergeReport;
   ride: FerrisWheel | null;
+  spray: SprayArches | null;
+  campfire: Campfire | null;
 };
 
 function addBox(
@@ -180,7 +187,29 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       const l = makeLollipop(p.candy);
       l.position.set(p.x, 0, p.z);
       group.add(l);
+    } else if (p.kind === "tent") {
+      const t = makeTent(p.color);
+      t.position.set(p.x, 0, p.z);
+      group.add(t);
     }
+  }
+
+  // Animated set pieces: the splash pad spray and the campfire. Both are kept
+  // out of the merge so the runtime can move them.
+  let spray: SprayArches | null = null;
+  if (level.splash) {
+    spray = makeSprayArches();
+    spray.group.position.set(level.splash.x, 0, level.splash.z);
+    group.add(spray.group);
+    const slide = makeSlide();
+    slide.position.set(level.splash.x + 10, 0, level.splash.z - 7);
+    group.add(slide);
+  }
+  let campfire: Campfire | null = null;
+  if (level.campfire) {
+    campfire = makeCampfire();
+    campfire.group.position.set(level.campfire.x, 0, level.campfire.z);
+    group.add(campfire.group);
   }
 
   let ride: FerrisWheel | null = null;
@@ -364,6 +393,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     live.add(d.beam);
   }
   if (ride) live.add(ride.group);
+  if (spray) live.add(spray.group);
+  if (campfire) live.add(campfire.group);
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.
   const noMerge =
@@ -387,6 +418,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     merged,
     mergeReport,
     ride,
+    spray,
+    campfire,
   };
 }
 

@@ -409,6 +409,12 @@ if (reach.startBlocked) {
     ["playground sandbox", -82, -23],
     ["ring road NE", 103, 103],
     ["ring road SW", -103, -103],
+    ["woods trail start", -112, 0],
+    ["woods clearing", -140, 12],
+    ["campground fire", 128, 124],
+    ["campground hammock", 138, 130],
+    ["pavilion", 132, 60],
+    ["splash pad slide", -85, 18],
   ];
   // containment: the flood fill must not escape past the boundary wall
   let escaped = 0;
@@ -417,7 +423,8 @@ if (reach.startBlocked) {
       if (!reach.seen[iz * reach.w + ix]) continue;
       const x = level.bounds.minX + ix * reach.step;
       const z = level.bounds.minZ + iz * reach.step;
-      if (Math.abs(x) > 117 || Math.abs(z) > 117) escaped++;
+      // the wall stands 2.5m inside the bounds; anything past it has leaked
+      if (x < level.bounds.minX + 2 || x > level.bounds.maxX - 2 || z < level.bounds.minZ + 2 || z > level.bounds.maxZ - 2) escaped++;
     }
   }
   console.log(

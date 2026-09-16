@@ -67,8 +67,19 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
       push(aabbFromCenter(p.x, 2.1, p.z, rotated ? d : w, 4.2, rotated ? w : d), "house", i);
     } else if (p.kind === "lollipop") {
       push(aabbFromCenter(p.x, 1.2, p.z, 0.3, 2.4, 0.3), "lollipop", i);
+    } else if (p.kind === "tent") {
+      push(aabbFromCenter(p.x, 1.0, p.z, 2.6, 2.0, 2.6), "tent", i);
     }
   });
+
+  if (level.splash) {
+    // the little slide at the splash pad (composite mesh, see world-build)
+    push(aabbFromCenter(level.splash.x + 10, 1.3, level.splash.z - 7, 2.2, 2.6, 2.2), "splash slide", -1);
+  }
+  if (level.campfire) {
+    // stones and flames: low enough to see, high enough not to step over
+    push(aabbFromCenter(level.campfire.x, 0.45, level.campfire.z, 2.8, 0.9, 2.8), "campfire", -1);
+  }
 
   // the ferris wheel: foot pads, fence and boarding platform; nothing that moves
   if (level.ride) {

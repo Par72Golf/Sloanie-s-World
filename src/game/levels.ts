@@ -4,6 +4,9 @@ import {
   baseballDiamond,
   basketballCourt,
   boundaryWall,
+  campground,
+  forest,
+  pavilion,
   berm,
   hedge,
   houseRow,
@@ -268,7 +271,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [98, 1.05, 69.6], region: "the east picnic lawn", hint: "On a different picnic table out past the east gate." },
-      { pos: [102, 0.62, 76], region: "the barbecue", hint: "Next to the barbecue on the east picnic lawn." },
+      { pos: [128, 0.95, 60], region: "the pavilion", hint: "On a table under the big red roof, out past the east ring road." },
     ],
   },
   {
@@ -359,7 +362,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-15.5, 0.62, 112.5], region: "the houses on the north street", hint: "In a back yard on the north street, behind a hedge." },
-      { pos: [56.5, 0.62, 112.5], region: "the houses on the north street", hint: "In the back yard of the house at the far end of the street." },
+      { pos: [125, 0.62, 124], region: "the campground", hint: "Up at the campground in the far north-east corner, by the campfire." },
     ],
   },
   {
@@ -375,7 +378,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [52, 3.95, -55.5], region: "the treehouse", hint: "Up in the treehouse, over in the far corner of the deck." },
-      { pos: [56.5, 0.62, -47], region: "the woods", hint: "Down among the trees below the treehouse." },
+      { pos: [-143, 0.62, 16], region: "the woods clearing", hint: "Follow the trail into the deep woods west of the park, right to the clearing." },
     ],
   },
   {
@@ -628,6 +631,45 @@ function picnicPark(): LevelDef {
 
   const GATE = 13;
 
+  /* ---- the outer band, added in v2.9 -------------------------------
+   * The park grew from 240m to 320m. Beyond the ring road: woods down the
+   * whole west side with a winding trail to a clearing, a campground in the
+   * north-east corner, and a pavilion on the east side. The ring road is
+   * unchanged; she walks off it onto grass to reach the new areas.
+   */
+  const CAMP = { x: 128, z: 128 };
+  const PAV = { x: 132, z: 60 };
+  const CLEARING = { x: -140, z: 12 };
+
+  // winding trail from the west gate spur into the woods, as slabs end to end
+  // each slab a hair higher than the last: they overlap end to end and
+  // same-height tops z-fight
+  const trail: Prop[] = [
+    box(-111, 0.055, 0, 12, 0.12, 4.4, "#d8c49a", false),
+    box(-120, 0.07, 3, 8, 0.12, 4.4, "#d8c49a", false),
+    box(-126, 0.085, 7, 8, 0.12, 4.4, "#d8c49a", false),
+    box(-131, 0.1, 3, 6, 0.12, 4.4, "#d8c49a", false),
+    box(-136, 0.115, 8, 8, 0.12, 4.4, "#d8c49a", false),
+    // the clearing: a lighter lawn disc, a log to sit on, a stump
+    { kind: "cyl", pos: [CLEARING.x, 0.01, CLEARING.z], r: 9, h: 0.08, color: "#8fcf74", collide: false },
+    box(CLEARING.x - 3, 0.3, CLEARING.z + 4, 2.4, 0.6, 0.7, "#8a5a32"),
+    box(CLEARING.x + 4, 0.3, CLEARING.z - 3, 0.9, 0.6, 0.9, "#7a5232"),
+    // a little signpost at the trail head
+    box(-108, 1.0, 3.2, 0.14, 2.0, 0.14, "#8a5a32", false),
+    box(-108, 1.8, 3.2, 1.2, 0.4, 0.08, "#e8d7b8", false),
+  ];
+  const trailRects = [
+    rectAt(-111, 0, 12, 4.4, 2),
+    rectAt(-120, 3, 8, 4.4, 2),
+    rectAt(-126, 7, 8, 4.4, 2),
+    rectAt(-131, 3, 6, 4.4, 2),
+    rectAt(-136, 8, 8, 4.4, 2),
+    rectAt(CLEARING.x, CLEARING.z, 20, 20),
+    // keep the ring road's west edge and the wall clear
+    rectAt(-105, 0, 6, 320),
+    rectAt(-158, 0, 8, 320),
+  ];
+
   const zones: Prop[] = [
     ...houseRow(-63, 110, 8, 18, 1),
     ...baseballDiamond(0, -96, true),
@@ -636,9 +678,13 @@ function picnicPark(): LevelDef {
     ...picnicArea(93, 72),
     ...splashPad(-95, 28),
     ...playground(-95, -30),
+    ...campground(CAMP.x, CAMP.z),
+    ...pavilion(PAV.x, PAV.z),
+    ...trail,
+    ...forest(-155, -108, -150, 150, 150, 8121, trailRects),
   ];
 
-  const boundary = boundaryWall(-117.5, 117.5, -117.5, 117.5, 6.5);
+  const boundary = boundaryWall(-157.5, 157.5, -157.5, 157.5, 6.5);
 
   const paths: Prop[] = [
     // out through each gate to its zone
@@ -652,6 +698,11 @@ function picnicPark(): LevelDef {
     ...parkPath(0, -103, 201, 5),
     ...parkPath(103, 0, 5, 216),
     ...parkPath(-103, 0, 5, 216),
+    // spurs from the ring road out to the pavilion and the campground; the
+    // pavilion one overlaps the ring road's edge so it sits a hair higher
+    box(118, 0.055, 60, 26, 0.12, 4.4, "#d8c49a", false),
+    ...parkPath(112, 103, 4.4, 24),
+    ...parkPath(112, 122, 4.4, 14),
   ];
 
   // Anything already standing, plus corridors that must stay walkable.
@@ -675,6 +726,12 @@ function picnicPark(): LevelDef {
     rectAt(0, -103, 220, 11),
     rectAt(103, 0, 11, 220),
     rectAt(-103, 0, 11, 220),
+    // new areas and the ways to them
+    rectAt(CAMP.x, CAMP.z, 36, 32),
+    rectAt(PAV.x, PAV.z, 20, 16),
+    rectAt(118, 60, 30, 8),
+    rectAt(112, 114, 8, 44),
+    ...trailRects,
   ];
   taken.push(...keepClear);
 
@@ -683,7 +740,7 @@ function picnicPark(): LevelDef {
     taken.push(rectAt(d.pos[0], d.pos[2], 7, 7));
   }
 
-  const worldBounds = { minX: -119, maxX: 119, minZ: -119, maxZ: 119 };
+  const worldBounds = { minX: -159, maxX: 159, minZ: -159, maxZ: 159 };
   const blockers: Prop[] = [];
 
   // Berms that break up long sightlines. Preferred spots, but the search
@@ -726,10 +783,15 @@ function picnicPark(): LevelDef {
 
   // Boundary tree lines, placed one trunk at a time against the same map.
   const lines: [number, number, number, number, number][] = [
-    [-114, 119.5, 114, 119.5, 22],
-    [-114, -119.5, 114, -119.5, 22],
-    [-119.5, -108, -119.5, 108, 22],
-    [119.5, -108, 119.5, 108, 22],
+    // along the new outer wall (the west side is solid forest already)
+    [-150, 154, 150, 154, 30],
+    [-150, -154, 150, -154, 30],
+    [154, -146, 154, 146, 30],
+    // a hedge of trees along the old wall line on the north, south and east,
+    // so the band beyond the ring road still has some structure
+    [-100, 119.5, 100, 119.5, 18],
+    [-100, -119.5, 100, -119.5, 18],
+    [119.5, -100, 119.5, 40, 12],
     [-116, 76, -22, 76, 10],
     [22, 76, 116, 76, 10],
     [-116, -76, -22, -76, 10],
@@ -750,7 +812,7 @@ function picnicPark(): LevelDef {
     ...paths,
     ...zones,
     ...blockers,
-    ...cloudField(-115, 115, -115, 115, 34, 20260928),
+    ...cloudField(-150, 150, -150, 150, 48, 20260928),
   ];
 
   // Juice boxes: spread along the routes she will actually walk, a couple
@@ -768,6 +830,9 @@ function picnicPark(): LevelDef {
     [95, 52],
     [46, -62],
     [-52, 66],
+    // the outer band
+    [-124, 1],
+    [124, 116],
   ];
 
   // The hedge maze is 11 cells of 2.4m and the secret garden is walled, so a
@@ -790,7 +855,7 @@ function picnicPark(): LevelDef {
     { id: "partyhat", pos: [88.75, 0, 25], region: "the tennis courts" },
     { id: "bow", pos: [-82, 0, -14], region: "the sandbox" },
     { id: "backpack", pos: [4, 0, -84], region: "the ball field" },
-    { id: "flowercrown", pos: [93, 0, 68], region: "the picnic lawn" },
+    { id: "flowercrown", pos: [138, 0, 130], region: "the campground hammock" },
   ];
 
   const rehideSpots = [
@@ -810,10 +875,12 @@ function picnicPark(): LevelDef {
     path: "#d8c49a",
     spawn: [0, 0, 22],
     spawnYaw: 0,
-    bounds: { minX: -120, maxX: 120, minZ: -120, maxZ: 120 },
+    bounds: { minX: -160, maxX: 160, minZ: -160, maxZ: 160 },
     groundY: 0,
     props,
     dumplings: picnicDumplings,
+    splash: { x: -95, z: 28 },
+    campfire: { x: CAMP.x, z: CAMP.z },
     juice,
     rehideSpots,
     emmettKeepOut,

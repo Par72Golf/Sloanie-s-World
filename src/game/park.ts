@@ -244,35 +244,46 @@ export function baseballDiamond(cx: number, cz: number, flip = false): Prop[] {
 
 /* -------------------------------------------------------------- splash pad */
 
+/**
+ * Splash pad, reworked bigger. Three arches in a row whose spray the runtime
+ * animates in sequence (makeSprayArches; the posts here are the solid part),
+ * twelve ground jets in two rings, a tipping bucket, flower sprinklers and a
+ * little slide (a composite mesh placed by world-build at cx+10, cz-7).
+ */
 export function splashPad(cx: number, cz: number): Prop[] {
   const p: Prop[] = [];
 
   // wet deck
-  p.push(disc(cx, TOP.apron, cz, 11, "#6f9fb8"));
-  p.push(disc(cx, TOP.court, cz, 8.4, "#8fc4d8"));
-  p.push(disc(cx, TOP.inner, cz, 4.2, "#bfe4ee"));
+  p.push(disc(cx, TOP.apron, cz, 14, "#6f9fb8"));
+  p.push(disc(cx, TOP.court, cz, 11, "#8fc4d8"));
+  p.push(disc(cx, TOP.inner, cz, 5.5, "#bfe4ee"));
 
-  // ground jets in a ring, each a small nozzle with a water column above it
-  const jets = 8;
-  for (let i = 0; i < jets; i++) {
-    const a = (i / jets) * Math.PI * 2;
-    const jx = cx + Math.cos(a) * 6.4;
-    const jz = cz + Math.sin(a) * 6.4;
-    p.push(cyl(jx, 0.14, jz, 0.34, 0.2, C.chrome, false));
-    const h = 1.4 + ((i * 7) % 5) * 0.42;
-    p.push(cyl(jx, h / 2 + 0.2, jz, 0.13, h, "#cdeefb", false));
-    p.push(cyl(jx, h + 0.32, jz, 0.28, 0.3, "#e8f8ff", false));
+  // ground jets: an outer ring of eight and an inner ring of four
+  const rings: [number, number][] = [
+    [8, 9.2],
+    [4, 4.6],
+  ];
+  let k = 0;
+  for (const [jets, r] of rings) {
+    for (let i = 0; i < jets; i++) {
+      const a = (i / jets) * Math.PI * 2 + (jets === 4 ? Math.PI / 4 : 0);
+      const jx = cx + Math.cos(a) * r;
+      const jz = cz + Math.sin(a) * r;
+      p.push(cyl(jx, 0.14, jz, 0.34, 0.2, C.chrome, false));
+      const h = 1.4 + ((k * 7) % 5) * 0.42;
+      p.push(cyl(jx, h / 2 + 0.2, jz, 0.13, h, "#cdeefb", false));
+      p.push(cyl(jx, h + 0.32, jz, 0.28, 0.3, "#e8f8ff", false));
+      k++;
+    }
   }
 
-  // centre arch made of two posts and a curved-ish top
-  for (const s of [-1, 1]) {
-    p.push(cyl(cx + s * 3, 1.6, cz, 0.3, 3.2, C.paint));
-    p.push(box(cx + s * 2.1, 3.15, cz, 2.2, 0.3, 0.3, C.paint));
-  }
-  p.push(box(cx, 3.4, cz, 2.6, 0.3, 0.3, C.paint));
-  // spray falling from the arch
-  for (let i = -2; i <= 2; i++) {
-    p.push(cyl(cx + i * 1.05, 1.7, cz, 0.09, 3.2, "#d6f2ff", false));
+  // three arches in a row across the pad; the spray itself is animated
+  for (const ax of [-6, 0, 6]) {
+    for (const s of [-1, 1]) {
+      p.push(cyl(cx + ax + s * 3, 1.6, cz, 0.3, 3.2, C.paint));
+      p.push(box(cx + ax + s * 2.1, 3.15, cz, 2.2, 0.3, 0.3, C.paint));
+    }
+    p.push(box(cx + ax, 3.4, cz, 2.6, 0.3, 0.3, C.paint));
   }
 
   // tipping bucket on a frame
@@ -298,6 +309,121 @@ export function splashPad(cx: number, cz: number): Prop[] {
   p.push(box(cx + 9.5, 0.22, cz + 3.6, 0.6, 0.45, 0.2, C.chrome));
 
   return p;
+}
+
+/* -------------------------------------------------------------- campground */
+
+/**
+ * Three tents around a fire ring (the fire itself is a composite placed by
+ * world-build at cx, cz), a picnic table, a cooler, a hammock slung between
+ * two posts, and a woodpile.
+ */
+export function campground(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  p.push(surf(cx, TOP.lawn, cz, 30, 26, "#6aae5c"));
+  // trampled dirt around the fire
+  p.push(disc(cx, TOP.apron, cz, 3.6, "#a08a6a"));
+  p.push({ kind: "tent", x: cx - 7, z: cz - 4, color: "#e8734a" });
+  p.push({ kind: "tent", x: cx + 7, z: cz - 5, color: "#4f93c4" });
+  p.push({ kind: "tent", x: cx + 1, z: cz + 8, color: "#3fa35c" });
+  // log seats around the fire (axis-aligned so their colliders match)
+  for (const [lx, lz, w, d] of [
+    [cx - 3, cz, 0.6, 1.8],
+    [cx + 3, cz, 0.6, 1.8],
+    [cx, cz - 3, 1.8, 0.6],
+  ] as [number, number, number, number][]) {
+    p.push(box(lx, 0.25, lz, w, 0.5, d, C.wood));
+  }
+  // picnic table
+  const tx = cx - 9;
+  const tz = cz + 6;
+  p.push(box(tx, 0.75, tz, 2.6, 0.18, 1.3, C.woodLight));
+  p.push(box(tx, 0.45, tz - 1.1, 2.6, 0.16, 0.6, C.woodLight));
+  p.push(box(tx, 0.45, tz + 1.1, 2.6, 0.16, 0.6, C.woodLight));
+  p.push(box(tx - 1.1, 0.37, tz, 0.2, 0.75, 1.2, C.wood));
+  p.push(box(tx + 1.1, 0.37, tz, 0.2, 0.75, 1.2, C.wood));
+  // cooler and lantern
+  p.push(box(tx + 2.4, 0.3, tz + 0.2, 0.8, 0.6, 0.55, "#4f93c4"));
+  p.push(box(tx + 2.4, 0.64, tz + 0.2, 0.82, 0.08, 0.57, "#f7f3ee", false));
+  p.push(box(tx - 0.4, 0.98, tz, 0.3, 0.28, 0.3, "#d8d0c4", false));
+  // hammock between two posts
+  const hx = cx + 10;
+  const hz = cz + 5;
+  p.push(box(hx - 2.2, 1.0, hz, 0.3, 2.0, 0.3, C.wood));
+  p.push(box(hx + 2.2, 1.0, hz, 0.3, 2.0, 0.3, C.wood));
+  p.push(box(hx, 0.82, hz, 3.2, 0.14, 1.0, "#e8c46a"));
+  p.push(box(hx - 1.9, 1.2, hz, 0.6, 0.06, 0.06, "#f7f3ee", false));
+  p.push(box(hx + 1.9, 1.2, hz, 0.6, 0.06, 0.06, "#f7f3ee", false));
+  // woodpile
+  for (let i = 0; i < 3; i++) {
+    p.push(box(cx - 10 + i * 0.05, 0.22 + i * 0.36, cz - 8, 1.6 - i * 0.3, 0.36, 0.45, i % 2 ? "#7a5232" : C.wood));
+  }
+  return p;
+}
+
+/* ---------------------------------------------------------------- pavilion */
+
+/**
+ * Open roofed shelter: six posts and a big roof, tables underneath. The roof
+ * is a solid slab well above her head, so the camera treats it as indoors
+ * (short boom) while she is under it, which is the right call.
+ */
+export function pavilion(cx: number, cz: number): Prop[] {
+  const p: Prop[] = [];
+  p.push(surf(cx, TOP.apron, cz, 14, 11, "#cfc6b4"));
+  for (const x of [-5.5, 0, 5.5]) {
+    for (const z of [-4, 4]) {
+      p.push(box(cx + x, 1.7, cz + z, 0.36, 3.4, 0.36, C.wood));
+    }
+  }
+  p.push(box(cx, 3.55, cz, 14.5, 0.3, 11.5, "#a05040"));
+  p.push(box(cx, 4.05, cz, 9, 0.7, 6, "#8a4030", false));
+  p.push(box(cx, 4.5, cz, 3.5, 0.2, 2.5, "#8a4030", false));
+  for (const x of [-4, 4]) {
+    p.push(box(cx + x, 0.75, cz, 2.6, 0.18, 1.3, C.woodLight));
+    p.push(box(cx + x, 0.45, cz - 1.1, 2.6, 0.16, 0.6, C.woodLight));
+    p.push(box(cx + x, 0.45, cz + 1.1, 2.6, 0.16, 0.6, C.woodLight));
+    p.push(box(cx + x - 1.1, 0.37, cz, 0.2, 0.75, 1.2, C.wood));
+    p.push(box(cx + x + 1.1, 0.37, cz, 0.2, 0.75, 1.2, C.wood));
+  }
+  // noticeboard on one post
+  p.push(box(cx - 5.5, 1.6, cz - 4.4, 1.2, 0.9, 0.08, "#e8d7b8", false));
+  return p;
+}
+
+/* ------------------------------------------------------------------- woods */
+
+/**
+ * Dense trees in a band, seeded, skipping anything that lands inside `avoid`
+ * rectangles (the trail and the clearing). Returns only tree props.
+ */
+export function forest(
+  minX: number,
+  maxX: number,
+  minZ: number,
+  maxZ: number,
+  count: number,
+  seed: number,
+  avoid: { minX: number; maxX: number; minZ: number; maxZ: number }[],
+): Prop[] {
+  const out: Prop[] = [];
+  let s = seed;
+  const rand = () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+  const placed: [number, number][] = [];
+  let guard = 0;
+  while (out.length < count && guard < count * 30) {
+    guard++;
+    const x = minX + rand() * (maxX - minX);
+    const z = minZ + rand() * (maxZ - minZ);
+    if (avoid.some((r) => x > r.minX && x < r.maxX && z > r.minZ && z < r.maxZ)) continue;
+    if (placed.some(([px, pz]) => Math.hypot(px - x, pz - z) < 3.4)) continue;
+    placed.push([x, z]);
+    out.push({ kind: "tree", x, z, variant: (out.length % 3) as 0 | 1 | 2, scale: 0.9 + rand() * 0.6 });
+  }
+  return out;
 }
 
 /* -------------------------------------------------------------- playground */

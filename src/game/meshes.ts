@@ -1321,6 +1321,103 @@ export function makeFerrisWheel(radius = 6, hubY = 7.8, count = 8): FerrisWheel 
   };
 }
 
+/** A-frame camping tent: pyramid on a groundsheet with a dark door flap. */
+export function makeTent(color: string) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(cone4Geo, lam(color, { flat: true, roughness: 0.75 }));
+  body.scale.set(1.75, 2.2, 1.75);
+  body.position.y = 1.1;
+  body.rotation.y = Math.PI / 4;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  g.add(body);
+  g.add(mesh(boxGeo, "#6a5a48", 2.8, 0.08, 2.8, 0, 0.04, 0, false));
+  const door = mesh(boxGeo, "#2f2a26", 0.8, 1.05, 0.08, 0, 0.5, 1.02, false);
+  door.rotation.x = -Math.atan2(1.25, 2.2);
+  g.add(door);
+  // guy-line pegs
+  for (const [x, z] of [
+    [-1.7, 0],
+    [1.7, 0],
+    [0, -1.7],
+  ]) {
+    g.add(mesh(cylGeo, "#8a7a68", 0.05, 0.25, 0.05, x, 0.12, z, false));
+  }
+  return g;
+}
+
+export type Campfire = { group: THREE.Group; flames: THREE.Mesh[]; light: THREE.PointLight };
+
+/** Stone ring, logs, and emissive flames that flicker (animated by the runtime). */
+export function makeCampfire(): Campfire {
+  const g = new THREE.Group();
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    const s = mesh(cylGeo, i % 2 ? "#8a8a86" : "#a09c94", 0.32, 0.34, 0.28, Math.cos(a) * 1.15, 0.17, Math.sin(a) * 1.15);
+    s.rotation.y = a;
+    g.add(s);
+  }
+  for (const [x, z, ry] of [
+    [0.25, -0.1, 0.4],
+    [-0.2, 0.2, -0.9],
+    [0.05, 0.3, 1.7],
+  ]) {
+    const log = mesh(cylGeo, "#6a4a32", 0.14, 1.1, 0.14, x, 0.24, z, false);
+    log.rotation.set(0.35, ry, Math.PI / 2 - 0.3);
+    g.add(log);
+  }
+  const flames: THREE.Mesh[] = [];
+  const flameCols = ["#ffb347", "#ff8a3c", "#ffd36a"];
+  for (let i = 0; i < 3; i++) {
+    const f = new THREE.Mesh(
+      coneGeo,
+      new THREE.MeshStandardMaterial({
+        color: flameCols[i],
+        emissive: new THREE.Color(flameCols[i]),
+        emissiveIntensity: 1.8,
+        roughness: 0.6,
+      }),
+    );
+    const s = 0.34 - i * 0.07;
+    f.scale.set(s, 0.9 - i * 0.15, s);
+    f.position.set((i - 1) * 0.16, 0.45 + i * 0.12, (i % 2) * 0.1 - 0.05);
+    f.castShadow = false;
+    g.add(f);
+    flames.push(f);
+  }
+  const light = new THREE.PointLight("#ffa040", 1.4, 9);
+  light.position.set(0, 1.0, 0);
+  g.add(light);
+  return { group: g, flames, light };
+}
+
+export type SprayArches = { group: THREE.Group; columns: THREE.Mesh[][] };
+
+/**
+ * Three arches in a row over the splash pad, each with a curtain of spray
+ * whose height the runtime pulses in sequence. Posts are props with
+ * colliders; this is only the moving water.
+ */
+export function makeSprayArches(count = 3, spacing = 6): SprayArches {
+  const g = new THREE.Group();
+  const columns: THREE.Mesh[][] = [];
+  const water = lam("#d6f2ff", { transparent: true, opacity: 0.55, flat: true, roughness: 0.2 });
+  for (let a = 0; a < count; a++) {
+    const x = (a - (count - 1) / 2) * spacing;
+    const set: THREE.Mesh[] = [];
+    for (let i = -2; i <= 2; i++) {
+      const c = new THREE.Mesh(cylGeo, water);
+      c.scale.set(0.09, 3.0, 0.09);
+      c.position.set(x + i * 1.0, 1.7, 0);
+      c.castShadow = false;
+      g.add(c);
+      set.push(c);
+    }
+    columns.push(set);
+  }
+  return { group: g, columns };
+}
+
 /** Keep every gondola hanging level as the hub turns. */
 export function levelGondolas(wheel: FerrisWheel) {
   for (const g of wheel.gondolas) g.rotation.z = -wheel.hub.rotation.z;
