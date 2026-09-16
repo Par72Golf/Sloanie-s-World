@@ -217,14 +217,15 @@ function draw(kind: TexKind, color: string): HTMLCanvasElement {
         g.ellipse(x, y, r, r * 0.72, Math.random() * Math.PI, 0, Math.PI * 2);
         g.fill();
       }
-      // a few darker gaps for depth
-      for (let i = 0; i < 90; i++) {
-        g.fillStyle = shade(color, -0.24);
+      // a few softer gaps for depth. These were -0.24 and read as black
+      // spots, like mould, from a few metres away.
+      for (let i = 0; i < 60; i++) {
+        g.fillStyle = shade(color, -0.11);
         g.beginPath();
-        g.arc(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 2.4, 0, Math.PI * 2);
+        g.arc(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 2.2, 0, Math.PI * 2);
         g.fill();
       }
-      noise(g, 1200, 0.07);
+      noise(g, 900, 0.05);
       break;
     }
     case "dough": {
