@@ -95,6 +95,9 @@ function addBox(
 export { isSolidProp, isWaterColor } from "./colliders";
 
 export function buildWorld(level: LevelDef): BuiltWorld {
+  const t0 = performance.now();
+  const marks: [string, number][] = [];
+  const mark = (name: string) => marks.push([name, Math.round(performance.now() - t0)]);
   const group = new THREE.Group();
   // Every collider comes from the pure builder; the mesh code below only
   // decides what to draw (and whether it casts a shadow).
@@ -378,11 +381,14 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     group.add(foam);
   }
 
+  mark("props");
   let grassField: GrassField | null = null;
   if (!level.islands) {
     const mask = scatterMask(level, colliders, level.water ?? []);
+    mark("scatter mask");
     grassField = makeGrassField(level, mask);
     group.add(grassField.group);
+    mark("grass");
   }
 
   // Everything that moves at runtime is excluded from the merge by handle, so
@@ -405,6 +411,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
         geometries: [],
       }
     : mergeStatic(group, { live });
+  mark("merge");
+  console.info(`[build] ${level.id}: ${marks.map(([n, ms]) => `${n} ${ms}ms`).join(", ")}`);
 
   return {
     group,

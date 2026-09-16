@@ -55,6 +55,16 @@ Current version: **v2.9**.
   camera is a fixed side view from the platform side (the boom would sit inside the
   rim). Only the foot pads, fence and platform are colliders (`colliders.ts`); the
   whole group is in the merge's live set.
+- The park is 320m (bounds ±160, wall at ±157.5) since the expansion: woods with a
+  trail and clearing down the west band (`forest()` in park.ts, avoiding the trail
+  rects), a campground (`campground()`, `tent` prop kind, `makeCampfire` live mesh
+  placed by `level.campfire`), a pavilion (`pavilion()`), and the splash pad rebuilt
+  with three arches whose spray is a live mesh (`makeSprayArches`, `level.splash`)
+  animated in sequence by the runtime, plus the slide. Ring road unchanged. Trail
+  slabs are stepped in height because same-height slabs z-fight end to end.
+- Load time is the world build in the first frame: props ~2s, grass ~0.2s, merge
+  ~0.5s on the Windows laptop. `[build]` in the console breaks it down. The grass
+  mask has a spatial grid; before it, grass placement alone was 6s.
 - After editing a module the game imports, Vite's hot reload can leave two copies
   of `store.ts` alive (React on one, the runtime on the other), so the DOM stops
   matching `__gameTest.store()`. Do a full page reload before trusting any test.

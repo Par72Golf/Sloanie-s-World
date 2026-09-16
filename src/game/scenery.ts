@@ -24,7 +24,18 @@ export function noOutline(obj: THREE.Mesh | THREE.InstancedMesh | THREE.Object3D
 export type ScatterMask = {
   rects: { minX: number; maxX: number; minZ: number; maxZ: number }[];
   circles: { x: number; z: number; r: number }[];
+  /**
+   * Spatial index: cell key -> indices into rects (>= 0) and circles (encoded
+   * as -1 - i). Without it every one of 150k blade candidates was tested
+   * against ~2000 shapes, which was most of the park's load time.
+   */
+  grid: Map<number, number[]>;
 };
+
+const MASK_CELL = 8;
+function maskKey(ix: number, iz: number) {
+  return (ix + 2048) * 4096 + (iz + 2048);
+}
 
 export type GrassField = {
   group: THREE.Group;
@@ -67,15 +78,37 @@ function flowerGeometry(): THREE.BufferGeometry {
 }
 
 function inMask(mask: ScatterMask, x: number, z: number): boolean {
-  for (const r of mask.rects) {
-    if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) return true;
-  }
-  for (const c of mask.circles) {
-    const dx = x - c.x;
-    const dz = z - c.z;
-    if (dx * dx + dz * dz < c.r * c.r) return true;
+  const list = mask.grid.get(maskKey(Math.floor(x / MASK_CELL), Math.floor(z / MASK_CELL)));
+  if (!list) return false;
+  for (const i of list) {
+    if (i >= 0) {
+      const r = mask.rects[i]!;
+      if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) return true;
+    } else {
+      const c = mask.circles[-1 - i]!;
+      const dx = x - c.x;
+      const dz = z - c.z;
+      if (dx * dx + dz * dz < c.r * c.r) return true;
+    }
   }
   return false;
+}
+
+function indexMask(rects: ScatterMask["rects"], circles: ScatterMask["circles"]): Map<number, number[]> {
+  const grid = new Map<number, number[]>();
+  const add = (minX: number, maxX: number, minZ: number, maxZ: number, id: number) => {
+    for (let ix = Math.floor(minX / MASK_CELL); ix <= Math.floor(maxX / MASK_CELL); ix++) {
+      for (let iz = Math.floor(minZ / MASK_CELL); iz <= Math.floor(maxZ / MASK_CELL); iz++) {
+        const k = maskKey(ix, iz);
+        const l = grid.get(k);
+        if (l) l.push(id);
+        else grid.set(k, [id]);
+      }
+    }
+  };
+  rects.forEach((r, i) => add(r.minX, r.maxX, r.minZ, r.maxZ, i));
+  circles.forEach((c, i) => add(c.x - c.r, c.x + c.r, c.z - c.r, c.z + c.r, -1 - i));
+  return grid;
 }
 
 /** Build the exclusion mask from flat props, colliders and water. */
@@ -124,7 +157,7 @@ export function scatterMask(level: LevelDef, colliders: AABB[], water: WaterZone
     circles.push({ x: w.x, z: w.z, r: w.r + 0.6 });
   }
 
-  return { rects, circles };
+  return { rects, circles, grid: indexMask(rects, circles) };
 }
 
 export function makeGrassField(
