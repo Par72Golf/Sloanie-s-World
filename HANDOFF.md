@@ -8,7 +8,22 @@ context. It covers what exists, what the tooling is for, the bugs that cost the 
 time and why, what "finished" would actually require, and how to prompt effectively
 on this specific project.
 
-Current version: **v2.8**.
+Current version: **v2.9**.
+
+### Since v2.8 (16 Sept 2026)
+
+- The Grok scaffold (TanStack Start, Nitro, Vercel, pglite, better-auth) is gone.
+  The app is now a plain Vite + React single-page app: `index.html`,
+  `src/main.tsx`, `vite.config.ts`. Dependencies went from 429 packages to 98.
+  The old scaffold is preserved in the first git commit if anything is ever needed.
+- The repo lives at https://github.com/Par72Golf/Sloanie-s-World and every push to
+  `main` builds and publishes to GitHub Pages via `.github/workflows/pages.yml`.
+  The workflow runs the typecheck and `check-layout.ts` before it builds, so a
+  broken layout cannot ship.
+- Target machine is now a MacBook Pro on a TV over HDMI with an 8BitDo Ultimate
+  controller, not a Windows PC. The launch path is a URL opened fullscreen.
+- Claude Code in the desktop app has a browser pane, so it can now boot the game
+  and take screenshots. Section 7.2 is out of date on that point.
 
 ---
 
@@ -23,7 +38,7 @@ Three parks exist. **Only the first one is finished.** See section 6.
 
 ### Stack
 
-- TanStack Start + React + Vite, originally scaffolded by Grok
+- Vite + React single-page app (originally a Grok TanStack Start scaffold, replaced in v2.9)
 - Three.js r186, no physics engine, no ECS
 - Zustand store (`src/game/store.ts`) bridges the game loop and the React UI
 - Everything is procedural: no model files, no texture files, no audio files.
@@ -318,8 +333,12 @@ Review <file> and tell me what is weakest about it. Be honest, do not be nice.
   paste the output.
 - `npx tsc --noEmit` and `npx vite build` both pass today. Treat either failing as a
   stop condition.
-- It can run the dev server, which this environment could not, so ask it to confirm
-  the game boots after structural changes.
+- It can run the dev server (`npm run dev`, then http://127.0.0.1:8080) and take
+  screenshots in its browser pane, so ask it to confirm the game boots after
+  structural changes and to show you what it sees.
+- On this Windows machine git is at `C:\Program Files\Git\cmd\git.exe` and is not on
+  PATH in Claude's shell. Pushing needs your terminal the first time, for the GitHub
+  sign-in window.
 - Have it add to the `tools/` folder rather than writing throwaway checks. The suite
   compounds.
 

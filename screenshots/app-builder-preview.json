@@ -1,5 +1,0 @@
-{
-  "ok": false,
-  "url": "http://127.0.0.1:8080/",
-  "error": "page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot\nCall log:\n  - taking page screenshot\n  - waiting for fonts to load...\n  - fonts loaded\n"
-}

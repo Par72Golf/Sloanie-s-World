@@ -159,7 +159,7 @@ function TitleScreen() {
   return (
     <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-end overflow-y-auto bg-ink/25 p-4 pb-6 pt-10 sm:justify-center sm:pb-10">
       <Panel className="w-full max-w-lg p-5 sm:p-7">
-        <p className="text-sm font-semibold tracking-wide text-ink-soft">v2.8</p>
+        <p className="text-sm font-semibold tracking-wide text-ink-soft">v2.9</p>
         <h1 className="mt-1 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
           Sloanie's World
         </h1>
