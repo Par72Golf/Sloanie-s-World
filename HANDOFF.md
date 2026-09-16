@@ -24,6 +24,20 @@ Current version: **v2.9**.
   controller, not a Windows PC. The launch path is a URL opened fullscreen.
 - Claude Code in the desktop app has a browser pane, so it can now boot the game
   and take screenshots. Section 7.2 is out of date on that point.
+- Rendering now goes through an `EffectComposer` (`runtime.ts`): multisampled
+  half-float render target, `UnrealBloomPass` (strength 0.5, radius 0.5, threshold
+  0.78), `OutputPass`. Tone mapping is `NeutralToneMapping` at exposure 1.08, the
+  sun is 2.0 and warm, shadows are PCF with radius 4. The canvas `antialias` flag
+  no longer does anything; the target's `samples: 4` is the antialiasing.
+- Static meshes are merged after build (`merge.ts`), the camera looks over low
+  obstacles (`camera.ts`), the maze has an exit and gates, and jumping is disabled
+  around it (`noJump` on the level). Each has a tool in `tools/`.
+- Fullscreen (`fullscreen.ts`): entered on the Start click, toggles on the title and
+  pause screens. Untested in the desktop-app browser pane, which refused it; needs
+  a real browser. A gamepad-driven click cannot enter fullscreen, so the TV needs
+  one trackpad click on Start.
+- The desktop-app pane runs the animation loop at a fixed 30fps regardless of
+  render cost, so judge frame rate with the `renderOnce` probe or on the Mac.
 
 ---
 
