@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { placeCamera } from "./camera";
+import { perf, recordFrame } from "./debug";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -130,6 +131,8 @@ export class GameRuntime {
   camPos = new THREE.Vector3();
   composer!: EffectComposer;
   bloom!: UnrealBloomPass;
+  /** game-clock time of the last catch, for the hitch log */
+  lastCatchClock = -1;
   camTarget = new THREE.Vector3();
   wish = new THREE.Vector3();
   fwd = new THREE.Vector3();
@@ -740,6 +743,7 @@ export class GameRuntime {
     sfx.collect();
     this.mood = "cheer";
     this.moodT = 1.9;
+    this.lastCatchClock = this.clock;
 
     // it floats up over her head, shows off its name, then shrinks into her
     this.celebrating = {
@@ -1125,6 +1129,9 @@ export class GameRuntime {
 
   frame(now: number) {
     if (this.disposed) return;
+    // wall time since the previous frame, unclamped: this is what a freeze
+    // looks like from the player's chair, whatever caused it
+    const frameMs = this.last ? now - this.last : 0;
     const raw = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     this.clock += raw;
@@ -1186,6 +1193,15 @@ export class GameRuntime {
     this.hud(raw);
     // Roblox has no outlines; the bevel highlight does the edge definition now
     this.renderFrame();
+
+    perf.calls = this.renderer.info.render.calls;
+    perf.triangles = this.renderer.info.render.triangles;
+    perf.puffs = this.puffs.length;
+    recordFrame(now, frameMs, () => {
+      const s = useGame.getState();
+      const sinceCatch = this.lastCatchClock >= 0 ? `${(this.clock - this.lastCatchClock).toFixed(1)}s after catch` : "no catch yet";
+      return `${s.phase}${s.quiz ? " quiz" : ""}${s.rps ? " rps" : ""}, ${sinceCatch}, celebrating=${this.celebrating ? "yes" : "no"}, puffs=${this.puffs.length}, emmett=${this.emmett?.state ?? "none"}`;
+    });
   }
 }
 

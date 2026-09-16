@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
+import { HITCH_MS, debugEnabled, perf } from "./debug";
 import { LEVELS } from "./levels";
 import { MiniMap } from "./minimap";
 import { PadMenu } from "./pad-menu";
@@ -1205,6 +1206,38 @@ export function Overlays() {
       {phase === "paused" && <PauseScreen />}
       {phase === "complete" && <CompleteScreen />}
       {phase === "victory" && <VictoryScreen />}
+      {debugEnabled() && <DebugOverlay />}
+    </div>
+  );
+}
+
+/**
+ * ?debug=1 overlay: frame rate, worst frame, draw calls, and the last few
+ * hitches with what the game was doing. Samples the plain perf object on a
+ * timer; the game loop never writes to the store for this.
+ */
+function DebugOverlay() {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => tick((n) => n + 1), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <div className="pointer-events-none absolute left-2 top-24 z-40 max-w-[22rem] rounded-md bg-ink/75 p-2 font-mono text-[11px] leading-snug text-white">
+      <div>
+        {perf.fps} fps · worst {perf.worstMs}ms · {perf.calls} calls · {(perf.triangles / 1000).toFixed(0)}k tris
+        {perf.heapMB ? ` · ${perf.heapMB}MB` : ""} · puffs {perf.puffs}
+      </div>
+      {perf.hitches.length > 0 && (
+        <div className="mt-1 border-t border-white/20 pt-1">
+          <div className="font-semibold">hitches ≥{HITCH_MS}ms</div>
+          {perf.hitches.map((h, i) => (
+            <div key={i}>
+              {h.at}s: {h.ms}ms — {h.note}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

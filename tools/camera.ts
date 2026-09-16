@@ -17,46 +17,41 @@
  * Run: npx jiti tools/camera.ts
  */
 import * as THREE from "three";
-import { LEVELS } from "../src/game/levels";
-import { aabbFromCenter, type AABB } from "../src/game/collision";
+import { LEVELS, PICNIC_MAZE } from "../src/game/levels";
+import type { AABB } from "../src/game/collision";
 import { placeCamera } from "../src/game/camera";
-import { isSolidProp } from "../src/game/world-build";
+import { collidersFor } from "../src/game/colliders";
 
 const level = LEVELS[0]!;
-const MAZE_ORIGIN = [-42, -18] as const;
-const CELL = 2.4;
+const MAZE_ORIGIN = [PICNIC_MAZE.ox, PICNIC_MAZE.oz] as const;
+const CELL = PICNIC_MAZE.cell;
+const N = PICNIC_MAZE.n;
+const HALF = (N - 1) / 2;
 
-// All solid colliders, built the way world-build does (rotation ignored).
-const boxes: AABB[] = [];
-for (const p of level.props) {
-  if (p.kind !== "box") continue;
-  if (p.size[0] < 0.15 && p.size[1] < 0.15) continue;
-  const solid = isSolidProp(p.color) && !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35);
-  if (!solid) continue;
-  boxes.push(aabbFromCenter(p.pos[0], p.pos[1], p.pos[2], p.size[0], p.size[1], p.size[2]));
-}
+// the engine's own colliders
+const boxes: AABB[] = collidersFor(level);
 
 // Maze grid from the hedge colliders near the maze origin.
 const blocked = new Set<string>();
 for (const p of level.props) {
   if (p.kind !== "box" || p.color !== "#5aaa62") continue;
-  const col = Math.round((p.pos[0] - MAZE_ORIGIN[0]) / CELL) + 5;
-  const row = Math.round((p.pos[2] - MAZE_ORIGIN[1]) / CELL) + 5;
-  if (col < 0 || col > 10 || row < 0 || row > 10) continue;
+  const col = Math.round((p.pos[0] - MAZE_ORIGIN[0]) / CELL) + HALF;
+  const row = Math.round((p.pos[2] - MAZE_ORIGIN[1]) / CELL) + HALF;
+  if (col < 0 || col >= N || row < 0 || row >= N) continue;
   blocked.add(`${col},${row}`);
 }
 if (blocked.size < 30) {
-  console.log(`only ${blocked.size} hedge cells found near the maze origin; is the maze still at (-42, -18)?`);
+  console.log(`only ${blocked.size} hedge cells found near the maze origin; is the maze still at (${MAZE_ORIGIN[0]}, ${MAZE_ORIGIN[1]})?`);
   process.exit(1);
 }
 
-const world = (col: number, row: number) => [MAZE_ORIGIN[0] + (col - 5) * CELL, MAZE_ORIGIN[1] + (row - 5) * CELL];
+const world = (col: number, row: number) => [MAZE_ORIGIN[0] + (col - HALF) * CELL, MAZE_ORIGIN[1] + (row - HALF) * CELL];
 // the south opening in the ring row
-const start = [5, 10];
+const start = [HALF, N - 1];
 const lemon = level.dumplings.find((d) => d.id === "lemon")!;
 const goal = [
-  Math.round((lemon.pos[0] - MAZE_ORIGIN[0]) / CELL) + 5,
-  Math.round((lemon.pos[2] - MAZE_ORIGIN[1]) / CELL) + 5,
+  Math.round((lemon.pos[0] - MAZE_ORIGIN[0]) / CELL) + HALF,
+  Math.round((lemon.pos[2] - MAZE_ORIGIN[1]) / CELL) + HALF,
 ];
 
 // BFS
@@ -75,7 +70,7 @@ while (q.length) {
     const nc = c + dc!;
     const nr = r + dr!;
     const k = `${nc},${nr}`;
-    if (nc < 0 || nc > 10 || nr < 0 || nr > 10 || blocked.has(k) || seen.has(k)) continue;
+    if (nc < 0 || nc >= N || nr < 0 || nr >= N || blocked.has(k) || seen.has(k)) continue;
     seen.add(k);
     prev.set(k, `${c},${r}`);
     q.push([nc, nr]);

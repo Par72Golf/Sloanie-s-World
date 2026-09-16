@@ -57,25 +57,56 @@ function fenceRing(
  * exit, so a seven-year-old gets turned around for a couple of minutes but
  * never stuck. tools/maze.ts scores any edit to this grid.
  */
+/** The picnic park maze: where it is and how big. Tools read this too. */
+export const PICNIC_MAZE = { ox: -42, oz: -18, cell: 2.4, n: 15 } as const;
+
+/**
+ * 15x15 cells. Entrance S at the bottom, exit E at the top, D the dumpling.
+ * Two separate ways in, a short way out, and several dead ends of a few
+ * cells each: a couple of minutes for a seven-year-old, never a trap.
+ * tools/maze.ts scores any edit and fails if it breaks those properties.
+ */
+const PICNIC_MAZE_LAYOUT = [
+  "#######E#######",
+  "#     #       #",
+  "# ### # ##### #",
+  "# #   #   #   #",
+  "# # ##### # ###",
+  "# #     # #   #",
+  "# ##### # ### #",
+  "#   #   D     #",
+  "### # ##### # #",
+  "#   #   # # # #",
+  "# ##### # # # #",
+  "#     # # # # #",
+  "##### # # # # #",
+  "#       #     #",
+  "#######S#######",
+];
+
+/** The sky park keeps the small original maze. */
+const SKY_MAZE_LAYOUT = [
+  "#####E#####",
+  "#####     #",
+  "##### ### #",
+  "###   #   #",
+  "##### # # #",
+  "##    D # #",
+  "##### ### #",
+  "###     # #",
+  "# # ### # #",
+  "#   #     #",
+  "#####S#####",
+];
+
 function mazeAt(
   ox: number,
   oz: number,
   wall: string,
+  layout: string[] = PICNIC_MAZE_LAYOUT,
 ): { props: Prop[]; dumpling: [number, number]; entrance: [number, number]; exit: [number, number] } {
-  const layout = [
-    "#####E#####",
-    "#####     #",
-    "##### ### #",
-    "###   #   #",
-    "##### # # #",
-    "##    D # #",
-    "##### ### #",
-    "###     # #",
-    "# # ### # #",
-    "#   #     #",
-    "#####S#####",
-  ];
   const cell = 2.4;
+  const half = (layout.length - 1) / 2;
   const props: Prop[] = [];
   let dumpling: [number, number] = [ox, oz];
   let entrance: [number, number] = [ox, oz];
@@ -85,8 +116,8 @@ function mazeAt(
     const line = layout[row]!;
     for (let col = 0; col < line.length; col++) {
       const ch = line[col]!;
-      const x = ox + (col - 5) * cell;
-      const z = oz + (row - 5) * cell;
+      const x = ox + (col - half) * cell;
+      const z = oz + (row - half) * cell;
       if (ch === "#") props.push(box(x, h / 2, z, cell + 0.08, h, cell + 0.08, wall));
       if (ch === "D") dumpling = [x, z];
       if (ch === "S") entrance = [x, z];
@@ -398,7 +429,7 @@ const picnicDumplings: DumplingDef[] = [
 ];
 
 function picnicPark(): LevelDef {
-  const maze = mazeAt(-42, -18, "#5aaa62");
+  const maze = mazeAt(PICNIC_MAZE.ox, PICNIC_MAZE.oz, "#5aaa62");
   picnicDumplings.find((d) => d.id === "lemon")!.pos = [maze.dumpling[0], 0.55, maze.dumpling[1]];
   const mazeGates = [
     // blue in, gold out: green posts disappeared against the hedges
@@ -742,14 +773,15 @@ function picnicPark(): LevelDef {
   // The hedge maze is 11 cells of 2.4m and the secret garden is walled, so a
   // trike has no way through either. He waits outside instead.
   const emmettKeepOut = [
-    { minX: -56, maxX: -28, minZ: -32, maxZ: -4 },
+    { minX: -61, maxX: -23, minZ: -37, maxZ: 1 },
     { minX: -64, maxX: -48, minZ: 16, maxZ: 38 },
   ];
 
   // She jumps 2.7m and the hedges are 1.7m. The zone reaches 23m from the maze
   // centre: the outer hedge is at 13.2m and a boosted running jump can land on
   // a 1.7m top from 9.3m away. tools/maze.ts checks the arithmetic.
-  const noJump = [{ minX: -65, maxX: -19, minZ: -41, maxZ: 5, why: "the hedge maze" }];
+  // 15 cells: outer hedge at 18m from the centre, plus 9.3m reach, rounded up.
+  const noJump = [{ minX: -70, maxX: -14, minZ: -46, maxZ: 10, why: "the hedge maze" }];
 
   const rehideSpots = [
     { name: "the gazebo", say: "I put it by the gazebo!", pos: [8, 0.62, -6] as [number, number, number] },
@@ -1126,7 +1158,7 @@ const skyDumplings: DumplingDef[] = [
 ];
 
 function cloudCastle(): LevelDef {
-  const maze = mazeAt(0, 0, "#d8f0e0");
+  const maze = mazeAt(0, 0, "#d8f0e0", SKY_MAZE_LAYOUT);
   skyDumplings.find((d) => d.id === "hedge")!.pos = [maze.dumpling[0] + 22, 0.55, maze.dumpling[1]];
 
   const island = (

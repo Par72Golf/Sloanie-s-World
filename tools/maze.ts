@@ -6,29 +6,30 @@
  *
  * Run: npx jiti tools/maze.ts
  */
-import { LEVELS } from "../src/game/levels";
+import { LEVELS, PICNIC_MAZE } from "../src/game/levels";
 import { BOOST_MULTIPLIER } from "../src/game/emmett";
 import { WALK, jumpHeight, jumpReach } from "../src/game/tuning";
 
 const level = LEVELS[0]!;
-const ORIGIN = [-42, -18] as const;
-const CELL = 2.4;
-const N = 11;
+const ORIGIN = [PICNIC_MAZE.ox, PICNIC_MAZE.oz] as const;
+const CELL = PICNIC_MAZE.cell;
+const N = PICNIC_MAZE.n;
+const HALF = (N - 1) / 2;
 
 const grid: string[][] = Array.from({ length: N }, () => Array.from({ length: N }, () => " "));
 let hedgeTop = 0;
 for (const p of level.props) {
   if (p.kind !== "box" || p.color !== "#5aaa62") continue;
-  const col = Math.round((p.pos[0] - ORIGIN[0]) / CELL) + 5;
-  const row = Math.round((p.pos[2] - ORIGIN[1]) / CELL) + 5;
+  const col = Math.round((p.pos[0] - ORIGIN[0]) / CELL) + HALF;
+  const row = Math.round((p.pos[2] - ORIGIN[1]) / CELL) + HALF;
   if (col < 0 || col >= N || row < 0 || row >= N) continue;
   grid[row]![col] = "#";
   hedgeTop = Math.max(hedgeTop, p.pos[1] + p.size[1] / 2);
 }
 const lemon = level.dumplings.find((d) => d.id === "lemon")!;
 const goal = [
-  Math.round((lemon.pos[0] - ORIGIN[0]) / CELL) + 5,
-  Math.round((lemon.pos[2] - ORIGIN[1]) / CELL) + 5,
+  Math.round((lemon.pos[0] - ORIGIN[0]) / CELL) + HALF,
+  Math.round((lemon.pos[2] - ORIGIN[1]) / CELL) + HALF,
 ] as const;
 grid[goal[1]]![goal[0]] = "D";
 
@@ -201,7 +202,7 @@ for (const [label, op, dir] of [
   ["exit", north, -1],
 ] as const) {
   if (!op) continue;
-  const [wx, wz] = [ORIGIN[0] + (op[0] - 5) * CELL, ORIGIN[1] + (op[1] - 5) * CELL];
+  const [wx, wz] = [ORIGIN[0] + (op[0] - HALF) * CELL, ORIGIN[1] + (op[1] - HALF) * CELL];
   const zOut = wz + dir * 1.9;
   const posts = level.props.filter(
     (p) => p.kind === "box" && Math.abs(p.pos[2] - zOut) < 0.3 && Math.abs(Math.abs(p.pos[0] - wx) - 1.5) < 0.3 && p.size[1] >= 2.5,
