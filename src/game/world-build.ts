@@ -4,6 +4,7 @@ import { beveledBox } from "./beveled";
 import { applyFinish, type FinishRig } from "./finishes";
 import type { FaceRig } from "./meshes";
 import { makeGrassField, normalFromTexture, scatterMask, type GrassField } from "./scenery";
+import { mergeStatic, type MergeReport } from "./merge";
 import {
   boxGeo,
   cylGeo,
@@ -45,6 +46,9 @@ export type BuiltWorld = {
   textures: THREE.Texture[];
   waterMats: THREE.ShaderMaterial[];
   grassField: GrassField | null;
+  /** Geometries created by the static merge, owned by this world. */
+  merged: THREE.BufferGeometry[];
+  mergeReport: MergeReport;
 };
 
 function addBox(
@@ -380,6 +384,24 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     group.add(grassField.group);
   }
 
+  // Everything that moves at runtime is excluded from the merge by handle, so
+  // the exclusion list cannot drift out of step with what animateWorld touches.
+  const live = new Set<THREE.Object3D>();
+  for (const d of dumplings) {
+    live.add(d.group);
+    live.add(d.beam);
+  }
+  // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
+  // the probes on window.__gameTest.
+  const noMerge =
+    typeof location !== "undefined" && new URLSearchParams(location.search).has("nomerge");
+  const { report: mergeReport, geometries: merged } = noMerge
+    ? {
+        report: { candidates: 0, merged: 0, created: 0, kept: 0, trianglesIn: 0, trianglesOut: 0 },
+        geometries: [],
+      }
+    : mergeStatic(group, { live });
+
   return {
     group,
     colliders,
@@ -389,6 +411,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     textures,
     waterMats,
     grassField,
+    merged,
+    mergeReport,
   };
 }
 
@@ -405,6 +429,7 @@ export function disposeWorld(world: BuiltWorld) {
     }
   });
   for (const d of world.dumplings) for (const m of d.finish.materials) m.dispose();
+  for (const g of world.merged) g.dispose();
   world.grassField?.dispose();
   world.ground.geometry.dispose();
   (world.ground.material as THREE.Material).dispose();

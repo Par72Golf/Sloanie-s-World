@@ -68,7 +68,7 @@ Three parks exist. **Only the first one is finished.** See section 6.
 | `game/pad-menu.tsx` | Gamepad menu navigation via DOM focus. |
 | `game/math-quiz.ts` | Question and distractor generation. |
 
-### Two rules that keep performance sane
+### Three rules that keep performance sane
 
 1. **The game loop never writes to the Zustand store per frame.** Positions go into
    the plain mutable object in `pose.ts`, which the minimap reads on its own
@@ -77,6 +77,17 @@ Three parks exist. **Only the first one is finished.** See section 6.
 2. **Materials and geometries are cached and shared.** `lam()` caches by colour,
    opacity, roughness, texture repeat and kind. `beveledBox()` caches by quantised
    size. 733 boxes need only 245 geometries.
+3. **Static meshes are merged after the world is built** (`game/merge.ts`, called
+   at the end of `buildWorld`). Every opaque, non-instanced mesh that is not a
+   dumpling, beam or cloud is baked into world space and merged with others that
+   share its material and shadow flags; materials with many meshes are also split
+   into 80m cells so frustum culling still works. This took the picnic park from
+   1543 draw calls to 597 and cut CPU submit time by roughly two thirds. Anything
+   new that must move at runtime has to be added to the `live` set in
+   `buildWorld`, or flagged with `userData.cloudDrift`, or it will be frozen in
+   place. `?nomerge=1` on the URL disables the merge for A/B measurement.
+   Transparent meshes are never merged, and there are ~360 of them, mostly the
+   cylinder props at 0.92 opacity; making those opaque would be the next win.
 
 ---
 
@@ -102,6 +113,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `board.ts` | Leaderboard logic, headless. |
 | `layoutroll.ts` | Layout rotation distribution and repeat rate. |
 | `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
+| `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
 | `diamond.ts`, `cave.ts`, `summit.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. |
 
 ### In-browser perf probes
