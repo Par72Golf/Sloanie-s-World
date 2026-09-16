@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #fdf3dd;
+  --color-surface: #fffaf0;
+  --color-surface-2: #f8ead0;
+  --color-ink: #3a2b20;
+  --color-ink-soft: #7a6450;
+  --color-muted: #9a8468;
+  --color-line: #e6d6b8;
+  /* borders are a feature here, not a hairline */
+  --color-edge: #3a2b20;
+  --color-accent: #e8455f;
+  --color-accent-fg: #fffaf0;
+  --color-sun: #ffc53d;
+  --color-leaf: #3fa35c;
+  --color-berry: #e8455f;
+  --color-accent-2: #2f6f8f;
+  --color-ok: #2f7d4a;
+  --color-ok-fg: #f4fff6;
+  --color-warm: #c45c2c;
+  --color-cold: #3a6f9a;
+  --color-sky: #7ec4e8;
+  --font-display: "Fredoka", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --radius-xs: 0.4rem;
+  --radius-sm: 0.7rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 1.85rem;
+  --shadow-panel: 0 18px 40px -24px rgb(42 33 24 / 0.45);
+}
+
+@layer components {
+  /*
+   * Chunky toy treatment: thick outline, generous radius and a hard offset
+   * shadow with no blur, so panels and buttons read as physical blocks sitting
+   * on the screen rather than flat cards. Sized to be legible from a couch.
+   */
+  .chunk {
+    border: 3px solid var(--color-edge);
+    border-radius: 1.5rem;
+    box-shadow: 0 6px 0 var(--color-edge);
+  }
+
+  .chunk-sm {
+    border: 3px solid var(--color-edge);
+    border-radius: 1rem;
+    box-shadow: 0 5px 0 var(--color-edge);
+  }
+
+  /* buttons actually go down when pressed */
+  .press {
+    transition:
+      transform 90ms ease,
+      box-shadow 90ms ease;
+  }
+
+  .press:active:not(:disabled) {
+    transform: translateY(5px);
+    box-shadow: 0 1px 0 var(--color-edge);
+  }
+
+  .press:disabled {
+    box-shadow: 0 2px 0 var(--color-edge);
+    opacity: 0.5;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .press {
+      transition: none;
+    }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.game-shell {
+  position: relative;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: #7ec4e8;
+  touch-action: none;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.overlay-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes catchPop {
+  0% {
+    transform: scale(0.4) translateY(14px);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
