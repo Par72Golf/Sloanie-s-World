@@ -51,23 +51,35 @@ function fenceRing(
   ];
 }
 
-function mazeAt(ox: number, oz: number, wall: string): { props: Prop[]; dumpling: [number, number] } {
+/**
+ * Hedge maze. S is the entrance (south), E the exit (north), D the dumpling.
+ * There are two separate ways in to the dumpling and a short way on to the
+ * exit, so a seven-year-old gets turned around for a couple of minutes but
+ * never stuck. tools/maze.ts scores any edit to this grid.
+ */
+function mazeAt(
+  ox: number,
+  oz: number,
+  wall: string,
+): { props: Prop[]; dumpling: [number, number]; entrance: [number, number]; exit: [number, number] } {
   const layout = [
-    "###########",
-    "#S    #   #",
+    "#####E#####",
+    "#####     #",
+    "##### ### #",
+    "###   #   #",
     "##### # # #",
-    "#     # # #",
-    "# ### # # #",
-    "# #     # #",
-    "# # ##### #",
-    "# #    D  #",
-    "# ####### #",
-    "#         #",
-    "##### #####",
+    "##    D # #",
+    "##### ### #",
+    "###     # #",
+    "# # ### # #",
+    "#   #     #",
+    "#####S#####",
   ];
   const cell = 2.4;
   const props: Prop[] = [];
   let dumpling: [number, number] = [ox, oz];
+  let entrance: [number, number] = [ox, oz];
+  let exit: [number, number] = [ox, oz];
   const h = 1.7;
   for (let row = 0; row < layout.length; row++) {
     const line = layout[row]!;
@@ -77,9 +89,27 @@ function mazeAt(ox: number, oz: number, wall: string): { props: Prop[]; dumpling
       const z = oz + (row - 5) * cell;
       if (ch === "#") props.push(box(x, h / 2, z, cell + 0.08, h, cell + 0.08, wall));
       if (ch === "D") dumpling = [x, z];
+      if (ch === "S") entrance = [x, z];
+      if (ch === "E") exit = [x, z];
     }
   }
-  return { props, dumpling };
+  return { props, dumpling, entrance, exit };
+}
+
+/**
+ * Posts and a floor tile at a maze opening so she can tell the way in from
+ * the way out, from the ground and from the lifted camera. `dir` is which way
+ * is outside (+1 south, -1 north). Posts are 0.3m so they are honest solids
+ * without becoming walls; nothing goes overhead, because any solid above her
+ * head within 1.2m flips the camera into indoor mode.
+ */
+function mazeGate(x: number, z: number, dir: 1 | -1, post: string, tile: string): Prop[] {
+  const zOut = z + dir * 1.9;
+  return [
+    box(x - 1.5, 1.5, zOut, 0.3, 3, 0.3, post),
+    box(x + 1.5, 1.5, zOut, 0.3, 3, 0.3, post),
+    box(x, 0.03, z, 2.3, 0.06, 2.3, tile),
+  ];
 }
 
 function woods(ox: number, oz: number, n: number, seed: number): Prop[] {
@@ -267,7 +297,7 @@ const picnicDumplings: DumplingDef[] = [
     finish: "iridescent",
     hide: "medium",
     region: "the flower maze",
-    hint: "The maze has a dumpling at its heart. Start from the south opening.",
+    hint: "The maze has a dumpling at its heart. Go in at the blue posts. The gold posts are the way out.",
   },
   {
     id: "cocoa",
@@ -370,6 +400,11 @@ const picnicDumplings: DumplingDef[] = [
 function picnicPark(): LevelDef {
   const maze = mazeAt(-42, -18, "#5aaa62");
   picnicDumplings.find((d) => d.id === "lemon")!.pos = [maze.dumpling[0], 0.55, maze.dumpling[1]];
+  const mazeGates = [
+    // blue in, gold out: green posts disappeared against the hedges
+    ...mazeGate(maze.entrance[0], maze.entrance[1], 1, "#4f93c4", "#a8d4f0"),
+    ...mazeGate(maze.exit[0], maze.exit[1], -1, "#ffc53d", "#ffe08a"),
+  ];
 
   const core: Prop[] = [
     ...gatedRing(-70, 70, -70, 70, "#c4b48a"),
@@ -545,6 +580,7 @@ function picnicPark(): LevelDef {
     { kind: "cloud", pos: [10, 17, 60], scale: 1.2 },
 
     ...maze.props,
+    ...mazeGates,
     ...woods(50, -40, 36, 17),
     box(46.5, 0.08, -40.5, 4.2, 0.12, 4.2, "#8a5a32", false),
     box(46.5, 0.28, -38.4, 0.7, 0.4, 0.7, "#6a3a22", false),

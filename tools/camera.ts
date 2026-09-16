@@ -51,7 +51,8 @@ if (blocked.size < 30) {
 }
 
 const world = (col: number, row: number) => [MAZE_ORIGIN[0] + (col - 5) * CELL, MAZE_ORIGIN[1] + (row - 5) * CELL];
-const start = [1, 1];
+// the south opening in the ring row
+const start = [5, 10];
 const lemon = level.dumplings.find((d) => d.id === "lemon")!;
 const goal = [
   Math.round((lemon.pos[0] - MAZE_ORIGIN[0]) / CELL) + 5,

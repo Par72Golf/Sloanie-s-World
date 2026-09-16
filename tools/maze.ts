@@ -77,10 +77,67 @@ function bfs(from: [number, number]) {
   return dist;
 }
 
-for (const entry of uniq.values()) {
+let fails = 0;
+const check = (ok: boolean, msg: string) => {
+  console.log(`${ok ? "ok  " : "FAIL"} ${msg}`);
+  if (!ok) fails++;
+};
+
+const ops = [...uniq.values()];
+check(ops.length === 2, `two openings, an entrance and an exit (found ${ops.length})`);
+const south = ops.find(([, r]) => r === N - 1);
+const north = ops.find(([, r]) => r === 0);
+check(!!south && !!north, "one opening on the south side and one on the north");
+
+for (const entry of ops) {
   const dist = bfs(entry);
   const d = dist.get(`${goal[0]},${goal[1]}`);
-  console.log(`\nfrom opening (${entry[0]},${entry[1]}): ${d == null ? "NO ROUTE" : `${d} cells = ${(d * CELL).toFixed(0)}m to the dumpling`}`);
+  console.log(`from opening (${entry[0]},${entry[1]}): ${d == null ? "NO ROUTE" : `${d} cells = ${(d * CELL).toFixed(0)}m to the dumpling`}`);
+}
+
+// Two separate ways in. Every route shares the corridor stub just inside the
+// entrance and the cell next to the dumpling, so "separate" means: between the
+// first junction and the last junction on the shortest route, block that
+// route's cells and see whether the dumpling is still reachable.
+if (south) {
+  const dist = bfs(south);
+  const dGoal = dist.get(`${goal[0]},${goal[1]}`);
+  check(dGoal != null, "entrance reaches the dumpling");
+  if (dGoal != null) {
+    // walk back along decreasing distance to recover one shortest path, entrance -> goal
+    let cur: [number, number] = [goal[0], goal[1]];
+    const pathCells: [number, number][] = [];
+    while (dist.get(`${cur[0]},${cur[1]}`)! > 0) {
+      const d = dist.get(`${cur[0]},${cur[1]}`)!;
+      const back = nbrs(cur[0], cur[1]).find(([x, y]) => dist.get(`${x},${y}`) === d - 1)!;
+      cur = back;
+      if (dist.get(`${cur[0]},${cur[1]}`)! > 0) pathCells.unshift(cur);
+    }
+    const deg = (c: number, r: number) => nbrs(c, r).length;
+    const first = pathCells.findIndex(([c, r]) => deg(c, r) >= 3);
+    let last = -1;
+    for (let i = pathCells.length - 1; i >= 0; i--) if (deg(pathCells[i]![0], pathCells[i]![1]) >= 3) { last = i; break; }
+    if (first < 0 || last <= first) {
+      check(false, "a second, separate route to the dumpling exists (no two junctions on the way in)");
+    } else {
+      const between = pathCells.slice(first + 1, last);
+      const saved = between.map(([c, r]) => grid[r]![c]);
+      for (const [c, r] of between) grid[r]![c] = "#";
+      const dist2 = bfs(south);
+      const still = dist2.get(`${goal[0]},${goal[1]}`);
+      between.forEach(([c, r], i) => (grid[r]![c] = saved[i]!));
+      check(still != null, `a second, separate route to the dumpling exists${still != null ? ` (${still} cells = ${(still * CELL).toFixed(0)}m)` : ""}`);
+    }
+  }
+  // no sealed pockets: every open interior cell is reachable from the entrance
+  let unreachable = 0;
+  for (let r = 1; r < N - 1; r++) for (let c = 1; c < N - 1; c++) if (open(c, r) && !dist.has(`${c},${r}`)) unreachable++;
+  check(unreachable === 0, `no sealed-off cells (${unreachable})`);
+}
+if (north) {
+  const dist = bfs([goal[0], goal[1]]);
+  const d = dist.get(`${north[0]},${north[1]}`);
+  check(d != null, `dumpling reaches the exit${d != null ? ` (${d} cells = ${(d * CELL).toFixed(0)}m)` : ""}`);
 }
 
 // decision points and dead ends over the whole open interior (excluding the ring openings)
@@ -130,12 +187,30 @@ const zone = (level.noJump ?? []).find(
   (z) => z.minX <= need.minX && z.maxX >= need.maxX && z.minZ <= need.minZ && z.maxZ >= need.maxZ,
 );
 if (jh > hedgeTop) {
-  if (zone) {
-    console.log(`ok   no-jump zone "${zone.why}" covers the maze plus jump reach`);
-  } else {
-    console.log(
-      `FAIL no no-jump zone covers x ${need.minX.toFixed(1)}..${need.maxX.toFixed(1)}, z ${need.minZ.toFixed(1)}..${need.maxZ.toFixed(1)}; she can jump onto the hedges`,
-    );
-    process.exit(1);
-  }
+  check(
+    !!zone,
+    zone
+      ? `no-jump zone "${zone.why}" covers the maze plus jump reach`
+      : `no no-jump zone covers x ${need.minX.toFixed(1)}..${need.maxX.toFixed(1)}, z ${need.minZ.toFixed(1)}..${need.maxZ.toFixed(1)}; she can jump onto the hedges`,
+  );
 }
+
+// Gate markers: posts either side of each opening, on the outside.
+for (const [label, op, dir] of [
+  ["entrance", south, 1],
+  ["exit", north, -1],
+] as const) {
+  if (!op) continue;
+  const [wx, wz] = [ORIGIN[0] + (op[0] - 5) * CELL, ORIGIN[1] + (op[1] - 5) * CELL];
+  const zOut = wz + dir * 1.9;
+  const posts = level.props.filter(
+    (p) => p.kind === "box" && Math.abs(p.pos[2] - zOut) < 0.3 && Math.abs(Math.abs(p.pos[0] - wx) - 1.5) < 0.3 && p.size[1] >= 2.5,
+  );
+  check(posts.length === 2, `${label} has two posts outside the opening (${posts.length})`);
+}
+
+if (fails) {
+  console.log(`\n${fails} check(s) failed`);
+  process.exit(1);
+}
+console.log("\nall checks passed");
