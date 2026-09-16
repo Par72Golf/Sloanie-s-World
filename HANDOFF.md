@@ -104,6 +104,20 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
 | `diamond.ts`, `cave.ts`, `summit.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. |
 
+### In-browser perf probes
+
+`window.__gameTest` (set up in `runtime.ts`) has probes that work even when the tab
+is hidden, which the animation loop does not: `renderOnce(sync)` renders one frame
+and returns ms (with `gl.finish()` when sync, so it is the true frame cost; without,
+just the CPU submit cost), `info()` returns draw calls, triangles, pixel ratio and
+drawing-buffer size, `setPixelRatio(r)`, `setShadows(on, mapSize?)`, and `scene()`.
+Interleave conditions over several rounds; single runs on a laptop are noisy.
+
+Measured 16 Sept 2026 on an Intel Iris Xe at 1920x1080, title-screen view: ~1540
+draw calls, 1.37M triangles, 20-30ms per frame, and **submit-only time equals full
+frame time**. The bottleneck is CPU draw-call submission, not the GPU. Removing all
+grass or all shadows changes little. Merging static props by material is the fix.
+
 **The tools are worth more than any single feature in this repo.** When a new class
 of bug appears, the right response is to write a check for it, not just to fix the
 instance.

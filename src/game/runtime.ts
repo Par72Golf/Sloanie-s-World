@@ -265,6 +265,51 @@ export class GameRuntime {
       },
       getPos: () => ({ x: this.cap.x, y: this.cap.y, z: this.cap.z }),
       nearest: () => this.nearestUnfound()?.def.id ?? null,
+      // Perf probes. renderOnce forces the GPU to finish so the time is the
+      // real cost of a frame, not just the cost of issuing it. Works while the
+      // tab is hidden, which the animation loop does not.
+      renderOnce: (sync = true) => {
+        const gl = this.renderer.getContext();
+        const t0 = performance.now();
+        this.renderer.render(this.scene, this.camera);
+        const submit = performance.now() - t0;
+        if (sync) gl.finish();
+        return sync ? performance.now() - t0 : submit;
+      },
+      info: () => {
+        const r = this.renderer.info;
+        return {
+          calls: r.render.calls,
+          triangles: r.render.triangles,
+          geometries: r.memory.geometries,
+          textures: r.memory.textures,
+          programs: r.programs?.length ?? 0,
+          pixelRatio: this.renderer.getPixelRatio(),
+          size: (() => {
+            const v = new THREE.Vector2();
+            this.renderer.getDrawingBufferSize(v);
+            return [v.x, v.y];
+          })(),
+        };
+      },
+      setPixelRatio: (r: number) => {
+        this.renderer.setPixelRatio(r);
+        this.resize();
+      },
+      setShadows: (on: boolean, mapSize?: number) => {
+        this.renderer.shadowMap.enabled = on;
+        if (mapSize) {
+          this.sun.shadow.mapSize.set(mapSize, mapSize);
+          this.sun.shadow.map?.dispose();
+          this.sun.shadow.map = null;
+        }
+        this.scene.traverse((o) => {
+          const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+          if (!m) return;
+          for (const mat of Array.isArray(m) ? m : [m]) mat.needsUpdate = true;
+        });
+      },
+      scene: () => this.scene,
     };
   }
 
@@ -1131,6 +1176,19 @@ declare global {
       teleport: (x: number, y: number, z: number) => void;
       getPos: () => { x: number; y: number; z: number };
       nearest: () => string | null;
+      renderOnce: (sync?: boolean) => number;
+      info: () => {
+        calls: number;
+        triangles: number;
+        geometries: number;
+        textures: number;
+        programs: number;
+        pixelRatio: number;
+        size: number[];
+      };
+      setPixelRatio: (r: number) => void;
+      setShadows: (on: boolean, mapSize?: number) => void;
+      scene: () => THREE.Scene;
     };
   }
 }
