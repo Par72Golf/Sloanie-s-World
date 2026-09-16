@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { placeCamera } from "./camera";
 import { animateGirl, makeGirl, makeSky } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import {
@@ -748,79 +749,21 @@ export class GameRuntime {
 
   syncCamera(snap = false) {
     const title = useGame.getState().phase === "title";
-    const boxes = this.world?.colliders ?? [];
-
-    // ---- is she under a roof? ------------------------------------------
-    // Checked first, because indoors the whole camera rig changes rather than
-    // just getting clamped. A 7.4m boom does not fit in a cave at any room
-    // size: near a wall it either clips through or slams into her back.
-    let ceiling = Infinity;
-    if (!title) {
-      for (const b of boxes) {
-        if (b.minY < this.cap.y + 1.7) continue;
-        if (this.cap.x < b.minX - 1.2 || this.cap.x > b.maxX + 1.2) continue;
-        if (this.cap.z < b.minZ - 1.2 || this.cap.z > b.maxZ + 1.2) continue;
-        ceiling = Math.min(ceiling, b.minY);
-      }
-    }
-    const wantIndoor = ceiling < this.cap.y + 7 ? 1 : 0;
-    const blend = snap ? 1 : 1 - Math.exp(-3.4 * FIXED);
-    this.indoor += (wantIndoor - this.indoor) * blend;
-    if (this.indoor < 0.001) this.indoor = 0;
-    if (this.indoor > 0.999) this.indoor = 1;
-
-    const cfX = -Math.sin(this.cameraYaw);
-    const cfZ = -Math.cos(this.cameraYaw);
-    const dist = title ? 4.6 : THREE.MathUtils.lerp(7.4, 3.6, this.indoor);
-    const height = title ? 1.7 : THREE.MathUtils.lerp(3.9, 1.75, this.indoor);
-
     const desired = this.camPos;
-    desired.set(this.cap.x - cfX * dist, this.cap.y + height, this.cap.z - cfZ * dist);
-
-    if (this.world && !title) {
-      if (ceiling < Infinity) {
-        desired.y = Math.min(desired.y, ceiling - 0.45);
-        desired.y = Math.max(desired.y, this.cap.y + 0.9);
-      }
-
-      const inside = (x: number, y: number, z: number, pad: number) => {
-        for (const b of boxes) {
-          if (
-            x > b.minX - pad &&
-            x < b.maxX + pad &&
-            y > b.minY &&
-            y < b.maxY &&
-            z > b.minZ - pad &&
-            z < b.maxZ + pad
-          ) {
-            return true;
-          }
-        }
-        return false;
-      };
-
-      const STEPS = 16;
-      const eyeY = this.cap.y + 1.2;
-      for (let i = 1; i <= STEPS; i++) {
-        const t = i / STEPS;
-        const x = this.cap.x + (desired.x - this.cap.x) * t;
-        const y = eyeY + (desired.y - eyeY) * t;
-        const z = this.cap.z + (desired.z - this.cap.z) * t;
-        if (inside(x, y, z, 0.3)) {
-          const u = Math.max(0.16, (i - 1) / STEPS);
-          desired.set(
-            this.cap.x + (desired.x - this.cap.x) * u,
-            eyeY + (desired.y - eyeY) * u,
-            this.cap.z + (desired.z - this.cap.z) * u,
-          );
-          break;
-        }
-      }
-
-      if (inside(desired.x, desired.y, desired.z, 0.1)) {
-        desired.set(this.cap.x, this.cap.y + 1.9, this.cap.z);
-      }
-    }
+    // Placement lives in camera.ts so tools/camera.ts can walk routes with it.
+    const res = placeCamera(
+      {
+        boxes: this.world?.colliders ?? [],
+        cap: this.cap,
+        cameraYaw: this.cameraYaw,
+        indoor: this.indoor,
+        title,
+        snap,
+        dt: FIXED,
+      },
+      desired,
+    );
+    this.indoor = res.indoor;
 
     if (snap) this.camera.position.copy(desired);
     else {

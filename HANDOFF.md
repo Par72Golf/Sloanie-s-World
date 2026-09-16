@@ -113,6 +113,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `board.ts` | Leaderboard logic, headless. |
 | `layoutroll.ts` | Layout rotation distribution and repeat rate. |
 | `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
+| `camera.ts` | Walks the hedge maze at 60Hz with the camera yaw fixed and following, and reports how often the camera is pulled in, lurches, or falls back to sitting on her head. This is what proved the maze camera bug (58% of frames pulled in, 330 emergency frames) and the low-obstacle lift fix (0 and 0). |
 | `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
 | `diamond.ts`, `cave.ts`, `summit.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. |
 
@@ -185,6 +186,13 @@ below-ground. Caves and basements have to go up and around, not down.
 
 **The camera has an indoor mode.** Below a ceiling it blends to a 3.6m boom at 1.75m
 height. A 7.4m third-person boom does not fit in any interior at any room size.
+
+**The camera looks over low obstacles instead of pulling in for them.** Camera
+placement is a pure function in `camera.ts`. When the eye-to-camera line is cut by
+something whose top is under 2.4m, the boom is lifted (up to 6.4m) to clear it, and
+only if still blocked does it pull in. Before this, a 1.7m hedge a metre behind her
+pulled the camera into her back and often into the emergency "on her head" position,
+which made the maze unplayable. Run `tools/camera.ts` after touching any of it.
 
 ---
 
