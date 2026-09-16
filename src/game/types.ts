@@ -133,6 +133,8 @@ export type LevelDef = {
    * tools/maze.ts checks this for the hedge maze.
    */
   noJump?: { minX: number; maxX: number; minZ: number; maxZ: number; why: string }[];
+  /** Accessories hidden in this park, ground level: id and where. */
+  accessories?: { id: string; pos: [number, number, number]; region: string }[];
 };
 
 export type QuizQ = {

@@ -365,6 +365,24 @@ if (reach.startBlocked) {
   }
   if (!unreachable) console.log("  all dumplings reachable");
 
+  // accessory pickups are walked into, so every one must be on reachable ground
+  for (const a of level.accessories ?? []) {
+    const i = reach.idx!(a.pos[0], a.pos[2]);
+    const ok = i >= 0 && reach.seen[i] === 1;
+    const under = boxes.filter(
+      (b) =>
+        a.pos[0] > b.minX &&
+        a.pos[0] < b.maxX &&
+        a.pos[2] > b.minZ &&
+        a.pos[2] < b.maxZ &&
+        b.maxY > 0.62 &&
+        b.minY < 1.6, // something overhead (an arch) is not in the way
+    );
+    console.log(
+      `  ${ok && !under.length ? "ok         " : "BLOCKED    "} accessory ${a.id} @ (${a.pos[0]}, ${a.pos[2]}) ${a.region}${under.length ? ` (inside ${under[0]!.label})` : ""}`,
+    );
+  }
+
   // report which named zones can be walked to
   const zones: [string, number, number][] = [
     ["north gate", 0, 76],

@@ -5,6 +5,7 @@ import {
   Maximize,
   Minimize,
   RotateCcw,
+  Shirt,
   Trophy,
   Pause,
   Play,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
+import { ACCESSORIES, accessory } from "./accessories";
 import { LEVELS } from "./levels";
 import { MiniMap } from "./minimap";
 import { PadMenu } from "./pad-menu";
@@ -160,6 +162,7 @@ function TitleScreen() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [showTimes, setShowTimes] = useState(false);
   const fullscreen = useFullscreen();
+  const toggleWardrobe = useGame((s) => s.toggleWardrobe);
 
   return (
     <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-end overflow-y-auto bg-ink/25 p-4 pb-6 pt-10 sm:justify-center sm:pb-10">
@@ -268,6 +271,17 @@ function TitleScreen() {
           >
             <RotateCcw className="size-4" />
             Start over
+          </Btn>
+          <Btn
+            variant="secondary"
+            onClick={() => {
+              sfx.click();
+              toggleWardrobe();
+            }}
+            className="gap-2"
+          >
+            <Shirt className="size-4" />
+            Wardrobe
           </Btn>
           {canFullscreen() && (
             <Btn
@@ -1080,6 +1094,7 @@ function PauseScreen() {
   const resumePlay = useGame((s) => s.resumePlay);
   const toTitle = useGame((s) => s.toTitle);
   const fullscreen = useFullscreen();
+  const toggleWardrobe = useGame((s) => s.toggleWardrobe);
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
       <Panel className="w-full max-w-sm p-6 text-center">
@@ -1089,6 +1104,10 @@ function PauseScreen() {
           <Btn onClick={resumePlay} className="gap-2">
             <Play className="size-4" />
             Keep hunting
+          </Btn>
+          <Btn variant="secondary" onClick={toggleWardrobe} className="gap-2">
+            <Shirt className="size-4" />
+            Wardrobe
           </Btn>
           {canFullscreen() && (
             <Btn variant="secondary" onClick={() => void toggleFullscreen()} className="gap-2">
@@ -1189,6 +1208,7 @@ function VictoryScreen() {
 export function Overlays() {
   const phase = useGame((s) => s.phase);
   const muted = useGame((s) => s.muted);
+  const wardrobeOpen = useGame((s) => s.wardrobeOpen);
 
   useEffect(() => {
     setMuted(muted);
@@ -1206,7 +1226,77 @@ export function Overlays() {
       {phase === "paused" && <PauseScreen />}
       {phase === "complete" && <CompleteScreen />}
       {phase === "victory" && <VictoryScreen />}
+      {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {debugEnabled() && <DebugOverlay />}
+    </div>
+  );
+}
+
+/**
+ * Wardrobe: everything there is to find, what she has, and what she is
+ * wearing. One item per slot; putting something on takes the slot's current
+ * item off. Unfound items show a hint instead of a button.
+ */
+function Wardrobe() {
+  const found = useGame((s) => s.foundAccessories);
+  const worn = useGame((s) => s.worn);
+  const setWorn = useGame((s) => s.setWorn);
+  const setWardrobe = useGame((s) => s.setWardrobe);
+  return (
+    <div
+      className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-ink/45 p-4"
+      onClick={() => setWardrobe(false)}
+    >
+      <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <Panel className="relative p-5 sm:p-6">
+        <button
+          type="button"
+          aria-label="Close wardrobe"
+          onClick={() => setWardrobe(false)}
+          className="absolute right-3 top-3 rounded-full border border-line bg-surface p-1.5 text-ink"
+        >
+          <X className="size-4" />
+        </button>
+        <h2 className="font-display text-2xl font-semibold">Wardrobe</h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          Found {found.length} of {ACCESSORIES.length}. Look for the glowing rings around the park.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {ACCESSORIES.map((a) => {
+            const have = found.includes(a.id);
+            const wearing = worn[a.slot] === a.id;
+            return (
+              <div
+                key={a.id}
+                className={cn(
+                  "chunk-sm flex min-h-24 flex-col justify-between p-3",
+                  have ? "bg-surface-2" : "bg-surface-2/60 text-muted",
+                )}
+              >
+                <div>
+                  <p className="font-display text-base font-semibold">{have ? a.name : "?"}</p>
+                  <p className="text-xs leading-snug text-ink-soft">
+                    {have ? a.slot : a.reward ? `Reward: ${a.reward}` : a.hint}
+                  </p>
+                </div>
+                {have && (
+                  <Btn
+                    variant={wearing ? "primary" : "secondary"}
+                    onClick={() => {
+                      sfx.click();
+                      setWorn(a.slot, wearing ? null : a.id);
+                    }}
+                    className="mt-2 h-9 px-3 text-sm"
+                  >
+                    {wearing ? "Wearing" : "Put on"}
+                  </Btn>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+      </div>
     </div>
   );
 }

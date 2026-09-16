@@ -24,6 +24,10 @@ export type SaveData = {
   layout: number;
   /** Best runs per park, fastest first. */
   leaderboard: RunRecord[][];
+  /** Accessories found so far, across all parks. */
+  foundAccessories: string[];
+  /** What she is wearing, by slot. */
+  worn: Record<string, string | null>;
 };
 
 const DEFAULT: SaveData = {
@@ -37,6 +41,8 @@ const DEFAULT: SaveData = {
   levelIndex: 0,
   leaderboard: [[], [], []],
   layout: 0,
+  foundAccessories: [],
+  worn: { head: null, hair: null, face: null, back: null },
 };
 
 function migrate(raw: SaveData): SaveData {
@@ -54,6 +60,15 @@ function migrate(raw: SaveData): SaveData {
     Array.isArray(s.leaderboard[i]) ? s.leaderboard[i]!.slice() : [],
   );
   if (typeof s.layout !== "number") s.layout = 0;
+  if (!Array.isArray(s.foundAccessories)) s.foundAccessories = [];
+  s.foundAccessories = s.foundAccessories.filter((x) => typeof x === "string");
+  if (!s.worn || typeof s.worn !== "object") s.worn = {};
+  s.worn = {
+    head: typeof s.worn.head === "string" ? s.worn.head : null,
+    hair: typeof s.worn.hair === "string" ? s.worn.hair : null,
+    face: typeof s.worn.face === "string" ? s.worn.face : null,
+    back: typeof s.worn.back === "string" ? s.worn.back : null,
+  };
   s.version = SAVE_VERSION;
   return s;
 }

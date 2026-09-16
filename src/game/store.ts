@@ -9,6 +9,7 @@ import {
   type TempBand,
 } from "./types";
 import { clearSave, loadSave, persistSave, type RunRecord } from "./save";
+import { NOTHING_WORN, accessory, type AccessoryId, type Slot, type Worn } from "./accessories";
 
 /** Never hand out the same layout twice in a row. */
 const LAYOUT_COUNT = 3;
@@ -70,6 +71,17 @@ export type GameStore = {
   leaderboard: RunRecord[][];
   /** Where the run that just finished landed, for the results screen. */
   lastRun: { seconds: number; rank: number; best: boolean } | null;
+  /** Accessories found, across all parks. */
+  foundAccessories: AccessoryId[];
+  /** What she is wearing. */
+  worn: Worn;
+  /** Bumped on every change to worn, so the runtime re-dresses her once. */
+  wornGen: number;
+  wardrobeOpen: boolean;
+  findAccessory: (id: AccessoryId) => void;
+  setWorn: (slot: Slot, id: AccessoryId | null) => void;
+  toggleWardrobe: () => void;
+  setWardrobe: (v: boolean) => void;
   setName: (v: string) => void;
   setDress: (v: DressId) => void;
   setHair: (v: HairId) => void;
@@ -126,6 +138,8 @@ function persistSlice(s: GameStore) {
     levelIndex: s.levelIndex,
     leaderboard: s.leaderboard,
     layout: s.layout,
+    foundAccessories: s.foundAccessories,
+    worn: s.worn,
   });
 }
 
@@ -162,6 +176,31 @@ export const useGame = create<GameStore>((set, get) => ({
   hintsUsedThisRun: 0,
   leaderboard: saved.leaderboard ?? [[], [], []],
   lastRun: null,
+  foundAccessories: saved.foundAccessories as AccessoryId[],
+  worn: { ...NOTHING_WORN, ...(saved.worn as Partial<Worn>) },
+  wornGen: 0,
+  wardrobeOpen: false,
+  findAccessory: (id) => {
+    const found = get().foundAccessories;
+    if (found.includes(id)) return;
+    const def = accessory(id);
+    // it goes straight on; anything in that slot comes off
+    const worn = { ...get().worn, [def.slot]: id };
+    set({
+      foundAccessories: [...found, id],
+      worn,
+      wornGen: get().wornGen + 1,
+      emmettNotice: `You found the ${def.name.toLowerCase()}! It's on.`,
+    });
+    persistSlice(get());
+  },
+  setWorn: (slot, id) => {
+    if (id && !get().foundAccessories.includes(id)) return;
+    set({ worn: { ...get().worn, [slot]: id }, wornGen: get().wornGen + 1 });
+    persistSlice(get());
+  },
+  toggleWardrobe: () => set({ wardrobeOpen: !get().wardrobeOpen }),
+  setWardrobe: (wardrobeOpen) => set({ wardrobeOpen }),
   setName: (playerName) => {
     set({ playerName });
     persistSlice(get());
@@ -320,7 +359,15 @@ export const useGame = create<GameStore>((set, get) => ({
       lastRun = { seconds: runSeconds, rank: rank < 0 ? -1 : rank + 1, best: beatOwn };
     }
 
+    // the golden crown is the reward for clearing a park
+    const crowned = st.foundAccessories.includes("crown");
+    const foundAccessories = crowned ? st.foundAccessories : [...st.foundAccessories, "crown" as AccessoryId];
+    const worn = crowned ? st.worn : { ...st.worn, head: "crown" as AccessoryId };
+
     set({
+      foundAccessories,
+      worn,
+      wornGen: st.wornGen + (crowned ? 0 : 1),
       phase: last ? "victory" : "complete",
       unlocked: nextUnlock,
       quiz: null,

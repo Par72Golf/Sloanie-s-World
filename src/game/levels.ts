@@ -783,6 +783,16 @@ function picnicPark(): LevelDef {
   // 15 cells: outer hedge at 18m from the centre, plus 9.3m reach, rounded up.
   const noJump = [{ minX: -70, maxX: -14, minZ: -46, maxZ: 10, why: "the hedge maze" }];
 
+  // Things to find and wear. Each sits beside a landmark the reachability
+  // check already proves walkable; check-layout verifies the spots too.
+  const accessories: LevelDef["accessories"] = [
+    { id: "sunglasses", pos: [-95, 0, 28], region: "the splash pad" },
+    { id: "partyhat", pos: [88.75, 0, 25], region: "the tennis courts" },
+    { id: "bow", pos: [-82, 0, -14], region: "the sandbox" },
+    { id: "backpack", pos: [4, 0, -84], region: "the ball field" },
+    { id: "flowercrown", pos: [93, 0, 68], region: "the picnic lawn" },
+  ];
+
   const rehideSpots = [
     { name: "the gazebo", say: "I put it by the gazebo!", pos: [8, 0.62, -6] as [number, number, number] },
     { name: "the splash pad", say: "It's at the splash pad!", pos: [-95, 0.62, 28] as [number, number, number] },
@@ -808,6 +818,7 @@ function picnicPark(): LevelDef {
     rehideSpots,
     emmettKeepOut,
     noJump,
+    accessories,
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

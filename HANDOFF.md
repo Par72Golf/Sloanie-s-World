@@ -38,6 +38,19 @@ Current version: **v2.9**.
   one trackpad click on Start.
 - The desktop-app pane runs the animation loop at a fixed 30fps regardless of
   render cost, so judge frame rate with the `renderOnce` probe or on the Mac.
+- Sloan was rebuilt (`makeGirl` in `meshes.ts`): kid proportions, flat materials,
+  iPod classic in her right hand, wired headphones. The rig keys on `userData` are
+  unchanged and `animateGirl` still drives them.
+- Accessories (`accessories.ts`): six items, one per slot (head, hair, face, back).
+  Five are pickups placed by `level.accessories` (walk into the glowing ring; the
+  layout checker verifies each spot is reachable), the golden crown is awarded by
+  `completeLevel`. Found items and what is worn persist in the save. Worn items are
+  attached to the head or torso group and tagged `userData.accessory`; the runtime
+  re-dresses her whenever the store's `wornGen` changes. Wardrobe panel is on the
+  title and pause screens.
+- After editing a module the game imports, Vite's hot reload can leave two copies
+  of `store.ts` alive (React on one, the runtime on the other), so the DOM stops
+  matching `__gameTest.store()`. Do a full page reload before trusting any test.
 
 ---
 

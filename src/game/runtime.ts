@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { placeCamera } from "./camera";
 import { perf, recordFrame } from "./debug";
+import { applyWorn, makePickup, type AccessoryId } from "./accessories";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -133,6 +134,9 @@ export class GameRuntime {
   bloom!: UnrealBloomPass;
   /** game-clock time of the last catch, for the hitch log */
   lastCatchClock = -1;
+  /** accessory pickups in the current park */
+  pickups: { id: AccessoryId; group: THREE.Group; pos: [number, number, number]; phase: number }[] = [];
+  lastWornGen = -1;
   camTarget = new THREE.Vector3();
   wish = new THREE.Vector3();
   fwd = new THREE.Vector3();
@@ -396,6 +400,7 @@ export class GameRuntime {
     resetPose();
     this.runAccum = useGame.getState().runSeconds;
     this.spawnJuice();
+    this.spawnPickups();
     if (this.emmett) this.emmett.dispose(this.scene);
     this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? []);
     this.boostLeft = 0;
@@ -416,6 +421,41 @@ export class GameRuntime {
       this.scene.add(g);
       this.juice.push({ group: g, pos: [x, 0.1, z], taken: false, respawn: 0, phase: i * 0.8 });
     });
+  }
+
+  /** Accessory pickups: only the ones not found yet. */
+  spawnPickups() {
+    for (const p of this.pickups) this.scene.remove(p.group);
+    this.pickups = [];
+    const found = useGame.getState().foundAccessories;
+    (this.level.accessories ?? []).forEach((a, i) => {
+      const id = a.id as AccessoryId;
+      if (found.includes(id)) return;
+      const g = makePickup(id);
+      g.position.set(a.pos[0], a.pos[1], a.pos[2]);
+      noOutline(g);
+      this.scene.add(g);
+      this.pickups.push({ id, group: g, pos: [a.pos[0], a.pos[1], a.pos[2]], phase: i * 1.1 });
+    });
+  }
+
+  updatePickups(dt: number) {
+    for (let i = this.pickups.length - 1; i >= 0; i--) {
+      const p = this.pickups[i]!;
+      const item = p.group.userData.item as THREE.Object3D;
+      item.rotation.y += dt * 1.4;
+      item.position.y = 1.05 + Math.sin(this.clock * 2.2 + p.phase) * 0.1;
+      const ring = p.group.userData.ring as THREE.Mesh;
+      ring.rotation.z += dt * 0.8;
+      const d = Math.hypot(this.cap.x - p.pos[0], this.cap.z - p.pos[2]);
+      if (d < 1.7 && Math.abs(this.cap.y - p.pos[1]) < 2.4) {
+        this.burst(p.pos[0], p.pos[1] + 1, p.pos[2], "#ffd34a");
+        sfx.correct();
+        this.scene.remove(p.group);
+        this.pickups.splice(i, 1);
+        useGame.getState().findAccessory(p.id);
+      }
+    }
   }
 
   /** Feed the minimap. Plain object writes, so no React work per frame. */
@@ -576,6 +616,8 @@ export class GameRuntime {
     this.scene.add(this.girl);
     this.lastDress = st.dress;
     this.lastHair = st.hair;
+    applyWorn(this.girl, st.worn);
+    this.lastWornGen = st.wornGen;
   }
 
   start() {
@@ -1077,6 +1119,7 @@ export class GameRuntime {
       }
     }
     this.updateJuice(dt);
+    this.updatePickups(dt);
     this.updateEmmett(dt);
     this.updateCelebration(dt);
 
@@ -1144,6 +1187,10 @@ export class GameRuntime {
     const st = useGame.getState();
     if (st.levelIndex !== this.lastLevel) this.loadLevel(st.levelIndex);
     if (st.dress !== this.lastDress || st.hair !== this.lastHair) this.rebuildGirl();
+    if (st.wornGen !== this.lastWornGen) {
+      this.lastWornGen = st.wornGen;
+      applyWorn(this.girl, st.worn);
+    }
     if (st.interactGen !== this.lastInteract) {
       this.lastInteract = st.interactGen;
       this.tryCollect();
