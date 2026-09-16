@@ -14,6 +14,7 @@ import {
   consumePadHint,
   consumePadInteract,
   consumePadJournal,
+  consumePadMap,
   consumePadPause,
   getMoveAxes,
   isDown,
@@ -35,9 +36,7 @@ import { animateFace, makeJuiceBox, type GirlMood } from "./meshes";
 import { useGame } from "./store";
 import { DRESS, HAIR, type LevelDef } from "./types";
 
-import { GRAVITY, JUMP, WALK } from "./tuning";
-const PLAYER_H = 1.62;
-const PLAYER_W = 0.34;
+import { GRAVITY, JUMP, PLAYER_H, PLAYER_W, WALK } from "./tuning";
 const FIXED = 1 / 60;
 const COLLECT_R = 2.15;
 
@@ -156,7 +155,7 @@ export class GameRuntime {
     // ACES pulled everything toward grey.
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.toneMappingExposure = 1.0;
 
     this.scene = new THREE.Scene();
     this.level = levelByIndex(0);
@@ -180,7 +179,9 @@ export class GameRuntime {
     });
     this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(size, 0.5, 0.5, 0.78);
+    // Threshold high enough that plain white paint (lines, fences, blossom)
+    // stays below it; only emissive finishes, the sun and true speculars bloom.
+    this.bloom = new UnrealBloomPass(size, 0.3, 0.4, 0.92);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
@@ -340,6 +341,21 @@ export class GameRuntime {
         this.bloom.enabled = on;
         if (strength != null) this.bloom.strength = strength;
       },
+      // Step the real game loop by hand: n frames of dtMs each. Works while the
+      // tab is hidden (when requestAnimationFrame does not fire) and returns
+      // the wall-clock cost of every frame, so spikes can be found offline.
+      frames: (n: number, dtMs = 1000 / 60) => {
+        const costs: number[] = [];
+        let now = this.last;
+        for (let i = 0; i < n; i++) {
+          now += dtMs;
+          const t0 = performance.now();
+          this.frame(now);
+          costs.push(+(performance.now() - t0).toFixed(2));
+        }
+        return costs;
+      },
+      store: () => useGame,
     };
   }
 
@@ -679,9 +695,28 @@ export class GameRuntime {
     st.openQuiz(d.def.id, makeQuestion(st.levelIndex, found));
   }
 
+  /**
+   * Confetti puffs. One shared geometry and one cached material per colour:
+   * this used to allocate both per burst and never dispose them, and the catch
+   * celebration bursts ~14 times a second, so every catch leaked a few hundred
+   * GPU buffers for the browser to reclaim later, all at once.
+   */
+  private static puffGeo = new THREE.SphereGeometry(0.1, 6, 6);
+  private static puffMats = new Map<string, THREE.MeshBasicMaterial>();
+  private static readonly MAX_PUFFS = 220;
+
   burst(x: number, y: number, z: number, color: string) {
-    const geo = new THREE.SphereGeometry(0.1, 6, 6);
-    const mat = new THREE.MeshBasicMaterial({ color });
+    const geo = GameRuntime.puffGeo;
+    let mat = GameRuntime.puffMats.get(color);
+    if (!mat) {
+      mat = new THREE.MeshBasicMaterial({ color });
+      GameRuntime.puffMats.set(color, mat);
+    }
+    // never let a long celebration pile up thousands of live meshes
+    while (this.puffs.length > GameRuntime.MAX_PUFFS - 14) {
+      const old = this.puffs.shift()!;
+      this.scene.remove(old.mesh);
+    }
     for (let i = 0; i < 14; i++) {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(x, y + 0.3, z);
@@ -1120,6 +1155,8 @@ export class GameRuntime {
     else consumePadHint();
     if (st.phase === "playing" && consumePadJournal()) st.toggleJournal();
     else consumePadJournal();
+    if (st.phase === "playing" && consumePadMap()) st.toggleMap();
+    else consumePadMap();
 
     const collectedNow = st.collected[st.levelIndex] ?? [];
     if (this.world) {
@@ -1179,6 +1216,8 @@ declare global {
       setShadows: (on: boolean, mapSize?: number) => void;
       scene: () => THREE.Scene;
       setBloom: (on: boolean, strength?: number) => void;
+      frames: (n: number, dtMs?: number) => number[];
+      store: () => typeof useGame;
     };
   }
 }

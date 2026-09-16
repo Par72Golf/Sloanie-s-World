@@ -5,6 +5,9 @@
 export const WALK = 6.4;
 export const JUMP = 11.2;
 export const GRAVITY = 23;
+/** Her capsule: half-width and full height. */
+export const PLAYER_W = 0.34;
+export const PLAYER_H = 1.62;
 
 /** Peak height of a standing jump, metres. */
 export function jumpHeight() {

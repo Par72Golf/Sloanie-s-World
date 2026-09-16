@@ -65,6 +65,15 @@ function overlapZY(c: Capsule, b: AABB) {
 }
 
 const SKIN = 0.002;
+/**
+ * A box whose top is within this of her feet is floor, not wall. The step-up
+ * pre-pass used to start at 0.02, and the wall sweeps blocked anything her
+ * feet were below, so a rise between 0 and 2cm was a wall she could not see:
+ * the walkway crossing near spawn (8cm onto 10cm) and the infield dirt at the
+ * ball diamond (3cm onto 5cm) were both invisible walls for exactly this.
+ */
+const FLOOR_TOLERANCE = 0.03;
+const STEP_UP = 0.62;
 
 export function moveAndCollide(
   c: Capsule,
@@ -86,7 +95,7 @@ export function moveAndCollide(
     const next = { ...c, x: c.x + vx * dt, z: c.z + vz * dt };
     for (const b of boxes) {
       const rise = b.maxY - c.y;
-      if (rise > 0.02 && rise <= 0.62 && overlapXZ(next, b)) {
+      if (rise > 0.0005 && rise <= STEP_UP && overlapXZ(next, b)) {
         c.y = b.maxY + SKIN;
         vy = 0;
       }
@@ -95,6 +104,7 @@ export function moveAndCollide(
 
   c.x += vx * dt;
   for (const b of boxes) {
+    if (b.maxY - c.y <= FLOOR_TOLERANCE) continue;
     if (!overlapZY(c, b)) continue;
     if (c.x + c.hw <= b.minX || c.x - c.hw >= b.maxX) continue;
     if (vx > 0) c.x = b.minX - c.hw - SKIN;
@@ -109,6 +119,7 @@ export function moveAndCollide(
 
   c.z += vz * dt;
   for (const b of boxes) {
+    if (b.maxY - c.y <= FLOOR_TOLERANCE) continue;
     if (!overlapXY(c, b)) continue;
     if (c.z + c.hd <= b.minZ || c.z - c.hd >= b.maxZ) continue;
     if (vz > 0) c.z = b.minZ - c.hd - SKIN;
@@ -149,7 +160,7 @@ export function moveAndCollide(
     for (const b of boxes) {
       if (!overlapXZ(c, b)) continue;
       const rise = b.maxY - c.y;
-      if (rise > 0.02 && rise <= 0.62) {
+      if (rise > 0.0005 && rise <= STEP_UP) {
         c.y = b.maxY + SKIN;
         vy = 0;
         grounded = true;

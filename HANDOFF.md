@@ -127,6 +127,8 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `board.ts` | Leaderboard logic, headless. |
 | `layoutroll.ts` | Layout rotation distribution and repeat rate. |
 | `coverage.ts` | Per-level feature coverage. Run this to see how far behind parks 2 and 3 are. |
+| `walk.ts` | Invisible-wall detector. Walks her through the real collision code along lines across the whole park (or around a point: `walk.ts x z radius`) and reports every stall where the blocker's top is within the step-up. Found both 16 Sept reports; must print 0 stalls. |
+| `near.ts` | `near.ts x z radius` lists every solid collider near a point with the usual suspects flagged: rotated boxes, low opacity, ledges above the step-up. The first thing to run on any "invisible wall at <place>" report. |
 | `camera.ts` | Walks the hedge maze at 60Hz with the camera yaw fixed and following, and reports how often the camera is pulled in, lurches, or falls back to sitting on her head. This is what proved the maze camera bug (58% of frames pulled in, 330 emergency frames) and the low-obstacle lift fix (0 and 0). |
 | `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
 | `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
@@ -176,6 +178,16 @@ solid except liquid, spray, and props the author explicitly marked non-colliding
 because a blanket "everything is solid" rule turned 60 stair handrails at 0.12m
 square into invisible walls. Widening or narrowing this rule will create or destroy
 whole classes of bug.
+
+**The solidity rule and every collider now live in `colliders.ts`**, and both the
+game and the tools call the same function. The layout checker used to keep a copy
+that had drifted (trees twice as wide, handrails solid). Do not add colliders
+anywhere else.
+
+**A ledge under 3cm is floor, not wall.** `collision.ts` stepped up anything from 2cm
+to 62cm and blocked anything under 2cm, so a walkway crossing 8cm onto 10cm and the
+infield dirt 3cm onto 5cm were invisible walls. `FLOOR_TOLERANCE` is 3cm now and
+`tools/walk.ts` sweeps the park for any recurrence.
 
 **Colliders ignore rotation.** `addBox` pushes an axis-aligned AABB at the unrotated
 dimensions. A rotated tall box will have a collider that does not match its visual.

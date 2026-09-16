@@ -317,8 +317,9 @@ function TitleScreen() {
             <li>Walk with W A S D or the stick. Jump with Space.</li>
             <li>Drag the screen to look around. Q and E also turn the camera.</li>
             <li>
-              On a controller: left stick walk, right stick look, A jump, X collect, Y hint,
-              LB/RB turn camera, Start pause.
+              On a controller: left stick walk, right stick look, A jump, B big map, X collect,
+              Y hint, LB/RB turn camera, Back journal, Start pause. M on the keyboard opens the
+              map too.
             </li>
             <li>The temperature tells you if a dumpling is close.</li>
             <li>When you are next to one, press Collect and answer the math.</li>

@@ -11,6 +11,7 @@
  */
 import { LEVELS } from "../src/game/levels";
 import { isSolidProp } from "../src/game/world-build";
+import { collidersFor as engineColliders } from "../src/game/colliders";
 import type { LevelDef, Prop } from "../src/game/types";
 
 type Box = {
@@ -197,12 +198,10 @@ const level: LevelDef = {
   }),
 };
 console.log(`LAYOUT ${LAYOUT}`);
-const boxes = collidersFor(level);
-if (level.id === "picnic") {
-  MESH_COLLIDERS.forEach(([label, x, y, z, w, h, d], i) =>
-    boxes.push(aabb(x, y, z, w, h, d, label, 90000 + i)),
-  );
-}
+// The solid list is the engine's own (colliders.ts), so this checker can no
+// longer drift from what the game builds. The visuals list is still local:
+// it deliberately includes non-solid props for the intersection check.
+const boxes: Box[] = engineColliders(level);
 const visuals = collidersFor(level, true);
 
 /** Flat surfaces whose top faces sit within 1cm of each other will z-fight. */

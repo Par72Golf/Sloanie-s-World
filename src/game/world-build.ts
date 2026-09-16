@@ -1,10 +1,11 @@
 import * as THREE from "three";
-import { aabbFromCenter, type AABB } from "./collision";
+import type { AABB } from "./collision";
 import { beveledBox } from "./beveled";
 import { applyFinish, type FinishRig } from "./finishes";
 import type { FaceRig } from "./meshes";
 import { makeGrassField, normalFromTexture, scatterMask, type GrassField } from "./scenery";
 import { mergeStatic, type MergeReport } from "./merge";
+import { boxIsBuilt, boxIsSolid, collidersFor, isSolidProp, isWaterColor } from "./colliders";
 import {
   boxGeo,
   cylGeo,
@@ -53,7 +54,6 @@ export type BuiltWorld = {
 
 function addBox(
   parent: THREE.Group,
-  colliders: AABB[],
   x: number,
   y: number,
   z: number,
@@ -76,41 +76,19 @@ function addBox(
   m.castShadow = collide;
   m.receiveShadow = true;
   parent.add(m);
-  if (collide) colliders.push(aabbFromCenter(x, y, z, sx, sy, sz));
   return m;
 }
 
-/**
- * Everything is solid. She should never walk through a prop, and the collision
- * pass already puts her on top of whatever she hits, with a 0.62m step-up for
- * kerbs and ledges. The only exceptions are things with no surface to stand on:
- * water and the splash-pad spray.
- */
-const SPRAY = new Set(["#cdeefb", "#e8f8ff", "#d6f2ff", "#f7f3e4"]);
-
-/**
- * Actual liquid surfaces, listed explicitly.
- *
- * This used to be a prefix match on "#5aa"/"#6cb"/"#9fd", which caught
- * "#5aaa62", the green of the maze and garden hedges, and turned them into
- * walk-through walls. Guessing liquid from a colour channel is no better: the
- * dugout roof and the fence posts are blue too. So: a list.
- */
-const LIQUID = new Set(["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de"]);
-
-export function isWaterColor(color: string) {
-  return LIQUID.has(color.toLowerCase());
-}
-
-/** Everything is solid except liquid and spray, which have nothing to stand on. */
-export function isSolidProp(color: string) {
-  const c = color.toLowerCase();
-  return !SPRAY.has(c) && !LIQUID.has(c);
-}
+// The solidity rule and the collider list live in colliders.ts so the tools
+// check exactly what the game builds. Re-exported for the callers that import
+// them from here.
+export { isSolidProp, isWaterColor } from "./colliders";
 
 export function buildWorld(level: LevelDef): BuiltWorld {
   const group = new THREE.Group();
-  const colliders: AABB[] = [];
+  // Every collider comes from the pure builder; the mesh code below only
+  // decides what to draw (and whether it casts a shadow).
+  const colliders: AABB[] = collidersFor(level).map(({ label: _l, index: _i, ...b }) => b);
   const textures: THREE.Texture[] = [];
   const waterMats: THREE.ShaderMaterial[] = [];
   const grass = grassTexture();
@@ -155,10 +133,9 @@ export function buildWorld(level: LevelDef): BuiltWorld {
 
   for (const p of level.props) {
     if (p.kind === "box") {
-      if (p.size[0] < 0.15 && p.size[1] < 0.15) continue;
+      if (!boxIsBuilt(p)) continue;
       addBox(
         group,
-        colliders,
         p.pos[0],
         p.pos[1],
         p.pos[2],
@@ -166,11 +143,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
         p.size[1],
         p.size[2],
         p.color,
-        // Solid by default, but a prop the level author explicitly marked
-        // non-colliding AND that is thin enough to be invisible edge-on stays
-        // walk-through. Handrails, trim and tape should not be walls.
-        isSolidProp(p.color) &&
-          !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35),
+        // solid props cast shadows; the rule itself is in colliders.ts
+        boxIsSolid(p),
         p.ry ?? 0,
         p.opacity ?? 1,
       );
@@ -186,26 +160,15 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       m.receiveShadow = !isWater;
       m.castShadow = false;
       group.add(m);
-      if (isSolidProp(p.color)) {
-        colliders.push(aabbFromCenter(p.pos[0], p.pos[1], p.pos[2], p.r * 1.6, p.h, p.r * 1.6));
-      }
     } else if (p.kind === "tree") {
       const t = makeTree(p.variant ?? 0, p.scale ?? 1);
       t.position.set(p.x, 0, p.z);
       group.add(t);
-      const s = p.scale ?? 1;
-      colliders.push(aabbFromCenter(p.x, 1.1 * s, p.z, 0.45 * s, 2.2 * s, 0.45 * s));
     } else if (p.kind === "house") {
       const h = makeHouse(p.body, p.roof, p.w ?? 6, p.d ?? 5);
       h.position.set(p.x, 0, p.z);
       h.rotation.y = p.ry ?? 0;
       group.add(h);
-      const w = p.w ?? 6;
-      const d = p.d ?? 5;
-      const rotated = p.ry != null && Math.abs(Math.abs(p.ry) - Math.PI / 2) < 0.2;
-      colliders.push(
-        aabbFromCenter(p.x, 2.1, p.z, rotated ? d : w, 4.2, rotated ? w : d),
-      );
     } else if (p.kind === "cloud") {
       const c = makeCloud(p.scale ?? 1);
       c.position.set(p.pos[0], p.pos[1], p.pos[2]);
@@ -214,15 +177,15 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       const l = makeLollipop(p.candy);
       l.position.set(p.x, 0, p.z);
       group.add(l);
-      colliders.push(aabbFromCenter(p.x, 1.2, p.z, 0.3, 2.4, 0.3));
     }
   }
 
+  // Composite meshes. Their colliders are listed in colliders.ts; keep the
+  // positions here in step with that file.
   if (level.id === "picnic") {
     const slide = makeSlide();
     slide.position.set(22, 0, 8);
     group.add(slide);
-    colliders.push(aabbFromCenter(22, 1.3, 8, 2.2, 2.6, 2.2));
     const gazebo = makeGazebo();
     gazebo.position.set(8, 0, -6);
     group.add(gazebo);
@@ -231,7 +194,6 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     const fountain = makeFountain();
     fountain.position.set(0, 0, -42);
     group.add(fountain);
-    colliders.push(aabbFromCenter(0, 0.4, -42, 6.6, 0.8, 6.6));
 
     // banks, cattails and lily pads for both ponds
     for (const w of level.water ?? []) {
@@ -246,8 +208,6 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     // turned so the open front and the rope ladder face the stairs
     th.rotation.y = Math.PI;
     group.add(th);
-    colliders.push(aabbFromCenter(54.2, 1.8, -53, 1.4, 3.6, 1.4));
-    colliders.push(aabbFromCenter(54.2, 3.55, -53, 5.2, 0.16, 5.2));
 
     // dark mouth set into the gap through the lookout hill
     // Turned to face south, out of the hill. Without this the hollow pointed
@@ -272,7 +232,6 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     const f = makeFountain();
     f.position.set(0, 0, 0);
     group.add(f);
-    colliders.push(aabbFromCenter(0, 0.7, 0, 4.2, 1.4, 4.2));
   }
 
   // Layout 0 is the authored spot; 1 and 2 come from each dumpling's alts.

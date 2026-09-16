@@ -8,6 +8,8 @@ export let padInteract = false;
 export let padHint = false;
 export let padPause = false;
 export let padJournal = false;
+/** Big map toggle: B on the pad, M on the keyboard. */
+export let padMap = false;
 let padCamQ = false;
 let padCamE = false;
 const padPrev = new Uint8Array(16);
@@ -30,6 +32,7 @@ const GAME_CODES = new Set([
   "KeyJ",
   "KeyF",
   "KeyE",
+  "KeyM",
 ]);
 
 function activeSet(): Set<string> {
@@ -114,6 +117,12 @@ export function consumePadJournal() {
   return v;
 }
 
+export function consumePadMap() {
+  const v = padMap;
+  padMap = false;
+  return v;
+}
+
 export function padCamLeft() {
   return padCamQ;
 }
@@ -139,6 +148,7 @@ export function bindInput() {
     }
     held.add(e.code);
     if (e.code === "Space") jumpTap = true;
+    if (e.code === "KeyM") padMap = true;
     if (GAME_CODES.has(e.code)) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
@@ -185,6 +195,7 @@ export function pollGamepad(axes: { x: number; z: number }) {
     const down = (i: number) => Boolean(pad.buttons[i]?.pressed);
     const edge = (i: number) => down(i) && !padPrev[i];
     if (edge(0)) jumpTap = true;
+    if (edge(1)) padMap = true;
     if (edge(2)) padInteract = true;
     if (edge(3)) padHint = true;
     if (edge(8)) padJournal = true;

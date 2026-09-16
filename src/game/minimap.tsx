@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Map as MapIcon, X } from "lucide-react";
 import { LEVELS } from "./levels";
 import { worldPose } from "./pose";
@@ -134,7 +134,8 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
 export function MiniMap() {
   const phase = useGame((s) => s.phase);
   const levelIndex = useGame((s) => s.levelIndex);
-  const [open, setOpen] = useState(false);
+  const open = useGame((s) => s.mapOpen);
+  const setOpen = useGame((s) => s.setMap);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const staticRef = useRef<HTMLCanvasElement | null>(null);
   const openRef = useRef(open);
@@ -147,9 +148,10 @@ export function MiniMap() {
   }, [level]);
 
   useEffect(() => {
+    // M is handled with the pad's B button in input.ts -> runtime, so it
+    // toggles once; a second handler here would toggle it straight back.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "m") setOpen((v) => !v);
-      else if (e.key === "Escape" && openRef.current) setOpen(false);
+      if (e.key === "Escape" && openRef.current) setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

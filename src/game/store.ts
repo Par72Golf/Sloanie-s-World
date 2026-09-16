@@ -43,6 +43,8 @@ export type GameStore = {
   highlightedId: string | null;
   muted: boolean;
   journalOpen: boolean;
+  /** Big map overlay. Held here, not in the component, so the pad and M key can toggle it. */
+  mapOpen: boolean;
   interactGen: number;
   hintGen: number;
   fleeGen: number;
@@ -108,6 +110,8 @@ export type GameStore = {
   toggleMute: () => void;
   toggleJournal: () => void;
   setJournal: (v: boolean) => void;
+  toggleMap: () => void;
+  setMap: (v: boolean) => void;
 };
 
 function persistSlice(s: GameStore) {
@@ -142,7 +146,7 @@ export const useGame = create<GameStore>((set, get) => ({
   hintsLeft: 4,
   highlightedId: null,
   muted: saved.muted,
-  journalOpen: false,
+  journalOpen: false, mapOpen: false,
   interactGen: 0,
   hintGen: 0,
   fleeGen: 0,
@@ -182,7 +186,7 @@ export const useGame = create<GameStore>((set, get) => ({
       phase: "playing",
       levelIndex,
       quiz: null,
-      journalOpen: false,
+      journalOpen: false, mapOpen: false,
       hintText: null,
       highlightedId: null,
       hintsLeft: 4,
@@ -339,7 +343,7 @@ export const useGame = create<GameStore>((set, get) => ({
       hintsLeft: 4,
       hintText: null,
       highlightedId: null,
-      journalOpen: false,
+      journalOpen: false, mapOpen: false,
       fleeNotice: null,
       fleeId: null,
       rps: null,
@@ -363,7 +367,7 @@ export const useGame = create<GameStore>((set, get) => ({
       hintsLeft: 4,
       hintText: null,
       highlightedId: null,
-      journalOpen: false,
+      journalOpen: false, mapOpen: false,
       fleeNotice: null,
       fleeId: null,
       rps: null,
@@ -389,7 +393,7 @@ export const useGame = create<GameStore>((set, get) => ({
       hintsLeft: 4,
       hintText: null,
       highlightedId: null,
-      journalOpen: false,
+      journalOpen: false, mapOpen: false,
       nearCollect: false,
       fleeNotice: null,
       fleeId: null,
@@ -403,7 +407,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({
       phase: "title",
       quiz: null,
-      journalOpen: false,
+      journalOpen: false, mapOpen: false,
       hintText: null,
       highlightedId: null,
       fleeNotice: null,
@@ -431,6 +435,8 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   toggleJournal: () => set({ journalOpen: !get().journalOpen }),
   setJournal: (journalOpen) => set({ journalOpen }),
+  toggleMap: () => set({ mapOpen: !get().mapOpen }),
+  setMap: (mapOpen) => set({ mapOpen }),
 }));
 
 export function dressHex() {
