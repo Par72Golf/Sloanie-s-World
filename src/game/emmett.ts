@@ -14,14 +14,16 @@ import { animateEmmett, makeDumpling, makeEmmett, type EmmettMood, type EmmettRi
  *   - slower than walking, so noticing him is always enough to avoid him
  */
 
-const FIRST_DELAY = 180; // seconds before his first appearance
+// A full first run took 7 minutes and he never showed: 3 minutes plus the
+// two-dumpling gate was too late. First visit at 2.5 minutes, after one catch.
+const FIRST_DELAY = 150; // seconds before his first appearance
 const GAP_MIN = 150;
 const GAP_MAX = 240;
 const LINGER = 45; // how long he hangs around before pedalling off
 const COOLDOWN = 90; // after an encounter, before he can come back
 const SPEED = 5.1; // player walk is 6.4
 const CATCH_R = 2.6;
-const MIN_FOUND = 2;
+const MIN_FOUND = 1;
 
 let humIsOnCached = false;
 
