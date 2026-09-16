@@ -70,99 +70,157 @@ function mesh(
   return o;
 }
 
+const smileGeo = new THREE.TorusGeometry(1, 0.16, 6, 14, Math.PI);
+const bandGeo = new THREE.TorusGeometry(1, 0.06, 6, 20, Math.PI);
+
+/**
+ * Sloan.
+ *
+ * Built to read as a kid rather than a doll: an oval head on a neck, ears,
+ * eyebrows and a real smile instead of blush dots, a T-shirt-and-skirt outfit
+ * with skin legs, socks and sneakers, and hands with a thumb. Every part is a
+ * flat-shaded plastic; the old version pulled textures by colour and ended
+ * up with brickwork on her dress.
+ *
+ * She holds a black iPod classic in her right hand and wears white wired
+ * headphones. The cord runs earcup -> shoulder -> down the right arm, split
+ * into pieces parented to the head, torso and arm, so it follows the
+ * animation without any per-frame work.
+ *
+ * The rig keys on userData are what animateGirl drives; keep them.
+ */
 export function makeGirl(skin: string, hair: string, dress: string) {
   const root = new THREE.Group();
-  const shoe = "#f4f0ea";
   const sock = "#fff8f0";
-  const eye = "#5a3317";
-  const white = "#f7f3ee";
-  const blush = "#e8a090";
+  const sneaker = "#f7f4ee";
+  const sole = "#e2ddd3";
+  const iris = "#5a3a1e";
+  const white = "#f9f6f2";
+  const brow = "#3a2a1c";
+  const lip = "#c9605c";
+  const ipod = "#1c1c1f";
+  const wheel = "#d9d9de";
+  const cord = "#f0f0f0";
+  const cups = "#2a2a2e";
+  const flat = (c: string, extras?: Parameters<typeof lam>[1]) => lam(c, { flat: true, ...extras });
+  // flat-shaded part helper: same signature as mesh(), no texture lookup
+  const part = (
+    geo: THREE.BufferGeometry,
+    color: string,
+    sx: number,
+    sy: number,
+    sz: number,
+    x: number,
+    y: number,
+    z: number,
+    shadow = true,
+    roughness = 0.55,
+  ) => {
+    const box = geo === boxGeo;
+    const o = new THREE.Mesh(box ? beveledBox(sx, sy, sz) : geo, flat(color, { roughness }));
+    if (!box) o.scale.set(sx, sy, sz);
+    o.position.set(x, y, z);
+    o.castShadow = shadow;
+    o.receiveShadow = true;
+    return o;
+  };
 
   const hips = new THREE.Group();
   hips.position.y = 0.72;
   root.add(hips);
 
-  const leftLeg = new THREE.Group();
-  leftLeg.position.set(-0.16, 0, 0);
-  leftLeg.add(mesh(cylGeo, dress, 0.13, 0.4, 0.13, 0, -0.16, 0));
-  leftLeg.add(mesh(cylGeo, sock, 0.12, 0.22, 0.12, 0, -0.44, 0));
-  leftLeg.add(mesh(sphereGeo, shoe, 0.15, 0.1, 0.2, 0, -0.62, 0.05));
-  hips.add(leftLeg);
-
-  const rightLeg = new THREE.Group();
-  rightLeg.position.set(0.16, 0, 0);
-  rightLeg.add(mesh(cylGeo, dress, 0.13, 0.4, 0.13, 0, -0.16, 0));
-  rightLeg.add(mesh(cylGeo, sock, 0.12, 0.22, 0.12, 0, -0.44, 0));
-  rightLeg.add(mesh(sphereGeo, shoe, 0.15, 0.1, 0.2, 0, -0.62, 0.05));
-  hips.add(rightLeg);
+  const makeLeg = (side: number) => {
+    const g = new THREE.Group();
+    g.position.set(side * 0.13, 0, 0);
+    // thigh and shin in skin, a sock, and a sneaker with a sole and a tongue
+    g.add(part(cylGeo, skin, 0.105, 0.36, 0.105, 0, -0.16, 0));
+    g.add(part(cylGeo, sock, 0.1, 0.16, 0.1, 0, -0.42, 0));
+    g.add(part(boxGeo, sneaker, 0.19, 0.11, 0.3, 0, -0.58, 0.06));
+    g.add(part(boxGeo, sole, 0.2, 0.04, 0.31, 0, -0.65, 0.06, false));
+    g.add(part(boxGeo, dress, 0.1, 0.03, 0.12, 0, -0.52, 0.12, false));
+    return g;
+  };
+  const leftLeg = makeLeg(-1);
+  const rightLeg = makeLeg(1);
+  hips.add(leftLeg, rightLeg);
 
   // Everything above the waist hangs off a torso pivot, so she can lean into
-  // turns, twist as she walks and breathe. Previously these were parented to
-  // the root, which meant the upper body could not move independently at all.
+  // turns, twist as she walks and breathe.
   const torso = new THREE.Group();
   torso.position.y = 0.95;
   root.add(torso);
 
-  const skirt = new THREE.Mesh(coneGeo, lam(dress, { roughness: 0.5 }));
-  skirt.scale.set(0.52, 0.55, 0.48);
-  skirt.position.y = -0.03;
+  // skirt, then a T-shirt body with a rounded shoulder line
+  const skirt = new THREE.Mesh(coneGeo, flat(dress, { roughness: 0.6 }));
+  skirt.scale.set(0.46, 0.42, 0.42);
+  skirt.position.y = -0.06;
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   torso.add(skirt);
-  torso.add(mesh(cylGeo, dress, 0.28, 0.48, 0.22, 0, 0.27, 0));
-  torso.add(mesh(sphereGeo, dress, 0.3, 0.16, 0.24, 0, 0.47, 0));
+  torso.add(part(boxGeo, dress, 0.44, 0.46, 0.26, 0, 0.26, 0));
+  torso.add(part(sphereGeo, dress, 0.25, 0.1, 0.16, 0, 0.5, 0));
+  // neck
+  torso.add(part(cylGeo, skin, 0.075, 0.14, 0.075, 0, 0.6, 0.02));
 
-  const leftArm = new THREE.Group();
-  leftArm.position.set(-0.4, 0.39, 0);
-  leftArm.add(mesh(cylGeo, dress, 0.1, 0.34, 0.1, 0, -0.1, 0));
-  leftArm.add(mesh(cylGeo, skin, 0.09, 0.26, 0.09, 0, -0.38, 0));
-  leftArm.add(mesh(sphereGeo, skin, 0.1, 0.1, 0.1, 0, -0.54, 0));
-  torso.add(leftArm);
+  const makeArm = (side: number) => {
+    const g = new THREE.Group();
+    g.position.set(side * 0.29, 0.44, 0);
+    g.add(part(cylGeo, dress, 0.085, 0.16, 0.085, 0, -0.05, 0)); // short sleeve
+    g.add(part(cylGeo, skin, 0.07, 0.4, 0.07, 0, -0.3, 0)); // arm
+    g.add(part(sphereGeo, skin, 0.075, 0.085, 0.07, 0, -0.53, 0)); // hand
+    g.add(part(sphereGeo, skin, 0.03, 0.045, 0.03, side * -0.06, -0.5, 0.03, false)); // thumb
+    return g;
+  };
+  const leftArm = makeArm(-1);
+  const rightArm = makeArm(1);
+  torso.add(leftArm, rightArm);
 
-  const rightArm = new THREE.Group();
-  rightArm.position.set(0.4, 0.39, 0);
-  rightArm.add(mesh(cylGeo, dress, 0.1, 0.34, 0.1, 0, -0.1, 0));
-  rightArm.add(mesh(cylGeo, skin, 0.09, 0.26, 0.09, 0, -0.38, 0));
-  rightArm.add(mesh(sphereGeo, skin, 0.1, 0.1, 0.1, 0, -0.54, 0));
-  torso.add(rightArm);
+  // ---- iPod classic in the right hand -----------------------------------
+  {
+    const ip = new THREE.Group();
+    ip.position.set(0.03, -0.56, 0.08);
+    ip.rotation.set(-0.5, 0.15, 0);
+    ip.add(part(boxGeo, ipod, 0.12, 0.2, 0.03, 0, 0, 0, false, 0.32));
+    ip.add(part(boxGeo, "#8c95a3", 0.09, 0.07, 0.006, 0, 0.05, 0.016, false, 0.25)); // screen
+    const w = part(cylGeo, wheel, 0.042, 0.004, 0.042, 0, -0.05, 0.016, false, 0.35);
+    w.rotation.x = Math.PI / 2;
+    ip.add(w);
+    const c = part(cylGeo, "#b8bcc4", 0.014, 0.005, 0.014, 0, -0.05, 0.018, false, 0.35);
+    c.rotation.x = Math.PI / 2;
+    ip.add(c);
+    rightArm.add(ip);
+    // cord along the arm: shoulder to hand
+    const along = part(cylGeo, cord, 0.008, 0.5, 0.008, 0.03, -0.29, 0.07, false, 0.7);
+    rightArm.add(along);
+  }
 
   const head = new THREE.Group();
   head.position.set(0, 0.67, 0);
-  head.add(mesh(sphereGeo, skin, 0.34, 0.33, 0.32, 0, 0.3, 0.05));
-  head.add(mesh(sphereGeo, blush, 0.09, 0.07, 0.07, -0.2, 0.22, 0.22, false));
-  head.add(mesh(sphereGeo, blush, 0.09, 0.07, 0.07, 0.2, 0.22, 0.22, false));
-  head.add(mesh(sphereGeo, skin, 0.055, 0.045, 0.05, 0, 0.24, 0.32, false));
+  // oval head with a softer jaw, and ears
+  head.add(part(sphereGeo, skin, 0.29, 0.325, 0.28, 0, 0.32, 0.03));
+  head.add(part(sphereGeo, skin, 0.24, 0.2, 0.23, 0, 0.2, 0.05, false));
+  head.add(part(sphereGeo, skin, 0.05, 0.065, 0.03, -0.29, 0.3, 0.02, false));
+  head.add(part(sphereGeo, skin, 0.05, 0.065, 0.03, 0.29, 0.3, 0.02, false));
+  // nose
+  head.add(part(sphereGeo, skin, 0.04, 0.035, 0.04, 0, 0.26, 0.29, false));
 
-  head.add(mesh(sphereGeo, hair, 0.36, 0.18, 0.32, 0, 0.52, -0.02));
-  head.add(mesh(sphereGeo, hair, 0.3, 0.22, 0.16, 0, 0.42, -0.22));
-  head.add(mesh(sphereGeo, hair, 0.2, 0.1, 0.12, -0.22, 0.48, 0.12));
-  head.add(mesh(sphereGeo, hair, 0.2, 0.1, 0.12, 0.22, 0.48, 0.12));
-  head.add(mesh(boxGeo, hair, 0.42, 0.07, 0.12, 0, 0.54, 0.18));
-  head.add(mesh(boxGeo, hair, 0.12, 0.09, 0.1, -0.16, 0.5, 0.22));
-  head.add(mesh(boxGeo, hair, 0.12, 0.09, 0.1, 0.16, 0.5, 0.22));
-  head.add(mesh(boxGeo, hair, 0.13, 0.06, 0.09, 0, 0.51, 0.23));
+  // hair: cap, fringe and side sweeps
+  head.add(part(sphereGeo, hair, 0.315, 0.2, 0.3, 0, 0.5, -0.02));
+  head.add(part(sphereGeo, hair, 0.27, 0.25, 0.16, 0, 0.4, -0.2));
+  head.add(part(boxGeo, hair, 0.4, 0.09, 0.14, 0, 0.53, 0.15));
+  head.add(part(boxGeo, hair, 0.14, 0.12, 0.1, -0.15, 0.49, 0.2));
+  head.add(part(boxGeo, hair, 0.14, 0.12, 0.1, 0.15, 0.49, 0.2));
+  head.add(part(sphereGeo, hair, 0.09, 0.2, 0.14, -0.27, 0.36, -0.02));
+  head.add(part(sphereGeo, hair, 0.09, 0.2, 0.14, 0.27, 0.36, -0.02));
 
   const makeBraid = (side: number) => {
     const g = new THREE.Group();
-    g.position.set(side * 0.3, 0.42, -0.12);
+    g.position.set(side * 0.27, 0.36, -0.12);
     g.rotation.z = side * 0.16;
-    g.add(mesh(sphereGeo, dress, 0.08, 0.05, 0.08, 0, 0.04, 0.02, false));
-    g.add(mesh(sphereGeo, dress, 0.05, 0.05, 0.05, side * 0.08, 0.04, 0.02, false));
-    g.add(mesh(sphereGeo, dress, 0.05, 0.05, 0.05, -side * 0.08, 0.04, 0.02, false));
-    const sizes = [0.1, 0.095, 0.09, 0.082, 0.072, 0.058];
+    g.add(part(sphereGeo, dress, 0.07, 0.045, 0.07, 0, 0.04, 0.02, false));
+    const sizes = [0.085, 0.082, 0.078, 0.072, 0.064, 0.052];
     sizes.forEach((s, i) => {
-      g.add(
-        mesh(
-          sphereGeo,
-          hair,
-          s,
-          s * 1.08,
-          s,
-          0,
-          -0.12 - i * 0.155,
-          i % 2 === 0 ? 0.02 : -0.02,
-        ),
-      );
+      g.add(part(sphereGeo, hair, s, s * 1.08, s, 0, -0.1 - i * 0.14, i % 2 === 0 ? 0.02 : -0.02));
     });
     return g;
   };
@@ -170,23 +228,59 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   const braidR = makeBraid(1);
   head.add(braidL, braidR);
 
-  const eyeL = new THREE.Group();
-  eyeL.position.set(-0.11, 0.32, 0.3);
-  eyeL.add(mesh(sphereGeo, white, 0.075, 0.08, 0.038, 0, 0, 0, false));
-  eyeL.add(mesh(sphereGeo, eye, 0.048, 0.05, 0.032, 0, -0.004, 0.02, false));
-  eyeL.add(mesh(sphereGeo, "#1a1008", 0.022, 0.022, 0.016, 0, -0.004, 0.038, false));
-  eyeL.add(mesh(sphereGeo, "#fff", 0.014, 0.014, 0.01, 0.016, 0.016, 0.04, false));
-  head.add(eyeL);
+  // eyes: smaller whites, brown iris, dark pupil, one catchlight
+  const makeEye = (side: number) => {
+    const g = new THREE.Group();
+    g.position.set(side * 0.1, 0.32, 0.26);
+    g.add(part(sphereGeo, white, 0.055, 0.06, 0.03, 0, 0, 0, false));
+    g.add(part(sphereGeo, iris, 0.034, 0.036, 0.024, 0, -0.003, 0.016, false));
+    g.add(part(sphereGeo, "#1a1008", 0.016, 0.016, 0.012, 0, -0.003, 0.03, false));
+    g.add(part(sphereGeo, "#fff", 0.009, 0.009, 0.006, 0.01, 0.012, 0.032, false));
+    return g;
+  };
+  const eyeL = makeEye(-1);
+  const eyeR = makeEye(1);
+  head.add(eyeL, eyeR);
+  // eyebrows, angled a touch
+  const browL = part(boxGeo, brow, 0.09, 0.018, 0.02, -0.1, 0.4, 0.27, false);
+  browL.rotation.z = 0.12;
+  const browR = part(boxGeo, brow, 0.09, 0.018, 0.02, 0.1, 0.4, 0.27, false);
+  browR.rotation.z = -0.12;
+  head.add(browL, browR);
+  // smile: a half torus, open side up
+  const smile = new THREE.Mesh(smileGeo, flat(lip, { roughness: 0.5 }));
+  smile.scale.set(0.05, 0.035, 0.03);
+  smile.position.set(0, 0.2, 0.27);
+  smile.rotation.z = Math.PI;
+  smile.castShadow = false;
+  head.add(smile);
 
-  const eyeR = new THREE.Group();
-  eyeR.position.set(0.11, 0.32, 0.3);
-  eyeR.add(mesh(sphereGeo, white, 0.075, 0.08, 0.038, 0, 0, 0, false));
-  eyeR.add(mesh(sphereGeo, eye, 0.048, 0.05, 0.032, 0, -0.004, 0.02, false));
-  eyeR.add(mesh(sphereGeo, "#1a1008", 0.022, 0.022, 0.016, 0, -0.004, 0.038, false));
-  eyeR.add(mesh(sphereGeo, "#fff", 0.014, 0.014, 0.01, 0.016, 0.016, 0.04, false));
-  head.add(eyeR);
-
-  head.add(mesh(sphereGeo, "#c45a5a", 0.07, 0.025, 0.02, 0, 0.17, 0.33, false));
+  // ---- headphones -------------------------------------------------------
+  {
+    const band = new THREE.Mesh(bandGeo, flat(cups, { roughness: 0.4 }));
+    band.scale.set(0.33, 0.33, 0.33);
+    band.position.set(0, 0.34, 0.0);
+    band.castShadow = false;
+    head.add(band);
+    for (const side of [-1, 1]) {
+      const cup = part(cylGeo, cups, 0.075, 0.05, 0.075, side * 0.32, 0.3, 0.02, false, 0.4);
+      cup.rotation.z = Math.PI / 2;
+      head.add(cup);
+      const pad = part(cylGeo, "#4a4a50", 0.06, 0.012, 0.06, side * 0.295, 0.3, 0.02, false, 0.6);
+      pad.rotation.z = Math.PI / 2;
+      head.add(pad);
+    }
+    // cord from the right earcup down toward the shoulder
+    const drop = part(cylGeo, cord, 0.008, 0.3, 0.008, 0.33, 0.14, 0.04, false, 0.7);
+    drop.rotation.z = -0.15;
+    head.add(drop);
+  }
+  // cord across the shoulder to the arm
+  {
+    const across = part(cylGeo, cord, 0.008, 0.2, 0.008, 0.32, 0.54, 0.05, false, 0.7);
+    across.rotation.z = -0.5;
+    torso.add(across);
+  }
   torso.add(head);
 
   root.userData.torso = torso;
