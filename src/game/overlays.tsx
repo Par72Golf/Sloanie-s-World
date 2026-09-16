@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   HelpCircle,
+  Maximize,
+  Minimize,
   RotateCcw,
   Trophy,
   Pause,
@@ -11,6 +13,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
+import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
 import { LEVELS } from "./levels";
 import { MiniMap } from "./minimap";
 import { PadMenu } from "./pad-menu";
@@ -155,6 +158,7 @@ function TitleScreen() {
   const [help, setHelp] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [showTimes, setShowTimes] = useState(false);
+  const fullscreen = useFullscreen();
 
   return (
     <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-end overflow-y-auto bg-ink/25 p-4 pb-6 pt-10 sm:justify-center sm:pb-10">
@@ -207,6 +211,9 @@ function TitleScreen() {
                 onClick={() => {
                   unlockAudio();
                   sfx.click();
+                  // Start is a real click, which is the one moment the browser
+                  // lets us go fullscreen; refused silently for pad-driven clicks.
+                  void enterFullscreen();
                   startLevel(i);
                 }}
                 className={cn(
@@ -261,6 +268,19 @@ function TitleScreen() {
             <RotateCcw className="size-4" />
             Start over
           </Btn>
+          {canFullscreen() && (
+            <Btn
+              variant="secondary"
+              onClick={() => {
+                sfx.click();
+                void toggleFullscreen();
+              }}
+              className="gap-2"
+            >
+              {fullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
+              {fullscreen ? "Exit fullscreen" : "Fullscreen"}
+            </Btn>
+          )}
         </div>
         {showTimes && (
           <div className="mt-3">
@@ -1057,6 +1077,7 @@ function Quiz() {
 function PauseScreen() {
   const resumePlay = useGame((s) => s.resumePlay);
   const toTitle = useGame((s) => s.toTitle);
+  const fullscreen = useFullscreen();
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
       <Panel className="w-full max-w-sm p-6 text-center">
@@ -1067,6 +1088,12 @@ function PauseScreen() {
             <Play className="size-4" />
             Keep hunting
           </Btn>
+          {canFullscreen() && (
+            <Btn variant="secondary" onClick={() => void toggleFullscreen()} className="gap-2">
+              {fullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
+              {fullscreen ? "Exit fullscreen" : "Fullscreen"}
+            </Btn>
+          )}
           <Btn variant="secondary" onClick={toTitle}>
             Back to title
           </Btn>
