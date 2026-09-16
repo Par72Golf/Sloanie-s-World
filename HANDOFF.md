@@ -189,6 +189,12 @@ to 62cm and blocked anything under 2cm, so a walkway crossing 8cm onto 10cm and 
 infield dirt 3cm onto 5cm were invisible walls. `FLOOR_TOLERANCE` is 3cm now and
 `tools/walk.ts` sweeps the park for any recurrence.
 
+**Never toggle a light's `visible`.** Three.js bakes the number of lights into every
+shader, so hiding one light recompiles every material at once: a 2-second freeze 2.3s
+after every catch, when the caught dumpling's spark light was hidden. Lights are
+dimmed with `intensity = 0` instead. The `?debug=1` overlay is what found this: it
+logs any frame over 120ms with what the game was doing at the time.
+
 **Colliders ignore rotation.** `addBox` pushes an axis-aligned AABB at the unrotated
 dimensions. A rotated tall box will have a collider that does not match its visual.
 There are currently none, and it should stay that way.

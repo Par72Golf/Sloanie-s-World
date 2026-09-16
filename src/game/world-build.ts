@@ -249,6 +249,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     g.position.set(live.pos[0], live.pos[1], live.pos[2]);
     g.name = live.id;
     group.add(g);
+    // Never set .visible on this light. The runtime dims it with intensity;
+    // hiding a light changes the light count and recompiles every shader.
     const spark = new THREE.PointLight(live.accent, 0.9 + finish.sparkBoost, 6 + finish.sparkBoost * 2);
     spark.position.copy(g.position);
     spark.position.y += 0.7;

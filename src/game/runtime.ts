@@ -387,7 +387,9 @@ export class GameRuntime {
     for (const d of this.world.dumplings) {
       const got = collected.includes(d.def.id);
       d.group.visible = !got;
-      d.spark.visible = !got;
+      // Lights are dimmed, never hidden: toggling a light's visibility changes
+      // the light count in every shader and recompiles all of them (~2s).
+      d.spark.intensity = got ? 0 : 0.7;
       // no permanent sky beam; the shaft is a hint-only effect now
       d.beam.visible = false;
     }
@@ -559,7 +561,7 @@ export class GameRuntime {
     d.def.hint = `Emmett hid it at ${spot.name}.`;
     d.group.position.set(nx, spot.pos[1], nz);
     d.group.visible = false;
-    d.spark.visible = false;
+    d.spark.intensity = 0;
     d.spark.position.set(nx, spot.pos[1] + 0.6, nz);
     d.beam.position.set(nx, spot.pos[1] + 3, nz);
     this.highlighted = null;
@@ -774,7 +776,7 @@ export class GameRuntime {
 
     const g = c.d.group;
     g.visible = true;
-    c.d.spark.visible = true;
+    c.d.spark.intensity = 0.9;
 
     if (c.t < RISE) {
       const k = c.t / RISE;
@@ -808,7 +810,7 @@ export class GameRuntime {
     } else {
       // done: tuck it away and restore the handle for a possible rehide
       g.visible = false;
-      c.d.spark.visible = false;
+      c.d.spark.intensity = 0;
       g.scale.setScalar(base);
       g.rotation.y = 0;
       g.position.set(c.d.def.pos[0], c.d.def.pos[1], c.d.def.pos[2]);
@@ -1003,7 +1005,10 @@ export class GameRuntime {
     if (!this.world) return;
     const collected = useGame.getState().collected[useGame.getState().levelIndex] ?? [];
     for (const d of this.world.dumplings) {
-      if (!d.group.visible) continue;
+      if (!d.group.visible) {
+        d.spark.intensity = 0;
+        continue;
+      }
       if (d.face) {
         // glance toward her, offset by the group's own spin so the face keeps
         // pointing the right way while the body turns
@@ -1175,7 +1180,7 @@ export class GameRuntime {
         const hidden = this.stolenId === d.def.id && this.clock < this.stolenUntil;
         if (!got && !d.group.visible && !hidden) {
           d.group.visible = true;
-          d.spark.visible = true;
+          d.spark.intensity = 0.7;
           d.beam.visible = true;
           if (this.stolenId === d.def.id) this.stolenId = null;
         }
