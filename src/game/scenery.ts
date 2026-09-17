@@ -1,4 +1,5 @@
 import { yardFootprint } from "./emmett-base";
+import { zooFootprint } from "./zoo";
 import * as THREE from "three";
 import type { AABB } from "./collision";
 import type { LevelDef, WaterZone } from "./types";
@@ -159,6 +160,8 @@ export function scatterMask(level: LevelDef, colliders: AABB[], water: WaterZone
   }
   // no grass through Emmett's dirt yard
   if (level.emmettBase) rects.push(yardFootprint());
+  // nor through the zoo's paths and enclosures
+  if (level.zoo) rects.push(zooFootprint(0.4));
 
   return { rects, circles, grid: indexMask(rects, circles) };
 }

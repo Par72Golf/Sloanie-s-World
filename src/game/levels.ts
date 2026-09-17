@@ -3,6 +3,10 @@ import type { BoxProp, DumplingDef, LevelDef, Prop } from "./types";
 import { CAVE_SPOTS, caveFootprint, mountainCave } from "./cave";
 import { carnivalProps } from "./carnival";
 import { cloudField, findClear, gatedRing, hits, occupancy, pathOccupancy, rectAt } from "./placement";
+import { plazaProps } from "./plaza";
+import { PARK_DIRECTORIES, PARK_NAME_SIGNS, signProps } from "./signs";
+import { walkwayProps, walkwayRects } from "./walkways";
+import { ZOO, ZOO_NO_JUMP, zooFootprint, zooProps } from "./zoo";
 import {
   baseballDiamond,
   basketballCourt,
@@ -566,7 +570,23 @@ function picnicPark(): LevelDef {
     box(-8.8, 8.85, 64, 0.2, 0.7, 6, "#a07848"),
   ];
 
-  const core: Prop[] = [
+  /**
+   * Ground the walkways take. Trees in the woods are scattered at random and
+   * the houses have a hedge between every pair of lots, so a few of both land
+   * on a path once the network is laid; those are dropped rather than having
+   * the path bend round them. Nothing else is ever removed this way.
+   */
+  const walkGround = walkwayRects(0.6);
+  const prune = (list: Prop[]) =>
+    list.filter((p) => {
+      if (p.kind === "tree") return !hits(walkGround, rectAt(p.x, p.z, 2.4, 2.4));
+      if (p.kind === "box" && p.color === "#4a8a4a") {
+        return !hits(walkGround, rectAt(p.pos[0], p.pos[2], p.size[0], p.size[2]));
+      }
+      return true;
+    });
+
+  const core: Prop[] = prune([
     ...gatedRing(-70, 70, -70, 70, "#c4b48a"),
 
     box(-14, 0.4, 10, 2.8, 0.8, 1.4, "#c48a5a"),
@@ -602,7 +622,9 @@ function picnicPark(): LevelDef {
     box(26.4, 2.5, 8.6, 0.35, 1.6, 0.35, "#e8d7b8"),
     box(26.4, 3.4, 9.0, 0.35, 0.14, 0.9, "#e8d7b8"),
     box(24.2, 0.7, 10.8, 1.2, 0.18, 3.2, "#4f93c4"),
-    ...climbStairs(18.4, 5.4, 0, 1, 5, 0.38, 1.35, 1.8, "#e8c46a"),
+    // (0.8m further from the east road than they were, which is what makes
+    // room for the road between the slide steps and Emmett's yard)
+    ...climbStairs(18.4, 6.2, 0, 1, 5, 0.38, 1.35, 1.8, "#e8c46a"),
     box(18.4, 2.1, 12.2, 2.2, 0.28, 2.2, "#e8c46a"),
     box(32, 0.12, 12, 6, 0.18, 6, "#e8d7b0", false),
     box(33.4, 0.45, 12.2, 2.8, 0.12, 2.8, "#d4b06a"),
@@ -658,27 +680,26 @@ function picnicPark(): LevelDef {
     box(-47.2, 1.1, 51.6, 0.18, 1.8, 2.6, "#4f93c4"),
     box(-48.3, 2.05, 53, 2.6, 0.16, 3.0, "#c45a4a"),
 
-    box(8, 0.12, 40, 10, 0.1, 10, "#7bbb6a", false),
-    box(6.2, 0.35, 38.4, 0.7, 0.6, 0.7, "#d47a8a", false),
-    box(10.4, 0.4, 41.6, 0.8, 0.7, 0.8, "#4f93c4", false),
-    box(8.6, 0.32, 43.2, 0.6, 0.5, 0.6, "#e8c46a", false),
-    box(5.4, 0.38, 42.0, 0.7, 0.65, 0.7, "#d45a4a", false),
-    box(11.2, 0.3, 38.8, 0.55, 0.5, 0.55, "#3f9a6b", false),
+    // flower bed, moved off the new midway to the lawn beside it
+    box(10, 0.12, 30, 10, 0.1, 10, "#7bbb6a", false),
+    box(8.2, 0.35, 28.4, 0.7, 0.6, 0.7, "#d47a8a", false),
+    box(12.4, 0.4, 31.6, 0.8, 0.7, 0.8, "#4f93c4", false),
+    box(10.6, 0.32, 33.2, 0.6, 0.5, 0.6, "#e8c46a", false),
+    box(7.4, 0.38, 32.0, 0.7, 0.65, 0.7, "#d45a4a", false),
+    box(13.2, 0.3, 28.8, 0.55, 0.5, 0.55, "#3f9a6b", false),
 
-    box(0, 3.4, 66, 1.2, 6.8, 1.2, "#d8d0c4"),
-    box(0, 7.0, 66, 4.2, 0.35, 1.1, "#efe8dc"),
-    box(-1.6, 5.4, 66, 0.22, 2.6, 1.4, "#efe8dc"),
-    box(1.6, 5.4, 66, 0.22, 2.6, 1.4, "#efe8dc"),
+    // (the old hanging sign tower at (0, 66) stood in the middle of what is
+    // now the midway to the south gate; the gate has a proper sign now)
 
     box(-28, 0.35, 8, 1.6, 0.7, 0.7, "#6a8aaa"),
     box(-26.4, 1.1, 8, 0.2, 1.6, 0.2, "#6a8aaa"),
     box(-26.4, 2.0, 8, 0.7, 0.5, 0.4, "#d45a4a"),
 
-    { kind: "tree", x: -22, z: 6, variant: 0, scale: 1.1 },
+    { kind: "tree", x: -24, z: 10, variant: 0, scale: 1.1 },
     { kind: "tree", x: -20, z: 18, variant: 1, scale: 0.95 },
-    { kind: "tree", x: 6, z: 16, variant: 0, scale: 1 },
-    { kind: "tree", x: 12, z: 26, variant: 2, scale: 1.2 },
-    { kind: "tree", x: -4, z: 22, variant: 1, scale: 0.9 },
+    { kind: "tree", x: 15, z: 21, variant: 0, scale: 1 },
+    { kind: "tree", x: 18, z: 34, variant: 2, scale: 1.2 },
+    { kind: "tree", x: -14, z: 25, variant: 1, scale: 0.9 },
     { kind: "tree", x: 30, z: 16, variant: 0, scale: 1 },
     { kind: "tree", x: -16, z: -16, variant: 2, scale: 1.15 },
     { kind: "tree", x: 16, z: -54, variant: 1, scale: 1 },
@@ -688,7 +709,7 @@ function picnicPark(): LevelDef {
     { kind: "tree", x: 62, z: -8, variant: 1, scale: 1.1 },
     { kind: "tree", x: 64, z: 16, variant: 0, scale: 0.95 },
     { kind: "tree", x: -8, z: -58, variant: 2, scale: 1.15 },
-    { kind: "tree", x: 22, z: 58, variant: 1, scale: 1 },
+    { kind: "tree", x: 13, z: 56, variant: 1, scale: 1 },
     { kind: "tree", x: -32, z: 62, variant: 0, scale: 1.05 },
     { kind: "cloud", pos: [-18, 16, -10], scale: 1.4 },
     { kind: "cloud", pos: [20, 18, 8], scale: 1.1 },
@@ -706,7 +727,7 @@ function picnicPark(): LevelDef {
     ...woods(-8, -58, 16, 41),
     ...orchard(48, 52),
 
-  ];
+  ]);
 
 
   /* ---------------------------------------------------------------- *
@@ -764,7 +785,7 @@ function picnicPark(): LevelDef {
   const GOLF = { x: 20, z: -132 };
   const PITCH = { x: 130, z: -60 };
 
-  const zones: Prop[] = [
+  const zones: Prop[] = prune([
     ...houseRow(-63, 110, 8, 18, 1),
     ...swimmingPool(POOL.x, POOL.z),
     ...outdoorGym(GYM.x, GYM.z),
@@ -786,7 +807,10 @@ function picnicPark(): LevelDef {
     ...yardProps(),
     ...trail,
     ...forest(-155, -108, -150, 150, 150, 8121, trailRects),
-  ];
+  ]);
+  // the zoo (zoo.ts) is authored to fit its own patch of lawn, so it is not
+  // pruned against the walkways; its spur arrives square at the arch instead
+  zones.push(...zooProps());
 
   const boundary = boundaryWall(-157.5, 157.5, -157.5, 157.5, 6.5);
 
@@ -816,12 +840,24 @@ function picnicPark(): LevelDef {
     ...parkPath(112, 122, 4.4, 14),
   ];
 
+  /* ---- the walkway network, the arrival plaza and the signs --------------
+   * The network is walkways.ts; the plaza round the spawn is plaza.ts and the
+   * boards are signs.ts. All three are reserved in the placement map below
+   * before any berm, hedge or tree line is dropped, so nothing lands on a
+   * path. The old (unbuilt) walkway rects are still reserved as well, so
+   * removing them cannot shuffle anything that was placed against them.
+   */
+  const walks = walkwayProps();
+  const plaza = plazaProps();
+  const signs = signProps(PARK_DIRECTORIES, PARK_NAME_SIGNS);
+  const built: Prop[] = [...walks, ...plaza, ...signs];
+
   // Anything already standing, plus corridors that must stay walkable.
-  const walkways = [...coreWalks, ...trailSlabs, ...paths];
   const reserved = [...coreWalks, ...trailSlabs, ...oldHillReserve];
-  const taken = occupancy([...core, ...reserved, ...zones, ...boundary]);
+  const taken = occupancy([...core, ...reserved, ...zones, ...boundary, ...plaza, ...signs]);
   // keep berms and hedges off the walkways (reserved even while not built)
   taken.push(...pathOccupancy([...core, ...reserved, ...paths, ...zones]));
+  taken.push(...walkwayRects(0.5));
   const keepClear = [
     rectAt(0, 86, GATE + 6, 36),
     rectAt(0, -86, GATE + 6, 36),
@@ -853,6 +889,8 @@ function picnicPark(): LevelDef {
     rectAt(73, -128, 50, 46),
     // the carnival's way in: its arch and the carousel gate face south
     rectAt(-16, 40, 24, 12),
+    // the zoo between the farm and the mini golf, and room round its fence
+    rectAt(ZOO.x, ZOO.z, ZOO.w + 6, ZOO.d + 6),
     // Emmett's monster truck yard on the east lawn
     rectAt(EMMETT_BASE.x, EMMETT_BASE.z, 14, 18),
     rectAt(-40, 115, 8, 24),
@@ -876,8 +914,10 @@ function picnicPark(): LevelDef {
   // moves them if something is already there, and drops them if nothing fits.
   const wantBerms: [number, number, number, number, number][] = [
     [-32, 34, 26, 8, 4.2],
-    [30, -26, 8, 26, 4.0],
-    [-44, -38, 22, 8, 3.8],
+    // (was [30, -26, 8, 26]: shifted north and shortened to clear the east road)
+    [32, -30, 8, 22, 4.0],
+    // (was [-44, -38, 22, 8]: sized to fit between the north road and the little pond)
+    [-31, -44, 18, 8, 3.8],
     [42, 38, 8, 22, 3.8],
     [-30, -4, 8, 20, 3.6],
     [28, 12, 20, 8, 3.6],
@@ -898,7 +938,8 @@ function picnicPark(): LevelDef {
   }
 
   const wantHedges: [number, number, number, number][] = [
-    [-16, 40, 18, 1.8],
+    // moved west off the new midway between the plaza and the carnival
+    [-30, 30, 18, 1.8],
     [18, -40, 18, 1.8],
     [40, 14, 1.8, 16],
     [-40, -14, 1.8, 16],
@@ -937,6 +978,7 @@ function picnicPark(): LevelDef {
     ...core,
     ...boundary,
     ...zones,
+    ...built,
     ...blockers,
     ...cloudField(-150, 150, -150, 150, 48, 20260928),
   ];
@@ -966,6 +1008,8 @@ function picnicPark(): LevelDef {
   const emmettKeepOut = [
     // the mountain cave: he cannot ride a trike through tunnels
     { minX: 46, maxX: 100, minZ: -155, maxZ: -107 },
+    // the zoo: gates and narrow paths, no room for a trike
+    zooFootprint(1),
     { minX: -61, maxX: -23, minZ: -37, maxZ: 1 },
     { minX: -64, maxX: -48, minZ: 16, maxZ: 38 },
   ];
@@ -975,9 +1019,15 @@ function picnicPark(): LevelDef {
   // a 1.7m top from 9.3m away. tools/maze.ts checks the arithmetic.
   // 15 cells: outer hedge at 18m from the centre, plus 9.3m reach, rounded up.
   const noJump = [
-    { minX: -70, maxX: -14, minZ: -46, maxZ: 10, why: "the hedge maze" },
+    // tight to the hedges: a running jump from outside can still clear the outer
+    // hedge, and landing on top puts her back where she jumped from (keepOff)
+    { minX: -60.5, maxX: -23.5, minZ: -36.5, maxZ: 0.5, why: "the hedge maze", keepOff: 0.9 },
+    // the lookout deck on the mountain roof: no hopping the rail onto the rock
+    { minX: 62, maxX: 96, minZ: -121, maxZ: -107, why: "the lookout" },
     // the carousel's fence is 0.9m; she would hop it onto the turning deck
     { minX: -25.5, maxX: -6.5, minZ: 43.5, maxZ: 62.5, why: "the carousel" },
+    // the zoo's fences are 1.1m (zoo.ts)
+    ZOO_NO_JUMP,
   ];
 
   // Things to find and wear. Each sits beside a landmark the reachability
@@ -1025,6 +1075,7 @@ function picnicPark(): LevelDef {
     caveZone: caveFootprint(),
     carnival: true,
     emmettBase: true,
+    zoo: true,
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

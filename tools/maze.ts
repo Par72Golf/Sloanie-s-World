@@ -178,11 +178,17 @@ const reach = jumpReach(hedgeTop, WALK * BOOST_MULTIPLIER);
 console.log(`\njump height ${jh.toFixed(2)}m vs hedge ${hedgeTop.toFixed(2)}m: ${jh > hedgeTop ? "she CAN land on the hedges" : "hedges are too tall to land on"}`);
 console.log(`boosted running jump can reach a ${hedgeTop.toFixed(1)}m top from ${reach.toFixed(1)}m away`);
 const half = (N / 2) * CELL + 0.04; // outer face of the ring hedge
+/*
+ * The zone used to have to cover the maze plus the 9m a boosted running jump
+ * reaches, which swallowed a lot of lawn. It now only has to cover the hedges
+ * themselves, with keepOff set: land on a hedge top and the runtime puts her
+ * back where she jumped from (runtime.keepOffCheck).
+ */
 const need = {
-  minX: ORIGIN[0] - half - reach,
-  maxX: ORIGIN[0] + half + reach,
-  minZ: ORIGIN[1] - half - reach,
-  maxZ: ORIGIN[1] + half + reach,
+  minX: ORIGIN[0] - half,
+  maxX: ORIGIN[0] + half,
+  minZ: ORIGIN[1] - half,
+  maxZ: ORIGIN[1] + half,
 };
 const zone = (level.noJump ?? []).find(
   (z) => z.minX <= need.minX && z.maxX >= need.maxX && z.minZ <= need.minZ && z.maxZ >= need.maxZ,
@@ -191,9 +197,18 @@ if (jh > hedgeTop) {
   check(
     !!zone,
     zone
-      ? `no-jump zone "${zone.why}" covers the maze plus jump reach`
+      ? `no-jump zone "${zone.why}" covers every hedge (x ${zone.minX}..${zone.maxX}, z ${zone.minZ}..${zone.maxZ})`
       : `no no-jump zone covers x ${need.minX.toFixed(1)}..${need.maxX.toFixed(1)}, z ${need.minZ.toFixed(1)}..${need.maxZ.toFixed(1)}; she can jump onto the hedges`,
   );
+  check(
+    zone?.keepOff != null && zone.keepOff > 0.3 && zone.keepOff < hedgeTop,
+    zone?.keepOff != null
+      ? `landing above ${zone.keepOff}m in the zone puts her back on the ground (hedge top ${hedgeTop.toFixed(2)}m)`
+      : "the maze zone has no keepOff, so a jump from outside would leave her standing on the hedges",
+  );
+  // and the zone should not sprawl: roughly the maze, not the lawn around it
+  const slack = Math.max(need.minX - (zone?.minX ?? -999), (zone?.maxX ?? 999) - need.maxX);
+  check(slack < 3, `the zone hugs the hedges (widest margin ${slack.toFixed(1)}m)`);
 }
 
 // Gate markers: posts either side of each opening, on the outside.

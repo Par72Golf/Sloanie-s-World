@@ -4,6 +4,8 @@ import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { FURNITURE, SPOTS, type FurnitureDef } from "./furniture";
 import { HearButton } from "./help-cards";
+import { gridMove } from "./grid-nav";
+import { ItemThumb } from "./item-thumbs";
 import { useHome } from "./home-store";
 import { Btn, Panel } from "./overlays";
 import { speak } from "./speech";
@@ -37,6 +39,7 @@ function Decorate() {
   const tickets = useGame((s) => s.tickets);
   const options = FURNITURE.filter((f) => f.spot === spot);
   const original = useRef(placed[spot]);
+  const tiles = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(Math.max(0, options.findIndex((f) => f.id === placed[spot])));
   const spotName = SPOTS.find((s) => s.id === spot)?.name ?? spot;
   const owns = (f: FurnitureDef) => f.source === "starter" || owned.includes(f.id);
@@ -84,10 +87,11 @@ function Decorate() {
 
   useInput((e) => {
     if (e === "b") return close(false);
-    const n = options.length;
-    if (e === "left" || e === "up") preview((cursor + n - 1) % n);
-    else if (e === "right" || e === "down") preview((cursor + 1) % n);
-    else if (e === "a") choose();
+    // the options are a grid on a phone and one row on a TV: follow the layout
+    if (e === "left" || e === "right" || e === "up" || e === "down") {
+      const next = gridMove(tiles.current, cursor, e, options.length);
+      if (next !== cursor) preview(next);
+    } else if (e === "a") choose();
   });
 
   useEffect(() => speak(`Choose your ${spotName.toLowerCase()}.`), [spotName]);
@@ -122,6 +126,7 @@ function Decorate() {
         </div>
         <div className="ui-dots min-h-0 overflow-y-auto px-3 pb-3 pt-3.5 sm:px-4 sm:pb-4 [@media(max-height:480px)]:pb-2 [@media(max-height:480px)]:pt-2.5">
           <div
+            ref={tiles}
             className="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(var(--n),minmax(0,1fr))] sm:gap-3"
             style={{ "--n": options.length } as CSSProperties}
           >
@@ -135,7 +140,7 @@ function Decorate() {
                   type="button"
                   onClick={() => (i === cursor ? choose() : preview(i))}
                   className={cn(
-                    "press relative grid min-h-24 content-between lg:min-h-28 justify-items-center gap-1.5 rounded-[1.1rem] border-[3px] border-edge px-1.5 pb-2 pt-2.5 text-center shadow-[0_4px_0_var(--color-edge)] [@media(max-height:480px)]:min-h-[4.5rem] [@media(max-height:480px)]:pt-1.5",
+                    "@container press relative flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-[1.1rem] border-[3px] border-edge px-1.5 py-2 text-center shadow-[0_4px_0_var(--color-edge)] @[11rem]:flex-row @[11rem]:gap-2.5 lg:min-h-28 [@media(max-height:520px)]:min-h-[4.5rem] [@media(max-height:520px)]:py-1.5",
                     current ? "bg-[#dff5ee]" : have ? "bg-surface" : f.source === "shop" ? "bg-surface-2" : "bg-surface-3",
                     on && "-translate-y-1 bg-[#fff1ee] outline outline-4 outline-offset-2 outline-accent",
                   )}
@@ -145,27 +150,39 @@ function Decorate() {
                       <Check className="size-4" strokeWidth={3.5} />
                     </span>
                   )}
-                  <span
-                    className={cn(
-                      "self-center text-sm font-extrabold leading-tight min-[420px]:text-base lg:text-lg",
-                      !have && f.source !== "shop" ? "text-ink-soft" : "text-ink",
+                  {/* the piece itself, beside the name on a wide tile and above
+                      it on a narrow one; earn-it pieces show as a dark shape.
+                      Hidden on a short screen so the panel never grows and
+                      covers what it is previewing. */}
+                  <ItemThumb
+                    kind="furniture"
+                    id={f.id}
+                    locked={!have && f.source !== "shop"}
+                    className="size-14 shrink-0 @[11rem]:size-[4.5rem] @[14rem]:size-20 [@media(max-height:520px)]:hidden"
+                  />
+                  <span className="grid min-w-0 flex-1 justify-items-center gap-1 @[11rem]:justify-items-start @[11rem]:text-left">
+                    <span
+                      className={cn(
+                        "text-sm font-extrabold leading-tight min-[420px]:text-base lg:text-lg",
+                        !have && f.source !== "shop" ? "text-ink-soft" : "text-ink",
+                      )}
+                    >
+                      {f.name}
+                    </span>
+                    {current ? (
+                      <span className="ui-chip bg-teal text-sm text-white shadow-none">In room</span>
+                    ) : have ? (
+                      <span className="ui-chip bg-surface text-sm text-teal-deep shadow-none">Yours</span>
+                    ) : f.source === "shop" ? (
+                      <span className="ui-chip bg-sun text-base text-ink shadow-none">
+                        <Ticket className="size-4" strokeWidth={2.5} /> {f.price}
+                      </span>
+                    ) : (
+                      <span className="ui-chip bg-surface text-sm text-ink-soft shadow-none">
+                        <Lock className="size-3.5" strokeWidth={3} /> Earn it
+                      </span>
                     )}
-                  >
-                    {f.name}
                   </span>
-                  {current ? (
-                    <span className="ui-chip bg-teal text-sm text-white shadow-none">In room</span>
-                  ) : have ? (
-                    <span className="ui-chip bg-surface text-sm text-teal-deep shadow-none">Yours</span>
-                  ) : f.source === "shop" ? (
-                    <span className="ui-chip bg-sun text-base text-ink shadow-none">
-                      <Ticket className="size-4" strokeWidth={2.5} /> {f.price}
-                    </span>
-                  ) : (
-                    <span className="ui-chip bg-surface text-sm text-ink-soft shadow-none">
-                      <Lock className="size-3.5" strokeWidth={3} /> Earn it
-                    </span>
-                  )}
                 </button>
               );
             })}

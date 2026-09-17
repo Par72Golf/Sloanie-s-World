@@ -124,7 +124,7 @@ export function HelpCard() {
   useEffect(() => {
     if (!id) return;
     openedAt.current = performance.now();
-    speak(cardSpeech(id), true);
+    speak(cardSpeech(id));
   }, [id]);
   if (!id) return null;
   const card = HELP_CARDS[id];

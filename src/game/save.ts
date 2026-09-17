@@ -22,6 +22,8 @@ export type SaveData = {
   levelIndex: number;
   /** Which set of hiding spots the current run is using. */
   layout: number;
+  /** Dumplings that ran off or were stolen, by id, so a reload keeps them there. */
+  movedSpots: Record<string, [number, number, number]>;
   /** Best runs per park, fastest first. */
   leaderboard: RunRecord[][];
   /** Accessories found so far, across all parks. */
@@ -60,6 +62,7 @@ const DEFAULT: SaveData = {
   levelIndex: 0,
   leaderboard: [[], [], []],
   layout: 0,
+  movedSpots: {},
   foundAccessories: [],
   worn: { head: null, hair: null, face: null, back: null },
   view: "third",
@@ -90,6 +93,12 @@ function migrate(raw: SaveData): SaveData {
     Array.isArray(s.leaderboard[i]) ? s.leaderboard[i]!.slice() : [],
   );
   if (typeof s.layout !== "number") s.layout = 0;
+  if (!s.movedSpots || typeof s.movedSpots !== "object") s.movedSpots = {};
+  s.movedSpots = Object.fromEntries(
+    Object.entries(s.movedSpots).filter(
+      ([, p]) => Array.isArray(p) && p.length === 3 && p.every((n) => typeof n === "number" && Number.isFinite(n)),
+    ),
+  ) as SaveData["movedSpots"];
   if (!Array.isArray(s.foundAccessories)) s.foundAccessories = [];
   s.foundAccessories = s.foundAccessories.filter((x) => typeof x === "string");
   if (!s.worn || typeof s.worn !== "object") s.worn = {};

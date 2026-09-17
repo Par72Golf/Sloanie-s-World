@@ -1,29 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Backpack,
-  Bird,
   BookOpen,
-  Cat,
   Check,
-  Cloud,
-  Crown,
-  Fan,
-  Feather,
-  Flower2,
-  Glasses,
   Heart,
-  Lollipop,
-  PartyPopper,
-  PawPrint,
-  Rabbit,
-  Ribbon,
-  Shield,
   Shirt,
   Sparkles,
-  Star,
   Sticker,
   Ticket,
-  WandSparkles,
   X,
 } from "lucide-react";
 import { ACCESSORIES, SLOTS, accessory, type AccessoryId, type Slot } from "./accessories";
@@ -31,6 +15,8 @@ import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { STICKER_SPOTS } from "./collectibles";
 import { HearButton } from "./help-cards";
+import { gridMove } from "./grid-nav";
+import { ItemThumb } from "./item-thumbs";
 import { claimPad } from "./input";
 import { STICKER_ART, stickerDataUrl } from "./sticker-art";
 import { LEVELS } from "./levels";
@@ -366,43 +352,23 @@ function StickerBook({ stickers }: { stickers: string[] }) {
 }
 
 const SLOT_LABEL: Record<Slot, string> = { head: "Head", hair: "Hair", face: "Face", back: "Back", hand: "Hand" };
-const ITEM_ICON: Partial<Record<AccessoryId, typeof BookOpen>> = {
-  sunglasses: Glasses,
-  partyhat: PartyPopper,
-  bow: Ribbon,
-  backpack: Backpack,
-  flowercrown: Flower2,
-  crown: Crown,
-  balloon: Heart,
-  duckhat: Bird,
-  starglasses: Star,
-  unicorn: Sparkles,
-  teddy: PawPrint,
-  catears: Cat,
-  wings: Feather,
-  heartglasses: Glasses,
-  tiara: Crown,
-  cape: Shield,
-  bunnyears: Rabbit,
-  wand: WandSparkles,
-  lollipop: Lollipop,
-  cottoncandy: Cloud,
-  pinwheel: Fan,
-};
 
 /**
  * Equip, Minecraft style: her slots down the side, everything she owns in a
  * grid. Choosing an item puts it in its slot (taking off whatever was there);
- * choosing something she is already wearing takes it off. The backpack is
- * the bag itself, so it isn't in the grid.
+ * choosing something she is already wearing takes it off. The backpack shares
+ * the back slot with the wings, the cape and the teddy, so it is in the grid
+ * too: she can always put it back on.
  */
 function EquipGrid() {
   const found = useGame((s) => s.foundAccessories);
   const worn = useGame((s) => s.worn);
   const setWorn = useGame((s) => s.setWorn);
-  const items = ACCESSORIES.filter((a) => found.includes(a.id) && a.id !== "backpack");
+  // the backpack is in the grid like everything else: wings, a cape and the
+  // teddy share its slot, so she needs a way to put it back on. Finding it is
+  // what unlocks pickups; wearing it is just how she looks.
+  const items = ACCESSORIES.filter((a) => found.includes(a.id));
   const [cursor, setCursor] = useState(0);
-  const cols = 5;
   const grid = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // braces matter: newer Chrome returns a Promise from scrollIntoView, and an effect must not return one
@@ -416,22 +382,20 @@ function EquipGrid() {
   useInput((e) => {
     if (!items.length) return;
     const n = items.length;
-    if (e === "left") setCursor((c) => (c + n - 1) % n);
-    else if (e === "right") setCursor((c) => (c + 1) % n);
-    else if (e === "up") setCursor((c) => (c - cols + n) % n);
-    else if (e === "down") setCursor((c) => (c + cols) % n);
-    else if (e === "a") toggle(items[Math.min(cursor, n - 1)]!.id);
+    if (e === "left" || e === "right" || e === "up" || e === "down") {
+      // move by the row as it is laid out, not by a fixed column count
+      setCursor((c) => gridMove(grid.current, c, e, n));
+    } else if (e === "a") toggle(items[Math.min(cursor, n - 1)]!.id);
   });
   // empty slots fill out the grid, so it reads as an inventory with room to spare
-  const fillers = Math.max(10, Math.ceil(items.length / cols) * cols) - items.length;
+  const fillers = Math.max(8, Math.ceil(items.length / 4) * 4) - items.length;
   const slotWell = "rounded-[0.8rem] border-[3px] border-edge shadow-[inset_0_4px_0_rgb(29_36_82/0.12)]";
   return (
-    <div className="grid gap-3 sm:grid-cols-[11rem_1fr] sm:gap-4 lg:grid-cols-[12rem_1fr] 2xl:grid-cols-[14rem_1fr]">
+    <div className="grid gap-3 sm:grid-cols-[9.5rem_1fr] sm:gap-4 lg:grid-cols-[10.5rem_1fr] 2xl:grid-cols-[13rem_1fr]">
       {/* what she has on */}
       <div className="grid grid-cols-5 content-start gap-1.5 rounded-[1.1rem] border-[3px] border-edge bg-surface-3 p-1.5 shadow-[0_4px_0_var(--color-edge)] sm:grid-cols-1 sm:gap-2 sm:p-2">
         {SLOTS.map((slot) => {
           const id = worn[slot];
-          const Icon = id ? (ITEM_ICON[id] ?? Shirt) : Shirt;
           return (
             <button
               key={slot}
@@ -440,8 +404,12 @@ function EquipGrid() {
               className="flex min-h-11 flex-col items-center gap-1 rounded-[0.8rem] bg-surface px-0.5 py-1.5 sm:flex-row sm:gap-2.5 sm:p-1.5"
               aria-label={id ? `Take off ${accessory(id).name}` : `${SLOT_LABEL[slot]} is empty`}
             >
-              <span className={cn("grid size-10 shrink-0 place-items-center lg:size-12", slotWell, id ? "gloss bg-sun" : "border-dashed border-muted bg-surface-2 shadow-none")}>
-                <Icon className={cn("size-6 lg:size-7", id ? "text-ink" : "text-muted")} strokeWidth={2.4} />
+              <span className={cn("grid size-11 shrink-0 place-items-center overflow-hidden lg:size-14", slotWell, id ? "gloss bg-sun" : "border-dashed border-muted bg-surface-2 shadow-none")}>
+                {id ? (
+                  <ItemThumb kind="accessory" id={id} className="size-full p-0.5" />
+                ) : (
+                  <Shirt className="size-6 text-muted lg:size-7" strokeWidth={2.4} />
+                )}
               </span>
               <span className="min-w-0 text-left leading-tight">
                 <span className="block font-display text-xs font-semibold uppercase tracking-wide text-ink-soft sm:text-sm">{SLOT_LABEL[slot]}</span>
@@ -455,10 +423,9 @@ function EquipGrid() {
       </div>
       {items.length ? (
         <div className="grid content-start gap-3">
-          <div ref={grid} className="grid grid-cols-5 content-start gap-2 rounded-[1.1rem] border-[3px] border-edge bg-surface-3 p-2 shadow-[0_4px_0_var(--color-edge)] sm:gap-2.5 sm:p-2.5">
+          <div ref={grid} className="grid grid-cols-4 content-start gap-2 rounded-[1.1rem] border-[3px] border-edge bg-surface-3 p-2 shadow-[0_4px_0_var(--color-edge)] sm:gap-2.5 sm:p-2.5">
             {items.map((a, i) => {
               const on = worn[a.slot] === a.id;
-              const Icon = ITEM_ICON[a.id] ?? Shirt;
               return (
                 <button
                   key={a.id}
@@ -469,14 +436,17 @@ function EquipGrid() {
                   }}
                   title={a.name}
                   className={cn(
-                    "relative grid aspect-square min-h-11 place-items-center transition-transform duration-150",
+                    "@container relative grid aspect-square min-h-11 place-items-center transition-transform duration-150",
                     slotWell,
                     on ? "gloss bg-sun" : "bg-surface",
                     i === cursor && "z-10 scale-105 outline outline-4 outline-offset-2 outline-accent",
                   )}
                   aria-label={`${on ? "Take off" : "Put on"} ${a.name}`}
                 >
-                  <Icon className="size-7 text-ink sm:size-9 lg:size-10" strokeWidth={2.2} />
+                  <span className="flex size-full min-h-0 flex-col items-center justify-center px-0.5 pb-0.5 pt-1 @[4.5rem]:pb-1.5">
+                    <ItemThumb kind="accessory" id={a.id} className="min-h-0 w-full flex-1" />
+                    <span className="hidden w-full truncate px-0.5 text-center text-[0.7rem] font-extrabold leading-tight text-ink @[4.5rem]:block @[6.5rem]:text-sm">{a.name}</span>
+                  </span>
                   {on && (
                     <span className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full border-2 border-edge bg-teal text-white">
                       <Check className="size-3.5" strokeWidth={4} />
@@ -528,7 +498,7 @@ function BagTab() {
   const title = "block font-display text-lg font-semibold leading-tight lg:text-xl";
   const sub = "block text-base font-semibold leading-snug text-ink-soft";
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_16rem] lg:items-start 2xl:grid-cols-[1fr_20rem]">
+    <div className="grid gap-4 lg:grid-cols-[1fr_14rem] lg:items-start 2xl:grid-cols-[1fr_18rem]">
       <EquipGrid />
       <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-1">
         <h3 className="-mb-0.5 px-1 font-display text-lg font-semibold uppercase tracking-wide text-ink-soft sm:col-span-2 lg:col-span-1 lg:-mt-1">In your pockets</h3>

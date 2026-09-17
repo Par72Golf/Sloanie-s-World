@@ -55,7 +55,7 @@ export const ACCESSORIES: AccessoryDef[] = [
   { id: "partyhat", name: "Party hat", slot: "head", hint: "Where the tennis balls fly." },
   { id: "bow", name: "Big bow", slot: "hair", hint: "By the sandbox." },
   { id: "backpack", name: "Backpack", slot: "back", hint: "Out on the ball field." },
-  { id: "flowercrown", name: "Flower crown", slot: "head", hint: "On the picnic lawn." },
+  { id: "flowercrown", name: "Flower crown", slot: "head", hint: "By the hammock at the campground." },
   { id: "crown", name: "Golden crown", slot: "head", hint: "Find every dumpling in the park.", reward: "every dumpling in the park" },
   { id: "balloon", name: "Heart balloon", slot: "hand", hint: "Win at Ring Toss.", reward: "Ring Toss" },
   { id: "duckhat", name: "Duck hat", slot: "head", hint: "Win at the Duck Pond.", reward: "the Duck Pond" },

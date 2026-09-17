@@ -374,7 +374,8 @@ const AREA: Record<string, (x: number, z: number) => boolean> = {
   dragonfly: (x, z) => { const d = Math.hypot(x + 48, z + 48); return d > 5.4 && d < 11; },
   goldfish: (x, z) => near(x, z, 0, -42, 5.5),
   butterfly: (x, z) => inRect(x, z, -61.4, -50, 18.6, 35.4),
-  ladybug: (x, z) => inRect(x, z, 3, 13, 35, 45),
+  // the flower bed moved to (10, 30) when the walkways went in
+  ladybug: (x, z) => inRect(x, z, 5, 15, 25, 35),
   bee: (x, z) => inRect(x, z, 37, 59, 41, 63),
   apple: (x, z) => inRect(x, z, 37, 59, 41, 63),
   tractor: (x, z) => !!tractor && near(x, z, tractor.x, tractor.z, 5),

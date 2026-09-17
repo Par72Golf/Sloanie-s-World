@@ -104,7 +104,15 @@ reserve("keepClear", [
   [128, 128, 36, 32], [132, 60, 20, 16], [118, 60, 30, 8], [112, 114, 8, 44],
   [-40, 136, 40, 28], [8, 136, 32, 24], [-60, -132, 58, 42], [20, -132, 38, 30], [130, -60, 52, 40],
   [73, -128, 50, 46], [-16, 40, 24, 12], [-40, 115, 8, 24], [8, 115, 8, 24], [-60, -110, 8, 14], [20, -110, 8, 14], [112, -60, 18, 8],
+  // the zoo between the farm and the mini golf (zoo.ts), plus room round it
+  [-15, -136, 34, 30],
 ]);
+
+/*
+ * The walkway network (walkways.ts) is built now, so its ground is in the
+ * park's own props and does not need reserving here. The old unbuilt rects
+ * above are kept because the placement map still reserves them.
+ */
 
 const overlaps = (a: Rect, b: Rect) => a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ;
 const grow = (r: Rect, m: number): Rect => ({ minX: r.minX - m, maxX: r.maxX + m, minZ: r.minZ - m, maxZ: r.maxZ + m });

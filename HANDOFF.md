@@ -8,7 +8,7 @@ context. It covers what exists, what the tooling is for, the bugs that cost the 
 time and why, what "finished" would actually require, and how to prompt effectively
 on this specific project.
 
-Current version: **v3.1** (17 Sept 2026): the birthday build plus her house and Emmett's truck.
+Current version: **v3.2** (17 Sept 2026): her house, Emmett's truck, the zoo, the lookout, the rebuilt landing plaza, remappable controls and the premium UI.
 
 ### Since v2.8 (16 Sept 2026)
 
@@ -224,6 +224,54 @@ Current version: **v3.1** (17 Sept 2026): the birthday build plus her house and 
   - The truck's colliders come from `colliders.ts` (`emmettBase` level flag);
     the yard's solid bits are props hidden inside the drawn tyres and ramp;
     the grass mask skips the dirt yard.
+- **The day before the birthday (17 Sept 2026, afternoon), from the dad's playtest notes:**
+  - **Controls she can remap** (`bindings.ts`, `controls-remap.tsx`): every play action has a
+    controller button and a keyboard key, saved in their own slot
+    (`sloanies-world-controls-v1`). Moving and the menu buttons (A choose, B back,
+    Esc) are fixed so no layout can lock anyone out; assigning a button that is
+    taken swaps the two. The screen lights up each button as it is pressed, which
+    doubles as a way to check an 8BitDo is in X-input mode.
+  - **Menus move spatially** (`pad-menu.tsx`): up, down, left and right pick the
+    nearest control in that direction on screen, holding repeats, a focused
+    scrollable box scrolls before focus moves on, focus starts on
+    `data-pad-default`, and a sub-screen returns focus to the button that opened it.
+  - **Esc is decided in one place** (`input.ts`), from what is open at the moment of
+    the press, so closing a panel no longer also opens the pause menu.
+  - Music plays whatever she is holding; a jump press within 0.18s of landing still
+    counts (`JUMP_BUFFER`); the catch celebration plays in front of the camera in
+    first person; the first-person iPod goes away when she holds something else.
+  - **Emmett always gets home** (`emmett.ts`): a berm between the park and his yard
+    could leave him circling for the rest of the game, taking his truck game with
+    him. After `HOME_GIVE_UP` seconds he slips out of sight and turns up at the
+    yard. `tools/emmett-home.ts` meets her at two spots and fails if he does not
+    get back.
+  - **The park and the run survive a reload:** dumplings that ran off or were stolen
+    are saved (`movedSpots`), the world rebuilds when the layout changes, the run
+    clock keeps running after a trip to the title (a resumed run shows its time but
+    does not go on the board: `runValid`), and Start always faces her the way the
+    park expects.
+  - **"Start over" is a real fresh start:** it clears the house, the help cards seen
+    and everything else, then reloads the page. A second button also clears best
+    times.
+  - **A dumpling that runs off stays findable:** `flee.ts` now aims for a chase
+    distance instead of the farthest spot in the park (`FLEE_MAX_FROM_PLAYER`).
+  - **The maze zone hugs the hedges:** `noJump` entries can carry `keepOff`, and
+    landing above that height inside the zone puts her back where she jumped from
+    (`runtime.keepOffCheck`), so the zone no longer has to cover the 9m a boosted
+    running jump reaches. `tools/maze.ts` checks the zone hugs the hedges and has
+    a sane `keepOff`.
+  - **New places:** a zoo beside the farm (`zoo.ts`, `zoo-mesh.ts`, `tools/zoo.ts`:
+    six enclosures, animals with idle animations, plaques with fun facts), a
+    lookout deck on the mountain roof with a walkable switchback stair
+    (`tools/lookout.ts`), and a rebuilt landing plaza with walkways and signage.
+  - **Item pictures** (`item-thumbs.ts`): one offscreen renderer draws each
+    accessory and each piece of furniture once, cached, used in the bag, the prize
+    shop, the wardrobe and the house. Reading pixels goes through a PBO and a
+    fence, because a plain readPixels on a WebGL canvas stalls for hundreds of ms.
+  - **Premium UI, second pass:** jewel styling, a main menu with a video-game feel,
+    and a HUD status card rework.
+  - `lam()` no longer passes undefined optional parameters to three.js, which was
+    printing thousands of warnings at load.
 - **Fixes the same evening:**
   - Berm "reset": rising with her feet within 3cm of a box top was taken as a
     head bump and dropped her inside the berm; she is now put on top. Step-ups
@@ -329,6 +377,8 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
 | `home.ts` | Her house: every furniture piece builds, the room's worst-case triangle count, colliders and reachability of each decoration spot. |
 | `emmett-base.ts` | The truck yard: clear ground, 12m from every hiding spot, walkable round the truck and up the ramp, the roof seat on the roof, and his laps clear of anything solid. |
+| `zoo.ts` | The zoo: clear ground beside the farm, every plaque walkable from spawn, fences unclimbable, spacing from hiding spots. `tools/zoo.ts scan` searches for clear ground of a given size. |
+| `lookout.ts` | The mountain lookout: walks the switchback stair from spawn with the jump key never pressed, then shoves her at every railing to prove she cannot fall off. |
 | `emmett-home.ts` | Emmett's routine headless: laps at home, rides out, catches her, goes back; fails under 3 round trips in 15 minutes. |
 | `berm.ts` | Jumps at every stepped berm in the park through the real collision and camera code, stepped like the runtime; hunts the "reset" where she dropped inside a tier. Must report 0 events. |
 | `flee.ts` | The new-spot picker for a fleeing dumpling against its rules, compared with the old picker. |

@@ -14,7 +14,28 @@ import { LEVELS } from "../src/game/levels";
 import { collidersFor } from "../src/game/colliders";
 import { moveAndCollide, type Capsule } from "../src/game/collision";
 import { PLAYER_H, PLAYER_W, WALK, JUMP } from "../src/game/tuning";
-import { CAVE, CAVE_MAP, CAVE_SPOTS, caveCellCenter, caveEntrance, isOpen } from "../src/game/cave";
+import { CAVE, CAVE_MAP, CAVE_SPOTS, caveCellCenter, caveEntrance, caveFootprint, isOpen } from "../src/game/cave";
+import * as THREE from "three";
+// meshes.ts draws its textures on a canvas when a material is first made
+const noop = () => {};
+const ctx = new Proxy({} as Record<string, unknown>, {
+  get: (t, k) =>
+    k === "getImageData" || k === "createImageData"
+      ? (a: number, b: number, w = a, h = b) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h })
+      : k === "measureText"
+        ? () => ({ width: 40 })
+        : k in t
+          ? t[k as string]
+          : noop,
+  set: (t, k, v) => ((t[k as string] = v), true),
+});
+(globalThis as any).document = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) };
+const warn = console.warn;
+console.warn = (...a: unknown[]) => {
+  if (typeof a[0] === "string" && a[0].startsWith("THREE.Material")) return;
+  warn(...a);
+};
+import { makeMountainCave } from "../src/game/meshes";
 
 const level = LEVELS[0]!;
 const boxes = collidersFor(level);
@@ -155,6 +176,103 @@ for (const [name, [sx, sy, sz]] of Object.entries(CAVE_SPOTS)) {
     blocked = boxes.some((b) => x > b.minX && x < b.maxX && y > b.minY && y < b.maxY && z > b.minZ && z < b.maxZ);
   }
   check(blocked, `${name} cannot be seen from the entrance`);
+}
+
+/**
+ * The drawn rock against the tunnels she can actually walk in.
+ *
+ * Every boulder is sampled over its whole surface and each sample that lands
+ * in open tunnel space is measured against the real colliders: how far it is
+ * from the nearest rock column, roof slab or ledge is how far that rock bulges
+ * into the passage. This is the check the "passages look almost closed" report
+ * needed: before the fix the worst wall rock stood 1.92m into a 3m tunnel and
+ * one row-9 boulder closed the way to the great cavern completely.
+ */
+console.log("rock meshes in the passages");
+{
+  const WALL = 0.45;
+  const ROOF = 0.6;
+  const fp = caveFootprint();
+  const cave = boxes.filter((b) => b.maxX > fp.minX && b.minX < fp.maxX && b.maxZ > fp.minZ && b.minZ < fp.maxZ && b.minY < CAVE.height);
+  const [mx] = caveEntrance();
+  const group = makeMountainCave();
+  group.updateMatrixWorld(true);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  let rocks = 0;
+  let worstWall = { d: 0, x: 0, y: 0, z: 0 };
+  let worstRoof = { d: 0, x: 0, y: 0, z: 0 };
+  let overWall = 0;
+  let overRoof = 0;
+  group.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.geometry.type !== "IcosahedronGeometry") return;
+    rocks++;
+    const pos = m.geometry.attributes.position as THREE.BufferAttribute;
+    let wall = 0;
+    let roof = 0;
+    let at = { x: 0, y: 0, z: 0 };
+    let atRoof = { x: 0, y: 0, z: 0 };
+    for (let t = 0; t < pos.count; t += 3) {
+      a.fromBufferAttribute(pos, t).applyMatrix4(m.matrixWorld);
+      b.fromBufferAttribute(pos, t + 1).applyMatrix4(m.matrixWorld);
+      c.fromBufferAttribute(pos, t + 2).applyMatrix4(m.matrixWorld);
+      for (let i = 0; i <= 4; i++) {
+        for (let j = 0; j <= 4 - i; j++) {
+          v.set(0, 0, 0)
+            .addScaledVector(a, 1 - i / 4 - j / 4)
+            .addScaledVector(b, i / 4)
+            .addScaledVector(c, j / 4);
+          if (v.y <= 0.05 || v.y >= CAVE.height) continue;
+          const inside = v.x > fp.minX && v.x < fp.maxX && v.z > fp.minZ && v.z < fp.maxZ;
+          // the 2m of mouth in front of the face counts as tunnel too
+          const inMouth = !inside && v.z > fp.maxZ && v.z < fp.maxZ + 2 && v.x > mx - 1.5 && v.x < mx + 1.5;
+          if (!inside && !inMouth) continue;
+          if (inMouth) {
+            const side = Math.min(v.x - (mx - 1.5), mx + 1.5 - v.x);
+            const head = 3.6 - v.y;
+            if (side < head) {
+              if (side > wall) ((wall = side), (at = { x: v.x, y: v.y, z: v.z }));
+            } else if (head > roof) ((roof = head), (atRoof = { x: v.x, y: v.y, z: v.z }));
+            continue;
+          }
+          let best = Infinity;
+          let sideways = true;
+          for (const box of cave) {
+            const dx = Math.max(box.minX - v.x, 0, v.x - box.maxX);
+            const dy = Math.max(box.minY - v.y, 0, v.y - box.maxY);
+            const dz = Math.max(box.minZ - v.z, 0, v.z - box.maxZ);
+            const d = Math.hypot(dx, dy, dz);
+            if (d < best) {
+              best = d;
+              sideways = dy < Math.hypot(dx, dz);
+            }
+            if (d === 0) break;
+          }
+          if (best === 0 || best === Infinity) continue;
+          if (sideways) {
+            if (best > wall) ((wall = best), (at = { x: v.x, y: v.y, z: v.z }));
+          } else if (best > roof) ((roof = best), (atRoof = { x: v.x, y: v.y, z: v.z }));
+        }
+      }
+    }
+    if (wall > WALL) {
+      overWall++;
+      if (process.env.VERBOSE) console.log(`    wall rock ${wall.toFixed(2)}m into the passage at (${at.x.toFixed(1)}, ${at.y.toFixed(1)}, ${at.z.toFixed(1)})`);
+    }
+    if (roof > ROOF) {
+      overRoof++;
+      if (process.env.VERBOSE) console.log(`    roof rock ${roof.toFixed(2)}m below the roof at (${atRoof.x.toFixed(1)}, ${atRoof.y.toFixed(1)}, ${atRoof.z.toFixed(1)})`);
+    }
+    if (wall > worstWall.d) worstWall = { d: wall, ...at };
+    if (roof > worstRoof.d) worstRoof = { d: roof, ...atRoof };
+  });
+  const fitStat = group.userData.rockFit as { refitted: number; dropped: number };
+  console.log(`  ${rocks} rock meshes, ${fitStat.refitted} shrunk to fit, ${fitStat.dropped} dropped`);
+  check(overWall === 0, `no wall rock bulges more than ${WALL}m into a tunnel (worst ${worstWall.d.toFixed(2)}m at (${worstWall.x.toFixed(1)}, ${worstWall.y.toFixed(1)}, ${worstWall.z.toFixed(1)}), ${overWall} over)`);
+  check(overRoof === 0, `no ceiling rock hangs more than ${ROOF}m below the roof (worst ${worstRoof.d.toFixed(2)}m at (${worstRoof.x.toFixed(1)}, ${worstRoof.y.toFixed(1)}, ${worstRoof.z.toFixed(1)}), ${overRoof} over)`);
 }
 
 // apart from climbing onto the cavern ledge, nothing should ever need a hop

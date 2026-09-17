@@ -13,6 +13,9 @@ export const FLEE_FROM_CURRENT = 12;
 export const FLEE_CLEAR = 4.5;
 /** ...and this far from the spawn, so it never re-hides beside the start. */
 export const FLEE_FROM_SPAWN = 25;
+/** Far enough to feel lost, close enough that a 7-year-old will go and look. */
+export const FLEE_MAX_FROM_PLAYER = 70;
+const FLEE_IDEAL_FROM_PLAYER = 34;
 
 /**
  * @param spots    authored hiding spots to run to: every dumpling's home and
@@ -43,7 +46,8 @@ export function pickFleePos(
     const z = h[2] + (Math.random() - 0.5) * nudge;
     const cx = Math.min(bounds.maxX - 3, Math.max(bounds.minX + 3, x));
     const cz = Math.min(bounds.maxZ - 3, Math.max(bounds.minZ + 3, z));
-    if (Math.hypot(cx - playerX, cz - playerZ) < FLEE_FROM_PLAYER) continue;
+    const away = Math.hypot(cx - playerX, cz - playerZ);
+    if (away < FLEE_FROM_PLAYER || away > FLEE_MAX_FROM_PLAYER) continue;
     if (Math.hypot(cx - current[0], cz - current[2]) < FLEE_FROM_CURRENT) continue;
     if (!farFromSpawn(cx, cz)) continue;
     if (occupied.some((o) => Math.hypot(cx - o[0], cz - o[2]) < FLEE_CLEAR)) continue;
@@ -65,13 +69,16 @@ export function pickFleePos(
     [...spots, ...cleared].filter(far),
     spots,
   ];
+  // Nearest to a good chase distance rather than the farthest in the park: a
+  // dumpling that bolts 110m across the map reads as a punishment.
   for (const pool of pools) {
     let best: V3 | null = null;
-    let bestD = -1;
+    let bestScore = Infinity;
     for (const h of pool) {
       const dist = Math.hypot(h[0] - playerX, h[2] - playerZ);
-      if (dist > bestD) {
-        bestD = dist;
+      const score = Math.abs(dist - FLEE_IDEAL_FROM_PLAYER) + (dist < FLEE_FROM_PLAYER ? 60 : 0);
+      if (score < bestScore) {
+        bestScore = score;
         best = h;
       }
     }

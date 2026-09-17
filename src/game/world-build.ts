@@ -1,6 +1,8 @@
 import { EMMETT_BASE } from "./emmett-base";
 import { makeMonsterTruck, makeTruckYard, type TruckRig } from "./monster-truck";
 import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
+import { makeArrivalPlaza } from "./plaza";
+import { PARK_DIRECTORIES, PARK_NAME_SIGNS, makeSigns } from "./signs";
 import * as THREE from "three";
 import type { AABB } from "./collision";
 import { beveledBox } from "./beveled";
@@ -277,6 +279,11 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       edge.position.set(w.x, 0, w.z);
       group.add(edge);
     }
+
+    // the arrival plaza round the spawn and every sign in the park; both are
+    // static decoration over the props levels.ts places, and add no colliders
+    group.add(makeArrivalPlaza());
+    group.add(makeSigns(PARK_DIRECTORIES, PARK_NAME_SIGNS));
 
     // a treehouse that looks like one, at the top of the existing stairs
     const th = makeTreehouse();

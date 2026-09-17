@@ -3,27 +3,18 @@ import {
   Apple,
   Bird,
   Carrot,
-  Cat,
   Check,
   Cherry,
   Cloud,
-  Crown,
-  Fan,
-  Feather,
   Fish,
   Flower,
   Gift,
-  Glasses,
   Hammer,
   Heart,
   Lock,
-  Lollipop,
   Moon,
-  PawPrint,
   Play,
-  Rabbit,
   Rainbow,
-  Shield,
   Snowflake,
   Sparkles,
   Star,
@@ -33,7 +24,6 @@ import {
   Ticket,
   Timer,
   Trophy,
-  WandSparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -54,6 +44,8 @@ import {
 } from "./carnival";
 import { Btn, Panel } from "./overlays";
 import { HearButton } from "./help-cards";
+import { gridMove } from "./grid-nav";
+import { ItemThumb } from "./item-thumbs";
 import { claimPad } from "./input";
 import { speak } from "./speech";
 import { useGame } from "./store";
@@ -164,10 +156,15 @@ function useSince(value: unknown) {
 }
 const SETTLE_MS = 700;
 
-/** Tickets for a round: shown on the result screen and added straight away. */
+/**
+ * Tickets for a round: shown on the result screen and added straight away.
+ * Every game pays something, as the instruction card promises, so a round
+ * that scored nothing still hands over one ticket for trying.
+ */
 function payTickets(n: number) {
-  if (n > 0) useGame.getState().addTickets(n);
-  return n;
+  const pay = Math.max(1, n);
+  useGame.getState().addTickets(pay);
+  return pay;
 }
 
 /** Award the booth's prize; returns true if it is new. */
@@ -178,14 +175,6 @@ function award(prize: AccessoryId) {
   sfx.win();
   return isNew;
 }
-
-const PRIZE_ICON: Record<string, { Icon: LucideIcon; color: string }> = {
-  balloon: { Icon: Heart, color: "#e8455f" },
-  duckhat: { Icon: Sparkles, color: "#e0a800" }, // drawn as a duck below
-  starglasses: { Icon: Star, color: "#f06aa8" },
-  unicorn: { Icon: Sparkles, color: "#b98ce0" },
-  teddy: { Icon: PawPrint, color: "#b87a4a" },
-};
 
 /* ------------------------------------------------------- shared chrome */
 
@@ -287,43 +276,19 @@ export function PadKey({ children }: { children: React.ReactNode }) {
   );
 }
 
-const SHOP_ICON: Partial<Record<AccessoryId, { Icon: LucideIcon; color: string }>> = {
-  pinwheel: { Icon: Fan, color: "#ff6a55" },
-  catears: { Icon: Cat, color: "#e0842e" },
-  heartglasses: { Icon: Glasses, color: "#f0506e" },
-  lollipop: { Icon: Lollipop, color: "#e8455f" },
-  bunnyears: { Icon: Rabbit, color: "#7b5cf0" },
-  cottoncandy: { Icon: Cloud, color: "#e0609a" },
-  wand: { Icon: WandSparkles, color: "#7b5cf0" },
-  tiara: { Icon: Crown, color: "#f0a91c" },
-  cape: { Icon: Shield, color: "#2f7fd6" },
-  wings: { Icon: Feather, color: "#14a3a6" },
-};
-
 const BOOTH_ICON: Record<BoothGame, LucideIcon> = { rings: Target, ducks: Bird, moles: Hammer, prizes: Gift };
 
 function PrizeBadge({ id, have, size = "md" }: { id: AccessoryId; have: boolean; size?: "md" | "lg" }) {
-  const { Icon, color } = PRIZE_ICON[id]!;
   return (
     <div
       className={cn(
         "relative grid shrink-0 place-items-center rounded-full border-[3px]",
-        size === "lg" ? "size-24" : "size-14",
+        size === "lg" ? "size-28" : "size-16",
         have ? "gloss border-edge bg-surface shadow-[0_4px_0_#1d2452]" : "border-dashed border-muted bg-surface-2",
       )}
     >
-      {id === "duckhat" ? (
-        <div className={cn(size === "lg" ? "size-16" : "size-10", !have && "opacity-50 grayscale")}>
-          <DuckSvg />
-        </div>
-      ) : (
-        <Icon
-          className={size === "lg" ? "size-12" : "size-7"}
-          style={{ color: have ? color : "#8a93b8" }}
-          fill={have ? color : "none"}
-          strokeWidth={have ? 2 : 2.5}
-        />
-      )}
+      {/* not won yet: a dark shape to wonder about */}
+      <ItemThumb kind="accessory" id={id} locked={!have} className={size === "lg" ? "size-[6.25rem]" : "size-[3.4rem]"} />
     </div>
   );
 }
@@ -354,6 +319,12 @@ function Intro({ booth, onPlay, children }: { booth: Booth; onPlay: () => void; 
       </Btn>
     </div>
   );
+}
+
+/** "The star glasses are yours..." / "The duck hat is yours...", either way. */
+function wonLine(name: string) {
+  const many = /s$/i.test(name);
+  return `The ${name.toLowerCase()} ${many ? "are" : "is"} yours. ${many ? "They're" : "It's"} on! Change ${many ? "them" : "it"} in your backpack.`;
 }
 
 function Result({
@@ -423,9 +394,7 @@ function Result({
       {won && (
         <p className="flex items-center gap-2 rounded-2xl bg-teal/12 px-4 py-2 text-lg font-bold leading-snug text-teal-deep">
           <Check className="size-6 shrink-0" strokeWidth={3} />
-          {isNew
-            ? `The ${accessory(booth.prize).name.toLowerCase()} is yours. It's on! Change it in the wardrobe.`
-            : "Champion again!"}
+          {isNew ? wonLine(accessory(booth.prize).name) : "Champion again!"}
         </p>
       )}
       <div className="mt-1 grid w-full grid-cols-2 gap-3">
@@ -444,6 +413,33 @@ function Result({
 }
 
 /* ------------------------------------------------------------ ring toss */
+
+/*
+ * The ring's two endings, in the play area's own pixels: the bottles stand on
+ * a shelf 12px up, with a 80px body and a 36px neck, so the neck's shoulder is
+ * about 116px above the shelf. A hit drops the ring down the neck, bounces it
+ * once and leaves it resting there, squashed to read as lying flat. A miss
+ * falls past the shoulder to the shelf and rolls off to the side.
+ */
+const RING_KEYFRAMES = `
+@keyframes ringLands {
+  0%   { top: 0.75rem; transform: translateX(-50%) scale(1, 1) rotate(0deg); }
+  55%  { top: calc(100% - 128px); transform: translateX(-50%) scale(1.02, 0.42) rotate(-6deg); }
+  70%  { top: calc(100% - 146px); transform: translateX(-50%) scale(0.98, 0.5) rotate(4deg); }
+  85%  { top: calc(100% - 120px); transform: translateX(-50%) scale(1.06, 0.36) rotate(-2deg); }
+  100% { top: calc(100% - 124px); transform: translateX(-50%) scale(1.04, 0.38) rotate(0deg); }
+}
+@keyframes ringMisses {
+  0%   { top: 0.75rem; transform: translateX(-50%) scale(1, 1) rotate(0deg); }
+  45%  { top: calc(100% - 96px); transform: translateX(-40%) scale(0.98, 0.72) rotate(18deg); }
+  70%  { top: calc(100% - 26px); transform: translateX(-10%) scale(1, 0.34) rotate(46deg); }
+  100% { top: calc(100% - 22px); transform: translateX(120%) scale(1, 0.3) rotate(96deg); opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes ringLands { from, to { top: calc(100% - 124px); transform: translateX(-50%) scale(1.04, 0.38); } }
+  @keyframes ringMisses { from, to { top: calc(100% - 22px); transform: translateX(-50%) scale(1, 0.3); opacity: 0.35; } }
+}
+`;
 
 function RingToss({ booth }: { booth: Booth }) {
   const [stage, setStage] = useState<"intro" | "play" | "done">("intro");
@@ -567,13 +563,21 @@ function RingToss({ booth }: { booth: Booth }) {
         {/* booth back wall trim and the shelf the bottles stand on */}
         <div aria-hidden className="absolute inset-x-0 top-0 h-2" style={{ backgroundColor: booth.awning[0] }} />
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-3 border-t-[3px] border-edge bg-[#c98a4f]" />
-        {/* the swinging ring */}
+        {/* the swinging ring: a hit drops onto the bottle and settles round its
+            neck, a miss falls past the bottles and rolls away along the shelf */}
+        <style>{RING_KEYFRAMES}</style>
         <div
           ref={flight ? undefined : marker}
-          className="absolute top-3 size-16 -translate-x-1/2 rounded-full border-[10px] border-accent shadow-[0_0_0_3px_#1d2452,inset_0_0_0_3px_#1d2452] transition-[top,transform] duration-300 ease-in"
+          className={cn(
+            "absolute top-3 z-10 size-16 -translate-x-1/2 rounded-full border-[10px] border-accent shadow-[0_0_0_3px_#1d2452,inset_0_0_0_3px_#1d2452]",
+            !flight && "transition-[top,transform] duration-300 ease-in",
+          )}
           style={
             flight
-              ? { left: `${flight.x * 100}%`, top: "38%", transform: "translateX(-50%) scale(0.8, 0.45)" }
+              ? {
+                  left: flight.hit ? `${((target + 0.5) / RING_TOSS.bottles) * 100}%` : `${flight.x * 100}%`,
+                  animation: `${flight.hit ? "ringLands" : "ringMisses"} 1.05s cubic-bezier(0.4, 0, 0.6, 1) forwards`,
+                }
               : { left: "50%" }
           }
         />
@@ -1066,6 +1070,7 @@ function PrizeBooth({ booth }: { booth: Booth }) {
   // the teddy is the big moment: when it's ready, open on it
   const [page, setPage] = useState<"shop" | "prizes">(ready ? "prizes" : "shop");
   const [cursor, setCursor] = useState(0);
+  const shopGrid = useRef<HTMLDivElement>(null);
   const claim = () => {
     if (!ready) return;
     award("teddy");
@@ -1088,10 +1093,10 @@ function PrizeBooth({ booth }: { booth: Booth }) {
       else if (e === "a") (ready ? claim() : setPage("shop"));
       return;
     }
-    const n = SHOP.length;
-    if (e === "left" || e === "up") setCursor((c) => (c + n - 1) % n);
-    else if (e === "right" || e === "down") setCursor((c) => (c + 1) % n);
-    else if (e === "a") buy(cursor);
+    // the shop is a grid: left and right stay in the row, up and down change row
+    if (e === "left" || e === "right" || e === "up" || e === "down") {
+      setCursor((c) => gridMove(shopGrid.current, c, e, SHOP.length));
+    } else if (e === "a") buy(cursor);
   });
   const tabs = (
     <div className="grid flex-1 grid-cols-2 gap-1.5 rounded-full border-[3px] border-edge bg-surface-3 p-1.5">
@@ -1121,7 +1126,7 @@ function PrizeBooth({ booth }: { booth: Booth }) {
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
           {tabs}
           <p className="ui-chip gloss gap-2 self-center bg-sun px-5 py-1.5 text-2xl text-ink">
-            <Ticket className="size-7" strokeWidth={2.5} /> {tickets} tickets
+            <Ticket className="size-7" strokeWidth={2.5} /> {tickets} ticket{tickets === 1 ? "" : "s"}
           </p>
         </div>
         {ready && (
@@ -1129,12 +1134,11 @@ function PrizeBooth({ booth }: { booth: Booth }) {
             <Gift className="size-6" /> Your giant teddy is ready!
           </Btn>
         )}
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
+        <div ref={shopGrid} className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
           {SHOP.map((item, i) => {
             const have = found.includes(item.id);
             const afford = tickets >= item.price;
             const def = accessory(item.id);
-            const { Icon, color } = SHOP_ICON[item.id] ?? { Icon: Gift, color: "#7b5cf0" };
             return (
               <button
                 key={item.id}
@@ -1149,15 +1153,12 @@ function PrizeBooth({ booth }: { booth: Booth }) {
                   i === cursor && "outline outline-4 outline-offset-2 outline-accent",
                 )}
               >
-                <span
-                  className={cn(
-                    "grid size-12 place-items-center rounded-full border-[3px] sm:size-14 [@media(max-height:760px)]:sm:size-12",
-                    afford || have ? "gloss border-edge" : "border-dashed border-muted bg-surface-3",
-                  )}
-                  style={afford || have ? { backgroundColor: `${color}26` } : undefined}
-                >
-                  <Icon className="size-7 sm:size-8" style={{ color: afford || have ? color : "#8a93b8" }} strokeWidth={2.25} />
-                </span>
+                <ItemThumb
+                  kind="accessory"
+                  id={item.id}
+                  className="size-[4.5rem] rounded-full bg-[radial-gradient(circle,rgb(255_255_255/0.95)_0%,rgb(255_255_255/0)_70%)] sm:size-20 lg:size-24 [@media(max-height:760px)]:sm:size-[4.5rem]"
+                  imgClassName={!afford && !have ? "opacity-75" : undefined}
+                />
                 <span className={cn("text-base font-bold leading-tight sm:text-lg", !afford && !have && "text-ink-soft")}>{def.name}</span>
                 {have ? (
                   <span className="ui-chip bg-teal px-2.5 text-base text-white">

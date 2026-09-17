@@ -1,3 +1,4 @@
+import { ZooWorld } from "./zoo-mesh";
 import { EMMETT_BASE } from "./emmett-base";
 import { animateMonsterTruck } from "./monster-truck";
 import { HomeWorld } from "./home";
@@ -455,6 +456,20 @@ export class GameRuntime {
     resetQuizBank();
     this.level = { ...this.level, layout: useGame.getState().layout };
     this.world = buildWorld(this.level);
+    this.lastLayout = useGame.getState().layout;
+    // dumplings that ran off or were stolen stay where they went, so the
+    // hint she just heard still points at the right place after a reload
+    for (const [id, pos] of Object.entries(useGame.getState().movedSpots)) {
+      const d = this.world.dumplings.find((x) => x.def.id === id);
+      if (!d) continue;
+      d.def.pos[0] = pos[0];
+      d.def.pos[1] = pos[1];
+      d.def.pos[2] = pos[2];
+      d.def.hint = "It dashed to a new hiding spot. Follow hot and cold.";
+      d.group.position.set(pos[0], pos[1], pos[2]);
+      d.spark.position.set(pos[0], pos[1] + 0.6, pos[2]);
+      d.beam.position.set(pos[0], pos[1] + 3, pos[2]);
+    }
     this.scene.add(this.world.group);
     this.applyGrassDensity();
     noOutline(this.world.ground);
@@ -489,6 +504,8 @@ export class GameRuntime {
     this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
     this.homeWorld?.dispose();
     this.homeWorld = this.level.id === "picnic" && this.world ? new HomeWorld(this.scene, this.world.colliders) : null;
+    this.zooWorld?.dispose();
+    this.zooWorld = this.level.zoo ? new ZooWorld(this.scene, (t) => useGame.getState().setEmmettNotice(t)) : null;
     this.ride = null;
     useGame.getState().setRiding(false);
     if (this.emmett) this.emmett.dispose(this.scene);
@@ -722,6 +739,7 @@ export class GameRuntime {
     // nudge off the exact landmark centre so repeats are not identical
     const nx = spot.pos[0] + (Math.random() - 0.5) * 3.5;
     const nz = spot.pos[2] + (Math.random() - 0.5) * 3.5;
+    useGame.getState().setMovedSpot(id, [nx, spot.pos[1], nz]);
     d.def.pos[0] = nx;
     d.def.pos[1] = spot.pos[1];
     d.def.pos[2] = nz;
@@ -809,15 +827,19 @@ export class GameRuntime {
     this.renderer.setAnimationLoop(null);
   }
 
+  /** which set of hiding spots the built park is using */
+  lastLayout = -1;
   questWorld: QuestWorld | null = null;
   stickerWorld: StickerWorld | null = null;
   homeWorld: HomeWorld | null = null;
+  zooWorld: ZooWorld | null = null;
 
   dispose() {
     this.disposed = true;
     this.questWorld?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
+    this.zooWorld?.dispose();
     this.stop();
     if (this.world) disposeWorld(this.world);
     this.composer.dispose();
@@ -919,6 +941,7 @@ export class GameRuntime {
     d.def.pos[1] = next[1];
     d.def.pos[2] = next[2];
     d.def.hint = "It dashed to a new hiding spot. Follow hot and cold.";
+    useGame.getState().setMovedSpot(d.def.id, [next[0], next[1], next[2]]);
     d.group.position.set(next[0], next[1], next[2]);
     d.spark.position.set(next[0], next[1] + 0.6, next[2]);
     d.beam.position.set(next[0], next[1] + 3, next[2]);
@@ -1215,6 +1238,44 @@ export class GameRuntime {
   lastDance: DanceId = "pop";
   danceYaw = 0;
 
+  /** last spot she stood on that was not the top of something out of bounds */
+  private safeSpot: [number, number, number] | null = null;
+  private keepOffAt = 0;
+
+  /**
+   * She jumped onto a hedge. Rather than walling off the whole area (a no-jump
+   * zone big enough to stop a boosted running jump reaches 9m past the maze),
+   * the zone only covers the hedges, and landing on top drops her back where
+   * she jumped from.
+   */
+  keepOffCheck() {
+    if (!this.grounded || this.ride || this.carouselRide) return;
+    const zone = this.level.noJump?.find(
+      (z) =>
+        z.keepOff != null &&
+        this.cap.x >= z.minX &&
+        this.cap.x <= z.maxX &&
+        this.cap.z >= z.minZ &&
+        this.cap.z <= z.maxZ,
+    );
+    const onTop = zone?.keepOff != null && this.cap.y > zone.keepOff;
+    if (!onTop) {
+      if (this.cap.y < 0.4) this.safeSpot = [this.cap.x, this.cap.y, this.cap.z];
+      return;
+    }
+    const back = this.safeSpot;
+    if (!back || this.clock - this.keepOffAt < 1.2) return;
+    this.keepOffAt = this.clock;
+    this.burst(this.cap.x, this.cap.y + 0.4, this.cap.z, "#8fd36b");
+    [this.cap.x, this.cap.y, this.cap.z] = back;
+    this.velY = 0;
+    this.syncCamera(true);
+    this.burst(back[0], back[1] + 0.4, back[2], "#8fd36b");
+    sfx.boing(false);
+    useGame.getState().setEmmettNotice(`No walking on ${zone!.why}! Find the way through.`);
+  }
+
+  wasTitle = true;
   wasInCave = false;
   /** Inside the mountain cave's footprint, low enough to be in the tunnels. */
   inCave(): boolean {
@@ -1341,6 +1402,7 @@ export class GameRuntime {
       }
       return;
     }
+    if (this.zooWorld?.interact()) return;
     if (this.questWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.tryCarnival()) return;
     if (this.tryBoard()) return;
@@ -1704,6 +1766,8 @@ export class GameRuntime {
       }
     }
 
+    this.keepOffCheck();
+
     this.sun.position.set(this.cap.x + 24, 48, this.cap.z + 14);
     this.sun.target.position.set(this.cap.x, 1, this.cap.z);
     this.sun.target.updateMatrixWorld();
@@ -1857,6 +1921,7 @@ export class GameRuntime {
         st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || useHome.getState().panel != null;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      if (!paused) this.zooWorld?.update(this.clock, this.cap.x, this.cap.z);
       if (this.questWorld) {
         const d = this.nearestUnfound();
         this.questWorld.update(
@@ -2019,7 +2084,15 @@ export class GameRuntime {
 
     const st = useGame.getState();
     if (st.graphics !== this.graphics) this.applyGraphics(st.graphics);
-    if (st.levelIndex !== this.lastLevel) this.loadLevel(st.levelIndex);
+    if (st.levelIndex !== this.lastLevel || st.layout !== this.lastLayout) this.loadLevel(st.levelIndex);
+    // pressing Start always faces her the way the park expects, however far
+    // the title screen's camera had drifted round
+    if (st.phase === "playing" && this.wasTitle) {
+      this.yaw = this.level.spawnYaw;
+      this.cameraYaw = this.level.spawnYaw;
+      this.syncCamera(true);
+    }
+    this.wasTitle = st.phase === "title";
     if (st.dress !== this.lastDress || st.hair !== this.lastHair) this.rebuildGirl();
     if (st.wornGen !== this.lastWornGen) {
       this.lastWornGen = st.wornGen;

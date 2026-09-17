@@ -185,7 +185,20 @@ export type LevelDef = {
    * protected by at least her jump reach, or she can jump onto it from outside.
    * tools/maze.ts checks this for the hedge maze.
    */
-  noJump?: { minX: number; maxX: number; minZ: number; maxZ: number; why: string }[];
+  noJump?: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    why: string;
+    /**
+     * Landing above this height inside the zone means she is standing on top
+     * of something she should not be on (a hedge). She is put back where she
+     * jumped from, so the zone itself only has to cover the thing, not every
+     * spot a running jump could start from.
+     */
+    keepOff?: number;
+  }[];
   /** Accessories hidden in this park, ground level: id and where. */
   accessories?: { id: string; pos: [number, number, number]; region: string }[];
   /** A ferris wheel, centred here; the boarding platform is 4m to +z. */
@@ -198,6 +211,8 @@ export type LevelDef = {
   carnival?: boolean;
   /** Emmett's monster truck yard (emmett-base.ts): he lives and laps there. */
   emmettBase?: boolean;
+  /** The little zoo beside the farm (zoo.ts): enclosures, animals and plaques. */
+  zoo?: boolean;
   /** Campfire position: flames flicker and there is a warm light. */
   campfire?: { x: number; z: number };
 };

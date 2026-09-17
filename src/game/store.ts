@@ -72,6 +72,11 @@ export type GameStore = {
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
   celebrate: { name: string; color: string; accent: string } | null;
+  /** Dumplings that ran off or were stolen, so a reload keeps them where they went. */
+  movedSpots: Record<string, [number, number, number]>;
+  setMovedSpot: (id: string, pos: [number, number, number]) => void;
+  /** A run resumed from a save still shows its clock, but does not go on the board. */
+  runValid: boolean;
   /** Elapsed seconds in the current run, paused during panels. */
   /** Which set of hiding spots this run uses. */
   layout: number;
@@ -228,6 +233,7 @@ function persistSlice(s: GameStore) {
     levelIndex: s.levelIndex,
     leaderboard: s.leaderboard,
     layout: s.layout,
+    movedSpots: s.movedSpots,
     foundAccessories: s.foundAccessories,
     worn: s.worn,
     view: s.view,
@@ -292,6 +298,12 @@ export const useGame = create<GameStore>((set, get) => ({
   hintsUsedThisRun: 0,
   leaderboard: saved.leaderboard ?? [[], [], []],
   lastRun: null,
+  movedSpots: saved.movedSpots ?? {},
+  setMovedSpot: (id, pos) => {
+    set({ movedSpots: { ...get().movedSpots, [id]: pos } });
+    persistSlice(get());
+  },
+  runValid: true,
   foundAccessories: saved.foundAccessories as AccessoryId[],
   worn: wornFromSave(saved.worn),
   wornGen: 0,
@@ -476,9 +488,11 @@ export const useGame = create<GameStore>((set, get) => ({
     const levelIndex = index ?? get().levelIndex;
     const fresh = (get().collected[levelIndex] ?? []).length === 0;
     set({
-      ...(fresh ? { layout: rollLayout(get().layout) } : {}),
+      ...(fresh ? { layout: rollLayout(get().layout), movedSpots: {} } : {}),
       runSeconds: 0,
-      runActive: fresh,
+      // the clock shows for a resumed run too; only a clean run goes on the board
+      runActive: true,
+      runValid: fresh,
       hintsUsedThisRun: 0,
       lastRun: null,
       phase: "playing",
@@ -600,7 +614,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   completeLevel: () => {
     const st = get();
-    const { levelIndex, unlocked, runActive, runSeconds, hintsUsedThisRun, playerName } = st;
+    const { levelIndex, unlocked, runActive, runValid, runSeconds, hintsUsedThisRun, playerName } = st;
     const nextUnlock = Math.max(unlocked, levelIndex + 1);
     const last = levelIndex >= 2;
 
@@ -609,7 +623,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
     // Only a clean run from an empty park goes on the board, otherwise loading
     // a nearly finished save would post an unbeatable time.
-    if (runActive && runSeconds > 0) {
+    if (runActive && runValid && runSeconds > 0) {
       const name = playerName.trim() || "Explorer";
       const rows = board[levelIndex] ?? [];
       const previousBest = rows.find((r) => r.name.toLowerCase() === name.toLowerCase());
@@ -731,6 +745,7 @@ export const useGame = create<GameStore>((set, get) => ({
       stickers: [],
       quest: { stage: "none", treats: [] },
       pet: null,
+      movedSpots: {},
       // instruction cards pop up again for a new explorer
       seenHelp: [],
       helpCard: null,

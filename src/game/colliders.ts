@@ -1,3 +1,4 @@
+import { zooColliders } from "./zoo";
 import { truckColliders } from "./emmett-base";
 import { aabbFromCenter, type AABB } from "./collision";
 import { TRAMPOLINE_TOP } from "./tuning";
@@ -105,6 +106,7 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
   }
 
   if (level.emmettBase) truckColliders().forEach((b, i) => push(b, "monster truck", -1 - i));
+  if (level.zoo) zooColliders().forEach((b, i) => push(b, b.label, -1 - i));
 
   // composite meshes the builder places by hand
   if (level.id === "picnic") {
