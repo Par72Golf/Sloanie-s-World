@@ -8,7 +8,7 @@ context. It covers what exists, what the tooling is for, the bugs that cost the 
 time and why, what "finished" would actually require, and how to prompt effectively
 on this specific project.
 
-Current version: **v3.2** (17 Sept 2026): her house, Emmett's truck, the zoo, the lookout, the rebuilt landing plaza, remappable controls and the premium UI.
+Current version: **v3.2** (17 Sept 2026, the day before the birthday): her house, Emmett's truck, the zoo, the mountain lookout, the rebuilt landing plaza and walkways, Sandcastle Corner, remappable controls, and the jewel UI.
 
 ### Since v2.8 (16 Sept 2026)
 
@@ -272,6 +272,39 @@ Current version: **v3.2** (17 Sept 2026): her house, Emmett's truck, the zoo, th
     and a HUD status card rework.
   - `lam()` no longer passes undefined optional parameters to three.js, which was
     printing thousands of warnings at load.
+- **The evening before the birthday, from the dad's testing:**
+  - **Finishing a park keeps the park.** The Complete screen locks the time in,
+    awards the crown, and offers **Keep exploring** first (`keepExploring` in
+    store.ts), so the carnival, Farmer Joe's pets, the stickers and her house
+    carry on in a finished park with the clock stopped.
+  - **Start over really starts over.** The title rewrite had dropped the page
+    reload, so the old park stayed up: pickups she had already taken never came
+    back and the backpack could not be found again. There is also a second
+    button that clears best times, which is the one to use before handing the
+    game to a new player.
+  - **Emmett takes a dumpling every time he wins.** The runtime keyed "already
+    resolved" on `round:result`, so a second encounter ending the same way was
+    skipped: he won and took nothing, and never pedalled off.
+  - **Held things are in her left hand**, so the iPod stays in her right and the
+    music is never interrupted (`applyWorn` in accessories.ts).
+  - **The slide mesh was broken everywhere**: `makeSlide`'s chute rotation was
+    inverted, so the ramp climbed out of the tower into the air with its rails
+    hanging beside it. Fixed, which also repaired the splash pad.
+  - **Sandcastle Corner** replaced the jumble of props east of the spawn
+    (`playCorner()` in park.ts): a framed sandpit the slide lands in, a castle,
+    bucket and spade, a picket fence and a gateway from the walkway.
+  - **The plaza banner** sits in front of the striped pole, which used to run
+    straight through her name.
+  - **The menu selector bar** was measured against the inner list but positioned
+    inside the padded scroll box, so the highlight sat off the row.
+  - **Drawing resolution is capped at 1.5x** in sharp mode (`sharpPixelRatio`).
+    Profiling showed the game is fill-rate bound: frame time is close to linear
+    in pixels, so a TV reporting devicePixelRatio 2 asked for four times the
+    work of the window. Draw calls barely matter by comparison (218 in the cave
+    was slower than 2594 on the house street).
+  - **The app icon is drawn in code** (`tools/icons.ts`: a rasteriser and a PNG
+    encoder using node's zlib) and written to public/, with a web manifest so
+    the game installs as a desktop app, and an iconset for a macOS .icns.
 - **Fixes the same evening:**
   - Berm "reset": rising with her feet within 3cm of a box top was taken as a
     head bump and dropped her inside the berm; she is now put on top. Step-ups
@@ -377,6 +410,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
 | `home.ts` | Her house: every furniture piece builds, the room's worst-case triangle count, colliders and reachability of each decoration spot. |
 | `emmett-base.ts` | The truck yard: clear ground, 12m from every hiding spot, walkable round the truck and up the ramp, the roof seat on the roof, and his laps clear of anything solid. |
+| `icons.ts` | Draws the app icon and writes the PNGs (and the macOS iconset). Not a check: run it after changing the icon design. |
 | `paths.ts` | The walkway network, the arrival plaza and the signs: no path laid through a solid, every node walkable from spawn through the real collision code, no z-fighting between the flat layers, and sign arrows pointing the right way. |
 | `parkmap.ts` | An ASCII map of any region (north up, east right) marking solids, steps, walkways, flat surfaces and water. The fastest way to see what is actually where before moving anything. |
 | `zoo.ts` | The zoo: clear ground beside the farm, every plaque walkable from spawn, fences unclimbable, spacing from hiding spots. `tools/zoo.ts scan` searches for clear ground of a given size. |
