@@ -1,3 +1,7 @@
+import { applyDance, type DanceId } from "./dances";
+import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
+import { QuestWorld } from "./quest";
+import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
 import * as THREE from "three";
 import { placeCamera } from "./camera";
@@ -19,6 +23,7 @@ import {
   consumePadInteract,
   consumePadJournal,
   consumePadMap,
+  consumePadMusic,
   consumePadView,
   consumePadPause,
   getMoveAxes,
@@ -150,7 +155,7 @@ export class GameRuntime {
   /** game-clock time of the last catch, for the hitch log */
   lastCatchClock = -1;
   /** accessory pickups in the current park */
-  pickups: { id: AccessoryId; group: THREE.Group; pos: [number, number, number]; phase: number }[] = [];
+  pickups: { id: AccessoryId; group: THREE.Group; pos: [number, number, number]; phase: number; warned?: boolean }[] = [];
   lastWornGen = -1;
   /** ferris wheel ride in progress: which gondola she is in and how far round */
   ride: { gondola: number; turned: number } | null = null;
@@ -440,6 +445,11 @@ export class GameRuntime {
     this.runAccum = useGame.getState().runSeconds;
     this.spawnJuice();
     this.spawnPickups();
+    // the lost pet quest and the stickers live in the first park only
+    this.questWorld?.dispose();
+    this.stickerWorld?.dispose();
+    this.questWorld = this.level.id === "picnic" ? new QuestWorld(this.scene) : null;
+    this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
     this.ride = null;
     useGame.getState().setRiding(false);
     if (this.emmett) this.emmett.dispose(this.scene);
@@ -490,11 +500,28 @@ export class GameRuntime {
       ring.rotation.z += dt * 0.8;
       const d = Math.hypot(this.cap.x - p.pos[0], this.cap.z - p.pos[2]);
       if (d < 1.7 && Math.abs(this.cap.y - p.pos[1]) < 2.4) {
+        // Nothing can be carried until she has the backpack. The item stays
+        // put and she is told where the bag is, once per visit.
+        const st = useGame.getState();
+        if (p.id !== "backpack" && !st.foundAccessories.includes("backpack")) {
+          if (!p.warned) {
+            p.warned = true;
+            sfx.wrong();
+            st.setEmmettNotice("You need a backpack to carry that! Look for it out on the ball field.");
+          }
+          continue;
+        }
         this.burst(p.pos[0], p.pos[1] + 1, p.pos[2], "#ffd34a");
         sfx.correct();
         this.scene.remove(p.group);
         this.pickups.splice(i, 1);
         useGame.getState().findAccessory(p.id);
+        if (p.id === "backpack") {
+          useGame.getState().setEmmettNotice("You found the backpack! Now you can carry things.");
+          useGame.getState().showHelp("backpack");
+        }
+      } else {
+        p.warned = false;
       }
     }
   }
@@ -567,7 +594,14 @@ export class GameRuntime {
   updateEmmett(dt: number) {
     if (!this.emmett || !this.world) return;
     const st = useGame.getState();
-    const busy = st.phase !== "playing" || st.quiz != null || st.rps != null || st.carnival != null || st.riding;
+    const busy =
+      st.phase !== "playing" ||
+      st.quiz != null ||
+      st.rps != null ||
+      st.carnival != null ||
+      st.questPanel != null ||
+      st.helpCard != null ||
+      st.riding;
 
     const collected = st.collected[st.levelIndex] ?? [];
     const caught = this.emmett.update(
@@ -717,8 +751,13 @@ export class GameRuntime {
     this.renderer.setAnimationLoop(null);
   }
 
+  questWorld: QuestWorld | null = null;
+  stickerWorld: StickerWorld | null = null;
+
   dispose() {
     this.disposed = true;
+    this.questWorld?.dispose();
+    this.stickerWorld?.dispose();
     this.stop();
     if (this.world) disposeWorld(this.world);
     this.composer.dispose();
@@ -972,11 +1011,13 @@ export class GameRuntime {
       sfx.win();
       this.mood = "cheer";
       this.moodT = 2;
-      if (st.foundAccessories.includes("unicorn")) st.setEmmettNotice("Another gold ring! You're a carousel champion.");
+      st.addTickets(5);
+      if (st.foundAccessories.includes("unicorn")) st.setEmmettNotice("Another gold ring! +5 tickets. You're a carousel champion.");
       else st.winPrize("unicorn");
     } else {
       sfx.correct();
-      st.setEmmettNotice("A silver ring! Keep riding, the gold one is coming.");
+      st.addTickets(1);
+      st.setEmmettNotice("A silver ring! +1 ticket. Keep riding, the gold one is coming.");
     }
   }
 
@@ -1038,6 +1079,72 @@ export class GameRuntime {
       if (!r.missNoted) st.setEmmettNotice("What a ride!");
     }
   }
+
+  /* ------------------------------------------------------------ iPod */
+
+  /** Seconds on the current channel, and how far into a dance she is (0..1). */
+  channelTime = 0;
+  danceWeight = 0;
+  lastChannelGen = -1;
+  lastMusicGen = 0;
+
+  /** Next channel: off, then each channel in turn, then off again. Needs the iPod in her hand. */
+  nextChannel() {
+    const st = useGame.getState();
+    if (st.worn.hand) {
+      st.setEmmettNotice("Put your iPod back in your hand to listen. Open your backpack to change what you hold.");
+      return;
+    }
+    const cur = currentChannel();
+    const i = cur ? CHANNELS.findIndex((c) => c.id === cur) : -1;
+    const next = i + 1 < CHANNELS.length ? CHANNELS[i + 1]!.id : null;
+    unlockAudio();
+    setChannel(next);
+    st.setChannelPlaying(next);
+  }
+
+  /**
+   * After a few seconds on a channel, standing still, she dances to it; walking
+   * eases her out. Dance poses go on after animateGirl, and keep being applied
+   * until the weight is back to zero so no joint is left mid-move.
+   */
+  updateDance(dt: number) {
+    const st = useGame.getState();
+    if (st.channelGen !== this.lastChannelGen) {
+      this.lastChannelGen = st.channelGen;
+      this.channelTime = 0;
+    }
+    // back on the title screen, or holding something else: the music stops
+    if (st.channel && (st.worn.hand || st.phase === "title")) {
+      setChannel(null);
+      st.setChannelPlaying(null);
+    }
+    this.channelTime += dt;
+    const beat = beatInfo();
+    const idle =
+      !!st.channel &&
+      !!beat &&
+      this.channelTime > 3 &&
+      this.speed < 0.3 &&
+      this.grounded &&
+      !this.ride &&
+      !this.carouselRide &&
+      st.phase === "playing" &&
+      !st.quiz &&
+      !st.rps &&
+      !st.carnival &&
+      !st.questPanel;
+    this.danceWeight = THREE.MathUtils.clamp(this.danceWeight + (idle ? dt : -dt) / 0.4, 0, 1);
+    if (this.danceWeight > 0 || this.danceYaw !== 0) {
+      const id = (st.channel ?? this.lastDance) as DanceId;
+      this.lastDance = id;
+      const yaw = applyDance(this.girl, id, beat?.beat ?? 0, this.danceWeight);
+      this.girl.rotation.y += yaw;
+      this.danceYaw = this.danceWeight > 0 ? yaw : 0;
+    }
+  }
+  lastDance: DanceId = "pop";
+  danceYaw = 0;
 
   wasInCave = false;
   /** Inside the mountain cave's footprint, low enough to be in the tunnels. */
@@ -1117,6 +1224,7 @@ export class GameRuntime {
   tryCollect() {
     const st = useGame.getState();
     if (st.phase !== "playing") return;
+    if (this.questWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.tryCarnival()) return;
     if (this.tryBoard()) return;
     const d = this.nearestUnfound();
@@ -1328,7 +1436,14 @@ export class GameRuntime {
     const qa = Boolean(window.__controlsTest && (isDown("KeyW") || isDown("KeyA") || isDown("KeyD") || isDown("KeyS")));
     // rock paper scissors freezes her in place, like the quiz does
     const live =
-      ((st.phase === "playing" && st.rps == null && st.carnival == null) || (st.phase === "title" && qa)) &&
+      // the journal takes the stick for turning pages, so she stands still
+      ((st.phase === "playing" &&
+        st.rps == null &&
+        st.carnival == null &&
+        st.questPanel == null &&
+        st.helpCard == null &&
+        !st.journalOpen) ||
+        (st.phase === "title" && qa)) &&
       !this.ride &&
       !this.carouselRide;
     if (!live) consumeJumpTap();
@@ -1479,6 +1594,28 @@ export class GameRuntime {
       moodT,
     });
 
+    this.updateDance(dt);
+
+    // held items: the balloon floats steady above her rather than whipping
+    // round with her arm swing, and the pinwheel spins faster as she runs
+    {
+      const arm = this.girl.userData.rightArm as THREE.Group | undefined;
+      if (arm) {
+        for (const grip of arm.children) {
+          const held = grip.userData.accessory;
+          if (!held) continue;
+          if (held === "balloon") {
+            grip.rotation.x = -arm.rotation.x * 0.85;
+            grip.rotation.z = -arm.rotation.z * 0.85;
+          } else if (held === "pinwheel") {
+            grip.traverse((o) => {
+              if (o.userData.spin) o.rotation.z += dt * (1.5 + this.speed * 2.2);
+            });
+          }
+        }
+      }
+    }
+
     if (this.speed > 1 && this.grounded) {
       this.stepT += dt;
       if (this.stepT > 0.34) {
@@ -1568,6 +1705,31 @@ export class GameRuntime {
       }
     }
     this.updateSplash(dt);
+    {
+      const st = useGame.getState();
+      const paused =
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen;
+      if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
+      if (this.questWorld) {
+        const d = this.nearestUnfound();
+        this.questWorld.update(
+          dt,
+          this.clock,
+          {
+            x: this.cap.x,
+            y: this.cap.y,
+            z: this.cap.z,
+            yaw: this.yaw,
+            speed: this.speed,
+            carried: !!this.ride || !!this.carouselRide,
+            paused,
+          },
+          this.world.colliders,
+          this.level.groundY,
+          d ? { id: d.def.id, x: d.def.pos[0], z: d.def.pos[2] } : null,
+        );
+      }
+    }
     if (this.world.campfire) {
       const f = this.world.campfire;
       for (let i = 0; i < f.flames.length; i++) {
@@ -1605,7 +1767,14 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const ticking =
-        st.runActive && st.phase === "playing" && st.quiz == null && st.rps == null && st.carnival == null && !st.riding;
+        st.runActive &&
+        st.phase === "playing" &&
+        st.quiz == null &&
+        st.rps == null &&
+        st.carnival == null &&
+        st.questPanel == null &&
+        st.helpCard == null &&
+        !st.riding;
       if (ticking) {
         this.runAccum += dt;
         if (Math.floor(this.runAccum) !== Math.floor(st.runSeconds)) {
@@ -1651,6 +1820,13 @@ export class GameRuntime {
         if (Math.hypot(this.cap.x - gx, this.cap.z - gz) < 2.1) near = "carousel";
       }
       useGame.getState().setCarnivalNear(near);
+      // the first walk into the carnival explains it
+      if (this.world?.carnival && Math.hypot(this.cap.x - CAROUSEL.x, this.cap.z - (CAROUSEL.z + 4)) < 15) {
+        useGame.getState().showHelp("carnival");
+      }
+      useGame
+        .getState()
+        .setQuestNear(this.questWorld && !this.carouselRide && !this.ride ? this.questWorld.near(this.cap.x, this.cap.y, this.cap.z) : null);
     }
     const d = this.nearestUnfound();
     if (!d) {
@@ -1725,6 +1901,12 @@ export class GameRuntime {
     else consumePadJournal();
     if (st.phase === "playing" && consumePadMap()) st.toggleMap();
     else consumePadMap();
+    if (st.musicGen !== this.lastMusicGen) {
+      this.lastMusicGen = st.musicGen;
+      if (st.phase === "playing") this.nextChannel();
+    }
+    if (st.phase === "playing" && consumePadMusic()) this.nextChannel();
+    else consumePadMusic();
     if (st.phase === "playing" && consumePadView()) st.toggleView();
     else consumePadView();
     // Inside the mountain's tunnels the view is always first person, whatever

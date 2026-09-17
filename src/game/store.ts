@@ -11,6 +11,9 @@ import {
 import { clearSave, loadSave, persistSave, type RunRecord } from "./save";
 import { ACCESSORIES, NOTHING_WORN, accessory, type AccessoryId, type Slot, type Worn } from "./accessories";
 import type { BoothGame } from "./carnival";
+import type { PetSave, QuestSave, QuestStage } from "./types";
+import type { HelpId } from "./help-cards";
+import type { ChannelId } from "./music";
 
 /** Never hand out the same layout twice in a row. */
 const LAYOUT_COUNT = 3;
@@ -100,10 +103,56 @@ export type GameStore = {
   setCarouselRing: (v: "gold" | "silver" | null) => void;
   /** A carnival prize: it goes on straight away and the HUD says so. */
   winPrize: (id: AccessoryId) => void;
+  /** Carnival tickets (saved). spendTickets returns false if she can't afford it. */
+  tickets: number;
+  addTickets: (n: number) => void;
+  spendTickets: (n: number) => boolean;
+  /** Buy a prize booth item with tickets: it goes on like a prize. */
+  buyItem: (id: AccessoryId, price: number) => boolean;
+  /** Sticker book and stickers (saved). Stickers need the book. */
+  stickerBook: boolean;
+  stickers: string[];
+  findStickerBook: () => void;
+  findSticker: (id: string, name: string) => void;
+  /** Journal tab: dumplings, stickers, or the backpack's contents. */
+  journalTab: "dumplings" | "stickers" | "bag";
+  setJournalTab: (t: "dumplings" | "stickers" | "bag") => void;
+  /** Lost pet quest and the pet she chose (saved). */
+  quest: QuestSave;
+  setQuestStage: (stage: QuestStage) => void;
+  collectTreat: (index: number) => void;
+  pet: PetSave | null;
+  adoptPet: (pet: PetSave) => void;
+  /** Quest panel open (talking to the farmer, or choosing a pet). Freezes her like a booth. */
+  questPanel: "farmer" | "choose" | null;
+  setQuestPanel: (v: "farmer" | "choose" | null) => void;
+  /** Standing where Collect would talk to the farmer or help the lost pets. */
+  questNear: "farmer" | "pets" | null;
+  setQuestNear: (v: "farmer" | "pets" | null) => void;
   /** Camera view; the runtime reads it every frame. */
   view: "third" | "first";
   toggleView: () => void;
   setView: (v: "third" | "first") => void;
+  /** Instruction card on screen, and the ones already shown (saved). */
+  helpCard: HelpId | null;
+  seenHelp: string[];
+  /** Show a card the first time (or again with force, from the pause menu). */
+  showHelp: (id: HelpId, force?: boolean) => void;
+  closeHelpCard: () => void;
+  /** iPod channel playing (not saved: music starts off each visit). */
+  channel: ChannelId | null;
+  setChannelPlaying: (c: ChannelId | null) => void;
+  /** The HUD's music button asks the runtime for the next channel. */
+  musicGen: number;
+  requestNextChannel: () => void;
+  /** Bumped on each channel change so the HUD can flash "Now playing". */
+  channelGen: number;
+  /** Read-aloud voice name ("" = best installed); saved. */
+  voice: string;
+  setVoice: (name: string) => void;
+  /** Read messages and panels aloud; saved. */
+  readAloud: boolean;
+  toggleReadAloud: () => void;
   /** Frame-rate readout on the HUD; saved. */
   showFps: boolean;
   toggleFps: () => void;
@@ -173,6 +222,14 @@ function persistSlice(s: GameStore) {
     worn: s.worn,
     view: s.view,
     showFps: s.showFps,
+    tickets: s.tickets,
+    stickerBook: s.stickerBook,
+    stickers: s.stickers,
+    quest: s.quest,
+    pet: s.pet,
+    readAloud: s.readAloud,
+    seenHelp: s.seenHelp,
+    voice: s.voice,
   });
 }
 
@@ -249,6 +306,71 @@ export const useGame = create<GameStore>((set, get) => ({
   setCarouselRing: (carouselRing) => {
     if (get().carouselRing !== carouselRing) set({ carouselRing });
   },
+  tickets: saved.tickets,
+  addTickets: (n) => {
+    if (n <= 0) return;
+    set({ tickets: get().tickets + n });
+    persistSlice(get());
+  },
+  spendTickets: (n) => {
+    if (get().tickets < n) return false;
+    set({ tickets: get().tickets - n });
+    persistSlice(get());
+    return true;
+  },
+  buyItem: (id, price) => {
+    const st = get();
+    if (st.foundAccessories.includes(id) || st.tickets < price) return false;
+    const def = accessory(id);
+    set({
+      tickets: st.tickets - price,
+      foundAccessories: [...st.foundAccessories, id],
+      worn: { ...st.worn, [def.slot]: id },
+      wornGen: st.wornGen + 1,
+      emmettNotice: `You bought the ${def.name.toLowerCase()}! It's on.`,
+    });
+    persistSlice(get());
+    return true;
+  },
+  stickerBook: saved.stickerBook,
+  stickers: saved.stickers,
+  findStickerBook: () => {
+    if (get().stickerBook) return;
+    set({ stickerBook: true, emmettNotice: "You found a sticker book! Now you can collect stickers." });
+    persistSlice(get());
+    get().showHelp("stickers");
+  },
+  findSticker: (id, name) => {
+    const st = get();
+    if (!st.stickerBook || st.stickers.includes(id)) return;
+    const stickers = [...st.stickers, id];
+    set({ stickers, emmettNotice: `${name} sticker! That's ${stickers.length} in your book.` });
+    persistSlice(get());
+  },
+  journalTab: "dumplings",
+  setJournalTab: (journalTab) => set({ journalTab }),
+  quest: saved.quest,
+  setQuestStage: (stage) => {
+    set({ quest: { ...get().quest, stage } });
+    persistSlice(get());
+  },
+  collectTreat: (index) => {
+    const q = get().quest;
+    if (q.treats.includes(index)) return;
+    set({ quest: { ...q, treats: [...q.treats, index] } });
+    persistSlice(get());
+  },
+  questPanel: null,
+  setQuestPanel: (questPanel) => set({ questPanel, questNear: null }),
+  questNear: null,
+  setQuestNear: (questNear) => {
+    if (get().questNear !== questNear) set({ questNear });
+  },
+  pet: saved.pet,
+  adoptPet: (pet) => {
+    set({ pet, quest: { ...get().quest, stage: "done" } });
+    persistSlice(get());
+  },
   winPrize: (id) => {
     const found = get().foundAccessories;
     if (found.includes(id)) return;
@@ -268,6 +390,30 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   setView: (view) => {
     set({ view });
+    persistSlice(get());
+  },
+  helpCard: null,
+  seenHelp: saved.seenHelp,
+  showHelp: (id, force = false) => {
+    const st = get();
+    if (!force && st.seenHelp.includes(id)) return;
+    set({ helpCard: id, seenHelp: st.seenHelp.includes(id) ? st.seenHelp : [...st.seenHelp, id] });
+    persistSlice(get());
+  },
+  closeHelpCard: () => set({ helpCard: null }),
+  channel: null,
+  channelGen: 0,
+  setChannelPlaying: (channel) => set({ channel, channelGen: get().channelGen + 1 }),
+  musicGen: 0,
+  requestNextChannel: () => set({ musicGen: get().musicGen + 1 }),
+  voice: saved.voice,
+  setVoice: (voice) => {
+    set({ voice });
+    persistSlice(get());
+  },
+  readAloud: saved.readAloud,
+  toggleReadAloud: () => {
+    set({ readAloud: !get().readAloud });
     persistSlice(get());
   },
   showFps: saved.showFps,
@@ -331,6 +477,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -493,6 +640,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -518,6 +666,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -546,9 +695,18 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
+      foundAccessories: [],
+      worn: { ...NOTHING_WORN },
+      wornGen: get().wornGen + 1,
+      tickets: 0,
+      stickerBook: false,
+      stickers: [],
+      quest: { stage: "none", treats: [] },
+      pet: null,
     });
   },
   toTitle: () =>
@@ -562,6 +720,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,

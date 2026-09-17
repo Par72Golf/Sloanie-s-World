@@ -125,6 +125,8 @@ export const sfx = {
 let musicGain: GainNode | null = null;
 let musicTimer: number | null = null;
 let musicOn = false;
+// true while the iPod is playing a channel: the bed fades out and stops scheduling
+let bedDucked = false;
 let nextNoteTime = 0;
 let bar = 0;
 
@@ -145,7 +147,7 @@ function ensureMusicGain() {
   const c = ensure();
   if (!musicGain) {
     musicGain = c.createGain();
-    musicGain.gain.value = muted ? 0 : MUSIC_LEVEL;
+    musicGain.gain.value = muted || bedDucked ? 0 : MUSIC_LEVEL;
     musicGain.connect(c.destination);
   }
   return musicGain;
@@ -183,6 +185,11 @@ function scheduleBar(at: number) {
   const chord = CHORDS[bar % CHORDS.length];
   const beat = 0.52;
   const barLen = beat * 4;
+  // the iPod has the stage: keep the bar clock running but make no sound
+  if (bedDucked) {
+    bar++;
+    return barLen;
+  }
 
   // pad: the chord held softly across the bar
   chord.forEach((f, i) => {
@@ -238,7 +245,37 @@ export function stopMusic() {
 
 export function setMusicMuted(v: boolean) {
   if (musicGain && ctx) {
-    musicGain.gain.setTargetAtTime(v ? 0 : MUSIC_LEVEL, ctx.currentTime, 0.08);
+    musicGain.gain.setTargetAtTime(v || bedDucked ? 0 : MUSIC_LEVEL, ctx.currentTime, 0.08);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * iPod channels (src/game/music.ts)
+ * The channels play through their own bus into master, so the mute button
+ * silences them like everything else. While one plays, the park's music bed
+ * is faded out and stops scheduling notes.
+ * ------------------------------------------------------------------------- */
+
+let ipodBus: GainNode | null = null;
+
+/** The shared AudioContext and a node to connect iPod music to (goes through master). */
+export function ipodOutput(): { ctx: AudioContext; out: AudioNode } {
+  const c = ensure();
+  if (!ipodBus) {
+    ipodBus = c.createGain();
+    ipodBus.gain.value = 1;
+    ipodBus.connect(master!);
+  }
+  return { ctx: c, out: ipodBus };
+}
+
+/** Fade the park's music bed out (true) or back in (false) over roughly `fade` seconds. */
+export function duckMusicBed(ducked: boolean, fade = 0.4) {
+  bedDucked = ducked;
+  if (musicGain && ctx) {
+    const target = muted || ducked ? 0 : MUSIC_LEVEL;
+    musicGain.gain.cancelScheduledValues(ctx.currentTime);
+    musicGain.gain.setTargetAtTime(target, ctx.currentTime, Math.max(0.01, fade / 3));
   }
 }
 

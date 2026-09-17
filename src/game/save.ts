@@ -1,4 +1,4 @@
-import type { DressId, HairId } from "./types";
+import type { DressId, HairId, PetSave, QuestSave } from "./types";
 
 const KEY = "sloanies-world-v1";
 const SAVE_VERSION = 2;
@@ -32,6 +32,19 @@ export type SaveData = {
   view: "third" | "first";
   /** Frame-rate readout, switched on from the pause menu. */
   showFps: boolean;
+  /** Carnival tickets, spent at the prize booth. */
+  tickets: number;
+  /** Whether she has found the sticker book (stickers need it), and her stickers. */
+  stickerBook: boolean;
+  stickers: string[];
+  quest: QuestSave;
+  pet: PetSave | null;
+  /** Read HUD messages and panels aloud (speech.ts). */
+  readAloud: boolean;
+  /** Instruction cards already shown (help-cards.tsx). */
+  seenHelp: string[];
+  /** Read-aloud voice by name; empty means the best installed one. */
+  voice: string;
 };
 
 const DEFAULT: SaveData = {
@@ -49,6 +62,14 @@ const DEFAULT: SaveData = {
   worn: { head: null, hair: null, face: null, back: null },
   view: "third",
   showFps: false,
+  tickets: 0,
+  stickerBook: false,
+  stickers: [],
+  quest: { stage: "none", treats: [] },
+  pet: null,
+  readAloud: true,
+  seenHelp: [],
+  voice: "",
 };
 
 function migrate(raw: SaveData): SaveData {
@@ -74,9 +95,27 @@ function migrate(raw: SaveData): SaveData {
     hair: typeof s.worn.hair === "string" ? s.worn.hair : null,
     face: typeof s.worn.face === "string" ? s.worn.face : null,
     back: typeof s.worn.back === "string" ? s.worn.back : null,
+    hand: typeof s.worn.hand === "string" ? s.worn.hand : null,
   };
   if (s.view !== "first") s.view = "third";
   s.showFps = s.showFps === true;
+  s.readAloud = s.readAloud !== false;
+  s.voice = typeof s.voice === "string" ? s.voice : "";
+  s.seenHelp = Array.isArray(s.seenHelp) ? s.seenHelp.filter((x) => typeof x === "string") : [];
+  s.tickets = Number.isFinite(s.tickets) && s.tickets > 0 ? Math.floor(s.tickets) : 0;
+  s.stickerBook = s.stickerBook === true;
+  s.stickers = Array.isArray(s.stickers) ? s.stickers.filter((x) => typeof x === "string") : [];
+  const stages = ["none", "treats", "trail", "escort", "choose", "done"];
+  s.quest =
+    s.quest && stages.includes(s.quest.stage)
+      ? { stage: s.quest.stage, treats: Array.isArray(s.quest.treats) ? s.quest.treats.filter((x) => Number.isInteger(x)) : [] }
+      : { stage: "none", treats: [] };
+  // escorting a pet home cannot resume mid-walk; it waits in the cave again
+  if (s.quest.stage === "escort") s.quest.stage = "trail";
+  s.pet =
+    s.pet && ["puppy", "kitten", "bunny"].includes(s.pet.kind) && typeof s.pet.name === "string"
+      ? { kind: s.pet.kind, coat: typeof s.pet.coat === "string" ? s.pet.coat : "", name: s.pet.name.slice(0, 16) }
+      : null;
   s.version = SAVE_VERSION;
   return s;
 }

@@ -178,6 +178,31 @@ Current version: **v3.0** (17 Sept 2026).
   the rim; the expanded map is north-up with a small compass rose. Use this frame
   for any new hint text.
 ---
+- **Birthday build (17 Sept 2026), built with helper agents in parallel:**
+  - Backpack gating: nothing in the world can be picked up until the backpack
+    (ball field) is found; stickers need the sticker book (near the start).
+  - Journal (J / Back) is three pages (`journal.tsx`): Dumplings, Stickers (30
+    stickers, `sticker-art.ts` canvas art, spots in `collectibles.ts`) and Bag,
+    a Minecraft-style equip grid with slots head, hair, face, back and hand.
+    LB/RB or Q/E switch pages. Held items attach to the right hand and hide the
+    iPod; the balloon is steadied and the pinwheel spins in the runtime.
+  - Tickets from every carnival game and ring; spent in the prize booth shop
+    (`SHOP` in carnival.ts) on wearables and holdables (`accessories.ts`).
+  - Lost pet quest (`quest.ts`, `quest-panel.tsx`, `quest-mesh.ts`, `pets.ts`):
+    Farmer Joe at the farm, 5 treats, a paw trail to the mountain cave, three
+    scared pets in the great cavern, lead them home, choose one (kind, coat,
+    name). The pet follows her, sits, and sniffs toward nearby dumplings.
+    Saved stage `escort` reloads as `trail` (pets wait in the cave again).
+  - iPod music (`music.ts`, procedural, five channels): RT / N / HUD button.
+    After 3s on a channel standing still she dances (`dances.ts`).
+  - Read aloud (`speech.ts`, Web Speech API): HUD messages, hints, maths,
+    booth panels, the farmer; "Hear it" buttons; voice chooser in pause. The
+    browser cannot use Siri voices; downloaded Premium voices are preferred.
+  - Instruction cards (`help-cards.tsx`): backpack, sticker book, farmer,
+    carnival; once each, again from the pause menu.
+  - Tools: `tools/collectibles.ts` (walks to every sticker, treat and the trail),
+    `tools/pets.ts` (its allocation check is sensitive to GC noise when the
+    machine is busy; rerun before trusting a failure).
 
 ## 1. What this is
 

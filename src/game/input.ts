@@ -12,6 +12,8 @@ export let padJournal = false;
 export let padMap = false;
 /** First-person toggle: left trigger on the pad, V on the keyboard. */
 export let padView = false;
+/** RT on the pad, N on the keyboard: next iPod channel. */
+export let padMusic = false;
 let padCamQ = false;
 let padCamE = false;
 const padPrev = new Uint8Array(16);
@@ -36,6 +38,7 @@ const GAME_CODES = new Set([
   "KeyE",
   "KeyM",
   "KeyV",
+  "KeyN",
 ]);
 
 function activeSet(): Set<string> {
@@ -126,6 +129,12 @@ export function consumePadMap() {
   return v;
 }
 
+export function consumePadMusic() {
+  const v = padMusic;
+  padMusic = false;
+  return v;
+}
+
 export function consumePadView() {
   const v = padView;
   padView = false;
@@ -159,6 +168,7 @@ export function bindInput() {
     if (e.code === "Space") jumpTap = true;
     if (e.code === "KeyM") padMap = true;
     if (e.code === "KeyV") padView = true;
+    if (e.code === "KeyN") padMusic = true;
     if (GAME_CODES.has(e.code)) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
@@ -209,6 +219,7 @@ export function pollGamepad(axes: { x: number; z: number }) {
     if (edge(0)) jumpTap = true;
     if (edge(1)) padMap = true;
     if (edge(6)) padView = true;
+    if (edge(7)) padMusic = true;
     if (edge(2)) padInteract = true;
     if (edge(3)) padHint = true;
     if (edge(8)) padJournal = true;

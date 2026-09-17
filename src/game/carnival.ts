@@ -83,6 +83,20 @@ export const GAME_PRIZES: { prize: AccessoryId; where: string }[] = [
   { prize: "unicorn", where: "the carousel's gold ring" },
 ];
 
+/** The prize booth's shop: every item is wearable or holdable. Prices in tickets. */
+export const SHOP: { id: AccessoryId; price: number }[] = [
+  { id: "pinwheel", price: 5 },
+  { id: "catears", price: 6 },
+  { id: "heartglasses", price: 6 },
+  { id: "lollipop", price: 6 },
+  { id: "bunnyears", price: 8 },
+  { id: "cottoncandy", price: 8 },
+  { id: "wand", price: 10 },
+  { id: "tiara", price: 12 },
+  { id: "cape", price: 12 },
+  { id: "wings", price: 15 },
+];
+
 /** Where she stands to play a booth: just in front of its counter. */
 export function boothStand(b: Booth): [number, number] {
   return [b.x, b.z - DEPTH / 2 - 1.2];

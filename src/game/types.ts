@@ -115,6 +115,16 @@ export type Prop =
   | LollipopProp
   | TentProp;
 
+/** The pet she earns in the lost pet quest. */
+export type PetKindId = "puppy" | "kitten" | "bunny";
+export type PetSave = { kind: PetKindId; coat: string; name: string };
+/**
+ * Lost pet quest: talk to the farmer, collect the treats (needs the backpack),
+ * follow the paw prints to the pet hiding in the cave, walk it home, pick it.
+ */
+export type QuestStage = "none" | "treats" | "trail" | "escort" | "choose" | "done";
+export type QuestSave = { stage: QuestStage; treats: number[] };
+
 export type WaterZone = {
   kind: "water";
   x: number;

@@ -1,3 +1,8 @@
+import { CHANNELS } from "./music";
+import { HELP_CARDS, HelpCard, type HelpId } from "./help-cards";
+import { currentVoiceName, rankedVoices, setSpeechEnabled, setVoiceName, speak } from "./speech";
+import { QuestPanel } from "./quest-panel";
+import { Journal } from "./journal";
 import { CarnivalPanel } from "./carnival-games";
 import type { BoothGame } from "./carnival";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -7,6 +12,8 @@ import {
   Gamepad2,
   Gauge,
   PartyPopper,
+  Ticket,
+  Music,
   HelpCircle,
   Maximize,
   Minimize,
@@ -395,6 +402,9 @@ function HUD() {
   const carnivalNear = useGame((s) => s.carnivalNear);
   const carouselRing = useGame((s) => s.carouselRing);
   const carnivalOpen = useGame((s) => s.carnival);
+  const questNear = useGame((s) => s.questNear);
+  const questOpen = useGame((s) => s.questPanel);
+  const tickets = useGame((s) => s.tickets);
   const riding = useGame((s) => s.riding);
   const rps = useGame((s) => s.rps);
   const setControls = useGame((s) => s.setControls);
@@ -452,10 +462,24 @@ function HUD() {
           <p className={cn("text-sm font-bold tabular-nums", TEMP_TINT[temp])}>
             {TEMP_LABEL[temp]}
           </p>
+          {tickets > 0 && (
+            <p className="mt-0.5 flex items-center gap-1 text-sm font-semibold tabular-nums text-ink">
+              <Ticket className="size-4 text-warm" /> {tickets}
+            </p>
+          )}
         </Panel>
         <div className="pointer-events-auto flex gap-2">
           <IconBtn label="Controls" onClick={() => setControls(true)}>
             <Gamepad2 className="size-5" />
+          </IconBtn>
+          <IconBtn
+            label="iPod: next song"
+            onClick={() => {
+              unlockAudio();
+              useGame.getState().requestNextChannel();
+            }}
+          >
+            <Music className="size-5" />
           </IconBtn>
           <IconBtn label="Journal" onClick={toggleJournal}>
             <BookOpen className="size-5" />
@@ -493,6 +517,8 @@ function HUD() {
         </div>
       )}
 
+      <NowPlaying />
+
       {hintText && (
         <div className="pointer-events-none absolute inset-x-0 top-40 flex justify-center px-4">
           <Panel className="pointer-events-auto relative max-w-md px-4 py-3 pr-11 text-center text-sm leading-relaxed text-ink">
@@ -509,11 +535,15 @@ function HUD() {
         </div>
       )}
 
-      {phase === "playing" && !rps && !carnivalOpen && (carouselRing || carnivalNear || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && (questNear || carouselRing || carnivalNear || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={carouselRing ?? carnivalNear ?? (boardReady ? "ride" : "grab")}
+          key={questNear ?? carouselRing ?? carnivalNear ?? (boardReady ? "ride" : "grab")}
           label={
-            carouselRing
+            questNear
+              ? questNear === "farmer"
+                ? "Talk to Farmer Joe"
+                : "Give them the treats!"
+              : carouselRing
               ? `Grab the ${carouselRing} ring!`
               : carnivalNear
                 ? CARNIVAL_LABEL[carnivalNear]
@@ -635,57 +665,6 @@ function Joystick() {
       }}
     >
       <div className="absolute inset-7 rounded-full border border-line/80 bg-surface-2/90" />
-    </div>
-  );
-}
-
-function Journal() {
-  const levelIndex = useGame((s) => s.levelIndex);
-  const collected = useGame((s) => s.collected[levelIndex] ?? []);
-  const setJournal = useGame((s) => s.setJournal);
-  const level = LEVELS[levelIndex]!;
-  return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-4">
-      <Panel className="relative max-h-[80dvh] w-full max-w-md overflow-y-auto p-5">
-        <button
-          type="button"
-          aria-label="Close journal"
-          className="absolute right-3 top-3 grid size-10 place-items-center rounded-sm text-ink"
-          onClick={() => setJournal(false)}
-        >
-          <X className="size-5" />
-        </button>
-        <h2 className="font-display text-2xl font-semibold">Dumpling journal</h2>
-        <p className="mt-1 text-sm text-ink-soft">
-          {collected.length} of {level.dumplings.length} found in {level.name}
-        </p>
-        <ul className="mt-4 space-y-2">
-          {level.dumplings.map((d) => {
-            const got = collected.includes(d.id);
-            return (
-              <li
-                key={d.id}
-                className="chunk-sm flex items-center gap-3 bg-surface-2 px-3 py-2"
-              >
-                <span
-                  className="size-8 rounded-full border border-line"
-                  style={{ background: got ? d.color : "#e2d5c4" }}
-                />
-                <span>
-                  <span className="block font-semibold">{got ? d.name : "Unknown dumpling"}</span>
-                  <span className="block text-sm text-ink-soft">
-                    {got
-                      ? `Found near ${d.region}`
-                      : d.hide === "hard"
-                        ? "Well hidden"
-                        : "Still out there"}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </Panel>
     </div>
   );
 }
@@ -866,6 +845,8 @@ function BigAction({
   gold?: boolean;
 }) {
   const Icon = icon === "wheel" ? FerrisWheel : PartyPopper;
+  // say what the button does as it pops up (it remounts per action)
+  useEffect(() => speak(label.replace(/!$/, "")), [label]);
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[26%] z-20 flex flex-col items-center gap-2 px-4">
       <button
@@ -907,6 +888,34 @@ function FpsCounter() {
     <div className="pointer-events-none absolute bottom-2 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink/75 px-3 py-1 font-mono text-xs text-white tabular-nums">
       <span className={cn("font-bold", tone)}>{fps} fps</span>
       {" · "}worst {perf.worstMs}ms · cpu {perf.cpuMs}ms · {perf.bufW}×{perf.bufH} @{perf.pixelRatio}x
+    </div>
+  );
+}
+
+/** "Now playing" pill in the channel's colour for a moment after each change. */
+function NowPlaying() {
+  const channel = useGame((s) => s.channel);
+  const gen = useGame((s) => s.channelGen);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (gen === 0) return;
+    setShown(true);
+    const def = CHANNELS.find((c) => c.id === channel);
+    speak(def ? `Now playing, ${def.name}` : "Music off");
+    const t = window.setTimeout(() => setShown(false), 2600);
+    return () => window.clearTimeout(t);
+  }, [gen, channel]);
+  if (!shown) return null;
+  const def = CHANNELS.find((c) => c.id === channel);
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-[38%] z-20 flex justify-center px-4" key={gen}>
+      <div
+        className="chunk flex items-center gap-3 px-6 py-3 font-display text-3xl font-semibold text-ink"
+        style={{ background: def?.color ?? "#e8dccb", animation: "catchPop 240ms ease-out" }}
+      >
+        <Music className="size-8" />
+        {def ? def.name : "Music off"}
+      </div>
     </div>
   );
 }
@@ -1163,6 +1172,10 @@ function Quiz() {
     return () => window.cancelAnimationFrame(raf);
   }, []);
 
+  // read the sum as words: "What is 7 minus 3?"
+  const said = quiz ? `What is ${quiz.q.prompt.replace(/\+/g, " plus ").replace(/[−-]/g, " minus ")}?` : null;
+  useEffect(() => speak(said), [said]);
+
   if (!quiz) return null;
 
   return (
@@ -1222,6 +1235,12 @@ function PauseScreen() {
   const toggleView = useGame((s) => s.toggleView);
   const showFps = useGame((s) => s.showFps);
   const toggleFps = useGame((s) => s.toggleFps);
+  const readAloud = useGame((s) => s.readAloud);
+  const toggleReadAloud = useGame((s) => s.toggleReadAloud);
+  const showHelp = useGame((s) => s.showHelp);
+  const setVoice = useGame((s) => s.setVoice);
+  const voicePref = useGame((s) => s.voice);
+  const voiceShown = voicePref || currentVoiceName();
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
       <Panel className="w-full max-w-sm p-6 text-center">
@@ -1242,6 +1261,34 @@ function PauseScreen() {
           </Btn>
           <Btn variant="secondary" onClick={toggleView} className="gap-2">
             {view === "first" ? "Third person view" : "First person view"}
+          </Btn>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(HELP_CARDS) as HelpId[]).map((id) => (
+              <Btn key={id} variant="secondary" onClick={() => showHelp(id, true)} className="h-auto min-h-11 px-2 text-sm">
+                {HELP_CARDS[id].title}
+              </Btn>
+            ))}
+          </div>
+          <Btn
+            variant="secondary"
+            onClick={() => {
+              // cycle through the installed voices, best first, and say hello in the new one
+              const ranked = rankedVoices();
+              if (!ranked.length) return;
+              const at = ranked.findIndex((v) => v.name === currentVoiceName());
+              const next = ranked[(at + 1) % ranked.length]!;
+              setVoice(next.name);
+              setVoiceName(next.name);
+              speak(`Hi ${useGame.getState().playerName || "there"}! This is how I sound.`, true);
+            }}
+            className="gap-2"
+          >
+            <Volume2 className="size-4" />
+            Voice: {(voiceShown || "default").replace(/\s*\(.*\)\s*$/, "")}
+          </Btn>
+          <Btn variant="secondary" onClick={toggleReadAloud} className="gap-2">
+            <Volume2 className="size-4" />
+            {readAloud ? "Read aloud: on" : "Read aloud: off"}
           </Btn>
           <Btn variant="secondary" onClick={toggleFps} className="gap-2">
             <Gauge className="size-4" />
@@ -1354,6 +1401,20 @@ export function Overlays() {
     setMuted(muted);
   }, [muted]);
 
+  // read aloud: messages, hints and the name of a freshly caught dumpling
+  const readAloud = useGame((s) => s.readAloud);
+  const emmettNotice = useGame((s) => s.emmettNotice);
+  const fleeNotice = useGame((s) => s.fleeNotice);
+  const hintText = useGame((s) => s.hintText);
+  const celebrate = useGame((s) => s.celebrate);
+  useEffect(() => setSpeechEnabled(readAloud), [readAloud]);
+  const voiceName = useGame((s) => s.voice);
+  useEffect(() => setVoiceName(voiceName), [voiceName]);
+  useEffect(() => speak(emmettNotice), [emmettNotice]);
+  useEffect(() => speak(fleeNotice), [fleeNotice]);
+  useEffect(() => speak(hintText), [hintText]);
+  useEffect(() => speak(celebrate ? `${celebrate.name}, caught!` : null), [celebrate]);
+
   return (
     <div className="overlay-root">
       <PadMenu />
@@ -1368,6 +1429,8 @@ export function Overlays() {
       {phase === "victory" && <VictoryScreen />}
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {phase === "playing" && <CarnivalPanel />}
+      {phase === "playing" && <QuestPanel />}
+      {(phase === "playing" || phase === "paused") && <HelpCard />}
       {controlsOpen && <ControlsPanel />}
       {showFps && phase !== "title" && <FpsCounter />}
       {debugEnabled() && <DebugOverlay />}
@@ -1387,7 +1450,8 @@ const CONTROLS: { title: string; rows: [string, string][] }[] = [
       ["Y", "Hint"],
       ["LB / RB", "Turn the camera"],
       ["LT", "First person on and off"],
-      ["Back", "Dumpling journal"],
+      ["RT", "iPod: next song"],
+      ["Back", "Journal: dumplings, stickers, backpack"],
       ["Start", "Pause"],
     ],
   },
@@ -1401,8 +1465,9 @@ const CONTROLS: { title: string; rows: [string, string][] }[] = [
       ["Drag the mouse", "Look around"],
       ["M", "Big map"],
       ["H", "Hint"],
-      ["J", "Dumpling journal"],
+      ["J", "Journal: dumplings, stickers, backpack"],
       ["V", "First person on and off"],
+      ["N", "iPod: next song"],
       ["Esc or P", "Pause"],
     ],
   },

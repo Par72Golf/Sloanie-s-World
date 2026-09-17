@@ -16,6 +16,7 @@ import {
   Sparkles,
   Star,
   Sun,
+  Ticket,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   BOOTHS,
   DUCK_POND,
   GAME_PRIZES,
+  SHOP,
   RING_TOSS,
   WHACK,
   bottleUnder,
@@ -33,6 +35,8 @@ import {
   type Booth,
 } from "./carnival";
 import { Btn, Panel } from "./overlays";
+import { HearButton } from "./help-cards";
+import { speak } from "./speech";
 import { useGame } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -47,10 +51,10 @@ import { cn } from "@/lib/utils";
  * memory, or quick reactions with a rule to remember.
  */
 
-type Edge = "a" | "b" | "up" | "down" | "left" | "right";
+export type Edge = "a" | "b" | "up" | "down" | "left" | "right";
 
 /** Controller and keyboard presses as edges, always calling the latest handler. */
-function useInput(onEdge: (e: Edge, key?: string) => void) {
+export function useInput(onEdge: (e: Edge, key?: string) => void) {
   const cb = useRef(onEdge);
   cb.current = onEdge;
   useEffect(() => {
@@ -85,6 +89,9 @@ function useInput(onEdge: (e: Edge, key?: string) => void) {
     raf = window.requestAnimationFrame(loop);
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return;
+      // while typing in a text box only Enter and Esc act as controls
+      const typing = (e.target as HTMLElement | null)?.tagName === "INPUT";
+      if (typing && e.key !== "Enter" && e.key !== "Escape") return;
       const map: Record<string, Edge> = {
         " ": "a",
         Enter: "a",
@@ -114,6 +121,12 @@ const close = () => {
   sfx.click();
   useGame.getState().closeCarnival();
 };
+
+/** Tickets for a round: shown on the result screen and added straight away. */
+function payTickets(n: number) {
+  if (n > 0) useGame.getState().addTickets(n);
+  return n;
+}
 
 /** Award the booth's prize; returns true if it is new. */
 function award(prize: AccessoryId) {
@@ -155,9 +168,13 @@ function PrizeBadge({ id, have, size = "md" }: { id: AccessoryId; have: boolean;
 
 function Intro({ booth, onPlay, children }: { booth: Booth; onPlay: () => void; children?: React.ReactNode }) {
   const have = useGame((s) => s.foundAccessories.includes(booth.prize));
+  useEffect(() => speak(`${booth.name}. ${booth.pitch}`), [booth]);
   return (
     <div className="grid gap-4">
-      <p className="text-lg leading-relaxed text-ink">{booth.pitch}</p>
+      <div className="flex items-start gap-3">
+        <p className="flex-1 text-2xl font-semibold leading-snug text-ink">{booth.pitch}</p>
+        <HearButton text={`${booth.name}. ${booth.pitch}`} />
+      </div>
       {children}
       <div className="flex items-center gap-3 rounded-lg bg-surface-2 p-3">
         <PrizeBadge id={booth.prize} have={have} />
@@ -180,18 +197,32 @@ function Result({
   isNew,
   line,
   onAgain,
+  tickets = 0,
 }: {
   booth: Booth;
   won: boolean;
   isNew: boolean;
   line: string;
   onAgain: () => void;
+  tickets?: number;
 }) {
+  useEffect(() => {
+    speak(
+      `${won ? "You won!" : "So close!"} ${line}${tickets > 0 ? ` Plus ${tickets} ticket${tickets === 1 ? "" : "s"}.` : ""}${
+        won && isNew ? ` The ${accessory(booth.prize).name.toLowerCase()} is yours!` : ""
+      }`,
+    );
+  }, [won, line, tickets, isNew, booth]);
   return (
     <div className="grid justify-items-center gap-3 text-center">
       {won && <PrizeBadge id={booth.prize} have size="lg" />}
       <h3 className="font-display text-3xl font-semibold">{won ? "You won!" : "So close!"}</h3>
       <p className="text-lg text-ink">{line}</p>
+      {tickets > 0 && (
+        <p className="rounded-full bg-sun px-4 py-1 font-display text-xl font-semibold text-ink" style={{ animation: "catchPop 260ms ease-out" }}>
+          +{tickets} ticket{tickets === 1 ? "" : "s"}!
+        </p>
+      )}
       {won && (
         <p className="text-sm font-semibold text-ok">
           {isNew
@@ -220,7 +251,7 @@ function RingToss({ booth }: { booth: Booth }) {
   const [hits, setHits] = useState<boolean[]>([]);
   const [target, setTarget] = useState(2);
   const [flight, setFlight] = useState<null | { x: number; hit: boolean }>(null);
-  const [outcome, setOutcome] = useState({ won: false, isNew: false });
+  const [outcome, setOutcome] = useState({ won: false, isNew: false, tickets: 0 });
   const t0 = useRef(0);
   const marker = useRef<HTMLDivElement>(null);
   const period = RING_TOSS.periods[Math.min(throwNo, RING_TOSS.periods.length - 1)]!;
@@ -260,7 +291,9 @@ function RingToss({ booth }: { booth: Booth }) {
       setHits(next);
       if (got >= RING_TOSS.toWin || got + (RING_TOSS.rings - next.length) < RING_TOSS.toWin) {
         const won = got >= RING_TOSS.toWin;
-        setOutcome({ won, isNew: won ? award(booth.prize) : false });
+        // a ticket per bottle ringed, and three more for winning
+        const tickets = payTickets(got + (won ? 3 : 0));
+        setOutcome({ won, isNew: won ? award(booth.prize) : false, tickets });
         setStage("done");
         return;
       }
@@ -290,6 +323,7 @@ function RingToss({ booth }: { booth: Booth }) {
         isNew={outcome.isNew}
         line={`You ringed ${got} of ${hits.length} bottles.`}
         onAgain={start}
+        tickets={outcome.tickets}
       />
     );
   }
@@ -405,7 +439,7 @@ function DuckPond({ booth }: { booth: Booth }) {
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const [turns, setTurns] = useState(0);
   const [cursor, setCursor] = useState(0);
-  const [outcome, setOutcome] = useState({ won: false, isNew: false });
+  const [outcome, setOutcome] = useState({ won: false, isNew: false, tickets: 0 });
   const busy = useRef(false);
 
   const start = () => {
@@ -444,7 +478,9 @@ function DuckPond({ booth }: { booth: Booth }) {
         busy.current = false;
         const allFound = nowMatched.size === deck.length;
         if (allFound || used >= DUCK_POND.turns) {
-          setOutcome({ won: allFound, isNew: allFound ? award(booth.prize) : false });
+          // a ticket per pair, and three more for finding them all
+          const tickets = payTickets(nowMatched.size / 2 + (allFound ? 3 : 0));
+          setOutcome({ won: allFound, isNew: allFound ? award(booth.prize) : false, tickets });
           setStage("done");
         }
       },
@@ -479,6 +515,7 @@ function DuckPond({ booth }: { booth: Booth }) {
             : `Out of turns! You found ${matched.size / 2} of ${DUCK_POND.pairs} pairs.`
         }
         onAgain={start}
+        tickets={outcome.tickets}
       />
     );
   }
@@ -574,7 +611,7 @@ function WhackAMole({ booth }: { booth: Booth }) {
   const [stage, setStage] = useState<"intro" | "play" | "done">("intro");
   const [, force] = useState(0);
   const [cursor, setCursor] = useState(1);
-  const [outcome, setOutcome] = useState({ won: false, isNew: false, score: 0 });
+  const [outcome, setOutcome] = useState({ won: false, isNew: false, score: 0, tickets: 0 });
   const g = useRef({
     start: 0,
     score: 0,
@@ -602,7 +639,9 @@ function WhackAMole({ booth }: { booth: Booth }) {
       if (el >= WHACK.seconds) {
         window.clearInterval(id);
         const won = s.score >= WHACK.goal;
-        setOutcome({ won, isNew: won ? award(booth.prize) : false, score: s.score });
+        // a ticket for every three points, and three more for winning
+        const tickets = payTickets(Math.floor(s.score / 3) + (won ? 3 : 0));
+        setOutcome({ won, isNew: won ? award(booth.prize) : false, score: s.score, tickets });
         setStage("done");
         return;
       }
@@ -691,6 +730,7 @@ function WhackAMole({ booth }: { booth: Booth }) {
         isNew={outcome.isNew}
         line={`You scored ${outcome.score}. You needed ${WHACK.goal}.`}
         onAgain={start}
+        tickets={outcome.tickets}
       />
     );
   }
@@ -758,22 +798,119 @@ function WhackAMole({ booth }: { booth: Booth }) {
 
 function PrizeBooth({ booth }: { booth: Booth }) {
   const found = useGame((s) => s.foundAccessories);
+  const tickets = useGame((s) => s.tickets);
   const won = GAME_PRIZES.filter((p) => found.includes(p.prize)).length;
   const hasTeddy = found.includes("teddy");
   const ready = won === GAME_PRIZES.length && !hasTeddy;
+  const [page, setPage] = useState<"shop" | "prizes">("shop");
+  const [cursor, setCursor] = useState(0);
   const claim = () => {
     if (!ready) return;
     award("teddy");
   };
+  const buy = (i: number) => {
+    const item = SHOP[i]!;
+    if (found.includes(item.id)) return;
+    if (useGame.getState().buyItem(item.id, item.price)) sfx.win();
+    else {
+      sfx.wrong();
+      speak(`You need ${item.price - tickets} more tickets for the ${accessory(item.id).name.toLowerCase()}.`);
+    }
+  };
+  useEffect(() => speak(`Prize booth. You have ${tickets} tickets.`), []); // eslint-disable-line react-hooks/exhaustive-deps
   useInput((e) => {
     if (e === "b") return close();
-    if (e === "a") {
-      if (ready) claim();
-      else close();
+    if (page === "prizes") {
+      if (e === "left" || e === "right") setPage("shop");
+      else if (e === "a") (ready ? claim() : setPage("shop"));
+      return;
     }
+    const n = SHOP.length;
+    if (e === "left" || e === "up") setCursor((c) => (c + n - 1) % n);
+    else if (e === "right" || e === "down") setCursor((c) => (c + 1) % n);
+    else if (e === "a") buy(cursor);
   });
+  const tabs = (
+    <div className="flex gap-2">
+      {(["shop", "prizes"] as const).map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => setPage(p)}
+          className={cn(
+            "chunk-sm flex-1 px-3 py-1.5 font-display text-lg font-semibold",
+            page === p ? "bg-accent text-accent-fg" : "bg-surface-2 text-ink",
+          )}
+        >
+          {p === "shop" ? "Shop" : `Game prizes ${won}/${GAME_PRIZES.length}`}
+        </button>
+      ))}
+    </div>
+  );
+  if (page === "shop") {
+    return (
+      <div className="grid gap-3">
+        {tabs}
+        <p className="flex items-center justify-center gap-2 rounded-full bg-sun px-4 py-1.5 font-display text-2xl font-semibold">
+          <Ticket className="size-6" /> {tickets} tickets
+        </p>
+        {ready && (
+          <Btn onClick={() => setPage("prizes")} className="gap-2">
+            <Gift className="size-5" /> Your giant teddy is ready!
+          </Btn>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {SHOP.map((item, i) => {
+            const have = found.includes(item.id);
+            const afford = tickets >= item.price;
+            const def = accessory(item.id);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setCursor(i);
+                  buy(i);
+                }}
+                className={cn(
+                  "chunk-sm grid justify-items-center gap-1 p-2 text-center",
+                  have ? "bg-[#e8f8e8]" : afford ? "bg-surface" : "bg-surface-2 opacity-70",
+                  i === cursor && "outline outline-4 outline-offset-2 outline-accent",
+                )}
+              >
+                <span className="text-sm font-semibold leading-tight">{def.name}</span>
+                {have ? (
+                  <span className="flex items-center gap-1 text-sm font-bold text-ok">
+                    <Check className="size-4" /> Yours
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 font-display text-lg font-semibold">
+                    <Ticket className="size-4" /> {item.price}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {(() => {
+          const item = SHOP[cursor]!;
+          const def = accessory(item.id);
+          if (found.includes(item.id)) return <p className="text-center text-sm text-ink-soft">{def.name}: already yours. Wear it from your backpack.</p>;
+          return (
+            <p className="text-center text-sm font-semibold text-ink-soft">
+              {def.name} costs {item.price}.{" "}
+              {tickets >= item.price
+                ? `You'd have ${tickets - item.price} tickets left.`
+                : `You need ${item.price - tickets} more. Win tickets at the booths and the carousel!`}
+            </p>
+          );
+        })()}
+      </div>
+    );
+  }
   return (
     <div className="grid gap-4">
+      {tabs}
       <p className="text-lg leading-relaxed text-ink">{booth.pitch}</p>
       <ul className="grid gap-2">
         {GAME_PRIZES.map((p) => {
