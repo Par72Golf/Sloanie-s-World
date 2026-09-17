@@ -504,7 +504,7 @@ function TitleScreen() {
         <section className="flex flex-col items-center text-center sm:landscape:col-start-1 sm:landscape:row-start-1 sm:landscape:items-start sm:landscape:self-end sm:landscape:text-left">
           <span className="ui-chip gloss animate-ui-pop bg-sun text-sm text-ink [@media(max-height:520px)]:hidden">
             <Sparkles className="size-4" />
-            v3.1
+            v3.2
           </span>
           <h1 className="animate-ui-drop relative mt-2 text-[clamp(3.25rem,min(9.5vw,14.5vh),10.5rem)] leading-[0.92] [@media(max-height:520px)]:mt-0">
             <span className="ui-title ui-logo" data-text="Sloanie's">
