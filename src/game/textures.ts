@@ -36,6 +36,11 @@ function shade(hex: string, amount: number) {
   return `#${c.getHexString()}`;
 }
 
+/** A colour as an rgba() string, for gradient stops that fade to nothing. */
+function fade(hex: string, alpha: number) {
+  return new THREE.Color(hex).getStyle().replace("rgb(", "rgba(").replace(")", `, ${alpha})`);
+}
+
 function noise(g: CanvasRenderingContext2D, n: number, alpha: number, size = 2) {
   for (let i = 0; i < n; i++) {
     g.globalAlpha = Math.random() * alpha;
@@ -229,30 +234,36 @@ function draw(kind: TexKind, color: string): HTMLCanvasElement {
       break;
     }
     case "dough": {
-      // soft steamed-bun surface: gentle mottling plus flour speckle
-      for (let i = 0; i < 260; i++) {
-        g.fillStyle = shade(color, (Math.random() - 0.5) * 0.07);
+      // Soft steamed-bun surface: broad, gentle mottling and the faintest
+      // dusting of flour.
+      //
+      // The first version used 260 hard-edged blobs and 1500 bright specks. On
+      // a dumpling the texture wraps the whole sphere once, so those specks
+      // landed at well under a pixel and the Sobel normal map turned them into
+      // bumps: every bun looked warty up close and dusty-grey from a distance,
+      // worst on the mid-tone ones (Acorn, Peachy). Big soft gradients and a
+      // tenth of the speckle read as steamed dough at both ranges.
+      for (let i = 0; i < 90; i++) {
+        const x = Math.random() * SIZE;
+        const y = Math.random() * SIZE;
+        const r = 26 + Math.random() * 44;
+        const tone = shade(color, (Math.random() - 0.5) * 0.05);
+        const grad = g.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, fade(tone, 0.55));
+        grad.addColorStop(1, fade(tone, 0));
+        g.fillStyle = grad;
         g.beginPath();
-        g.ellipse(
-          Math.random() * SIZE,
-          Math.random() * SIZE,
-          8 + Math.random() * 22,
-          8 + Math.random() * 18,
-          Math.random() * Math.PI,
-          0,
-          Math.PI * 2,
-        );
+        g.arc(x, y, r, 0, Math.PI * 2);
         g.fill();
       }
-      for (let i = 0; i < 1500; i++) {
-        g.globalAlpha = 0.25 + Math.random() * 0.4;
+      for (let i = 0; i < 360; i++) {
+        g.globalAlpha = 0.08 + Math.random() * 0.14;
         g.fillStyle = "#ffffff";
         g.beginPath();
-        g.arc(Math.random() * SIZE, Math.random() * SIZE, 0.6 + Math.random(), 0, Math.PI * 2);
+        g.arc(Math.random() * SIZE, Math.random() * SIZE, 0.9 + Math.random() * 1.3, 0, Math.PI * 2);
         g.fill();
       }
       g.globalAlpha = 1;
-      noise(g, 800, 0.05);
       break;
     }
     case "metal": {
@@ -329,7 +340,9 @@ function baseFor(kind: TexKind, color: string) {
     map.wrapS = THREE.RepeatWrapping;
     map.wrapT = THREE.RepeatWrapping;
     map.anisotropy = 4;
-    entry = { map, normal: normalFrom(canvas) };
+    // Dough is skin, not bark: at full strength the Sobel turned every soft
+    // mottle into a lump and the dumplings looked pitted.
+    entry = { map, normal: normalFrom(canvas, kind === "dough" ? 0.5 : 1.6) };
     cache.set(key, entry);
   }
   return entry;

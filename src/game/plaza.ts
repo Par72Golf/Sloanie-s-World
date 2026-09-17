@@ -340,7 +340,9 @@ export function makeArrivalPlaza() {
   pole.castShadow = true;
   g.add(pole);
 
-  const banner = painted(5.6, 1.4, "#b8323f", "Sloanie's World", "#e8455f", "Sloanie's World");
+  // Thick enough that the striped pole passes BEHIND both faces: a thin board
+  // centred on the pole put a stripe of pole right across her name.
+  const banner = painted(5.6, 1.4, "#b8323f", "Sloanie's World", "#e8455f", "Sloanie's World", 0.74);
   banner.position.set(PLAZA.x, 5.7, PLAZA.z);
   g.add(banner);
 
@@ -415,9 +417,9 @@ export function makeArrivalPlaza() {
  * the body merges with the rest of the park and only the two faces cost a
  * draw call. `front` is the +z (south) side.
  */
-function painted(w: number, h: number, body: string, front: string, bg: string, back?: string) {
+function painted(w: number, h: number, body: string, front: string, bg: string, back?: string, depth = 0.16) {
   const g = new THREE.Group();
-  g.add(mesh(boxGeo, body, w, h, 0.16, 0, 0, 0));
+  g.add(mesh(boxGeo, body, w, h, depth, 0, 0, 0));
   const face = (text: string, z: number, turn: boolean) => {
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(w - 0.05, h - 0.05),
@@ -427,8 +429,8 @@ function painted(w: number, h: number, body: string, front: string, bg: string, 
     if (turn) m.rotation.y = Math.PI;
     g.add(m);
   };
-  face(front, 0.09, false);
-  if (back) face(back, -0.09, true);
+  face(front, depth / 2 + 0.01, false);
+  if (back) face(back, -(depth / 2 + 0.01), true);
   return g;
 }
 

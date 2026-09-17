@@ -4,7 +4,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { texturesFor, type TexKind } from "./textures";
 import { SPLASH_BUCKET, SPLASH_FLOWERS, SPLASH_RADIUS, splashJets, type Jet } from "./splash";
-import { CAVE, CAVE_MAP, CAVE_SPOTS, caveCellCenter, caveEntrance } from "./cave";
+import { CAVE, CAVE_MAP, CAVE_SPOTS, LOOKOUT, caveCellCenter, caveEntrance, caveHeadroom, caveIntrusion, lookoutClearance, lookoutStep } from "./cave";
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 const sphereGeo = new THREE.SphereGeometry(1, 14, 12);
@@ -34,6 +34,9 @@ export function lam(
   let m = mats.get(key);
   if (!m) {
     const tex = rep ? texturesFor(color, rep, extras?.tex) : null;
+    // three.js warns once per material for a parameter that is present but
+    // undefined, which filled the console with thousands of lines at load, so
+    // the optional ones are only set when they have a value
     m = new THREE.MeshStandardMaterial({
       color,
       roughness: extras?.roughness ?? 0.42,
@@ -41,12 +44,12 @@ export function lam(
       metalness: 0.04,
       transparent: extras?.transparent ?? (extras?.opacity != null && extras.opacity < 1),
       opacity: extras?.opacity ?? 1,
-      emissive: extras?.emissive ? new THREE.Color(extras.emissive) : undefined,
       emissiveIntensity: extras?.emissive ? 0.4 : 0,
       map: tex?.map ?? null,
       normalMap: tex?.normal ?? null,
-      normalScale: tex?.normal ? new THREE.Vector2(0.7, 0.7) : undefined,
     });
+    if (extras?.emissive) m.emissive = new THREE.Color(extras.emissive);
+    if (tex?.normal) m.normalScale = new THREE.Vector2(0.7, 0.7);
     mats.set(key, m);
   }
   return m;
@@ -587,7 +590,10 @@ export function makeHands(skin: string, _dress: string): Hands {
   const right = new THREE.Group();
   right.position.set(0.17, -0.19, -0.55);
   right.rotation.set(-0.22, -0.26, 0.1);
-  right.add(makeIpod());
+  const fpIpod = makeIpod();
+  // named so the runtime can put it away when she is holding something else
+  fpIpod.name = "fp-ipod";
+  right.add(fpIpod);
   {
     const { w, d } = IPOD;
     const edge = -w / 2;
@@ -887,19 +893,26 @@ export function makeDumpling(color: string, accent: string) {
   twist.rotation.y = 0.6;
   g.add(knot, twist);
 
-  // steam-sheen and a herb leaf
+  // Steam-sheen and a herb leaf.
+  //
+  // Both are marked noFinish. The finish pass repaints anything that is not the
+  // accent colour in the body material, so on all thirteen finished dumplings
+  // the sheen became an opaque lump of body colour and the herb leaf became a
+  // gold, pearl or rainbow shard sticking out of the knot.
   const shine = new THREE.Mesh(
     sphereGeo,
-    lam("#fff6ee", { roughness: 0.2, opacity: 0.45, transparent: true, flat: true }),
+    lam("#fff6ee", { roughness: 0.2, opacity: 0.32, transparent: true, flat: true }),
   );
-  shine.scale.set(0.16, 0.11, 0.09);
-  shine.position.set(0.18, 0.2, 0.38);
+  shine.scale.set(0.14, 0.095, 0.08);
+  shine.position.set(0.19, 0.21, 0.37);
   shine.castShadow = false;
+  shine.userData.noFinish = true;
 
   const leaf = new THREE.Mesh(coneGeo, lam("#5a9a4a", { roughness: 0.7, flat: true }));
   leaf.scale.set(0.09, 0.18, 0.06);
   leaf.position.set(0.1, 0.56, 0.02);
   leaf.rotation.z = 0.55;
+  leaf.userData.noFinish = true;
 
   g.add(shine, leaf);
 
@@ -936,29 +949,37 @@ export function makeDumpling(color: string, accent: string) {
     const cheek = mark(
       new THREE.Mesh(sphereGeo, lam("#f08a8a", { roughness: 0.6, opacity: 0.75, transparent: true, flat: true })),
     );
-    cheek.scale.set(0.075, 0.05, 0.04);
-    cheek.position.set(sx * 0.29, 0.0, 0.42);
+    cheek.scale.set(0.085, 0.055, 0.045);
+    cheek.position.set(sx * 0.265, 0.0, 0.49);
     cheek.visible = false;
     face.add(cheek);
     cheeks.push(cheek);
   }
 
-  // resting mouth: small and closed
-  const mouthCalm = mark(new THREE.Mesh(sphereGeo, lam(dark, { roughness: 0.4, flat: true })));
-  mouthCalm.scale.set(0.055, 0.03, 0.04);
-  mouthCalm.position.set(0, -0.03, 0.5);
+  // Resting mouth: a curved smile.
+  //
+  // Every mouth used to sit inside the body. The face parts are placed on a
+  // 0.56 x 0.44 x 0.56 ellipsoid, and at the mouth's height the surface is at
+  // z 0.56, so a mouth whose front face reached 0.54 was swallowed whole: all
+  // sixteen dumplings had eyes and nothing else. A dot would not have read
+  // across a TV room anyway, so it is an arc now, sitting proud of the surface
+  // by the same amount the eyes do.
+  const mouthCalm = mark(new THREE.Mesh(smileGeo, lam(dark, { roughness: 0.4, flat: true })));
+  mouthCalm.scale.set(0.095, 0.075, 0.12);
+  mouthCalm.position.set(0, -0.02, 0.555);
+  mouthCalm.rotation.z = Math.PI;
   face.add(mouthCalm);
 
   // delighted mouth: open, with a tongue
   const mouthHappy = mark(new THREE.Mesh(sphereGeo, lam("#7a3a34", { roughness: 0.45, flat: true })));
   mouthHappy.scale.set(0.11, 0.09, 0.06);
-  mouthHappy.position.set(0, -0.05, 0.49);
+  mouthHappy.position.set(0, -0.05, 0.535);
   mouthHappy.visible = false;
   face.add(mouthHappy);
 
   const tongue = mark(new THREE.Mesh(sphereGeo, lam("#e8697d", { roughness: 0.5, flat: true })));
   tongue.scale.set(0.06, 0.035, 0.04);
-  tongue.position.set(0, -0.09, 0.51);
+  tongue.position.set(0, -0.09, 0.59);
   tongue.visible = false;
   face.add(tongue);
 
@@ -1985,6 +2006,38 @@ function rockGeo(i: number) {
   return rockGeos[i % rockGeos.length]!;
 }
 
+const rockSamples = new Map<THREE.BufferGeometry, THREE.Vector3[]>();
+/** A rock shape's corners, edge midpoints and face centres, for fitting it into the tunnels. */
+function rockPoints(geo: THREE.BufferGeometry) {
+  let pts = rockSamples.get(geo);
+  if (!pts) {
+    pts = [];
+    const seen = new Set<string>();
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    const add = (v: THREE.Vector3) => {
+      const key = `${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      pts!.push(v.clone());
+    };
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    for (let t = 0; t < pos.count; t += 3) {
+      a.fromBufferAttribute(pos, t);
+      b.fromBufferAttribute(pos, t + 1);
+      c.fromBufferAttribute(pos, t + 2);
+      add(a);
+      add(a.clone().lerp(b, 0.5));
+      add(b.clone().lerp(c, 0.5));
+      add(c.clone().lerp(a, 0.5));
+      add(a.clone().add(b).add(c).divideScalar(3));
+    }
+    rockSamples.set(geo, pts);
+  }
+  return pts;
+}
+
 const rockMats = new Map<string, THREE.MeshStandardMaterial>();
 function rockMat(color: string, emissive?: string, glow = 0) {
   const key = `${color}|${emissive ?? ""}|${glow}`;
@@ -2041,6 +2094,13 @@ export function signBoard(text: string, w: number, h: number) {
 export function makeMountainCave() {
   const g = new THREE.Group();
   const rand = seeded(20260917);
+  // the tunnel walls and ceilings draw from their own stream; the shared one
+  // is advanced exactly as the old walls used it, so the crystals, mushrooms
+  // and stalactites that come after stay exactly where they were
+  const wallRand = seeded(20260918);
+  const burn = (n: number) => {
+    for (let i = 0; i < n; i++) rand();
+  };
   const { x0, z0, cell, height } = CAVE;
   const rows = CAVE_MAP.length;
   const cols = CAVE_MAP[0]!.length;
@@ -2063,16 +2123,57 @@ export function makeMountainCave() {
     color?: string,
     ry: number | null = null,
     tilt = 0.4,
+    rng = rand,
+    shrink: [number, number, number] = [0.88, 0.88, 0.88],
   ) => {
-    const m = new THREE.Mesh(rockGeo(Math.floor(rand() * 4)), rockMat(color ?? rockCols[Math.floor(rand() * rockCols.length)]!));
+    const m = new THREE.Mesh(rockGeo(Math.floor(rng() * 4)), rockMat(color ?? rockCols[Math.floor(rng() * rockCols.length)]!));
     m.position.set(x, y, z);
     m.scale.set(sx, sy, sz);
-    m.rotation.set((rand() - 0.5) * tilt, ry ?? rand() * Math.PI * 2, (rand() - 0.5) * tilt);
+    m.rotation.set((rng() - 0.5) * tilt, ry ?? rng() * Math.PI * 2, (rng() - 0.5) * tilt);
     m.castShadow = true;
     m.receiveShadow = true;
     g.add(m);
+    fit(m, shrink);
     return m;
   };
+  // No boulder may bulge into a passage by more than a hand's width: a wall
+  // rock 0.3m past the rock face, a ceiling rock 0.5m below the roof. One that
+  // does is shrunk (along the wall, not out of it) until it fits, or dropped.
+  const WALL_BULGE = 0.3;
+  const ROOF_HANG = 0.5;
+  const probe = new THREE.Vector3();
+  // the air on the lookout stair and deck: no rock may lean into it at all
+  const clear = lookoutClearance();
+  const overshoot = (m: THREE.Mesh) => {
+    m.updateMatrix();
+    let worst = -Infinity;
+    for (const p of rockPoints(m.geometry)) {
+      probe.copy(p).applyMatrix4(m.matrix);
+      const { d, wall } = caveIntrusion(probe.x, probe.y, probe.z);
+      worst = Math.max(worst, d - (wall ? WALL_BULGE : ROOF_HANG));
+      for (const b of clear) {
+        const into = Math.min(
+          probe.x - b.minX, b.maxX - probe.x,
+          probe.y - b.minY, b.maxY - probe.y,
+          probe.z - b.minZ, b.maxZ - probe.z,
+        );
+        if (into > 0) worst = Math.max(worst, into);
+      }
+    }
+    return worst;
+  };
+  let refitted = 0;
+  let dropped = 0;
+  function fit(m: THREE.Mesh, shrink: [number, number, number]) {
+    if (overshoot(m) <= 0) return;
+    refitted++;
+    for (let i = 0; i < 12; i++) {
+      m.scale.set(m.scale.x * shrink[0], m.scale.y * shrink[1], m.scale.z * shrink[2]);
+      if (overshoot(m) <= 0) return;
+    }
+    g.remove(m);
+    dropped++;
+  }
   const [ex] = caveEntrance();
 
   // ---- outside: cliffs of overlapping boulders over the rock faces ----------
@@ -2104,7 +2205,8 @@ export function makeMountainCave() {
   // corners
   for (const [cx, cz] of [
     [minX + 1.5, maxZ - 1.5],
-    [maxX - 1.5, maxZ - 1.5],
+    // the north-east corner is pulled in behind the lookout stair
+    [maxX - 2.4, maxZ - 4.2],
     [minX + 1.5, minZ + 1.5],
     [maxX - 1.5, minZ + 1.5],
   ]) {
@@ -2114,18 +2216,22 @@ export function makeMountainCave() {
   // grassy top with a scatter of rocks and pines
   const top = new THREE.Mesh(boxGeo, lam("#6aae5c", { flat: true, roughness: 0.9 }));
   top.scale.set(maxX - minX - 7, 0.6, maxZ - minZ - 7);
-  top.position.set((minX + maxX) / 2, height + 0.25, (minZ + maxZ) / 2);
+  // 4cm under the rock top, so she stands on the rock and the deck, not in
+  // grass that used to float 0.55m above both
+  top.position.set((minX + maxX) / 2, height - 0.34, (minZ + maxZ) / 2);
   top.receiveShadow = true;
   g.add(top);
   for (let i = 0; i < 9; i++) {
     const x = minX + 7 + rand() * (maxX - minX - 14);
     const z = minZ + 7 + rand() * (maxZ - minZ - 14);
-    boulder(x, height + 0.9, z, 2 + rand() * 2.4, 1.2 + rand(), 2 + rand() * 2.4);
+    boulder(x, height + 0.15, z, 2 + rand() * 2.4, 1.2 + rand(), 2 + rand() * 2.4);
   }
   for (let i = 0; i < 7; i++) {
     const x = minX + 6 + rand() * (maxX - minX - 12);
     const z = minZ + 6 + rand() * (maxZ - minZ - 12);
     const s = 0.8 + rand() * 0.5;
+    // the pines stand back from the lookout deck
+    if (x > LOOKOUT.deck.minX - 3 && x < LOOKOUT.deck.maxX + 3 && z > LOOKOUT.deck.minZ - 3) continue;
     const trunk = mesh(cylGeo, "#6a4a32", 0.22 * s, 1.4 * s, 0.22 * s, x, height + 0.55 + 0.7 * s, z);
     g.add(trunk);
     for (let k = 0; k < 3; k++) {
@@ -2161,6 +2267,8 @@ export function makeMountainCave() {
   const crystal = [rockMat("#b98ce0", "#9a5ad8", 0.9), rockMat("#7fd8f0", "#3ab8e0", 0.9), rockMat("#f28bc4", "#e0508f", 0.8)];
   const shroomCaps = [rockMat("#5fe0c8", "#2fc0a8", 1.0), rockMat("#ff9ad0", "#f060a8", 0.9), rockMat("#a8f06a", "#78d040", 0.8)];
   const stalMat = rockMat("#8a8378");
+  const isOpenCell = (ch: string | undefined) => ch != null && ch !== "#";
+  const corners = new Set<string>();
   let lanternCount = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -2169,10 +2277,13 @@ export function makeMountainCave() {
       const [cx, cz] = caveCellCenter(r, c);
       const head = HEAD[ch]!;
       // Rocky walls: overlapping boulders tiled over each rock face around the
-      // cell, floor to ceiling, so the flat collider face barely shows. Each
-      // bulges at most ~0.25m into the tunnel, which keeps the first-person
-      // camera (0.34m from a wall at the closest) out of the rock.
+      // cell, floor to ceiling, so the flat collider face barely shows. They
+      // are kept small (about a metre across) so a 3m tunnel reads as a
+      // tunnel, and where the rock face stops at an open corner the end
+      // rocks pull back and a slim column rounds the corner instead of
+      // reaching out across the opening.
       const face = cell / 2;
+      const openAt = (rr: number, cc: number) => rr < 0 || cc < 0 || rr >= rows || cc >= cols || isOpenCell(CAVE_MAP[rr]![cc]);
       for (const [dr, dc, nx, nz] of [
         [-1, 0, 0, 1],
         [1, 0, 0, -1],
@@ -2182,24 +2293,46 @@ export function makeMountainCave() {
         const n = at(r + dr, c + dc);
         if (n && n !== "#") continue;
         if (r === 0 && dr === -1) continue; // the open mouth
-        // A sphere of radius R showing only its outer b metres has a visible
-        // cap about sqrt(2Rb) across; at R 1.8 and b 0.22 that is ~1.8m, so a
-        // 1.1m grid of them overlaps with no flat wall between.
-        const levels = Math.max(3, Math.ceil(head / 1.1));
+        burn(Math.max(3, Math.ceil(head / 1.1)) * 3 * 8);
+        // along the wall: +x for a wall to the north or south, +z otherwise
+        const tx = nz !== 0 ? 1 : 0;
+        const tz = nx !== 0 ? 1 : 0;
+        // +z is one row up the map
+        const carries = (sgn: number) =>
+          !openAt(r - sgn * tz, c + sgn * tx) || !openAt(r - sgn * tz - nz, c + sgn * tx + nx);
+        const ends = { [-1]: carries(-1), [1]: carries(1) } as Record<number, boolean>;
+        const levels = Math.max(4, Math.ceil(head / 0.8));
+        const step = head / levels;
+        const depth = 0.45;
         for (let lv = 0; lv < levels; lv++) {
-          for (const along of [-1.05, 0, 1.05]) {
-            // wide and tall along the wall, shallow out of it: the front shows
-            // between 0.1 and ~0.37m past the collider face
-            const rad = 1.6 + rand() * 0.4;
-            const depth = 0.55;
-            const bulge = 0.1 + rand() * 0.06;
+          for (const base of [-1.125, -0.375, 0.375, 1.125]) {
+            const sgn = Math.sign(base);
+            const along = ends[sgn] ? base : base * 0.8;
+            // an open end keeps the rock inside the cell
+            const room = ends[sgn] ? Infinity : (face + 0.1 - Math.abs(along)) / 1.16;
+            const rad = Math.min(1.0 + wallRand() * 0.3, room);
+            const tall = step * (0.95 + wallRand() * 0.2);
+            const bulge = 0.05 + wallRand() * 0.06;
             const off = face + depth * 0.78 - bulge;
-            const jitter = along + (rand() - 0.5) * 0.25;
-            const y = ((lv + 0.5) / levels) * head + (rand() - 0.5) * 0.3;
-            const bx = cx + nx * off + (nz !== 0 ? jitter : 0);
-            const bz = cz + nz * off + (nx !== 0 ? jitter : 0);
-            if (nz !== 0) boulder(bx, y, bz, rad, rad * 0.8, depth, undefined, 0, 0.12);
-            else boulder(bx, y, bz, depth, rad * 0.8, rad, undefined, 0, 0.12);
+            const jitter = along + (wallRand() - 0.5) * 0.15;
+            const y = (lv + 0.5) * step + (wallRand() - 0.5) * 0.2;
+            const bx = cx + nx * off + tx * jitter;
+            const bz = cz + nz * off + tz * jitter;
+            if (nz !== 0) boulder(bx, y, bz, rad, tall, depth, undefined, 0, 0.08, wallRand, [0.85, 0.95, 0.92]);
+            else boulder(bx, y, bz, depth, tall, rad, undefined, 0, 0.08, wallRand, [0.92, 0.95, 0.85]);
+          }
+        }
+        // round off each open corner of this face with a slim column of rock
+        for (const sgn of [-1, 1]) {
+          if (ends[sgn]) continue;
+          const kx = cx + nx * (face + 0.3) + tx * sgn * (face - 0.3);
+          const kz = cz + nz * (face + 0.3) + tz * sgn * (face - 0.3);
+          const key = `${kx.toFixed(2)},${kz.toFixed(2)}`;
+          if (corners.has(key)) continue;
+          corners.add(key);
+          for (let lv = 0; lv < levels; lv++) {
+            const y = (lv + 0.5) * step + (wallRand() - 0.5) * 0.2;
+            boulder(kx, y, kz, 0.5, step * 1.1, 0.5, undefined, null, 0.08, wallRand, [0.92, 0.95, 0.92]);
           }
         }
         // lanterns along the tunnel walls to light the way
@@ -2207,12 +2340,17 @@ export function makeMountainCave() {
           lantern(cx + nx * (face - 0.3), 2.0, cz + nz * (face - 0.3));
         }
       }
-      // ceiling: flattened boulders hanging a little below the roof slab
+      // ceiling: flattened boulders hanging a little below the roof slab; the
+      // outer ones stay in over a doorway to a taller room or the open air
+      burn(9 * 8);
       for (const ox of [-1, 0, 1]) {
         for (const oz of [-1, 0, 1]) {
-          const rad = 1.3 + rand() * 0.3;
-          // hangs 0.15 to ~0.45m below the roof slab
-          boulder(cx + ox + (rand() - 0.5) * 0.3, head + rad * 0.5 * 0.78 - 0.15, cz + oz + (rand() - 0.5) * 0.3, rad, rad * 0.5, rad, undefined, null, 0.1);
+          const tallerX = ox !== 0 && (openAt(r, c + ox) && (caveHeadroom(at(r, c + ox)) ?? 99) > head);
+          const tallerZ = oz !== 0 && (openAt(r - oz, c) && (caveHeadroom(at(r - oz, c)) ?? 99) > head);
+          const px = tallerX ? ox * 0.5 : ox;
+          const pz = tallerZ ? oz * 0.5 : oz;
+          const rad = 1.1 + wallRand() * 0.3;
+          boulder(cx + px + (wallRand() - 0.5) * 0.3, head + rad * 0.5 * 0.78 - 0.15, cz + pz + (wallRand() - 0.5) * 0.3, rad, rad * 0.5, rad, undefined, null, 0.1, wallRand, [0.88, 0.97, 0.88]);
         }
       }
       // stalactites
@@ -2278,6 +2416,100 @@ export function makeMountainCave() {
   const [lx, , lz] = CAVE_SPOTS.ledge;
   lantern(lx - 1.6, 1.55, lz - 0.6);
   lantern(lx + 1.8, 1.55, lz - 0.6);
+
+  // ---- the lookout: rock behind the stair, a sign, lanterns, flag, scope ---
+  const L = LOOKOUT;
+  // the rock face the stair climbs is bare where the cliff boulders were
+  // dropped, so it gets the same small wall rocks the tunnels have, set flush
+  for (let x = L.topX[0]; x < L.landingX[1]; x += 0.9) {
+    const kFor = (px: number) => {
+      // the height of the upper flight at this x, so rocks start above it
+      const k = px >= L.landingX[0] ? 14 : px >= L.topX[1] ? 14 + Math.ceil((L.landingX[0] - px) / L.tread) : 28;
+      return lookoutStep(Math.min(28, k));
+    };
+    const base = kFor(x);
+    for (let y = base + 0.4; y < CAVE.height + 0.4; y += 0.85) {
+      const rad = 0.55 + wallRand() * 0.25;
+      boulder(x + (wallRand() - 0.5) * 0.3, y, L.face - 0.25, rad, 0.5 + wallRand() * 0.2, 0.3, undefined, 0, 0.08, wallRand, [0.9, 0.9, 0.85]);
+    }
+  }
+  // a rocky lip along the deck's edge, just under the planks
+  for (let x = L.deck.minX; x < L.deck.maxX; x += 1.1) {
+    boulder(x + (wallRand() - 0.5) * 0.3, CAVE.height - 1.0 - wallRand() * 0.3, L.face - 0.5, 0.8, 0.7, 0.9, undefined, 0, 0.1, wallRand, [0.9, 0.9, 0.85]);
+  }
+  // a skirt of rock over the outside of the stair, so the switchback reads as
+  // part of the mountain rather than a bare wall
+  const parapetTop = (x: number) => {
+    const k = x >= L.landingX[0] ? 14 : Math.max(1, Math.ceil((x - L.x0) / L.tread));
+    return lookoutStep(Math.min(14, k)) + 1;
+  };
+  for (let x = L.x0 + 0.3; x < L.landingX[1] + 0.5; x += 1.15) {
+    for (let y = 0.7; y < parapetTop(x) - 0.4; y += 0.95) {
+      const rad = 0.6 + wallRand() * 0.3;
+      boulder(x + (wallRand() - 0.5) * 0.4, y, L.laneOut[1] + 0.6 + wallRand() * 0.15, rad, 0.55 + wallRand() * 0.25, 0.5, undefined, 0, 0.1, wallRand, [0.9, 0.9, 0.85]);
+    }
+  }
+  // the tall wall between the lanes gets the same treatment on the lower
+  // lane's side, bulging no further than a tunnel wall does
+  for (let x = L.topX[0] + 0.3; x < L.landingX[0]; x += 1.15) {
+    const k = x < L.topX[1] ? 28 : 14 + Math.ceil((L.landingX[0] - x) / L.tread);
+    for (let y = 0.7; y < lookoutStep(Math.min(28, k)) + 0.6; y += 0.95) {
+      const rad = 0.6 + wallRand() * 0.3;
+      boulder(x + (wallRand() - 0.5) * 0.4, y, L.laneOut[0] - 0.02, rad, 0.55 + wallRand() * 0.25, 0.2, undefined, 0, 0.08, wallRand, [0.9, 0.9, 0.85]);
+    }
+  }
+  // and over the two ends: the tall face beside the cave mouth, and the corner
+  for (let y = 0.7; y < L.top + 0.6; y += 0.95) {
+    const rad = 0.6 + wallRand() * 0.3;
+    boulder(L.topX[0] - 0.75, y, L.laneIn[0] + 0.6 + wallRand() * 1.2, 0.5, 0.55 + wallRand() * 0.25, rad, undefined, 0, 0.1, wallRand, [0.9, 0.9, 0.85]);
+  }
+  for (let y = 0.7; y < lookoutStep(14) + 0.7; y += 0.95) {
+    const rad = 0.6 + wallRand() * 0.3;
+    boulder(L.landingX[1] + 0.75, y, L.laneIn[0] + 0.8 + wallRand() * 3, 0.5, 0.55 + wallRand() * 0.25, rad, undefined, 0, 0.1, wallRand, [0.9, 0.9, 0.85]);
+  }
+  // the way up, signposted at the bottom step
+  const trail = signBoard("LOOKOUT", 2.6, 0.8);
+  trail.position.set(L.start[0] - 2.2, 2.1, L.laneOut[1] + 0.7);
+  trail.rotation.y = 0.25;
+  g.add(trail);
+  for (const s of [-1, 1]) g.add(mesh(boxGeo, "#6a4a32", 0.18, 2.2, 0.18, L.start[0] - 2.2 + s * 1.1, 1.1, L.laneOut[1] + 0.75));
+  // lanterns on the parapets, so the steps are lit at dusk
+  for (const k of [3, 8, 13, 18, 23, 28]) {
+    const x = k <= 13 ? L.x0 + (k - 0.5) * L.tread : k <= 27 ? L.landingX[0] - (k - 14.5) * L.tread : L.topX[0] + 1.2;
+    const z = k <= 13 ? L.laneOut[1] + 0.17 : L.laneIn[1] + 0.15;
+    lantern(x, lookoutStep(k) + 1.35, z);
+  }
+  // the flag on its pole
+  const flagPole = [65.8, L.top, -114.6] as const;
+  const cloth = new THREE.Mesh(boxGeo, lam("#f28bc4", { flat: true }));
+  cloth.scale.set(1.5, 0.9, 0.06);
+  cloth.position.set(flagPole[0] + 0.82, flagPole[1] + 4.4, flagPole[2]);
+  g.add(cloth);
+  const star = new THREE.Mesh(sphereGeo, rockMat("#ffd86a", "#ffb640", 0.9));
+  star.scale.setScalar(0.16);
+  star.position.set(flagPole[0], flagPole[1] + 5.3, flagPole[2]);
+  g.add(star);
+  // the telescope: a tube on its post, tipped down toward the park
+  const scope = new THREE.Group();
+  const tube = new THREE.Mesh(cylGeo, lam("#5a6a70", { flat: true }));
+  tube.scale.set(0.16, 1.1, 0.16);
+  tube.rotation.x = Math.PI / 2 - 0.35;
+  scope.add(tube);
+  const eye = new THREE.Mesh(cylGeo, lam("#2f3a40", { flat: true }));
+  eye.scale.set(0.1, 0.22, 0.1);
+  eye.rotation.x = Math.PI / 2 - 0.35;
+  eye.position.set(0, -0.28, -0.62);
+  scope.add(eye);
+  const hood = new THREE.Mesh(cylGeo, lam("#b8c2c8", { flat: true }));
+  hood.scale.set(0.2, 0.18, 0.2);
+  hood.rotation.x = Math.PI / 2 - 0.35;
+  hood.position.set(0, 0.32, 0.56);
+  scope.add(hood);
+  scope.position.set(81.5, L.top + 1.35, -114.4);
+  g.add(scope);
+  g.add(mesh(boxGeo, "#ffd86a", 0.22, 0.3, 0.12, 81.5, L.top + 0.95, -114.1, false));
+
+  g.userData.rockFit = { refitted, dropped };
   return g;
 }
 

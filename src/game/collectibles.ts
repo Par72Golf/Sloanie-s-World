@@ -63,9 +63,10 @@ export const STICKER_SPOTS: StickerSpot[] = [
   },
   {
     id: "ladybug",
-    pos: [8, 1.07, 40],
+    // the flower bed moved off the midway when the walkways went in
+    pos: [10, 1.07, 30],
     area: "the flower bed",
-    hint: "A ladybug is crawling in the flower bed just south of where you start. Turn around!",
+    hint: "A ladybug is crawling in the flower bed beside the path south of the plaza. Turn around!",
   },
   {
     id: "bee",
@@ -235,9 +236,10 @@ export const PET_QUEST: {
   farmer: [-69.8, 0.03, -138.5],
   treats: [
     {
-      pos: [21.5, 0.9, 3],
+      // off the east road, on the grass between the slide and the sandbox
+      pos: [22.0, 0.9, 12.6],
       area: "the slide",
-      hint: "Sniff sniff! A pet treat is by the slide, north-east of where you start.",
+      hint: "Sniff sniff! A pet treat is behind the slide, east of where you start.",
     },
     {
       pos: [-106, 1.03, -26],
