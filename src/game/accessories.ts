@@ -53,7 +53,7 @@ export type AccessoryDef = {
 export const ACCESSORIES: AccessoryDef[] = [
   { id: "sunglasses", name: "Sunglasses", slot: "face", hint: "Somewhere splashy." },
   { id: "partyhat", name: "Party hat", slot: "head", hint: "Where the tennis balls fly." },
-  { id: "bow", name: "Big bow", slot: "hair", hint: "By the sandbox." },
+  { id: "bow", name: "Big bow", slot: "hair", hint: "By the sandbox at the big playground, far to the west." },
   { id: "backpack", name: "Backpack", slot: "back", hint: "Out on the ball field." },
   { id: "flowercrown", name: "Flower crown", slot: "head", hint: "By the hammock at the campground." },
   { id: "crown", name: "Golden crown", slot: "head", hint: "Find every dumpling in the park.", reward: "every dumpling in the park" },
@@ -741,7 +741,10 @@ export function applyWorn(girl: THREE.Group, worn: Worn) {
   const head = girl.userData.head as THREE.Group;
   const torso = girl.userData.torso as THREE.Group;
   const rightArm = girl.userData.rightArm as THREE.Group | undefined;
-  for (const grp of [head, torso, rightArm]) {
+  // held things go in her LEFT hand: the iPod lives in her right one, and
+  // swapping it out every time she picked something up interrupted the music
+  const leftArm = girl.userData.leftArm as THREE.Group | undefined;
+  for (const grp of [head, torso, rightArm, leftArm]) {
     if (!grp) continue;
     for (const child of [...grp.children]) {
       if (child.userData.accessory) grp.remove(child);
@@ -753,30 +756,28 @@ export function applyWorn(girl: THREE.Group, worn: Worn) {
     if (!id) continue;
     const { mesh, attach } = makeAccessory(id);
     if (attach === "hand") {
-      if (!rightArm) continue;
+      if (!leftArm) continue;
       // hand items are built around the hand centre; the hand ball sits at
-      // (0, -0.53, 0) in the arm group, which pivots at the shoulder
+      // (0, -0.53, 0) in the arm group, which pivots at the shoulder. They are
+      // modelled for the right hand, so the grip is mirrored for the left.
       const grip = new THREE.Group();
       grip.userData.accessory = id;
       grip.position.set(0, -0.53, 0);
+      grip.scale.x = -1;
       grip.add(mesh);
-      rightArm.add(grip);
+      leftArm.add(grip);
       holding = true;
     } else {
       (attach === "head" ? head : torso).add(mesh);
     }
   }
-  // Holding something hides the iPod she otherwise carries. makeGirl adds the
-  // arm's own parts in order: sleeve, arm, hand, thumb (children 0-3), then
-  // the iPod group and the cord along the arm (4 and 5). Neither of those has
-  // a name to find it by yet, so toggle every non-accessory child from index 4
-  // on. Accessories are always appended after the built-in parts, so the
-  // indices hold. TODO: switch to a name lookup once the iPod is named.
+  // the iPod stays in her right hand whatever she is carrying
   if (rightArm) {
     rightArm.children.forEach((child, i) => {
-      if (i >= 4 && !child.userData.accessory) child.visible = !holding;
+      if (i >= 4 && !child.userData.accessory) child.visible = true;
     });
   }
+  void holding;
 }
 
 /** The item as a pickup: bigger, over a glowing ring, ready to spin. */

@@ -806,10 +806,7 @@ export class GameRuntime {
   /** Hands follow the camera, with a walk bob and a lean into turns. */
   updateHands() {
     const g = this.hands.group;
-    // holding something else: the iPod goes away rather than being in both
-    // her hand in third person and her hand in first person at the same time
-    const ipod = this.hands.right.getObjectByName("fp-ipod");
-    if (ipod) ipod.visible = !useGame.getState().worn.hand;
+    // the iPod stays in her right hand; held things are in the left one
     g.position.copy(this.camera.position);
     g.quaternion.copy(this.camera.quaternion);
     const pace = THREE.MathUtils.clamp(this.speed / WALK, 0, 1.6);
@@ -1826,7 +1823,7 @@ export class GameRuntime {
     // held items: the balloon floats steady above her rather than whipping
     // round with her arm swing, and the pinwheel spins faster as she runs
     {
-      const arm = this.girl.userData.rightArm as THREE.Group | undefined;
+      const arm = this.girl.userData.leftArm as THREE.Group | undefined;
       if (arm) {
         for (const grip of arm.children) {
           const held = grip.userData.accessory;
