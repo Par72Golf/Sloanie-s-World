@@ -147,6 +147,59 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
   return c;
 }
 
+/**
+ * Compass. On the turning corner map a red N rides round the rim to show
+ * where north is, with small E, S and W marks; on the expanded map (always
+ * north-up) it is a little rose in the top-left corner.
+ */
+function drawCompass(g: CanvasRenderingContext2D, size: number, north: number, expanded: boolean) {
+  // top-left on the expanded map: the close button sits top-right
+  const cx = expanded ? 34 : size / 2;
+  const cy = expanded ? 34 : size / 2;
+  const r = expanded ? 22 : size / 2 - 12;
+  // `north` is the screen angle of north, clockwise from straight up
+  const at = (k: number) => {
+    const a = north + (k * Math.PI) / 2;
+    return [cx + Math.sin(a) * r, cy - Math.cos(a) * r] as const;
+  };
+  g.save();
+  if (expanded) {
+    g.fillStyle = "rgba(255,250,240,0.92)";
+    g.strokeStyle = INK;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(cx, cy, r + 10, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+  }
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const small = expanded ? 11 : Math.max(8, size * 0.06);
+  for (const [k, label] of [
+    [1, "E"],
+    [2, "S"],
+    [3, "W"],
+  ] as const) {
+    const [x, y] = at(k);
+    g.font = `700 ${small}px system-ui, sans-serif`;
+    g.fillStyle = "rgba(58,43,32,0.7)";
+    g.fillText(label, x, y);
+  }
+  const [nx, ny] = at(0);
+  const big = expanded ? 13 : Math.max(10, size * 0.085);
+  g.fillStyle = "#d4494f";
+  g.strokeStyle = "#fdf7ea";
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(nx, ny, big * 0.85, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  g.fillStyle = "#fffaf0";
+  g.font = `800 ${big}px system-ui, sans-serif`;
+  g.fillText("N", nx, ny + 0.5);
+  g.restore();
+}
+
 export function MiniMap() {
   const phase = useGame((s) => s.phase);
   const levelIndex = useGame((s) => s.levelIndex);
@@ -201,8 +254,20 @@ export function MiniMap() {
           g.clearRect(0, 0, size, size);
           g.save();
           g.beginPath();
-          g.rect(0, 0, size, size);
+          // the corner map is a round window that turns with her
+          if (expanded) g.rect(0, 0, size, size);
+          else g.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
           g.clip();
+
+          // The layer is laid out with +z up and +x left, where her heading
+          // points at (sin yaw, cos yaw). North is -z (she starts the park
+          // facing north), which on that layout is straight down.
+          // Corner map: forward is always up, by turning the drawing yaw - PI
+          // about her. Expanded map: turned a half turn, so north is up.
+          const turn = expanded ? Math.PI : worldPose.yaw - Math.PI;
+          g.translate(size / 2, size / 2);
+          g.rotate(turn);
+          g.translate(-size / 2, -size / 2);
 
           // sample only the visible slice of the cached layer rather than
           // scaling the whole 900px image every frame
@@ -210,14 +275,18 @@ export function MiniMap() {
           if (expanded) {
             g.drawImage(base, 0, 0, base.width, base.height, 0, 0, size, size);
           } else {
-            const view = span / zoom;
+            // a slice ~1.5x wider than the window, so turning never shows
+            // its corners
+            const pad = 1.5;
+            const view = (span / zoom) * pad;
             const perWorld = base.width / span;
             const sx = (b.maxX - (worldPose.x + view / 2)) * perWorld;
             const sy = (b.maxZ - (worldPose.z + view / 2)) * perWorld;
             const sw = view * perWorld;
+            const dw = size * pad;
             g.fillStyle = COL.ground;
-            g.fillRect(0, 0, size, size);
-            g.drawImage(base, sx, sy, sw, sw, 0, 0, size, size);
+            g.fillRect(-size, -size, size * 3, size * 3);
+            g.drawImage(base, sx, sy, sw, sw, (size - dw) / 2, (size - dw) / 2, dw, dw);
           }
 
           // juice boxes
@@ -264,6 +333,8 @@ export function MiniMap() {
           // I flipped the map I dropped this half turn as well, which rotated
           // the arrow too and left it moving with the terrain instead of
           // against it: walk north, arrow pointed south.
+          // her heading on the layer; drawn inside the turned frame, so on the
+          // corner map it always ends up pointing straight up
           g.rotate(-worldPose.yaw + Math.PI);
           g.beginPath();
           g.moveTo(0, -9);
@@ -279,6 +350,8 @@ export function MiniMap() {
           g.restore();
 
           g.restore();
+          // north is straight down on the layer, so it sits half a turn on
+          drawCompass(g, size, turn + Math.PI, expanded);
         }
       }
       raf = window.requestAnimationFrame(loop);
@@ -313,7 +386,7 @@ export function MiniMap() {
             className={
               open
                 ? "h-[min(86vw,86vh,620px)] w-[min(86vw,86vh,620px)] rounded-xl border-2 border-line bg-surface shadow-[0_18px_40px_-24px_rgb(42_33_24_/_0.6)]"
-                : "size-[112px] cursor-pointer rounded-lg border-2 border-line bg-surface/90 shadow-[0_10px_24px_-16px_rgb(42_33_24_/_0.6)] sm:size-[168px]"
+                : "size-[112px] cursor-pointer rounded-full border-2 border-line bg-surface/90 shadow-[0_10px_24px_-16px_rgb(42_33_24_/_0.6)] sm:size-[168px]"
             }
           />
           {open ? (
@@ -326,7 +399,8 @@ export function MiniMap() {
               <X className="size-4" />
             </button>
           ) : (
-            <span className="pointer-events-none absolute left-1.5 top-1.5 flex items-center gap-1 rounded bg-surface/85 px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
+            // outside the round map's lower left, clear of the compass letters
+            <span className="pointer-events-none absolute -left-2 bottom-0 flex items-center gap-1 rounded border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
               <MapIcon className="size-3" />M
             </span>
           )}

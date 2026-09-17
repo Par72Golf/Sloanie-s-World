@@ -171,6 +171,12 @@ Current version: **v3.0** (17 Sept 2026).
   closed and there is a `noJump` zone round the carousel. Adding the carnival
   moved one hedge 2m south and dropped one berm in front of its entrance (a
   `keepClear` rect keeps the approach open); nothing else in the park moved.
+- **Directions:** north is -z, east is +x. She starts the park facing north.
+  (Older hints had north as +z, which with east as +x was a mirror-image
+  compass; the few that said north or south were flipped to match.) The corner
+  minimap is round and turns with her so forward is always up, with a red N on
+  the rim; the expanded map is north-up with a small compass rose. Use this frame
+  for any new hint text.
 ---
 
 ## 1. What this is

@@ -296,7 +296,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-9.5, 0.62, -46.5], region: "the big pond", hint: "On the far side of the pond from the little dock, near the water." },
-      { pos: [3, 0.62, -32], region: "the pond lawn", hint: "On the grass just north of the big pond." },
+      { pos: [3, 0.62, -32], region: "the pond lawn", hint: "On the grass just south of the big pond." },
     ],
   },
   {
@@ -366,12 +366,12 @@ const picnicDumplings: DumplingDef[] = [
     pos: [20.5, 0.62, 112.5],
     finish: "rainbow",
     hide: "hard",
-    region: "the houses on the north street",
-    hint: "In a back yard on the north street, hiding behind a hedge.",
+    region: "the houses on the south street",
+    hint: "In a back yard on the south street, hiding behind a hedge.",
  
     alts: [
-      { pos: [-15.5, 0.62, 112.5], region: "the houses on the north street", hint: "In a back yard on the north street, behind a hedge." },
-      { pos: [56.5, 0.62, 112.5], region: "the houses on the north street", hint: "In the back yard of the house at the far end of the street." },
+      { pos: [-15.5, 0.62, 112.5], region: "the houses on the south street", hint: "In a back yard on the south street, behind a hedge." },
+      { pos: [56.5, 0.62, 112.5], region: "the houses on the south street", hint: "In the back yard of the house at the far end of the street." },
     ],
   },
   {
@@ -400,7 +400,7 @@ const picnicDumplings: DumplingDef[] = [
     finish: "glow",
     hide: "hard",
     region: "the mountain cave",
-    hint: "Find the rocky mountain past the south gate, to the east. Follow the tunnels to the biggest cavern and look up on the ledge.",
+    hint: "Find the rocky mountain past the north gate, to the east. Follow the tunnels to the biggest cavern and look up on the ledge.",
 
     alts: [
       { pos: CAVE_SPOTS.grotto, region: "the mountain cave", hint: "Inside the mountain cave, in the sparkly crystal room." },
@@ -464,9 +464,9 @@ const picnicDumplings: DumplingDef[] = [
     finish: "pearl",
     hide: "medium",
     region: "the campground",
-    hint: "At the campground in the far north-east corner, tucked behind the orange tent.",
+    hint: "At the campground in the far south-east corner, tucked behind the orange tent.",
     alts: [
-      { pos: [119, 0.95, 134], region: "the campground", hint: "On the picnic table at the campground, north-east corner of the park." },
+      { pos: [119, 0.95, 134], region: "the campground", hint: "On the picnic table at the campground, south-east corner of the park." },
       { pos: [138, 1.0, 133], region: "the campground hammock", hint: "Lying in the hammock at the campground." },
     ],
   },
