@@ -444,17 +444,35 @@ function TitleScreen() {
   const listRef = useRef<HTMLDivElement>(null);
   const [bar, setBar] = useState<{ top: number; height: number } | null>(null);
   useEffect(() => {
+    /*
+     * Measure the row against the scrolling box the bar lives in. offsetTop is
+     * relative to the nearest positioned ancestor, which is the inner grid, so
+     * it left the bar short by the box's padding and the highlight sat off the
+     * row it was meant to be on.
+     */
     const place = () => {
       const el = rows.current[sel];
-      if (el) setBar({ top: el.offsetTop, height: el.offsetHeight });
+      const list = listRef.current;
+      if (!el || !list) return;
+      const r = el.getBoundingClientRect();
+      const lr = list.getBoundingClientRect();
+      setBar({ top: r.top - lr.top + list.scrollTop, height: r.height });
     };
     place();
+    // fonts and the pop-in animation settle a frame or two later
+    const raf = requestAnimationFrame(place);
     const list = listRef.current;
-    if (!list || typeof ResizeObserver === "undefined") return;
+    if (!list || typeof ResizeObserver === "undefined") return () => cancelAnimationFrame(raf);
     const ro = new ResizeObserver(place);
     ro.observe(list);
-    return () => ro.disconnect();
-  }, [sel, unlocked]);
+    for (const el of rows.current) if (el) ro.observe(el);
+    list.addEventListener("scroll", place, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      list.removeEventListener("scroll", place);
+    };
+  }, [sel, unlocked, detail]);
 
   const toggle = (d: Exclude<TitleDetail, null>) => {
     sfx.click();
