@@ -68,6 +68,17 @@ function wrapAngle(a: number) {
   return a - Math.PI * 2 * Math.floor((a + Math.PI) / (Math.PI * 2));
 }
 
+/**
+ * Drawing resolution in "sharp" mode. The game is fill-rate bound: frame time
+ * is close to linear in pixels, so a Retina screen or a TV reporting a device
+ * pixel ratio of 2 asks for four times the work of the window's own size. On a
+ * 1080p TV a cap of 1.5 is the difference between a comfortable frame rate and
+ * a slideshow, and at couch distance the extra pixels are not visible.
+ */
+function sharpPixelRatio() {
+  return Math.min(window.devicePixelRatio || 1, 1.5);
+}
+
 /** How early before landing a jump press still counts. */
 const JUMP_BUFFER = 0.18;
 
@@ -160,7 +171,7 @@ export class GameRuntime {
       alpha: false,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(sharpPixelRatio());
     this.renderer.setSize(canvas.clientWidth || 1280, canvas.clientHeight || 800, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
@@ -274,7 +285,7 @@ export class GameRuntime {
   applyGraphics(mode: "sharp" | "smooth") {
     const smooth = mode === "smooth";
     this.graphics = mode;
-    this.renderer.setPixelRatio(smooth ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(smooth ? 1 : sharpPixelRatio());
     // MSAA samples are fixed when a render target is first allocated, so a
     // change needs new targets; reset() disposes both of the old ones
     const samples = smooth ? 2 : 4;

@@ -2,36 +2,51 @@
 
 @theme {
   /*
-   * Sunny adventure. Navy outlines, clean white surfaces, a sky-cool second
-   * surface, coral for the one thing to press, teal for "go / good", sunshine
-   * for rewards, grape for special. Bright without being pink-first.
+   * Jewel box. Deep plum outlines, pearl-white surfaces with a blush of pink and
+   * lilac, raspberry-rose for the one thing to press, emerald-teal for "go",
+   * topaz for rewards, amethyst for special, sapphire for info. Facets, a slow
+   * shimmer on key buttons and the odd sparkle, never glitter everywhere.
+   * Token names are shared by every screen, so they keep their old names.
    */
-  --color-bg: #e6f4ff;
+  --color-bg: #fdf0fa;
   --color-surface: #ffffff;
-  --color-surface-2: #eef5ff;
-  --color-surface-3: #dcebff;
-  --color-ink: #1d2452;
-  --color-ink-soft: #56608f;
-  --color-muted: #8a93b8;
-  --color-line: #d3e0f3;
+  --color-surface-2: #fcf3ff;
+  --color-surface-3: #f1e3fd;
+  --color-ink: #2a1850;
+  --color-ink-soft: #66568f;
+  --color-muted: #a394c0;
+  --color-line: #ecdcf6;
   /* borders are a feature here, not a hairline */
-  --color-edge: #1d2452;
-  --color-accent: #ff6a55;
-  --color-accent-deep: #e24e3a;
+  --color-edge: #2e1856;
+  --color-accent: #f2457f;
+  --color-accent-deep: #d12a64;
   --color-accent-fg: #ffffff;
-  --color-sun: #ffc83a;
-  --color-sun-deep: #f0a91c;
-  --color-leaf: #22b37a;
-  --color-teal: #14a3a6;
-  --color-teal-deep: #0e8588;
-  --color-grape: #7b5cf0;
-  --color-berry: #f0506e;
-  --color-accent-2: #2f7fd6;
-  --color-ok: #1b9a61;
+  --color-sun: #ffc93a;
+  --color-sun-deep: #e3940b;
+  --color-leaf: #17b47a;
+  --color-teal: #0fa99b;
+  --color-teal-deep: #0b877c;
+  --color-grape: #8b5cf6;
+  --color-berry: #e33b62;
+  --color-accent-2: #3a68ee;
+  --color-ok: #13a064;
   --color-ok-fg: #f2fff8;
-  --color-warm: #e0602e;
-  --color-cold: #3a7bd5;
-  --color-sky: #5ab8f0;
+  --color-warm: #f0692c;
+  --color-cold: #3a73e8;
+  --color-sky: #6cc0f2;
+  /* jewel names, for new work: same family as the tokens above */
+  --color-plum: #2e1856;
+  --color-rose: #ff8ac4;
+  --color-rose-soft: #ffd9ee;
+  --color-blush: #fff2f9;
+  --color-lilac: #ebdfff;
+  --color-pearl: #fffafd;
+  --color-amethyst: #8b5cf6;
+  --color-sapphire: #3a68ee;
+  --color-emerald: #17b47a;
+  --color-ruby: #e33b62;
+  --color-topaz: #ffc93a;
+  --color-gold: #f5b41f;
   --font-display: "Fredoka", "Segoe UI", system-ui, sans-serif;
   --font-sans: "Nunito", "Segoe UI", system-ui, sans-serif;
   --radius-xs: 0.5rem;
@@ -39,52 +54,67 @@
   --radius-md: 1.1rem;
   --radius-lg: 1.6rem;
   --radius-xl: 2rem;
-  --shadow-panel: 0 22px 40px -18px rgb(29 36 82 / 0.45);
+  --shadow-panel: 0 22px 40px -18px rgb(46 24 86 / 0.45);
+  --shadow-glow: 0 0 0 4px rgb(255 138 196 / 0.35), 0 0 22px 4px rgb(255 138 196 / 0.45);
   --animate-ui-pop: ui-pop 260ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
   --animate-ui-rise: ui-rise 320ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
   --animate-ui-fade: ui-fade 200ms ease-out both;
+  --animate-ui-drop: ui-drop 900ms cubic-bezier(0.25, 0.9, 0.3, 1) both;
+  --animate-ui-slide: ui-slide 420ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  --animate-ui-pulse: ui-pulse 1.6s ease-in-out infinite;
 }
 
 @layer components {
   /*
-   * Chunky toy treatment, polished: thick navy outline, generous radius, a hard
-   * offset "base" shadow plus a soft drop shadow, and a thin white highlight
-   * along the top inside edge, so panels and buttons read as glossy physical
-   * blocks sitting on the screen. Sized to be legible from a couch.
+   * Chunky jewel treatment: thick plum outline, generous radius, a hard offset
+   * "base" shadow plus a soft drop shadow, and a pearly highlight along the top
+   * inside edge, so panels and buttons read as polished gems sitting on the
+   * screen. Sized to be legible from a couch.
    *
    * Everything below is shared by every screen. Prefer these over one-off
    * shadows and borders:
    *   .chunk / .chunk-sm   panel and button blocks
    *   .press               goes down when pressed; add to anything clickable
-   *   .gloss               soft top sheen for coloured buttons and badges
+   *   .gloss               faceted sheen for coloured buttons and badges
    *   .ui-backdrop         full-screen dim + blur behind a modal
-   *   .ui-glass            frosted HUD chip over the 3D world
-   *   .ui-title            big display heading with a navy outline
+   *   .ui-glass            pearly HUD card over the 3D world
+   *   .ui-title            big display heading with a plum outline
+   *   .ui-logo             the title logo: jewel gradient fill (spans with data-text)
    *   .ui-chip             small rounded pill (tickets, counts, tags)
-   *   .ui-dots             faint dotted-paper pattern for panel bodies
-   *   .ui-ribbon           coloured header band on top of a panel
-   *   animate-ui-pop / animate-ui-rise / animate-ui-fade  entrances
+   *   .ui-dots             faint sparkle-dot pattern for panel bodies
+   *   .ui-ribbon           coloured, faceted header band on top of a panel
+   *   .ui-gem              faceted octagon gem badge; colour with --gem
+   *   .ui-pip              small diamond progress pip; data-on fills it
+   *   .ui-shimmer          slow light sweep across a key button
+   *   .ui-sparkle          a four-point twinkle; place it absolutely
+   *   .ui-rays             slow turning light rays behind a title
+   *   animate-ui-pop / -rise / -fade / -drop / -slide / -pulse  entrances and loops
    */
   .chunk {
     border: 3px solid var(--color-edge);
     border-radius: 1.6rem;
     box-shadow:
-      inset 0 2px 0 rgb(255 255 255 / 0.75),
+      inset 0 2px 0 rgb(255 255 255 / 0.8),
+      inset 0 -3px 0 rgb(46 24 86 / 0.06),
       0 6px 0 var(--color-edge),
-      0 22px 36px -16px rgb(29 36 82 / 0.5);
+      0 22px 36px -16px rgb(46 24 86 / 0.5);
   }
 
   .chunk-sm {
     border: 3px solid var(--color-edge);
     border-radius: 1.1rem;
     box-shadow:
-      inset 0 2px 0 rgb(255 255 255 / 0.6),
+      inset 0 2px 0 rgb(255 255 255 / 0.65),
+      inset 0 -3px 0 rgb(46 24 86 / 0.08),
       0 5px 0 var(--color-edge),
-      0 14px 22px -14px rgb(29 36 82 / 0.45);
+      0 14px 22px -14px rgb(46 24 86 / 0.45);
   }
 
+  /* a soft top sheen plus one crisp diagonal facet, like light on a cut stone */
   .gloss {
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.34) 0%, rgb(255 255 255 / 0.08) 48%, rgb(0 0 0 / 0.04) 100%);
+    background-image:
+      linear-gradient(118deg, rgb(255 255 255 / 0) 0 58%, rgb(255 255 255 / 0.16) 58% 70%, rgb(255 255 255 / 0) 70%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.4) 0%, rgb(255 255 255 / 0.1) 46%, rgb(0 0 0 / 0) 47%, rgb(0 0 0 / 0.05) 100%);
   }
 
   /* buttons actually go down when pressed, and lift a touch on hover */
@@ -97,7 +127,7 @@
 
   @media (hover: hover) {
     .press:hover:not(:disabled) {
-      filter: brightness(1.05) saturate(1.05);
+      filter: brightness(1.05) saturate(1.08);
       transform: translateY(-1px);
     }
   }
@@ -116,19 +146,20 @@
   }
 
   .ui-backdrop {
-    background: radial-gradient(ellipse at center, rgb(29 36 82 / 0.35), rgb(29 36 82 / 0.62));
+    background: radial-gradient(ellipse at center, rgb(46 24 86 / 0.32), rgb(46 24 86 / 0.64));
     backdrop-filter: blur(6px) saturate(1.1);
     -webkit-backdrop-filter: blur(6px) saturate(1.1);
   }
 
   .ui-glass {
-    background: rgb(255 255 255 / 0.86);
+    background: linear-gradient(165deg, rgb(255 255 255 / 0.95) 0%, rgb(255 244 251 / 0.92) 55%, rgb(242 232 255 / 0.92) 100%);
     border: 3px solid var(--color-edge);
     border-radius: 1.1rem;
     box-shadow:
-      inset 0 2px 0 rgb(255 255 255 / 0.9),
+      inset 0 2px 0 rgb(255 255 255 / 0.95),
+      inset 0 0 0 1.5px rgb(255 190 225 / 0.35),
       0 4px 0 var(--color-edge),
-      0 14px 24px -14px rgb(29 36 82 / 0.5);
+      0 14px 24px -14px rgb(46 24 86 / 0.5);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
@@ -143,6 +174,31 @@
     text-shadow: 0 5px 0 var(--color-edge);
   }
 
+  /*
+   * The logo: each word is a span with data-text. The span draws the plum
+   * outline and base shadow; ::after lays a rose, pink and topaz jewel fill over
+   * the glyphs, with a pearly band across the top half.
+   */
+  .ui-logo {
+    position: relative;
+    display: inline-block;
+  }
+
+  .ui-logo::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    color: transparent;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.62) 0 9%, rgb(255 255 255 / 0) 34%),
+      linear-gradient(100deg, #ff8fc8 0%, #ff3d8c 30%, #a855f7 62%, #ffb02e 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    pointer-events: none;
+  }
+
   .ui-chip {
     display: inline-flex;
     align-items: center;
@@ -152,24 +208,253 @@
     padding: 0.05rem 0.6rem;
     font-family: var(--font-display);
     font-weight: 600;
-    box-shadow: 0 3px 0 var(--color-edge);
+    box-shadow:
+      inset 0 1.5px 0 rgb(255 255 255 / 0.55),
+      0 3px 0 var(--color-edge);
   }
 
   .ui-dots {
-    background-image: radial-gradient(rgb(90 184 240 / 0.16) 1.4px, transparent 1.5px);
-    background-size: 14px 14px;
+    background-image:
+      radial-gradient(rgb(255 138 196 / 0.2) 1.4px, transparent 1.5px),
+      radial-gradient(rgb(139 92 246 / 0.12) 1.2px, transparent 1.3px);
+    background-size: 16px 16px;
+    background-position:
+      0 0,
+      8px 8px;
   }
 
   .ui-ribbon {
     border-bottom: 3px solid var(--color-edge);
     border-radius: calc(1.6rem - 3px) calc(1.6rem - 3px) 0 0;
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.25), rgb(255 255 255 / 0));
+    background-image:
+      linear-gradient(115deg, rgb(255 255 255 / 0) 0 62%, rgb(255 255 255 / 0.14) 62% 74%, rgb(255 255 255 / 0) 74%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0) 60%);
+  }
+
+  /*
+   * Faceted gem badge. Set --gem to a colour (defaults to rose). The element
+   * itself stays unclipped so it can carry a drop shadow; ::before is the plum
+   * rim and ::after the cut stone, with light and dark facets from a hard-stop
+   * conic gradient, a brighter table in the middle and a glint.
+   */
+  .ui-gem {
+    --gem: var(--color-accent);
+    --gem-cut: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%);
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    isolation: isolate;
+    color: #fff;
+    filter: drop-shadow(0 3px 0 var(--color-edge));
+  }
+
+  .ui-gem::before,
+  .ui-gem::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    clip-path: var(--gem-cut);
+  }
+
+  .ui-gem::before {
+    inset: 0;
+    background: var(--color-edge);
+  }
+
+  .ui-gem::after {
+    inset: 3px;
+    background:
+      radial-gradient(circle at 30% 24%, rgb(255 255 255 / 0.95) 0 5%, rgb(255 255 255 / 0) 9%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.32) 0 34%, rgb(255 255 255 / 0) 34%),
+      conic-gradient(
+        from 22.5deg at 50% 52%,
+        color-mix(in oklab, var(--gem) 72%, white) 0 45deg,
+        var(--gem) 45deg 90deg,
+        color-mix(in oklab, var(--gem) 82%, black) 90deg 135deg,
+        color-mix(in oklab, var(--gem) 70%, black) 135deg 180deg,
+        color-mix(in oklab, var(--gem) 82%, black) 180deg 225deg,
+        var(--gem) 225deg 270deg,
+        color-mix(in oklab, var(--gem) 80%, white) 270deg 315deg,
+        color-mix(in oklab, var(--gem) 60%, white) 315deg 360deg
+      );
+    clip-path: var(--gem-cut);
+  }
+
+  /* a brilliant-cut silhouette instead of the octagon */
+  .ui-gem-diamond {
+    --gem-cut: polygon(22% 0, 78% 0, 100% 36%, 50% 100%, 0 36%);
+  }
+
+  /* small diamond progress pip: a rotated rounded square so the outline is real */
+  .ui-pip {
+    display: block;
+    aspect-ratio: 1;
+    transform: rotate(45deg) scale(0.72);
+    border: 2px solid var(--color-edge);
+    border-radius: 3px;
+    background: var(--color-lilac);
+    box-shadow: inset 0 1.5px 0 rgb(255 255 255 / 0.7);
+    transition:
+      background-color 300ms ease,
+      transform 300ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  }
+
+  .ui-pip[data-on] {
+    transform: rotate(45deg) scale(0.86);
+    background:
+      linear-gradient(135deg, rgb(255 255 255 / 0.85) 0 22%, rgb(255 255 255 / 0) 23%),
+      linear-gradient(135deg, #ff9ccf 0%, #f2457f 55%, #a24df0 100%);
+  }
+
+  /* slow sheen sweeping across a key button every few seconds */
+  .ui-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .ui-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      rgb(255 255 255 / 0) 30%,
+      rgb(255 255 255 / 0.5) 45%,
+      rgb(255 255 255 / 0.15) 52%,
+      rgb(255 255 255 / 0) 62%
+    );
+    transform: translateX(-120%);
+    animation: ui-shimmer 4.6s ease-in-out 1.2s infinite;
+  }
+
+  /* four-point twinkle; size with width, place with top/left, stagger with --delay */
+  .ui-sparkle {
+    position: absolute;
+    display: block;
+    width: 1.25rem;
+    aspect-ratio: 1;
+    pointer-events: none;
+    background: radial-gradient(circle, #fff 0 28%, #fff4c2 45%, #ffc93a 100%);
+    clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+    filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.9));
+    animation: ui-twinkle 2.4s ease-in-out var(--delay, 0s) infinite both;
+  }
+
+  .ui-rays {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .ui-rays::before {
+    content: "";
+    position: absolute;
+    left: var(--rays-x, 50%);
+    top: var(--rays-y, 40%);
+    width: 220vmax;
+    height: 220vmax;
+    margin: -110vmax 0 0 -110vmax;
+    background: repeating-conic-gradient(from 0deg, rgb(255 236 250 / 0.2) 0deg 7deg, rgb(255 255 255 / 0) 7deg 20deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0%, rgb(0 0 0 / 0.5) 14%, transparent 30%);
+    mask-image: radial-gradient(circle, #000 0%, rgb(0 0 0 / 0.5) 14%, transparent 30%);
+    animation: ui-spin 90s linear infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .press {
       transition: none;
     }
+    .ui-shimmer::after,
+    .ui-rays::before {
+      animation: none;
+    }
+    .ui-shimmer::after {
+      display: none;
+    }
+    .ui-sparkle {
+      animation: none;
+      opacity: 0.9;
+    }
+  }
+}
+
+@keyframes ui-drop {
+  0% {
+    transform: translateY(-110%) scale(0.9) rotate(-4deg);
+    opacity: 0;
+  }
+  45% {
+    transform: translateY(6%) scale(1.03, 0.94) rotate(1deg);
+    opacity: 1;
+  }
+  62% {
+    transform: translateY(-5%) scale(0.99, 1.02);
+  }
+  78% {
+    transform: translateY(1.5%) scale(1.01, 0.99);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ui-slide {
+  0% {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ui-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.82;
+  }
+}
+
+@keyframes ui-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  38%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes ui-twinkle {
+  0%,
+  100% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  45% {
+    transform: scale(1) rotate(45deg);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(0.35) rotate(80deg);
+    opacity: 0.6;
+  }
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -304,9 +589,80 @@
 .overlay-root button:focus,
 .overlay-root input:focus,
 .overlay-root [tabindex]:focus {
-  outline: 4px solid var(--color-sun);
+  outline: 5px solid var(--color-sun);
   outline-offset: 3px;
   box-shadow:
-    0 0 0 7px var(--color-edge),
+    0 0 0 9px var(--color-edge),
+    0 0 0 13px rgb(255 201 58 / 0.45),
+    0 0 30px 8px rgb(255 201 58 / 0.6),
     0 5px 0 var(--color-edge);
+  transform: scale(1.04);
+}
+
+/* a focusable scroll box (a long list the pad scrolls): ring it inside, no scaling */
+.overlay-root .ui-scroll:focus {
+  outline-offset: -6px;
+  box-shadow:
+    inset 0 0 0 4px var(--color-edge),
+    0 0 26px 6px rgb(255 201 58 / 0.55);
+  transform: none;
+}
+
+/*
+ * Start menu rows. The jewel selector bar (.ui-menu-bar) slides behind the
+ * focused row, so that is the focus indicator for rows and they skip the ring.
+ */
+.ui-menu-bar {
+  border: 3px solid var(--color-edge);
+  border-radius: 1rem;
+  background-color: var(--color-accent);
+  background-image:
+    linear-gradient(118deg, rgb(255 255 255 / 0) 0 60%, rgb(255 255 255 / 0.18) 60% 72%, rgb(255 255 255 / 0) 72%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.36) 0%, rgb(255 255 255 / 0.08) 48%, rgb(0 0 0 / 0) 49%),
+    linear-gradient(95deg, #ff6aa8 0%, #f2457f 45%, #a452f2 100%);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.5),
+    0 4px 0 var(--color-edge),
+    0 0 0 5px rgb(255 201 58 / 0.55);
+  transition:
+    transform 240ms cubic-bezier(0.25, 0.9, 0.3, 1.15),
+    height 200ms ease;
+}
+
+.ui-menu-item {
+  transition:
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.ui-menu-item[data-sel] {
+  color: #fff;
+  text-shadow: 0 2px 0 rgb(46 24 86 / 0.35);
+  transform: translateX(6px);
+}
+
+.ui-menu-item[data-sel] .ui-menu-eyebrow {
+  color: rgb(255 255 255 / 0.88);
+}
+
+.ui-menu-item[data-sel] > span:last-child:not(.ui-gem):not(.ui-shimmer) {
+  color: rgb(255 255 255 / 0.92);
+}
+
+@media (hover: hover) {
+  .ui-menu-item:not([data-sel]):hover {
+    background: rgb(255 138 196 / 0.14);
+  }
+}
+
+.overlay-root .ui-menu-item:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-menu-bar,
+  .ui-menu-item {
+    transition: none;
+  }
 }

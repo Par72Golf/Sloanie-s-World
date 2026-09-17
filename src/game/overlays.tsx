@@ -1,3 +1,5 @@
+import { activePad } from "./input";
+import { ControlsRemap } from "./controls-remap";
 import { SPOTS } from "./furniture";
 import { HomePanel } from "./home-panel";
 import { useHome } from "./home-store";
@@ -8,13 +10,14 @@ import { QuestPanel } from "./quest-panel";
 import { Journal } from "./journal";
 import { CarnivalPanel } from "./carnival-games";
 import type { BoothGame } from "./carnival";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowBigUp,
   Cake,
   Calculator,
   Candy,
   Castle,
+  Crown,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -23,7 +26,6 @@ import {
   Eye,
   Footprints,
   Hand,
-  Keyboard,
   Lightbulb,
   Lock,
   LogOut,
@@ -59,9 +61,11 @@ import {
   House,
   Truck,
 } from "lucide-react";
+import { bindingLabel } from "./bindings";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
 import { ACCESSORIES, accessory } from "./accessories";
+import { ItemThumb } from "./item-thumbs";
 import { LEVELS } from "./levels";
 import { MiniMap } from "./minimap";
 import { PadMenu } from "./pad-menu";
@@ -87,6 +91,17 @@ const TEMP_TINT: Record<string, string> = {
   warm: "text-warm",
   hot: "text-warm",
   burning: "text-accent",
+};
+
+/** the warm/cold word as a solid pill, so it reads from the sofa */
+const TEMP_PILL: Record<string, string> = {
+  freezing: "bg-cold text-white",
+  cold: "bg-cold text-white",
+  chilly: "bg-sky text-ink",
+  lukewarm: "bg-surface-3 text-ink",
+  warm: "bg-warm text-white",
+  hot: "bg-accent text-white",
+  burning: "bg-accent text-white",
 };
 
 export function Panel({
@@ -132,7 +147,8 @@ export function Btn({
       className={cn(
         "press inline-flex min-h-12 items-center justify-center gap-2 px-6 font-display text-lg font-semibold tracking-wide",
         variant !== "ghost" && "chunk-sm gloss",
-        variant === "primary" && "bg-accent text-accent-fg [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
+        // the one thing to press gets a slow jewel shimmer
+        variant === "primary" && "ui-shimmer bg-accent text-accent-fg [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
         variant === "go" && "bg-teal text-white [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
         variant === "sun" && "bg-sun text-ink",
         variant === "grape" && "bg-grape text-white [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
@@ -349,6 +365,64 @@ function BestTimes({ levelIndex, highlight }: { levelIndex: number; highlight?: 
 
 const PARK_ICON: LucideIcon[] = [Trees, Candy, Castle];
 const PARK_TINT = ["bg-leaf", "bg-berry", "bg-grape"];
+const PARK_GEM = ["var(--color-emerald)", "var(--color-ruby)", "var(--color-amethyst)"];
+
+/** Where the twinkles sit around the logo, as % of the logo box. */
+const LOGO_SPARKLES = [
+  { left: "-3%", top: "8%", size: "1.6rem", delay: "0.9s" },
+  { left: "88%", top: "-4%", size: "2.1rem", delay: "1.5s" },
+  { left: "63%", top: "44%", size: "1.2rem", delay: "2.3s" },
+  { left: "96%", top: "62%", size: "1.5rem", delay: "0.4s" },
+  { left: "8%", top: "90%", size: "1.1rem", delay: "1.9s" },
+];
+
+type TitleDetail = "explorer" | "help" | "times" | "reset" | null;
+
+/** One row of the start menu. The sliding selector bar behind it follows focus. */
+function MenuItem({
+  icon: Icon,
+  tint,
+  label,
+  side,
+  active,
+  onClick,
+  onFocus,
+  itemRef,
+  delay,
+}: {
+  icon: LucideIcon;
+  tint: string;
+  label: React.ReactNode;
+  side?: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  onFocus: () => void;
+  itemRef: (el: HTMLButtonElement | null) => void;
+  delay: number;
+}) {
+  return (
+    <button
+      ref={itemRef}
+      type="button"
+      onClick={onClick}
+      onFocus={onFocus}
+      data-sel={active || undefined}
+      className="ui-menu-item animate-ui-slide relative z-[1] flex min-h-12 w-full items-center gap-3 rounded-[1rem] py-1.5 pl-3 pr-3 text-left font-display text-xl font-semibold text-ink lg:min-h-[3.25rem] 2xl:min-h-[4.5rem] 2xl:gap-4 2xl:pl-4 2xl:text-3xl [@media(max-height:520px)]:min-h-10 [@media(max-height:520px)]:text-lg"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <span
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-full border-[2.5px] border-edge bg-surface 2xl:size-12 [@media(max-height:520px)]:size-8",
+          tint,
+        )}
+      >
+        <Icon className="size-5 2xl:size-7 [@media(max-height:520px)]:size-4" strokeWidth={2.5} />
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {side}
+    </button>
+  );
+}
 
 function TitleScreen() {
   const playerName = useGame((s) => s.playerName);
@@ -359,101 +433,137 @@ function TitleScreen() {
   const resetAll = useGame((s) => s.resetAll);
   const setName = useGame((s) => s.setName);
   const setDress = useGame((s) => s.setDress);
-  const [help, setHelp] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [showTimes, setShowTimes] = useState(false);
+  const [detail, setDetail] = useState<TitleDetail>(null);
   const fullscreen = useFullscreen();
   const toggleWardrobe = useGame((s) => s.toggleWardrobe);
   const setControls = useGame((s) => s.setControls);
 
-  // Wide landscape screens (the TV, a phone on its side) get two columns that
-  // each fit the height; portrait stacks and scrolls.
+  // the selector bar slides to whichever menu row has focus
+  const [sel, setSel] = useState(0);
+  const rows = useRef<(HTMLButtonElement | null)[]>([]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [bar, setBar] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    const place = () => {
+      const el = rows.current[sel];
+      if (el) setBar({ top: el.offsetTop, height: el.offsetHeight });
+    };
+    place();
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(place);
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [sel, unlocked]);
+
+  const toggle = (d: Exclude<TitleDetail, null>) => {
+    sfx.click();
+    setDetail((cur) => (cur === d ? null : d));
+  };
+
+  const dressHex = DRESS_OPTS.find((o) => o.id === dress)?.hex ?? DRESS_OPTS[0]!.hex;
+  const unlockedParks = LEVELS.map((lv, i) => ({ lv, i })).filter(({ i }) => i <= unlocked);
+  const lockedCount = LEVELS.length - unlockedParks.length;
+
+  let row = 0;
+  const rowProps = () => {
+    const i = row++;
+    return {
+      active: sel === i,
+      onFocus: () => setSel(i),
+      itemRef: (el: HTMLButtonElement | null) => {
+        rows.current[i] = el;
+      },
+      delay: 260 + i * 55,
+    };
+  };
+
+  const detailTitle: Record<Exclude<TitleDetail, null>, { icon: LucideIcon; text: string; tone: string }> = {
+    explorer: { icon: UserRound, text: "Explorer", tone: "bg-accent-2" },
+    help: { icon: HelpCircle, text: "How to play", tone: "bg-teal" },
+    times: { icon: Trophy, text: "Best times", tone: "bg-sun text-ink" },
+    reset: { icon: RotateCcw, text: "Start over", tone: "bg-berry" },
+  };
+  const D = detail ? detailTitle[detail] : null;
+
+  // Wide landscape screens (the TV, a phone on its side): logo and any open
+  // detail card on the left, the menu on the right. Portrait stacks and scrolls.
   return (
     <div
       className={cn(
-        "pointer-events-auto flex h-full w-full flex-col overflow-y-auto touch-pan-y",
-        "bg-[radial-gradient(ellipse_at_center,rgb(29_36_82/0)_35%,rgb(29_36_82/0.4)_100%)]",
+        "pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto touch-pan-y",
+        "bg-[radial-gradient(ellipse_at_30%_35%,rgb(255_190_230/0.18)_0%,rgb(46_24_86/0)_40%,rgb(46_24_86/0.5)_100%)]",
         "pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1.25rem,env(safe-area-inset-top))]",
-        "sm:landscape:overflow-hidden lg:pb-[max(2rem,env(safe-area-inset-bottom))] lg:pl-[max(2.5rem,env(safe-area-inset-left))] lg:pr-[max(2.5rem,env(safe-area-inset-right))] lg:pt-[max(2rem,env(safe-area-inset-top))]",
+        "sm:landscape:overflow-hidden lg:pb-[max(1.75rem,env(safe-area-inset-bottom))] lg:pl-[max(2.5rem,env(safe-area-inset-left))] lg:pr-[max(2.5rem,env(safe-area-inset-right))] lg:pt-[max(1.75rem,env(safe-area-inset-top))]",
       )}
     >
-      <div className="mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-6 sm:landscape:h-full sm:landscape:min-h-0 sm:landscape:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:landscape:grid-rows-[minmax(0,1fr)] sm:landscape:gap-6 lg:gap-12 2xl:max-w-[92rem] 2xl:gap-20">
-        {/* left: the logo, and who is playing */}
-        <section className="flex min-h-0 flex-col items-center gap-4 text-center sm:landscape:max-h-full sm:landscape:items-start sm:landscape:overflow-y-auto sm:landscape:p-2 sm:landscape:text-left lg:gap-6 2xl:gap-8">
-          <div className="animate-ui-pop">
-            <span className="ui-chip gloss bg-sun text-sm text-ink [@media(max-height:520px)]:hidden">
-              <Sparkles className="size-4" />
-              v3.1
+      <div className="ui-rays fixed [--rays-x:50%] [--rays-y:14%] sm:landscape:[--rays-x:26%] sm:landscape:[--rays-y:30%]" aria-hidden />
+
+      <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-5 sm:landscape:[align-content:stretch] sm:landscape:h-full sm:landscape:min-h-0 sm:landscape:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] sm:landscape:grid-rows-[auto_minmax(0,1fr)] sm:landscape:gap-x-8 sm:landscape:gap-y-4 lg:gap-x-14 2xl:max-w-[92rem] 2xl:gap-x-24">
+        {/* the logo, dropping in with a bounce */}
+        <section className="flex flex-col items-center text-center sm:landscape:col-start-1 sm:landscape:row-start-1 sm:landscape:items-start sm:landscape:self-end sm:landscape:text-left">
+          <span className="ui-chip gloss animate-ui-pop bg-sun text-sm text-ink [@media(max-height:520px)]:hidden">
+            <Sparkles className="size-4" />
+            v3.1
+          </span>
+          <h1 className="animate-ui-drop relative mt-2 text-[clamp(3.25rem,min(9.5vw,14.5vh),10.5rem)] leading-[0.92] [@media(max-height:520px)]:mt-0">
+            <span className="ui-title ui-logo" data-text="Sloanie's">
+              Sloanie's
+            </span>{" "}
+            <br />
+            <span className="ui-title ui-logo" data-text="World">
+              World
             </span>
-            <h1 className="ui-title mt-3 text-[clamp(3.25rem,min(9.5vw,14vh),10rem)] leading-[0.92] [@media(max-height:520px)]:mt-0">
-              <span className="block">Sloanie's</span> <span className="block">World</span>
-            </h1>
-          </div>
-          <p className="ui-glass animate-ui-rise max-w-md px-4 py-2.5 text-base font-semibold leading-snug text-ink lg:text-lg 2xl:max-w-xl 2xl:px-5 2xl:py-3 2xl:text-2xl [@media(max-height:520px)]:hidden">
-            Help Sloan hunt hidden dumplings across giant parks, then solve a little math to keep
-            each one. Parks unlock one at a time.
-          </p>
-
-          <div className="chunk animate-ui-rise w-full max-w-md bg-surface p-4 text-left lg:p-5 2xl:max-w-xl 2xl:p-7 [@media(max-height:520px)]:p-3">
-            <label className="block font-display text-base font-semibold text-ink-soft 2xl:text-xl">
-              <span className="flex items-center gap-2">
-                <UserRound className="size-5 text-accent-2" />
-                Explorer name
-              </span>
-              <input
-                value={playerName}
-                onChange={(e) => setName(e.target.value.slice(0, 18))}
-                placeholder="Sloan"
-                className="chunk-sm mt-2 block h-12 w-full bg-surface-2 px-4 font-display text-xl 2xl:h-16 2xl:text-3xl font-semibold text-ink outline-none placeholder:text-muted"
+            {LOGO_SPARKLES.map((s) => (
+              <span
+                key={s.left + s.top}
+                className="ui-sparkle"
+                aria-hidden
+                style={{ left: s.left, top: s.top, width: s.size, ["--delay" as string]: s.delay }}
               />
-            </label>
-
-            <p className="mt-4 flex items-center gap-2 font-display text-base font-semibold text-ink-soft 2xl:mt-6 2xl:text-xl [@media(max-height:520px)]:mt-2">
-              <Palette className="size-5 text-accent" />
-              Dress
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2.5">
-              {DRESS_OPTS.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  aria-label={o.label}
-                  onClick={() => setDress(o.id)}
-                  className={cn(
-                    "press grid size-12 place-items-center rounded-full 2xl:size-16 border-[3px] border-edge shadow-[inset_0_3px_0_rgb(255_255_255/0.35),0_3px_0_var(--color-edge)]",
-                    dress === o.id && "scale-110",
-                  )}
-                  style={{ backgroundColor: o.hex }}
-                >
-                  {dress === o.id && <Check className="size-6 text-white drop-shadow-[0_2px_0_rgb(29_36_82/0.6)]" strokeWidth={3.5} />}
-                </button>
-              ))}
-            </div>
-          </div>
+            ))}
+          </h1>
+          <p className="animate-ui-pulse mt-4 inline-flex items-center gap-2 rounded-full border-[3px] border-edge bg-edge/80 py-1 pl-1 pr-4 font-display text-base font-semibold text-white shadow-[0_4px_0_rgb(46_24_86/0.5)] 2xl:mt-6 2xl:text-2xl [@media(max-height:520px)]:mt-2 [@media(max-height:520px)]:text-sm">
+            <span className="grid size-7 place-items-center rounded-full border-2 border-white/80 bg-leaf font-bold leading-none 2xl:size-10 pointer-coarse:hidden">
+              A
+            </span>
+            <span className="pointer-coarse:hidden">Press A or Enter to play</span>
+            <span className="hidden pointer-coarse:inline">
+              <Play className="mr-1 inline size-4 fill-current align-[-2px]" />
+              Tap a park to play
+            </span>
+          </p>
         </section>
 
-        {/* right: the parks and the menu */}
-        <section className="chunk animate-ui-rise flex min-h-0 flex-col overflow-hidden bg-surface text-ink sm:landscape:max-h-full">
-          <div className="ui-ribbon flex shrink-0 items-center gap-3 bg-teal px-4 py-3 text-white sm:px-5 2xl:px-7 2xl:py-5 [@media(max-height:520px)]:py-2">
-            <span className="chunk-sm gloss grid size-11 shrink-0 place-items-center rounded-full bg-surface 2xl:size-16 [@media(max-height:520px)]:size-10">
-              <MapIcon className="size-6 text-teal 2xl:size-9" strokeWidth={2.4} />
-            </span>
-            <h2 className="font-display text-2xl font-semibold [text-shadow:0_2px_0_rgb(0_0_0/0.18)] lg:text-3xl 2xl:text-5xl">
-              Pick a park
-            </h2>
-          </div>
+        {/* the start menu */}
+        <nav
+          aria-label="Main menu"
+          className="chunk animate-ui-rise relative flex min-h-0 flex-col overflow-hidden bg-surface/95 sm:landscape:col-start-2 sm:landscape:row-span-2 sm:landscape:row-start-1 sm:landscape:max-h-full sm:landscape:self-center"
+        >
+          <div ref={listRef} className="ui-dots relative min-h-0 touch-pan-y overflow-y-auto overscroll-contain p-3 lg:p-4 2xl:p-6 [@media(max-height:520px)]:p-2">
+            {bar && (
+              <span
+                aria-hidden
+                className="ui-menu-bar pointer-events-none absolute inset-x-3 z-0 lg:inset-x-4 2xl:inset-x-6 [@media(max-height:520px)]:inset-x-2"
+                style={{ transform: `translateY(${bar.top}px)`, height: bar.height, top: 0 }}
+              >
+                <span className="ui-gem ui-gem-diamond absolute -left-2.5 top-1/2 size-6 -translate-y-1/2 [--gem:var(--color-sun)] 2xl:size-8" />
+              </span>
+            )}
 
-          <div className="ui-dots min-h-0 touch-pan-y overflow-y-auto overscroll-contain p-4 lg:p-5 2xl:p-7 [@media(max-height:520px)]:p-3">
-            <div className="grid gap-3 2xl:gap-4">
-              {LEVELS.map((lv, i) => {
-                const locked = i > unlocked;
+            <div className="relative grid gap-1.5 2xl:gap-2.5">
+              {unlockedParks.map(({ lv, i }) => {
                 const found = collected[i]?.length ?? 0;
                 const ParkIcon = PARK_ICON[i] ?? Trees;
+                const p = rowProps();
                 return (
                   <button
                     key={lv.id}
+                    ref={p.itemRef}
                     type="button"
-                    disabled={locked}
+                    data-pad-default={i === 0 ? "" : undefined}
+                    onFocus={p.onFocus}
+                    data-sel={p.active || undefined}
                     onClick={() => {
                       unlockAudio();
                       sfx.click();
@@ -462,167 +572,235 @@ function TitleScreen() {
                       void enterFullscreen();
                       startLevel(i);
                     }}
-                    className={cn(
-                      "press chunk-sm flex min-h-[4.5rem] [@media(max-height:520px)]:min-h-14 w-full items-center gap-3 py-2 pl-2.5 pr-3 text-left lg:gap-4 2xl:min-h-28 2xl:gap-5 2xl:pl-4 2xl:pr-5",
-                      locked ? "bg-surface-2 text-muted" : "gloss bg-surface text-ink",
-                    )}
+                    className="ui-menu-item animate-ui-slide relative z-[1] flex min-h-[4.5rem] w-full items-center gap-3 rounded-[1rem] py-2 pl-3 pr-3 text-left text-ink 2xl:min-h-28 2xl:gap-5 2xl:pl-4 [@media(max-height:520px)]:min-h-14"
+                    style={{ animationDelay: `${p.delay}ms` }}
                   >
                     <span
                       className={cn(
-                        "grid size-12 shrink-0 place-items-center rounded-full border-[3px] border-edge lg:size-14 2xl:size-20",
-                        locked ? "bg-surface-3 text-muted" : cn("gloss text-white", PARK_TINT[i] ?? "bg-leaf"),
+                        "gloss grid size-12 shrink-0 place-items-center rounded-full border-[3px] border-edge text-white lg:size-14 2xl:size-20 [@media(max-height:520px)]:size-10",
+                        PARK_TINT[i] ?? "bg-leaf",
                       )}
                     >
-                      {locked ? <Lock className="size-6 2xl:size-9" /> : <ParkIcon className="size-6 lg:size-7 2xl:size-10" strokeWidth={2.4} />}
+                      <ParkIcon className="size-6 lg:size-7 2xl:size-10" strokeWidth={2.4} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-display text-xl font-semibold leading-tight 2xl:text-3xl">
-                        {locked ? "Locked park" : lv.name}
+                      <span className="ui-menu-eyebrow block font-display text-xs font-semibold uppercase tracking-wider text-ink-soft 2xl:text-base [@media(max-height:520px)]:hidden">
+                        {i === 0 ? "Play" : "Next park"}
                       </span>
-                      <span className="mt-0.5 block text-sm leading-snug text-ink-soft lg:text-base 2xl:text-xl [@media(max-height:520px)]:hidden">
-                        {locked ? "Finish the park before this one" : lv.tagline}
+                      <span className="block font-display text-2xl font-semibold leading-tight 2xl:text-4xl [@media(max-height:520px)]:text-xl">
+                        {lv.name}
                       </span>
                     </span>
-                    {!locked && (
-                      <span className="flex shrink-0 flex-col items-end gap-1.5">
-                        {i === 0 && (
-                          <span className="ui-chip gloss bg-accent text-base text-white 2xl:px-4 2xl:py-1 2xl:text-2xl">
-                            <Play className="size-4 fill-current" />
-                            Start
-                          </span>
-                        )}
-                        <span className="whitespace-nowrap font-display text-sm font-semibold tabular-nums text-ink-soft 2xl:text-lg">
-                          {found}/{lv.dumplings.length} found
-                        </span>
-                      </span>
-                    )}
+                    <span
+                      className="ui-gem shrink-0 px-2.5 py-1 font-display text-base font-bold tabular-nums leading-none [text-shadow:0_1.5px_0_rgb(46_24_86/0.55)] 2xl:px-4 2xl:py-2 2xl:text-2xl"
+                      style={{ ["--gem" as string]: PARK_GEM[i] ?? PARK_GEM[0] }}
+                    >
+                      {found}/{lv.dumplings.length}
+                    </span>
+                    <span className="ui-shimmer gloss hidden size-10 shrink-0 place-items-center rounded-full border-[3px] border-edge bg-accent text-white sm:grid 2xl:size-14">
+                      <Play className="ml-0.5 size-5 fill-current 2xl:size-7" />
+                    </span>
                   </button>
                 );
               })}
-            </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-3 2xl:mt-6 2xl:gap-4 [@media(max-height:520px)]:mt-3">
-              <Btn variant="secondary" onClick={() => setHelp((v) => !v)} className="min-h-12 px-3 text-base lg:text-lg 2xl:min-h-16 2xl:text-2xl">
-                <HelpCircle className="size-5 shrink-0 2xl:size-7 text-teal" />
-                How to play
-              </Btn>
-              <Btn
-                variant="secondary"
+              {lockedCount > 0 && (
+                <div className="animate-ui-slide flex flex-wrap items-center gap-2 px-3 pb-1 pt-0.5" style={{ animationDelay: "300ms" }}>
+                  {LEVELS.map((lv, i) =>
+                    i > unlocked ? (
+                      <button
+                        key={lv.id}
+                        type="button"
+                        disabled
+                        className="flex items-center gap-1.5 rounded-full border-[2.5px] border-dashed border-muted/70 bg-surface-2 px-3 py-0.5 font-display text-sm font-semibold text-muted 2xl:text-lg"
+                      >
+                        <Lock className="size-3.5 2xl:size-5" />
+                        Locked park
+                      </button>
+                    ) : null,
+                  )}
+                </div>
+              )}
+
+              <div className="mx-3 my-0.5 h-[3px] rounded-full bg-[linear-gradient(90deg,rgb(46_24_86/0),rgb(46_24_86/0.14),rgb(46_24_86/0))]" aria-hidden />
+
+              <MenuItem
+                {...rowProps()}
+                icon={UserRound}
+                tint="text-accent-2"
+                label="Explorer"
+                side={
+                  <span className="flex min-w-0 max-w-[45%] items-center gap-2 font-display text-base font-semibold text-ink-soft 2xl:text-2xl">
+                    <span className="truncate">{playerName || "Sloan"}</span>
+                    <span className="size-5 shrink-0 rounded-full border-[2.5px] border-edge 2xl:size-7" style={{ backgroundColor: dressHex }} />
+                  </span>
+                }
+                onClick={() => toggle("explorer")}
+              />
+              <MenuItem {...rowProps()} icon={HelpCircle} tint="text-teal" label="How to play" onClick={() => toggle("help")} />
+              <MenuItem
+                {...rowProps()}
+                icon={Gamepad2}
+                tint="text-accent-2"
+                label="Controls"
                 onClick={() => {
                   sfx.click();
                   setControls(true);
                 }}
-                className="min-h-12 px-3 text-base lg:text-lg 2xl:min-h-16 2xl:text-2xl"
-              >
-                <Gamepad2 className="size-5 shrink-0 2xl:size-7 text-accent-2" />
-                Controls
-              </Btn>
-              <Btn
-                variant="secondary"
-                onClick={() => {
-                  sfx.click();
-                  setShowTimes((v) => !v);
-                }}
-                className="min-h-12 px-3 text-base lg:text-lg 2xl:min-h-16 2xl:text-2xl"
-              >
-                <Trophy className="size-5 shrink-0 2xl:size-7 text-sun-deep" />
-                Best times
-              </Btn>
-              <Btn
-                variant="secondary"
-                onClick={() => {
-                  sfx.click();
-                  setConfirmReset(true);
-                }}
-                className="min-h-12 px-3 text-base lg:text-lg 2xl:min-h-16 2xl:text-2xl"
-              >
-                <RotateCcw className="size-5 shrink-0 2xl:size-7 text-berry" />
-                Start over
-              </Btn>
-              <Btn
-                variant="secondary"
+              />
+              <MenuItem
+                {...rowProps()}
+                icon={Shirt}
+                tint="text-grape"
+                label="Wardrobe"
                 onClick={() => {
                   sfx.click();
                   toggleWardrobe();
                 }}
-                className="min-h-12 px-3 text-base lg:text-lg 2xl:min-h-16 2xl:text-2xl"
-              >
-                <Shirt className="size-5 shrink-0 2xl:size-7 text-grape" />
-                Wardrobe
-              </Btn>
+              />
+              <MenuItem {...rowProps()} icon={Trophy} tint="text-sun-deep" label="Best times" onClick={() => toggle("times")} />
               {canFullscreen() && (
-                <Btn
-                  variant="secondary"
+                <MenuItem
+                  {...rowProps()}
+                  icon={fullscreen ? Minimize : Maximize}
+                  tint="text-ink"
+                  label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
                   onClick={() => {
                     sfx.click();
                     void toggleFullscreen();
                   }}
-                  className="min-h-12 px-3 text-base lg:text-lg 2xl:min-h-16 2xl:text-2xl"
-                >
-                  {fullscreen ? <Minimize className="size-5 shrink-0" /> : <Maximize className="size-5 shrink-0" />}
-                  {fullscreen ? "Exit fullscreen" : "Fullscreen"}
-                </Btn>
+                />
               )}
+              <MenuItem {...rowProps()} icon={RotateCcw} tint="text-berry" label="Start over" onClick={() => toggle("reset")} />
             </div>
-            {showTimes && (
-              <div className="animate-ui-rise mt-4 rounded-[1.1rem] bg-surface-2 p-3">
-                <p className="flex items-center gap-2 font-display text-lg font-semibold">
-                  <Trophy className="size-5 text-sun-deep" />
-                  {LEVELS[0]!.name}
-                </p>
-                <BestTimes levelIndex={0} />
-                <p className="mt-2 text-base text-ink-soft">
-                  Change the explorer name above and each player keeps their own best time.
-                </p>
-              </div>
-            )}
-            {confirmReset && (
-              <div className="chunk-sm animate-ui-rise mt-4 bg-surface-2 p-3">
-                <p className="text-base font-semibold text-ink">
-                  Hide every dumpling again and lock the other parks?
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2.5">
-                  <Btn
-                    onClick={() => {
-                      sfx.click();
-                      resetAll();
-                      setConfirmReset(false);
-                    }}
-                  >
-                    Yes, start over
-                  </Btn>
-                  <Btn variant="secondary" onClick={() => setConfirmReset(false)}>
-                    Cancel
-                  </Btn>
-                </div>
-              </div>
-            )}
-            {help && (
-              <ul className="animate-ui-rise mt-4 grid gap-2 rounded-[1.1rem] bg-surface-2 p-3 text-base leading-snug text-ink">
-                {[
-                  "Find the hidden dumplings! Warm means close. Cold means far.",
-                  "Next to one? Press Collect (E, or X on a controller) and answer the math.",
-                  "Miss twice and it runs off to hide somewhere new.",
-                  "Find the backpack on the ball field. Then you can carry things.",
-                  "Open your backpack with J or the Back button.",
-                  "The sticker book is near the start. 30 stickers are hiding in the park.",
-                  "Emmett rides up on his trike. Beat him at rock paper scissors to keep your dumplings.",
-                  "Grab a juice box to run super fast for a little while.",
-                  "At the carnival, play games to win tickets. Spend them at the prize booth.",
-                  "Farmer Joe at the farm lost his pets. Can you bring them home?",
-                  "Press N (RT on a controller) to play music on your iPod. Stand still and you will dance!",
-                  "Find the big mountain and explore the cave inside.",
-                  "Walk with W A S D or the left stick. Jump with Space or A.",
-                  "Turn the camera with Q and C, LB and RB, or by dragging the screen.",
-                ].map((line) => (
-                  <li key={line} className="flex gap-2.5">
-                    <span className="mt-2 size-2 shrink-0 rounded-full bg-teal" />
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
+        </nav>
+
+        {/* the open detail card: the blurb until something is picked */}
+        <section className="flex min-h-0 flex-col items-center sm:landscape:col-start-1 sm:landscape:row-start-2 sm:landscape:max-h-full sm:landscape:items-start sm:landscape:self-start">
+          {!D ? (
+            <p className="ui-glass animate-ui-rise max-w-md px-4 py-2.5 text-center text-base font-semibold leading-snug text-ink sm:landscape:text-left lg:text-lg 2xl:max-w-xl 2xl:px-5 2xl:py-3 2xl:text-2xl [@media(max-height:520px)]:hidden">
+              Help Sloan hunt hidden dumplings across giant parks, then solve a little math to keep
+              each one. Parks unlock one at a time.
+            </p>
+          ) : (
+            <div key={detail} className="chunk animate-ui-pop flex max-h-full min-h-0 w-full max-w-md flex-col overflow-hidden bg-surface text-left 2xl:max-w-xl">
+              <div className={cn("ui-ribbon flex shrink-0 items-center gap-2.5 px-3 py-2 text-white 2xl:px-5 2xl:py-3", D.tone)}>
+                <span className="chunk-sm gloss grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink 2xl:size-12">
+                  <D.icon className="size-5 2xl:size-7" strokeWidth={2.4} />
+                </span>
+                <h2 className="min-w-0 flex-1 font-display text-xl font-semibold [text-shadow:0_2px_0_rgb(0_0_0/0.15)] 2xl:text-3xl">{D.text}</h2>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={() => {
+                    sfx.click();
+                    setDetail(null);
+                  }}
+                  className="press chunk-sm gloss grid size-10 shrink-0 place-items-center rounded-full bg-surface text-ink 2xl:size-12"
+                >
+                  <X className="size-5" strokeWidth={2.6} />
+                </button>
+              </div>
+              <div tabIndex={0} className="ui-scroll ui-dots min-h-0 touch-pan-y overflow-y-auto overscroll-contain p-3 lg:p-4 2xl:p-6">
+                {detail === "explorer" && (
+                  <>
+                    <label className="block font-display text-base font-semibold text-ink-soft 2xl:text-xl">
+                      <span className="flex items-center gap-2">
+                        <UserRound className="size-5 text-accent-2" />
+                        Explorer name
+                      </span>
+                      <input
+                        value={playerName}
+                        onChange={(e) => setName(e.target.value.slice(0, 18))}
+                        placeholder="Sloan"
+                        className="chunk-sm mt-2 block h-12 w-full bg-surface-2 px-4 font-display text-xl font-semibold text-ink outline-none placeholder:text-muted 2xl:h-16 2xl:text-3xl"
+                      />
+                    </label>
+                    <p className="mt-3 flex items-center gap-2 font-display text-base font-semibold text-ink-soft 2xl:mt-5 2xl:text-xl">
+                      <Palette className="size-5 text-accent" />
+                      Dress
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2.5">
+                      {DRESS_OPTS.map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          aria-label={o.label}
+                          onClick={() => setDress(o.id)}
+                          className={cn(
+                            "press grid size-12 place-items-center rounded-full border-[3px] border-edge shadow-[inset_0_3px_0_rgb(255_255_255/0.35),0_3px_0_var(--color-edge)] 2xl:size-16",
+                            dress === o.id && "scale-110",
+                          )}
+                          style={{ backgroundColor: o.hex }}
+                        >
+                          {dress === o.id && <Check className="size-6 text-white drop-shadow-[0_2px_0_rgb(46_24_86/0.6)]" strokeWidth={3.5} />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {detail === "times" && (
+                  <>
+                    <p className="flex items-center gap-2 font-display text-lg font-semibold">
+                      <Trophy className="size-5 text-sun-deep" />
+                      {LEVELS[0]!.name}
+                    </p>
+                    <BestTimes levelIndex={0} />
+                    <p className="mt-2 text-base text-ink-soft">
+                      Change the explorer name and each player keeps their own best time.
+                    </p>
+                  </>
+                )}
+                {detail === "reset" && (
+                  <>
+                    <p className="text-base font-semibold text-ink 2xl:text-xl">
+                      Hide every dumpling again and lock the other parks?
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2.5">
+                      <Btn
+                        onClick={() => {
+                          sfx.click();
+                          resetAll();
+                          setDetail(null);
+                        }}
+                      >
+                        Yes, start over
+                      </Btn>
+                      <Btn variant="secondary" onClick={() => setDetail(null)}>
+                        Cancel
+                      </Btn>
+                    </div>
+                  </>
+                )}
+                {detail === "help" && (
+                  <ul className="grid gap-2 text-base leading-snug text-ink 2xl:text-xl">
+                    {[
+                      "Find the hidden dumplings! Warm means close. Cold means far.",
+                      `Next to one? Press Collect (${bindingLabel("collect")}) and answer the math.`,
+                      "Miss twice and it runs off to hide somewhere new.",
+                      "Find the backpack on the ball field. Then you can carry things.",
+                      `Open your backpack with ${bindingLabel("journal")}.`,
+                      "The sticker book is near the start. 30 stickers are hiding in the park.",
+                      "Emmett rides up on his trike. Beat him at rock paper scissors to keep your dumplings.",
+                      "Grab a juice box to run super fast for a little while.",
+                      "At the carnival, play games to win tickets. Spend them at the prize booth.",
+                      "Farmer Joe at the farm lost his pets. Can you bring them home?",
+                      `Press ${bindingLabel("music")} to play music on your iPod. Stand still and you will dance!`,
+                      "Find the big mountain and explore the cave inside.",
+                      `Walk with W A S D or the left stick. Jump with ${bindingLabel("jump")}.`,
+                      "Turn the camera with the shoulder buttons, or by dragging the screen.",
+                    ].map((line) => (
+                      <li key={line} className="flex gap-2.5">
+                        <span className="mt-1.5 size-2.5 shrink-0 rotate-45 rounded-[2px] border-2 border-edge bg-rose" />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -705,28 +883,29 @@ function HUD() {
   }, [hintText, clearHint]);
 
   // colour and icon for the status toast, following the same order as `status`
-  const toast: { Icon: LucideIcon; bg: string } = emmettNotice
-    ? { Icon: Truck, bg: "bg-grape text-white" }
+  const toast: { Icon: LucideIcon; gem: string } = emmettNotice
+    ? { Icon: Truck, gem: "var(--color-amethyst)" }
     : fleeNotice
-      ? { Icon: Footprints, bg: "bg-berry text-white" }
+      ? { Icon: Footprints, gem: "var(--color-ruby)" }
       : nearCollect
-        ? { Icon: Hand, bg: "bg-accent text-white" }
+        ? { Icon: Hand, gem: "var(--color-accent)" }
         : boardReady || rideNear
-          ? { Icon: FerrisWheel, bg: "bg-accent-2 text-white" }
+          ? { Icon: FerrisWheel, gem: "var(--color-sapphire)" }
           : close
-            ? { Icon: Thermometer, bg: "bg-warm text-white" }
-            : { Icon: Search, bg: "bg-teal text-white" };
+            ? { Icon: Thermometer, gem: "var(--color-warm)" }
+            : { Icon: Search, gem: "var(--color-teal)" };
 
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]">
         {/* round icon buttons, top right; the phone minimap sits just under them */}
         <div className="pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] flex gap-1.5 sm:gap-2 2xl:gap-3">
-          <IconBtn label="Controls" onClick={() => setControls(true)}>
+          <IconBtn label="Controls" tint="text-accent-2" onClick={() => setControls(true)}>
             <Gamepad2 className="size-5 2xl:size-7" />
           </IconBtn>
           <IconBtn
             label="iPod: next song"
+            tint="text-accent"
             onClick={() => {
               unlockAudio();
               useGame.getState().requestNextChannel();
@@ -734,11 +913,12 @@ function HUD() {
           >
             <Music className="size-5 2xl:size-7" />
           </IconBtn>
-          <IconBtn label="Journal" onClick={toggleJournal}>
+          <IconBtn label="Journal" tint="text-grape" onClick={toggleJournal}>
             <BookOpen className="size-5 2xl:size-7" />
           </IconBtn>
           <IconBtn
             label={muted ? "Unmute" : "Mute"}
+            tint="text-teal"
             onClick={() => {
               toggleMute();
               setMuted(!muted);
@@ -746,7 +926,7 @@ function HUD() {
           >
             {muted ? <VolumeX className="size-5 2xl:size-7" /> : <Volume2 className="size-5 2xl:size-7" />}
           </IconBtn>
-          <IconBtn label="Pause" onClick={pause}>
+          <IconBtn label="Pause" tint="text-berry" onClick={pause}>
             <Pause className="size-5 fill-current 2xl:size-7" />
           </IconBtn>
         </div>
@@ -757,41 +937,62 @@ function HUD() {
           icon row and stays clear of the minimap on the right.
         */}
         <div className="mt-[3.75rem] flex w-[min(21rem,calc(100vw-9.75rem))] flex-col items-start gap-2 sm:mt-0 sm:w-[min(24rem,calc(100vw-21rem))] 2xl:w-[30rem] 2xl:gap-3">
-          <div className="ui-glass animate-ui-rise pointer-events-auto px-3 py-2 sm:px-4 sm:py-2.5 2xl:px-5 2xl:py-3">
-            {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} />}
-            <p className="max-w-[16rem] truncate font-display text-xs font-semibold uppercase tracking-wider text-ink-soft sm:text-sm 2xl:max-w-none 2xl:text-base">
-              {level.name}
-            </p>
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <p className="font-display text-2xl font-bold tabular-nums leading-none sm:text-3xl 2xl:text-4xl">
-                {found}
-                <span className="text-lg font-semibold text-ink-soft sm:text-xl 2xl:text-2xl"> / {level.dumplings.length}</span>
-              </p>
-              <p className={cn("flex items-center gap-1 font-display text-base font-bold sm:text-lg 2xl:text-2xl", TEMP_TINT[temp])}>
-                <Thermometer className="size-4 sm:size-5" strokeWidth={2.6} />
-                {TEMP_LABEL[temp]}
-              </p>
-            </div>
-            {(tickets > 0 || runActive) && (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {tickets > 0 && (
-                  <span className="ui-chip gloss bg-sun text-sm tabular-nums text-ink sm:text-base 2xl:text-lg">
-                    <Ticket className="size-4" /> {tickets}
+          {/* the treasure card: how many dumplings, how close, and what she has */}
+          <div className="ui-glass animate-ui-rise pointer-events-auto w-full px-2.5 py-2 sm:px-3 sm:py-2.5 2xl:px-4 2xl:py-3">
+            <div className="flex items-center gap-2.5 2xl:gap-4">
+              <span
+                className="ui-gem size-[3.25rem] shrink-0 sm:size-[3.75rem] 2xl:size-20"
+                style={{ ["--gem" as string]: "var(--color-accent)" }}
+              >
+                <span className="flex flex-col items-center leading-none [text-shadow:0_2px_0_rgb(46_24_86/0.5)]">
+                  <span className="font-display text-2xl font-bold tabular-nums sm:text-[1.75rem] 2xl:text-4xl">{found}</span>
+                  <span className="font-display text-[0.6rem] font-semibold uppercase tracking-wide opacity-90 2xl:text-sm">
+                    of {level.dumplings.length}
                   </span>
-                )}
-                {runActive && (
-                  <span className="ui-chip bg-surface text-sm tabular-nums text-ink sm:text-base 2xl:text-lg">
-                    <Timer className="size-4 text-accent-2" />
-                    {clock(runSeconds)}
+                </span>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="min-w-0 flex-1 truncate font-display text-xs font-semibold uppercase tracking-wider text-ink-soft sm:text-sm 2xl:text-lg">
+                    {level.name}
+                  </p>
+                  {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} />}
+                </div>
+                {/* one diamond per dumpling: two rows on a phone, one on a TV */}
+                <div className="mt-1 grid gap-x-1 gap-y-1 [grid-template-columns:repeat(8,minmax(0,1fr))] sm:gap-x-[3px] sm:[grid-template-columns:repeat(16,minmax(0,1fr))] 2xl:gap-x-1.5">
+                  {level.dumplings.map((_, i) => (
+                    <span key={i} className="ui-pip" data-on={i < found ? "" : undefined} />
+                  ))}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:gap-1.5 2xl:mt-2.5 2xl:gap-2">
+                  <span
+                    className={cn(
+                      "ui-chip gloss gap-1 px-1.5 text-[0.78rem] sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl",
+                      TEMP_PILL[temp] ?? "bg-surface-3 text-ink",
+                    )}
+                  >
+                    <Thermometer className="size-3.5 sm:size-4 2xl:size-5" strokeWidth={2.6} />
+                    {TEMP_LABEL[temp]}
                   </span>
-                )}
+                  {tickets > 0 && (
+                    <span className="ui-chip gloss gap-1 bg-sun px-1.5 text-[0.78rem] tabular-nums text-ink sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
+                      <Ticket className="size-3.5 sm:size-4 2xl:size-5" /> {tickets}
+                    </span>
+                  )}
+                  {runActive && (
+                    <span className="ui-chip gap-1 bg-surface px-1.5 text-[0.78rem] tabular-nums text-ink sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
+                      <Timer className="size-3.5 text-accent-2 sm:size-4 2xl:size-5" />
+                      {clock(runSeconds)}
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
-          {(nearCollect || fleeNotice || close || rideNear) && (
+          {(emmettNotice || fleeNotice || nearCollect || boardReady || rideNear || close) && (
             <div className="ui-glass animate-ui-rise pointer-events-auto flex max-w-full items-center gap-2.5 py-1.5 pl-1.5 pr-3 2xl:gap-3 2xl:py-2 2xl:pl-2">
-              <span className={cn("gloss grid size-9 shrink-0 place-items-center rounded-full border-[2.5px] border-edge 2xl:size-11", toast.bg)}>
+              <span className="ui-gem size-9 shrink-0 2xl:size-11" style={{ ["--gem" as string]: toast.gem }}>
                 <toast.Icon className="size-5 2xl:size-6" strokeWidth={2.4} />
               </span>
               <p className="min-w-0 flex-1 py-0.5 text-sm font-bold leading-snug text-ink sm:text-base 2xl:text-xl">{status}</p>
@@ -810,7 +1011,7 @@ function HUD() {
 
           {hintText && (
             <div className="ui-glass animate-ui-rise pointer-events-auto flex max-w-full items-start gap-2.5 py-2 pl-2 pr-1 2xl:gap-3 2xl:py-2.5">
-              <span className="gloss grid size-9 shrink-0 place-items-center rounded-full border-[2.5px] border-edge bg-sun text-ink 2xl:size-11">
+              <span className="ui-gem size-9 shrink-0 text-ink 2xl:size-11" style={{ ["--gem" as string]: "var(--color-topaz)" }}>
                 <Lightbulb className="size-5 2xl:size-6" strokeWidth={2.4} />
               </span>
               <p className="min-w-0 flex-1 py-1 text-sm font-semibold leading-snug text-ink sm:text-base 2xl:text-xl">{hintText}</p>
@@ -864,7 +1065,7 @@ function HUD() {
           <Joystick />
           <div className="pointer-events-auto flex flex-col items-end gap-3 md:items-start [@media(max-height:520px)]:flex-row [@media(max-height:520px)]:items-end">
             {nearCollect && !riding && (
-              <Btn onClick={requestInteract} className="animate-ui-pop min-h-14 min-w-40 gap-2.5 text-xl 2xl:min-h-16 2xl:text-2xl">
+              <Btn onClick={requestInteract} className="ui-shimmer animate-ui-pop min-h-14 min-w-40 gap-2.5 text-xl 2xl:min-h-16 2xl:text-2xl">
                 <Hand className="size-6" strokeWidth={2.4} />
                 Collect
               </Btn>
@@ -877,7 +1078,10 @@ function HUD() {
             >
               <Lightbulb className="size-5" strokeWidth={2.4} />
               Hint
-              <span className="grid h-8 min-w-8 place-items-center rounded-full border-[2.5px] border-edge bg-surface px-1.5 text-base tabular-nums">
+              <span
+                className="ui-gem size-8 shrink-0 text-base font-bold tabular-nums text-ink"
+                style={{ ["--gem" as string]: "var(--color-pearl)" }}
+              >
                 {hintsLeft}
               </span>
             </Btn>
@@ -908,17 +1112,23 @@ function IconBtn({
   children,
   onClick,
   label,
+  tint,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   label: string;
+  /** jewel tint for the icon, so the row reads as a little set of stones */
+  tint?: string;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="press chunk-sm gloss grid size-11 place-items-center rounded-full bg-surface text-ink sm:size-12 2xl:size-16"
+      className={cn(
+        "press chunk-sm gloss grid size-11 place-items-center rounded-full bg-[linear-gradient(170deg,#fff,var(--color-blush)_55%,var(--color-lilac))] sm:size-12 2xl:size-16",
+        tint ?? "text-ink",
+      )}
     >
       {children}
     </button>
@@ -1078,8 +1288,8 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
   const low = value <= 5;
 
   return (
-    <div className="mb-1 flex items-center gap-2">
-      <svg width="52" height="60" viewBox="0 0 52 60" aria-hidden>
+    <div className="-my-1 flex shrink-0 items-center gap-1">
+      <svg width="26" height="30" viewBox="0 0 52 60" className="shrink-0 2xl:h-11 2xl:w-9" aria-hidden>
         <rect x="8" y="12" width="36" height="44" rx="3" fill="#c9442f" />
         <rect x="8" y={12 + 44 * (1 - frac)} width="36" height={44 * frac} rx="3" fill="#e8613f" />
         <rect x="8" y="12" width="36" height="44" rx="3" fill="none" stroke="#8f2d1f" strokeWidth="2" />
@@ -1122,8 +1332,8 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
       </svg>
       <span
         className={cn(
-          "font-display text-lg font-semibold tabular-nums",
-          low ? "text-[#c9442f]" : "text-ink",
+          "font-display text-base font-bold tabular-nums 2xl:text-2xl",
+          low ? "text-accent" : "text-ink",
         )}
       >
         {Math.ceil(value)}s
@@ -1166,7 +1376,7 @@ function BigAction({
         type="button"
         onClick={onPress}
         className={cn(
-          "press chunk gloss pointer-events-auto flex max-w-full items-center gap-3 py-3 pl-3 pr-7 text-left font-display text-2xl font-semibold leading-tight sm:gap-4 sm:py-4 sm:pl-4 sm:pr-10 sm:text-4xl 2xl:text-5xl [@media(max-height:520px)]:py-2 [@media(max-height:520px)]:pl-2 [@media(max-height:520px)]:text-3xl",
+          "press chunk gloss ui-shimmer pointer-events-auto flex max-w-full items-center gap-3 py-3 pl-3 pr-7 text-left font-display text-2xl font-semibold leading-tight sm:gap-4 sm:py-4 sm:pl-4 sm:pr-10 sm:text-4xl 2xl:text-5xl [@media(max-height:520px)]:py-2 [@media(max-height:520px)]:pl-2 [@media(max-height:520px)]:text-3xl",
           gold ? "bg-sun text-ink" : "bg-accent text-accent-fg [text-shadow:0_2px_0_rgb(0_0_0/0.18)]",
         )}
         style={{ animation: "catchPop 260ms ease-out, bigNudge 1.3s ease-in-out 400ms infinite" }}
@@ -1177,7 +1387,7 @@ function BigAction({
         {label}
       </button>
       <p className="ui-chip bg-surface/90 px-3 py-0.5 text-sm text-ink sm:text-base">
-        Tap it, or press Collect (X · E · F)
+        Tap it, or press {bindingLabel("collect")}
       </p>
     </div>
   );
@@ -1489,12 +1699,12 @@ function Quiz() {
     let prevDown = false;
     let raf = 0;
     const loop = () => {
-      const pads = navigator.getGamepads?.() ?? [];
-      const pad = pads.find((p) => p && p.buttons.length > 0);
+      const pad = activePad();
       if (pad) {
         const a = Boolean(pad.buttons[0]?.pressed);
-        const up = Boolean(pad.buttons[12]?.pressed) || (pad.axes[1] ?? 0) < -0.55;
-        const down = Boolean(pad.buttons[13]?.pressed) || (pad.axes[1] ?? 0) > 0.55;
+        // answers sit in a column on a phone and a row on a TV: either way works
+        const up = Boolean(pad.buttons[12]?.pressed) || Boolean(pad.buttons[14]?.pressed) || (pad.axes[1] ?? 0) < -0.55 || (pad.axes[0] ?? 0) < -0.55;
+        const down = Boolean(pad.buttons[13]?.pressed) || Boolean(pad.buttons[15]?.pressed) || (pad.axes[1] ?? 0) > 0.55 || (pad.axes[0] ?? 0) > 0.55;
         const n = useGame.getState().quiz?.q.choices.length ?? 3;
         if (up && !prevUp) setSel((s) => (s - 1 + n) % n);
         if (down && !prevDown) setSel((s) => (s + 1) % n);
@@ -1512,7 +1722,27 @@ function Quiz() {
       raf = window.requestAnimationFrame(loop);
     };
     raf = window.requestAnimationFrame(loop);
-    return () => window.cancelAnimationFrame(raf);
+    // keyboard: arrows move, 1 2 3 pick straight away, Enter or Space picks the highlighted one
+    const onKey = (e: KeyboardEvent) => {
+      const q = useGame.getState().quiz;
+      if (!q || e.repeat) return;
+      const n = q.q.choices.length;
+      const digit = Number.parseInt(e.key, 10);
+      if (["ArrowUp", "ArrowLeft", "KeyW", "KeyA"].includes(e.code)) setSel((s) => (s - 1 + n) % n);
+      else if (["ArrowDown", "ArrowRight", "KeyS", "KeyD"].includes(e.code)) setSel((s) => (s + 1) % n);
+      else if (digit >= 1 && digit <= n) {
+        setSel(digit - 1);
+        pickRef.current(q.q.choices[digit - 1]!);
+      } else if (e.code === "Enter" || e.code === "Space") {
+        pickRef.current(q.q.choices[((selRef.current % n) + n) % n]!);
+      } else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   // read the sum as words: "What is 7 minus 3?"
@@ -1691,13 +1921,23 @@ function CompleteScreen() {
   const lastRun = useGame((s) => s.lastRun);
   const level = LEVELS[levelIndex]!;
   const next = LEVELS[levelIndex + 1];
+  // The first park is the one she will finish on her birthday, so it gets the
+  // party treatment: the crown she just earned, and her name in lights.
+  const party = levelIndex === 0;
   return (
     <Layer z="z-30">
       <Sheet
-        tone="teal"
-        icon={Trophy}
+        tone={party ? "grape" : "teal"}
+        icon={party ? Cake : Trophy}
         eyebrow="Park complete"
-        title={playerName ? `${playerName} found them all` : "Every dumpling found"}
+        title={
+          party
+            ? `Happy birthday${playerName ? `, ${playerName}` : ", Sloan"}!`
+            : playerName
+              ? `${playerName} found them all`
+              : "Every dumpling found"
+        }
+        subtitle={party ? "You found every dumpling in the park!" : undefined}
         className="max-w-lg sm:landscape:max-w-4xl 2xl:max-w-5xl"
       >
         <div className="grid gap-5 sm:landscape:grid-cols-2 sm:landscape:gap-6">
@@ -1705,6 +1945,24 @@ function CompleteScreen() {
             <p className="text-lg font-semibold leading-relaxed text-ink-soft 2xl:text-xl">
               {level.dumplings.length} squishy dumplings rescued from {level.name}.
             </p>
+
+            {party && (
+              <div className="chunk-sm gloss ui-shimmer animate-ui-pop relative mt-4 flex items-center gap-3 bg-grape px-3 py-2 text-white sm:px-4">
+                <span className="ui-gem size-14 shrink-0" style={{ ["--gem" as string]: "var(--color-topaz)" }}>
+                  <Crown className="size-7 text-ink" strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-display text-xl font-bold leading-tight [text-shadow:0_2px_0_rgb(0_0_0/0.2)] sm:text-2xl">
+                    The Golden Crown is yours
+                  </p>
+                  <p className="text-sm font-semibold leading-snug text-white/90 sm:text-base">
+                    Put it on any time from your backpack.
+                  </p>
+                </div>
+                <span className="ui-sparkle" aria-hidden style={{ left: "80%", top: "8%", width: "1.3rem" }} />
+                <span className="ui-sparkle" aria-hidden style={{ left: "92%", top: "62%", width: "1rem", ["--delay" as string]: "1.1s" }} />
+              </div>
+            )}
 
             {lastRun ? (
               <div className="chunk-sm gloss animate-ui-pop mt-4 flex items-center gap-4 bg-sun px-4 py-3">
@@ -1747,7 +2005,7 @@ function CompleteScreen() {
             </div>
           </div>
 
-          <div>
+          <div className="relative">
             <p className="flex items-center gap-2 font-display text-xl font-semibold">
               <Trophy className="size-5 text-sun-deep" />
               Best times
@@ -1840,113 +2098,10 @@ export function Overlays() {
       {phase === "playing" && <QuestPanel />}
       {phase === "playing" && <HomePanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}
-      {controlsOpen && <ControlsPanel />}
+      {controlsOpen && <ControlsRemap />}
       {showFps && phase !== "title" && <FpsCounter />}
       {debugEnabled() && <DebugOverlay />}
     </div>
-  );
-}
-
-const CONTROLS: { title: string; rows: [string, string][] }[] = [
-  {
-    title: "Controller",
-    rows: [
-      ["Left stick", "Walk"],
-      ["Right stick", "Look around (up and down in first person)"],
-      ["A", "Jump"],
-      ["X", "Collect a dumpling, ride the ferris wheel"],
-      ["B", "Big map"],
-      ["Y", "Hint"],
-      ["LB / RB", "Turn the camera"],
-      ["LT", "First person on and off"],
-      ["RT", "iPod: next song"],
-      ["Back", "Journal: dumplings, stickers, backpack"],
-      ["Start", "Pause"],
-    ],
-  },
-  {
-    title: "Keyboard",
-    rows: [
-      ["W A S D or arrows", "Walk"],
-      ["Space", "Jump"],
-      ["E or F", "Collect a dumpling, ride the ferris wheel"],
-      ["Q / C", "Turn the camera left / right"],
-      ["Drag the mouse", "Look around"],
-      ["M", "Big map"],
-      ["H", "Hint"],
-      ["J", "Journal: dumplings, stickers, backpack"],
-      ["V", "First person on and off"],
-      ["N", "iPod: next song"],
-      ["Esc or P", "Pause"],
-    ],
-  },
-  {
-    title: "Touch",
-    rows: [
-      ["Joystick", "Walk"],
-      ["Drag the screen", "Look around"],
-      ["Jump / Collect buttons", "Jump, collect, ride"],
-      ["Tap the map", "Big map"],
-    ],
-  },
-];
-
-/** Every control in one place, reachable from the title, the pause menu and the HUD. */
-const CONTROL_ICON: Record<string, LucideIcon> = { Controller: Gamepad2, Keyboard, Touch: Hand };
-const CONTROL_TINT: Record<string, string> = { Controller: "bg-accent-2", Keyboard: "bg-teal", Touch: "bg-accent" };
-
-function ControlsPanel() {
-  const setControls = useGame((s) => s.setControls);
-  return (
-    <Layer z="z-40" onClick={() => setControls(false)}>
-      <div className="flex max-h-full w-full max-w-lg sm:landscape:max-w-6xl 2xl:max-w-7xl" onClick={(e) => e.stopPropagation()}>
-        <Sheet
-          tone="blue"
-          icon={Gamepad2}
-          title="Controls"
-          onClose={() => setControls(false)}
-          closeLabel="Close controls"
-        >
-          <div className="grid gap-4 sm:landscape:grid-cols-2 lg:landscape:grid-cols-[1fr_1fr_0.85fr] 2xl:gap-6">
-            {CONTROLS.map((group, gi) => {
-              const GroupIcon = CONTROL_ICON[group.title] ?? Gamepad2;
-              const last = gi === CONTROLS.length - 1;
-              const card = (
-                <div className="rounded-[1.1rem] border-[3px] border-line bg-surface p-3">
-                  <p className="flex items-center gap-2 font-display text-xl font-semibold text-ink">
-                    <span className={cn("gloss grid size-9 place-items-center rounded-full border-[2.5px] border-edge text-white", CONTROL_TINT[group.title] ?? "bg-accent-2")}>
-                      <GroupIcon className="size-5" strokeWidth={2.4} />
-                    </span>
-                    {group.title}
-                  </p>
-                  <dl className="mt-3 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5">
-                    {group.rows.map(([k, v]) => (
-                      <Fragment key={k}>
-                        <dt className="max-w-[8.5rem] justify-self-start rounded-lg border-2 border-edge bg-surface-2 px-2 py-0.5 font-display text-sm font-semibold text-ink shadow-[0_2px_0_var(--color-edge)] 2xl:text-base">
-                          {k}
-                        </dt>
-                        <dd className="text-base font-semibold leading-snug text-ink-soft 2xl:text-lg">{v}</dd>
-                      </Fragment>
-                    ))}
-                  </dl>
-                </div>
-              );
-              if (!last) return <Fragment key={group.title}>{card}</Fragment>;
-              // the last, short column also holds the button, so the panel fits a 720p TV
-              return (
-                <div key={group.title} className="flex flex-col gap-4">
-                  {card}
-                  <Btn onClick={() => setControls(false)} className="mt-auto min-h-14 w-full text-xl">
-                    <Check className="size-6" strokeWidth={3} />
-                    Got it
-                  </Btn>
-                </div>
-              );
-            })}
-          </div>
-        </Sheet>
-      </div>
-    </Layer>
   );
 }
 
@@ -1985,7 +2140,14 @@ function Wardrobe() {
                       : "rounded-[1.1rem] border-[3px] border-dashed border-muted/50 bg-surface-2/80 text-muted",
                   )}
                 >
-                  <div>
+                  {/* the item itself; not found yet shows its dark shape */}
+                  <ItemThumb
+                    kind="accessory"
+                    id={a.id}
+                    locked={!have}
+                    className="mx-auto -mt-0.5 mb-1.5 size-20 rounded-full bg-[radial-gradient(circle,rgb(255_255_255/0.9)_0%,rgb(255_255_255/0)_70%)] sm:size-24"
+                  />
+                  <div className="flex-1">
                     <p className="flex items-center gap-1.5 font-display text-lg font-semibold leading-tight">
                       {!have && <Lock className="size-4 shrink-0" />}
                       {have ? a.name : "?"}
