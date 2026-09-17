@@ -377,6 +377,8 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
 | `home.ts` | Her house: every furniture piece builds, the room's worst-case triangle count, colliders and reachability of each decoration spot. |
 | `emmett-base.ts` | The truck yard: clear ground, 12m from every hiding spot, walkable round the truck and up the ramp, the roof seat on the roof, and his laps clear of anything solid. |
+| `paths.ts` | The walkway network, the arrival plaza and the signs: no path laid through a solid, every node walkable from spawn through the real collision code, no z-fighting between the flat layers, and sign arrows pointing the right way. |
+| `parkmap.ts` | An ASCII map of any region (north up, east right) marking solids, steps, walkways, flat surfaces and water. The fastest way to see what is actually where before moving anything. |
 | `zoo.ts` | The zoo: clear ground beside the farm, every plaque walkable from spawn, fences unclimbable, spacing from hiding spots. `tools/zoo.ts scan` searches for clear ground of a given size. |
 | `lookout.ts` | The mountain lookout: walks the switchback stair from spawn with the jump key never pressed, then shoves her at every railing to prove she cannot fall off. |
 | `emmett-home.ts` | Emmett's routine headless: laps at home, rides out, catches her, goes back; fails under 3 round trips in 15 minutes. |
