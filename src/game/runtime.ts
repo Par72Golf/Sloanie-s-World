@@ -41,6 +41,7 @@ import { useGame } from "./store";
 import { DRESS, HAIR, type LevelDef } from "./types";
 
 import { BOUNCE, GRAVITY, JUMP, PLAYER_H, PLAYER_W, SUPER_BOUNCE, TRAMPOLINE_TOP, WALK } from "./tuning";
+import { GEYSER } from "./splash";
 const FIXED = 1 / 60;
 const COLLECT_R = 2.15;
 // On the ferris wheel the sky dumpling floats clear above the rim so it stands
@@ -809,6 +810,91 @@ export class GameRuntime {
     this.highlightUntil = 0;
   }
 
+  /**
+   * Splash pad. Ground jets fire in a chase around the rings (inner, then
+   * outer), and standing on one as it fires launches her; the tipping bucket
+   * fills for a while, tips, pours and rights itself, soaking anyone under
+   * it; droplets circle the sprinkler flowers.
+   */
+  updateSplash(dt: number) {
+    const s = this.world?.splash;
+    const at = this.level.splash;
+    if (!s || !at) return;
+    const t = this.clock;
+    const lx = this.cap.x - at.x;
+    const lz = this.cap.z - at.z;
+    const near = lx * lx + lz * lz < 30 * 30;
+    const st = useGame.getState();
+    const playing = st.phase === "playing" && !st.quiz && !st.rps && !this.ride;
+
+    const PERIOD = 7;
+    s.jets.forEach((j, i) => {
+      const ph = (((t / PERIOD + j.def.phase) % 1) + 1) % 1;
+      const k = ph < 0.05 ? ph / 0.05 : ph < 0.2 ? 1 : ph < 0.27 ? 1 - (ph - 0.2) / 0.07 : 0;
+      const h = j.def.max * k * (1 + Math.sin(t * 15 + i) * 0.05);
+      j.column.visible = k > 0.02;
+      j.cap.visible = k > 0.02;
+      if (k > 0.02) {
+        j.column.scale.y = h;
+        j.column.position.y = 0.08 + h / 2;
+        j.cap.position.y = 0.08 + h;
+        const puff = 0.3 + 0.12 * Math.sin(t * 20 + i);
+        j.cap.scale.set(puff, puff * 0.6, puff);
+      }
+      j.cooldown = Math.max(0, j.cooldown - dt);
+      if (playing && k > 0.6 && j.cooldown === 0 && this.grounded && this.cap.y < 0.4) {
+        if (Math.hypot(lx - j.def.x, lz - j.def.z) < 0.75) {
+          this.velY = GEYSER;
+          this.grounded = false;
+          this.coyote = 0;
+          j.cooldown = 1.2;
+          this.burst(this.cap.x, 0.2, this.cap.z, "#e2f6ff");
+          sfx.splash(false);
+          this.mood = "cheer";
+          this.moodT = 1.2;
+        }
+      }
+    });
+
+    // bucket: 9s filling, tip over 0.6s, pour 1.4s, right itself over 1s
+    const b = s.bucket;
+    const cyc = ((t % 12) + 12) % 12;
+    let tilt = 0;
+    if (cyc < 9) tilt = Math.sin(t * 2.2) * 0.03;
+    else if (cyc < 9.6) tilt = ((cyc - 9) / 0.6) * 2.1;
+    else if (cyc < 11) tilt = 2.1;
+    else tilt = 2.1 * (1 - (cyc - 11));
+    b.pivot.rotation.z = -tilt;
+    const pouring = cyc >= 9.5 && cyc < 11;
+    b.sheet.visible = pouring;
+    if (pouring) {
+      const k = Math.min(1, (cyc - 9.5) / 0.25) * Math.min(1, (11 - cyc) / 0.3);
+      b.sheet.scale.set(0.6 + 0.4 * k, 3.2, 0.6 + 0.4 * k);
+    }
+    if (pouring && !b.poured) {
+      b.poured = true;
+      if (near) sfx.splash(true);
+      if (playing && Math.hypot(lx - b.pourX, lz - b.pourZ) < 1.9) {
+        this.burst(this.cap.x, 1.2, this.cap.z, "#e2f6ff");
+        this.burst(this.cap.x, 0.4, this.cap.z, "#bfe8f6");
+        this.mood = "cheer";
+        this.moodT = 1.6;
+        st.setEmmettNotice("SPLASH! You got soaked!");
+      }
+    }
+    if (!pouring) b.poured = false;
+
+    // sprinkler droplets
+    for (const sp of s.sprinklers) {
+      sp.drops.forEach((d, i) => {
+        const a = t * 2.6 + (i / sp.drops.length) * Math.PI * 2;
+        const life = (((t * 1.3 + i / sp.drops.length) % 1) + 1) % 1;
+        const r = 0.35 + life * 0.9;
+        d.position.set(sp.x + Math.cos(a) * r, 1.8 + Math.sin(life * Math.PI) * 0.7 - life * 0.9, sp.z + Math.sin(a) * r);
+      });
+    }
+  }
+
   /** On the wheel's boarding spot and not already riding: Collect would board. */
   onBoardSpot(): boolean {
     const wheel = this.world?.ride;
@@ -1322,6 +1408,7 @@ export class GameRuntime {
         }
       }
     }
+    this.updateSplash(dt);
     if (this.world.campfire) {
       const f = this.world.campfire;
       for (let i = 0; i < f.flames.length; i++) {

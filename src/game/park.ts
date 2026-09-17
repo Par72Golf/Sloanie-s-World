@@ -1,4 +1,5 @@
 import type { BoxProp, CylinderProp, Prop } from "./types";
+import { SPLASH_BUCKET, SPLASH_FLOWERS, SPLASH_RADIUS } from "./splash";
 
 /**
  * Park zone builders. Everything here composes from the primitive prop kinds
@@ -253,29 +254,11 @@ export function baseballDiamond(cx: number, cz: number, flip = false): Prop[] {
 export function splashPad(cx: number, cz: number): Prop[] {
   const p: Prop[] = [];
 
-  // wet deck
-  p.push(disc(cx, TOP.apron, cz, 14, "#6f9fb8"));
-  p.push(disc(cx, TOP.court, cz, 11, "#8fc4d8"));
-  p.push(disc(cx, TOP.inner, cz, 5.5, "#bfe4ee"));
-
-  // ground jets: an outer ring of eight and an inner ring of four
-  const rings: [number, number][] = [
-    [8, 9.2],
-    [4, 4.6],
-  ];
-  let k = 0;
-  for (const [jets, r] of rings) {
-    for (let i = 0; i < jets; i++) {
-      const a = (i / jets) * Math.PI * 2 + (jets === 4 ? Math.PI / 4 : 0);
-      const jx = cx + Math.cos(a) * r;
-      const jz = cz + Math.sin(a) * r;
-      p.push(cyl(jx, 0.14, jz, 0.34, 0.2, C.chrome, false));
-      const h = 1.4 + ((k * 7) % 5) * 0.42;
-      p.push(cyl(jx, h / 2 + 0.2, jz, 0.13, h, "#cdeefb", false));
-      p.push(cyl(jx, h + 0.32, jz, 0.28, 0.3, "#e8f8ff", false));
-      k++;
-    }
-  }
+  // Ground under the pad. The painted deck, the ground jets, the tipping
+  // bucket and the flower sprinklers are an animated composite on top
+  // (makeSplashPad, placed by level.splash); this disc keeps the grass off
+  // and draws the pad on the minimap.
+  p.push(disc(cx, TOP.apron, cz, SPLASH_RADIUS, "#9fd0dc"));
 
   // three arches in a row across the pad; the spray itself is animated
   for (const ax of [-6, 0, 6]) {
@@ -286,21 +269,14 @@ export function splashPad(cx: number, cz: number): Prop[] {
     p.push(box(cx + ax, 3.4, cz, 2.6, 0.3, 0.3, C.paint));
   }
 
-  // tipping bucket on a frame
-  p.push(cyl(cx - 8.5, 1.9, cz - 3.5, 0.28, 3.8, C.chrome));
-  p.push(cyl(cx - 8.5, 3.9, cz - 3.5, 1.5, 1.3, "#f0c44a", true));
-  p.push(cyl(cx - 8.5, 4.6, cz - 3.5, 1.55, 0.18, "#d8a832", false));
+  // the tipping bucket's pole (the bucket and arm are animated)
+  p.push(cyl(cx + SPLASH_BUCKET.x, 1.9, cz + SPLASH_BUCKET.z, 0.28, 3.8, C.chrome));
 
-  // toddler sprinkler flowers
-  for (const [fx, fz, col] of [
-    [cx + 7.5, cz + 5.5, "#e8697d"],
-    [cx - 6.5, cz + 6.5, "#f6d75e"],
-    [cx + 5.5, cz - 7.5, "#b98ce0"],
-  ] as [number, number, string][]) {
-    p.push(cyl(fx, 0.75, fz, 0.16, 1.5, "#4a8a5a"));
-    p.push(cyl(fx, 1.55, fz, 0.85, 0.22, col, true));
-    p.push(cyl(fx, 1.68, fz, 0.3, 0.14, "#f7f3e4", false));
-    p.push(cyl(fx, 2.3, fz, 0.08, 1.2, "#d6f2ff", false));
+  // toddler sprinkler flowers: stem and petals solid, spray animated
+  for (const [fx, fz, col] of SPLASH_FLOWERS) {
+    p.push(cyl(cx + fx, 0.75, cz + fz, 0.16, 1.5, "#4a8a5a"));
+    p.push(cyl(cx + fx, 1.55, cz + fz, 0.85, 0.22, col, true));
+    p.push(cyl(cx + fx, 1.68, cz + fz, 0.3, 0.14, "#f7f3e4", false));
   }
 
   // changing bench and a towel rail

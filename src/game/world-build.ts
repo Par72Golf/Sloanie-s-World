@@ -31,6 +31,8 @@ import {
   makeHouse,
   makeLollipop,
   makeSlide,
+  makeSplashPad,
+  type SplashRig,
   makeTree,
   makeWaterMaterial,
   pathTexture,
@@ -64,6 +66,7 @@ export type BuiltWorld = {
   /** Trampoline mats, as footprints; their top is TRAMPOLINE_TOP. */
   bouncers: { minX: number; maxX: number; minZ: number; maxZ: number }[];
   spray: SprayArches | null;
+  splash: SplashRig | null;
   campfire: Campfire | null;
 };
 
@@ -220,7 +223,11 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   // Animated set pieces: the splash pad spray and the campfire. Both are kept
   // out of the merge so the runtime can move them.
   let spray: SprayArches | null = null;
+  let splash: SplashRig | null = null;
   if (level.splash) {
+    splash = makeSplashPad();
+    splash.group.position.set(level.splash.x, 0, level.splash.z);
+    group.add(splash.group);
     spray = makeSprayArches();
     spray.group.position.set(level.splash.x, 0, level.splash.z);
     group.add(spray.group);
@@ -422,6 +429,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   }
   if (ride) live.add(ride.group);
   if (spray) live.add(spray.group);
+  if (splash) live.add(splash.group);
   if (campfire) live.add(campfire.group);
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.
@@ -450,6 +458,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     ride,
     bouncers,
     spray,
+    splash,
     campfire,
   };
 }

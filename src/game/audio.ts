@@ -54,7 +54,33 @@ function tone(
   osc.stop(t + dur + 0.02);
 }
 
+/** Filtered white noise with a fade, for water. */
+function noise(dur: number, gain: number, cutoff: number, at = 0) {
+  const c = ensure();
+  if (c.state === "suspended") return;
+  const len = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.6);
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const f = c.createBiquadFilter();
+  f.type = "lowpass";
+  f.frequency.value = cutoff;
+  const g = c.createGain();
+  g.gain.value = gain;
+  src.connect(f);
+  f.connect(g);
+  g.connect(master!);
+  src.start(c.currentTime + at);
+}
+
 export const sfx = {
+  // a jet firing (small) or the bucket dumping (big)
+  splash: (big = false) => {
+    noise(big ? 1.1 : 0.45, big ? 0.9 : 0.45, big ? 1600 : 2800);
+    tone(big ? 240 : 360, 0.22, "sine", 0.05, 0, big ? 110 : 170);
+  },
   jump: () => tone(420, 0.12, "square", 0.08, 0, 280),
   collect: () => {
     tone(523, 0.12, "triangle", 0.16);

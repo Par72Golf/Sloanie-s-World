@@ -3,6 +3,7 @@ import { beveledBox } from "./beveled";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { texturesFor, type TexKind } from "./textures";
+import { SPLASH_BUCKET, SPLASH_FLOWERS, SPLASH_RADIUS, splashJets, type Jet } from "./splash";
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 const sphereGeo = new THREE.SphereGeometry(1, 14, 12);
@@ -1941,6 +1942,167 @@ export function makeCampfire(): Campfire {
   light.position.set(0, 1.0, 0);
   g.add(light);
   return { group: g, flames, light };
+}
+
+export type SplashRig = {
+  group: THREE.Group;
+  jets: { def: Jet; column: THREE.Mesh; cap: THREE.Mesh; cooldown: number }[];
+  bucket: { pivot: THREE.Group; sheet: THREE.Mesh; pourX: number; pourZ: number; poured: boolean };
+  sprinklers: { drops: THREE.Mesh[]; x: number; z: number }[];
+};
+
+/** The painted deck: aqua with a pale rim, a sun in the middle, and a bright target under every jet. */
+function splashDeckTexture(jets: Jet[]) {
+  const S = 1024;
+  const R = SPLASH_RADIUS + 0.2;
+  const c = document.createElement("canvas");
+  c.width = S;
+  c.height = S;
+  const g = c.getContext("2d")!;
+  const px = (x: number) => ((x / (2 * R)) + 0.5) * S;
+  const m = (r: number) => (r / (2 * R)) * S;
+  g.fillStyle = "#eaf6f7";
+  g.beginPath();
+  g.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#8ed6e4";
+  g.beginPath();
+  g.arc(S / 2, S / 2, m(R - 0.8), 0, Math.PI * 2);
+  g.fill();
+  // soft speckle so it reads as a surface, not a flat colour
+  for (let i = 0; i < 1400; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * m(R - 0.9);
+    g.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.18)" : "rgba(40,120,150,0.10)";
+    g.fillRect(S / 2 + Math.cos(a) * r, S / 2 + Math.sin(a) * r, 3, 3);
+  }
+  // sun
+  g.fillStyle = "#ffd65a";
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    g.beginPath();
+    g.moveTo(S / 2 + Math.cos(a - 0.12) * m(1.7), S / 2 + Math.sin(a - 0.12) * m(1.7));
+    g.lineTo(S / 2 + Math.cos(a) * m(2.7), S / 2 + Math.sin(a) * m(2.7));
+    g.lineTo(S / 2 + Math.cos(a + 0.12) * m(1.7), S / 2 + Math.sin(a + 0.12) * m(1.7));
+    g.fill();
+  }
+  g.beginPath();
+  g.arc(S / 2, S / 2, m(1.6), 0, Math.PI * 2);
+  g.fill();
+  // targets
+  const rings = ["#e8455f", "#ffc53d", "#3fa35c", "#4f93c4", "#b98ce0", "#ff8a3d"];
+  jets.forEach((j, i) => {
+    const x = px(j.x);
+    const z = px(j.z);
+    const col = rings[i % rings.length]!;
+    for (const [r, fill] of [
+      [1.25, col],
+      [0.9, "#ffffff"],
+      [0.55, col],
+    ] as [number, string][]) {
+      g.fillStyle = fill;
+      g.beginPath();
+      g.arc(x, z, m(r), 0, Math.PI * 2);
+      g.fill();
+    }
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+/**
+ * The splash pad's live parts, in the pad's local frame: a painted round
+ * deck, ground jets whose water columns the runtime raises in a chase, a
+ * tipping bucket on an arm that fills and dumps, and droplets circling each
+ * sprinkler flower. The solid bits (arch posts, bucket pole, flower stems,
+ * bench) are props in park.ts.
+ */
+export function makeSplashPad(): SplashRig {
+  const group = new THREE.Group();
+  const jets = splashJets();
+  const deck = new THREE.Mesh(
+    new THREE.CircleGeometry(SPLASH_RADIUS + 0.2, 72),
+    // matte and a touch grey, so the pale rim and targets stay under the bloom
+    // threshold instead of haloing the whole pad
+    new THREE.MeshStandardMaterial({ map: splashDeckTexture(jets), color: "#c4c4c4", roughness: 0.8, metalness: 0 }),
+  );
+  deck.rotation.x = -Math.PI / 2;
+  deck.position.y = 0.062;
+  deck.receiveShadow = true;
+  group.add(deck);
+
+  const water = lam("#e2f6ff", { transparent: true, opacity: 0.62, flat: true, roughness: 0.15 });
+  const nozzleGeo = new THREE.CylinderGeometry(0.2, 0.24, 0.05, 16);
+  const columnGeo = new THREE.CylinderGeometry(0.1, 0.2, 1, 12);
+  const capGeo = new THREE.SphereGeometry(1, 12, 8);
+  const rigJets: SplashRig["jets"] = jets.map((def) => {
+    const nozzle = new THREE.Mesh(nozzleGeo, lam("#c8d0d6", { flat: true, roughness: 0.3 }));
+    nozzle.position.set(def.x, 0.085, def.z);
+    group.add(nozzle);
+    const column = new THREE.Mesh(columnGeo, water);
+    column.position.set(def.x, 0.5, def.z);
+    column.castShadow = false;
+    column.visible = false;
+    group.add(column);
+    const cap = new THREE.Mesh(capGeo, water);
+    cap.position.set(def.x, 1, def.z);
+    cap.scale.set(0.35, 0.22, 0.35);
+    cap.castShadow = false;
+    cap.visible = false;
+    group.add(cap);
+    return { def, column, cap, cooldown: 0 };
+  });
+
+  // tipping bucket: an arm off the pole top, the bucket hanging from a pivot
+  const bx = SPLASH_BUCKET.x;
+  const bz = SPLASH_BUCKET.z;
+  group.add(mesh(boxGeo, "#b8c2c8", SPLASH_BUCKET.arm + 0.4, 0.16, 0.16, bx + SPLASH_BUCKET.arm / 2, 3.86, bz, false));
+  const pivot = new THREE.Group();
+  pivot.position.set(bx + SPLASH_BUCKET.arm, 3.7, bz);
+  const bucketGeo = new THREE.CylinderGeometry(0.95, 0.7, 1.1, 24, 1, true);
+  const bucketMat = new THREE.MeshStandardMaterial({ color: "#f0c44a", roughness: 0.45, side: THREE.DoubleSide });
+  const bucket = new THREE.Mesh(bucketGeo, bucketMat);
+  bucket.position.y = -0.6;
+  bucket.castShadow = true;
+  pivot.add(bucket);
+  const base = new THREE.Mesh(new THREE.CircleGeometry(0.7, 24), bucketMat);
+  base.rotation.x = Math.PI / 2;
+  base.position.y = -1.15;
+  pivot.add(base);
+  const fill = new THREE.Mesh(new THREE.CircleGeometry(0.88, 24), lam("#6cc4e0", { flat: true, roughness: 0.2 }));
+  fill.rotation.x = -Math.PI / 2;
+  fill.position.y = -0.15;
+  pivot.add(fill);
+  const rimBand = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.05, 6, 24), lam("#d8a832", { flat: true }));
+  rimBand.rotation.x = Math.PI / 2;
+  rimBand.position.y = -0.05;
+  pivot.add(rimBand);
+  group.add(pivot);
+  // the pour: a thick sheet of water from the tipped lip to the ground
+  const pourX = bx + SPLASH_BUCKET.arm + 1.05;
+  const sheet = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.75, 1, 16, 1, true), water);
+  sheet.position.set(pourX, 1.6, bz);
+  sheet.scale.set(1, 3.2, 1);
+  sheet.visible = false;
+  sheet.castShadow = false;
+  group.add(sheet);
+
+  // droplets circling each sprinkler flower
+  const dropGeo = new THREE.SphereGeometry(0.09, 8, 6);
+  const sprinklers = SPLASH_FLOWERS.map(([x, z]) => {
+    const drops: THREE.Mesh[] = [];
+    for (let i = 0; i < 8; i++) {
+      const d = new THREE.Mesh(dropGeo, water);
+      d.castShadow = false;
+      group.add(d);
+      drops.push(d);
+    }
+    return { drops, x, z };
+  });
+
+  return { group, jets: rigJets, bucket: { pivot, sheet, pourX, pourZ: bz, poured: false }, sprinklers };
 }
 
 export type SprayArches = { group: THREE.Group; columns: THREE.Mesh[][] };
