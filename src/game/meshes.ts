@@ -1750,6 +1750,95 @@ export function makeTent(color: string) {
   return g;
 }
 
+/**
+ * A little red farm tractor, nose toward +x: big lugged rear wheels and small
+ * front ones lying on their sides with yellow rims, a hood with a grille and
+ * headlights, an exhaust stack, fenders, a seat and steering wheel, and a
+ * sun roof on a roll frame. About 3.6m long, 2.5m wide and 2.7m tall.
+ */
+const wheelGeo = new THREE.CylinderGeometry(1, 1, 1, 28);
+export function makeTractor() {
+  const g = new THREE.Group();
+  const red = "#c9442f";
+  const tyre = "#2a2724";
+  const rim = "#f0c44a";
+  const steel = "#5a6470";
+  const flat = (c: string, roughness = 0.55) => lam(c, { flat: true, roughness });
+  const add = (o: THREE.Mesh, shadow = true) => {
+    o.castShadow = shadow;
+    o.receiveShadow = true;
+    g.add(o);
+    return o;
+  };
+  // a wheel on its side: axle along z
+  const wheel = (x: number, z: number, r: number, w: number, lugs: number) => {
+    const y = r;
+    const t = add(new THREE.Mesh(wheelGeo, flat(tyre, 0.9)));
+    t.scale.set(r, w, r);
+    t.rotation.x = Math.PI / 2;
+    t.position.set(x, y, z);
+    // chunky tread lugs round the rim
+    for (let i = 0; i < lugs; i++) {
+      const a = (i / lugs) * Math.PI * 2;
+      const lug = add(new THREE.Mesh(beveledBox(r * 0.22, 0.09, w * 0.9), flat(tyre, 0.9)), false);
+      lug.position.set(x + Math.cos(a) * (r + 0.02), y + Math.sin(a) * (r + 0.02), z);
+      lug.rotation.z = a + Math.PI / 2;
+    }
+    // rim and hub on the outside face
+    const side = Math.sign(z);
+    const rimM = add(new THREE.Mesh(wheelGeo, flat(rim, 0.4)), false);
+    rimM.scale.set(r * 0.62, 0.06, r * 0.62);
+    rimM.rotation.x = Math.PI / 2;
+    rimM.position.set(x, y, z + side * (w / 2 + 0.01));
+    const hub = add(new THREE.Mesh(wheelGeo, flat(steel, 0.35)), false);
+    hub.scale.set(r * 0.2, 0.1, r * 0.2);
+    hub.rotation.x = Math.PI / 2;
+    hub.position.set(x, y, z + side * (w / 2 + 0.05));
+  };
+  wheel(-0.85, 0.98, 0.78, 0.5, 14);
+  wheel(-0.85, -0.98, 0.78, 0.5, 14);
+  wheel(1.2, 0.8, 0.44, 0.3, 10);
+  wheel(1.2, -0.8, 0.44, 0.3, 10);
+
+  // chassis, engine and hood
+  add(mesh(boxGeo, "#3a3632", 3.0, 0.3, 0.7, 0.2, 0.55, 0));
+  add(mesh(boxGeo, red, 1.9, 0.75, 0.95, 0.75, 1.05, 0));
+  add(mesh(boxGeo, "#2f2a26", 0.08, 0.6, 0.8, 1.72, 1.02, 0, false)); // grille
+  for (const z of [-0.3, 0.3]) {
+    add(mesh(boxGeo, "#fff4c8", 0.06, 0.16, 0.2, 1.76, 1.22, z, false)); // headlights
+  }
+  // exhaust stack with a cap
+  const stack = add(new THREE.Mesh(wheelGeo, flat("#a8b0b8", 0.3)), false);
+  stack.scale.set(0.07, 0.9, 0.07);
+  stack.position.set(1.2, 1.85, 0.3);
+  add(mesh(boxGeo, "#3a3632", 0.2, 0.06, 0.2, 1.2, 2.32, 0.3, false));
+
+  // rear body, fenders over the big wheels, seat and steering wheel
+  add(mesh(boxGeo, red, 1.2, 0.6, 1.1, -0.75, 1.0, 0));
+  for (const z of [-0.98, 0.98]) {
+    add(mesh(boxGeo, red, 1.5, 0.1, 0.62, -0.85, 1.66, z, false));
+    add(mesh(boxGeo, red, 0.1, 0.5, 0.62, -0.12, 1.42, z, false));
+  }
+  add(mesh(boxGeo, "#2f2a26", 0.55, 0.14, 0.6, -0.95, 1.4, 0, false)); // seat
+  add(mesh(boxGeo, "#2f2a26", 0.12, 0.6, 0.6, -1.25, 1.7, 0, false)); // seat back
+  const column = add(new THREE.Mesh(wheelGeo, flat(steel, 0.35)), false);
+  column.scale.set(0.04, 0.55, 0.04);
+  column.position.set(-0.25, 1.62, 0);
+  column.rotation.z = 0.6;
+  const steer = add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 8, 20), flat("#2f2a26", 0.5)), false);
+  steer.position.set(-0.38, 1.85, 0);
+  steer.rotation.y = Math.PI / 2;
+  steer.rotation.x = 0.95;
+
+  // roll frame and a little sun roof
+  for (const z of [-0.62, 0.62]) {
+    add(mesh(boxGeo, steel, 0.1, 1.0, 0.1, -1.4, 2.0, z, false));
+    add(mesh(boxGeo, steel, 0.1, 1.0, 0.1, -0.1, 2.0, z, false));
+  }
+  add(mesh(boxGeo, "#f7f3ee", 1.6, 0.1, 1.5, -0.75, 2.55, 0));
+  return g;
+}
+
 export type Campfire = { group: THREE.Group; flames: THREE.Mesh[]; light: THREE.PointLight };
 
 /** Stone ring, logs, and emissive flames that flicker (animated by the runtime). */

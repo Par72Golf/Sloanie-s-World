@@ -36,6 +36,7 @@ function categorise(p: Prop): { fill: string; layer: number } | null {
   if (p.kind === "tree") return { fill: COL.tree, layer: 3 };
   if (p.kind === "house") return { fill: COL.roof, layer: 3 };
   if (p.kind === "tent") return { fill: p.color, layer: 3 };
+  if (p.kind === "tractor") return { fill: "#c9442f", layer: 3 };
   if (p.kind === "cloud" || p.kind === "lollipop") return null;
 
   const color = (p as { color?: string }).color?.toLowerCase() ?? "";
@@ -102,6 +103,9 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
         g.fillRect(wx(p.x) - w / 2, wz(p.z) - d / 2, w, d);
       } else if (p.kind === "tent") {
         const w = 2.6 * s;
+        g.fillRect(wx(p.x) - w / 2, wz(p.z) - w / 2, w, w);
+      } else if (p.kind === "tractor") {
+        const w = 3.6 * s;
         g.fillRect(wx(p.x) - w / 2, wz(p.z) - w / 2, w, w);
       } else if (p.kind === "cyl") {
         g.beginPath();

@@ -77,7 +77,17 @@ export type TentProp = {
   color: string;
 };
 
+/** A farm tractor model, nose toward +x (or turned a quarter with ry). */
+export type TractorProp = {
+  kind: "tractor";
+  x: number;
+  z: number;
+  /** 0 or ±PI/2 only: colliders are axis-aligned */
+  ry?: number;
+};
+
 export type Prop =
+  | TractorProp
   | BoxProp
   | CylinderProp
   | TreeProp

@@ -549,14 +549,9 @@ export function farm(cx: number, cz: number): Prop[] {
   p.push(box(cx - 4, 1.6, cz + 12, 0.7, 0.9, 0.4, "#4f93c4", false));
   p.push(box(cx - 4, 2.35, cz + 12, 0.45, 0.45, 0.45, "#e8c46a", false));
   p.push(box(cx - 4, 2.68, cz + 12, 0.9, 0.12, 0.9, "#8a5a32", false));
-  // tractor
-  p.push(box(cx + 6, 0.9, cz + 11, 2.4, 1.0, 1.4, "#c9442f"));
-  p.push(box(cx + 5.2, 1.7, cz + 11, 1.0, 0.7, 1.2, "#2f2a26", false));
-  p.push(cyl(cx + 7.2, 0.7, cz + 11.9, 0.7, 0.4, "#2f2a26", false));
-  p.push(cyl(cx + 7.2, 0.7, cz + 10.1, 0.7, 0.4, "#2f2a26", false));
-  p.push(cyl(cx + 4.9, 0.45, cz + 11.9, 0.45, 0.3, "#2f2a26", false));
-  p.push(cyl(cx + 4.9, 0.45, cz + 10.1, 0.45, 0.3, "#2f2a26", false));
-  p.push(box(cx + 7, 1.9, cz + 11, 0.16, 1.0, 0.16, "#5a6470", false));
+  // tractor: a real model (makeTractor). As cylinder props its wheels stood
+  // upright like barrels, because a cyl prop cannot be laid on its side.
+  p.push({ kind: "tractor", x: cx + 6, z: cz + 11 });
   // windmill pump
   p.push(box(cx + 20, 3.2, cz + 8, 0.6, 6.4, 0.6, "#8a9aa4"));
   for (let i = 0; i < 4; i++) {

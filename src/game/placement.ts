@@ -37,6 +37,8 @@ export function occupancy(props: Prop[], includeFlat = false): Rect[] {
       out.push({ minX: p.x - w, maxX: p.x + w, minZ: p.z - d, maxZ: p.z + d });
     } else if (p.kind === "lollipop") {
       out.push({ minX: p.x - 1, maxX: p.x + 1, minZ: p.z - 1, maxZ: p.z + 1 });
+    } else if (p.kind === "tractor") {
+      out.push({ minX: p.x - 2.5, maxX: p.x + 2.5, minZ: p.z - 2.5, maxZ: p.z + 2.5 });
     }
   }
   return out;

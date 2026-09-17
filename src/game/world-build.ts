@@ -16,6 +16,7 @@ import {
   makeFerrisWheel,
   type FerrisWheel,
   makeTent,
+  makeTractor,
   makeCampfire,
   type Campfire,
   makeSprayArches,
@@ -193,6 +194,11 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     } else if (p.kind === "tent") {
       const t = makeTent(p.color);
       t.position.set(p.x, 0, p.z);
+      group.add(t);
+    } else if (p.kind === "tractor") {
+      const t = makeTractor();
+      t.position.set(p.x, 0, p.z);
+      t.rotation.y = p.ry ?? 0;
       group.add(t);
     }
   }
