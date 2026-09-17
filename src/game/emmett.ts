@@ -185,7 +185,8 @@ export class Emmett {
     colliders: AABB[],
     paused: boolean,
   ): boolean {
-    if (paused) return false;
+    // a zero-length frame would make the lean 0/0 and NaN hides him for good
+    if (paused || !(dt > 0)) return false;
 
     if (this.state === "home" && this.home) {
       // laps round the truck yard; when it's time, off he goes to find her
@@ -311,6 +312,7 @@ export class Emmett {
     const applied = THREE.MathUtils.clamp(delta, -turnRate, turnRate);
     this.facing += applied;
     this.turn = THREE.MathUtils.lerp(this.turn, applied / turnRate, 0.2);
+    if (!Number.isFinite(this.turn)) this.turn = 0;
 
     // ease off as he arrives so he does not jitter on top of her; dawdle at home
     const approach = this.state === "chasing" ? THREE.MathUtils.clamp(dist / 6, 0.35, 1) : 1;

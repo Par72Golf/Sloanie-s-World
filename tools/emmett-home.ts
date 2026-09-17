@@ -1,7 +1,8 @@
 /**
  * Emmett's day from his truck: he laps at home, rides out to find her once the
  * timer runs out, catches her (she stands still at spawn here), then pedals
- * back home and starts again. Passes if he completes at least 3 round trips.
+ * back home and starts again. Passes if he completes at least 3 round trips
+ * and his model never gets a NaN transform (zero-length frames included).
  */
 import * as THREE from "three";
 import { Emmett } from "../src/game/emmett";
@@ -21,6 +22,17 @@ const lv = LEVELS[0]!;
 const cols = collidersFor(lv);
 const scene = new THREE.Scene();
 const e = new Emmett(scene, lv.bounds, lv.emmettKeepOut ?? [], { x: EMMETT_BASE.x, z: EMMETT_BASE.z, loop: EMMETT_BASE.loop, park: EMMETT_BASE.trikePark });
+// the browser can hand the first frame a zero or negative length; that once
+// made his lean NaN and hid him for the rest of the game
+e.update(0, 0, 0, 22, 3, 16, cols, false);
+e.update(-0.004, 0, 0, 22, 3, 16, cols, false);
+let nanFrames = 0;
+const finite = () => {
+  let ok = true;
+  e.group.updateMatrixWorld(true);
+  e.group.traverse((o) => { if (o.matrixWorld.elements.some((v) => !Number.isFinite(v))) ok = false; });
+  return ok;
+};
 let last = ""; let t = 0; const dt = 1 / 30;
 const her = { x: 0, z: 22 };
 let caught = 0;
@@ -28,8 +40,9 @@ for (let i = 0; i < 30 * 900; i++) {
   t += dt;
   const c = e.update(dt, t, her.x, her.z, 3, 16, cols, false);
   if (e.state !== last) { console.log(`${t.toFixed(1)}s ${last} -> ${e.state} at (${e.group.position.x.toFixed(1)}, ${e.group.position.z.toFixed(1)})`); last = e.state; }
+  if (i % 30 === 0 && !finite()) nanFrames++;
   if (c) { caught++; console.log(`${t.toFixed(1)}s caught`); e.leave(); }
 }
-const ok = caught >= 3;
-console.log(`caught ${caught} times in 15 minutes: ${ok ? "PASS" : "FAIL"}`);
+const ok = caught >= 3 && nanFrames === 0;
+console.log(`caught ${caught} times in 15 minutes, ${nanFrames} seconds with a NaN transform: ${ok ? "PASS" : "FAIL"}`);
 process.exit(ok ? 0 : 1);
