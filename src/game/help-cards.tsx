@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useInput } from "./carnival-games";
 import { Btn, Panel } from "./overlays";
-import { speak } from "./speech";
+import { speak, stopSpeaking } from "./speech";
 import { useGame } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -110,7 +110,10 @@ export function HearButton({ text, className }: { text: string; className?: stri
 
 export function HelpCard() {
   const id = useGame((s) => s.helpCard);
-  const close = () => useGame.getState().closeHelpCard();
+  const close = () => {
+    stopSpeaking();
+    useGame.getState().closeHelpCard();
+  };
   // cards pop up mid-play, often while she is mashing A to jump: a moment's
   // pause before A or B can close one, so it is not gone before it is seen
   const openedAt = useRef(0);

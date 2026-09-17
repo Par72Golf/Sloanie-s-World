@@ -1,3 +1,5 @@
+import { actionForKey, useBindings, type Action } from "./bindings";
+import { useHome } from "./home-store";
 import { useGame } from "./store";
 
 const held = new Set<string>();
@@ -18,7 +20,8 @@ export let padView = false;
 export let padMusic = false;
 let padCamQ = false;
 let padCamE = false;
-const padPrev = new Uint8Array(16);
+const PAD_BUTTONS = 20;
+const padPrev = new Uint8Array(PAD_BUTTONS);
 
 const GAME_CODES = new Set([
   "KeyW",
@@ -98,7 +101,21 @@ export function consumeLook() {
 
 export function wantsInteract() {
   const keys = activeSet();
-  return keys.has("KeyE") || keys.has("KeyF");
+  return useBindings.getState().keys.collect.some((c) => keys.has(c));
+}
+
+function keyHeld(action: Action) {
+  const keys = activeSet();
+  return useBindings.getState().keys[action].some((c) => keys.has(c));
+}
+
+/** Turning the camera: held on the pad or the keyboard (both remappable). */
+export function camLeftHeld() {
+  return padCamQ || keyHeld("camLeft");
+}
+
+export function camRightHeld() {
+  return padCamE || keyHeld("camRight");
 }
 
 export function consumePadInteract() {
@@ -180,6 +197,11 @@ function padBusy() {
   return padClaims > 0 || useGame.getState().rps != null;
 }
 
+/** The controller every part of the game reads, so menus and play agree on one device. */
+export function activePad() {
+  return usablePad();
+}
+
 function usablePad() {
   for (const pad of navigator.getGamepads?.() ?? []) {
     if (!pad) continue;
@@ -197,18 +219,19 @@ function usablePad() {
 export function swallowHeldPad() {
   const pad = usablePad();
   if (!pad) return;
-  for (let i = 0; i < 16; i++) {
+  const b = useBindings.getState().pad;
+  for (let i = 0; i < PAD_BUTTONS; i++) {
     const down = Boolean(pad.buttons[i]?.pressed);
     if (!down && !padPrev[i]) continue;
     if (down) padPrev[i] = 1;
-    if (i === 0) jumpTap = false;
-    else if (i === 1) padMap = false;
-    else if (i === 2) padInteract = false;
-    else if (i === 3) padHint = false;
-    else if (i === 6) padView = false;
-    else if (i === 7) padMusic = false;
-    else if (i === 8) padJournal = false;
-    else if (i === 9) padPause = false;
+    if (i === b.jump) jumpTap = false;
+    else if (i === b.map) padMap = false;
+    else if (i === b.collect) padInteract = false;
+    else if (i === b.hint) padHint = false;
+    else if (i === b.view) padView = false;
+    else if (i === b.music) padMusic = false;
+    else if (i === b.journal) padJournal = false;
+    else if (i === b.pause) padPause = false;
   }
 }
 
@@ -224,19 +247,21 @@ export function bindInput() {
       return;
     }
     if (e.repeat) {
-      if (GAME_CODES.has(e.code)) e.preventDefault();
+      if (GAME_CODES.has(e.code) || actionForKey(e.code)) e.preventDefault();
       return;
     }
     held.add(e.code);
-    if (e.code === "Space") jumpTap = true;
-    if (e.code === "KeyM") padMap = true;
-    // the keys the help text promises: J journal, H hint, P pause
-    if (e.code === "KeyJ") padJournal = true;
-    if (e.code === "KeyH") padHint = true;
-    if (e.code === "KeyP") padPause = true;
-    if (e.code === "KeyV") padView = true;
-    if (e.code === "KeyN") padMusic = true;
-    if (GAME_CODES.has(e.code)) e.preventDefault();
+    if (e.code === "Escape") escape();
+    // keys come from the remappable bindings (bindings.ts)
+    const action = actionForKey(e.code);
+    if (action === "jump") jumpTap = true;
+    else if (action === "map") padMap = true;
+    else if (action === "journal") padJournal = true;
+    else if (action === "hint") padHint = true;
+    else if (action === "pause") padPause = true;
+    else if (action === "view") padView = true;
+    else if (action === "music") padMusic = true;
+    if (GAME_CODES.has(e.code) || action) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
     held.delete(e.code);
@@ -249,6 +274,26 @@ export function bindInput() {
   // back to play from a menu or a panel, however it closed
   const menu = (s: ReturnType<typeof useGame.getState>) =>
     s.phase !== "playing" || s.quiz != null || s.rps != null || s.carnival != null || s.questPanel != null || s.helpCard != null || s.journalOpen;
+  /*
+   * Esc, decided once from what is open at the moment of the press. This
+   * listener is added before any panel mounts, so it runs before a panel's
+   * own Esc handler closes it: a panel that is open eats the Esc, and the
+   * frame after it closes does not see "nothing open" and pause the game.
+   */
+  const escape = () => {
+    const s = useGame.getState();
+    if (s.controlsOpen) {
+      s.setControls(false);
+    } else if (s.wardrobeOpen) {
+      s.setWardrobe(false);
+    } else if (s.phase === "paused") {
+      padPause = true;
+    } else if (s.mapOpen && s.phase === "playing") {
+      useGame.setState({ mapOpen: false });
+    } else if (s.phase === "playing" && !menu(s) && !useHome.getState().panel) {
+      padPause = true;
+    }
+  };
   useGame.subscribe((s, p) => {
     if (menu(p) && !menu(s)) swallowHeldPad();
   });
@@ -287,18 +332,19 @@ export function pollGamepad(axes: { x: number; z: number }) {
 
     const down = (i: number) => Boolean(pad.buttons[i]?.pressed);
     const edge = (i: number) => !busy && down(i) && !padPrev[i];
-    if (edge(0)) jumpTap = true;
-    if (edge(1)) padMap = true;
-    if (edge(6)) padView = true;
-    if (edge(7)) padMusic = true;
-    if (edge(2)) padInteract = true;
-    if (edge(3)) padHint = true;
-    if (edge(8)) padJournal = true;
-    if (edge(9)) padPause = true;
-    // LB and RB switch pages in the journal and the prize booth
-    padCamQ = !busy && down(4);
-    padCamE = !busy && down(5);
-    for (let i = 0; i < 16; i++) padPrev[i] = down(i) ? 1 : 0;
+    // buttons come from the remappable bindings (bindings.ts)
+    const b = useBindings.getState().pad;
+    if (edge(b.jump)) jumpTap = true;
+    if (edge(b.map)) padMap = true;
+    if (edge(b.view)) padView = true;
+    if (edge(b.music)) padMusic = true;
+    if (edge(b.collect)) padInteract = true;
+    if (edge(b.hint)) padHint = true;
+    if (edge(b.journal)) padJournal = true;
+    if (edge(b.pause)) padPause = true;
+    padCamQ = !busy && down(b.camLeft);
+    padCamE = !busy && down(b.camRight);
+    for (let i = 0; i < PAD_BUTTONS; i++) padPrev[i] = down(i) ? 1 : 0;
   } else {
     padPrev.fill(0);
   }

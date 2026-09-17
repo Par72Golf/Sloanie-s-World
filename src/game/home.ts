@@ -28,6 +28,8 @@ export class HomeWorld {
   private sign: THREE.Mesh;
   private doorGlow: THREE.Mesh;
   private lastPlaced = "";
+  /** reward furniture waiting for a free notice bar */
+  private rewards: (typeof FURNITURE)[number][] = [];
 
   constructor(
     private scene: THREE.Scene,
@@ -105,7 +107,13 @@ export class HomeWorld {
         (f.source === "crown" && st.foundAccessories.includes("crown")) ||
         (f.source === "stickers30" && st.stickers.length >= 30) ||
         (f.source === "pet" && !!st.pet);
-      if (earned && home.grant(f.id)) st.setEmmettNotice(`New for your house: ${f.name}!`);
+      // wait for the notice bar to be free, so this never lands on top of
+      // something bigger (adopting a pet grants a reward at the same moment)
+      if (earned && !home.owns(f.id) && !this.rewards.includes(f)) this.rewards.push(f);
+    }
+    if (this.rewards.length && !st.emmettNotice) {
+      const f = this.rewards.shift()!;
+      if (home.grant(f.id)) st.setEmmettNotice(`New for your house: ${f.name}!`);
     }
 
     const [lx, ly, lz] = this.roomLocal(her.x, her.y, her.z);

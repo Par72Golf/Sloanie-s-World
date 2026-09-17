@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { sfx } from "./audio";
-import { padClaimed } from "./input";
+import { activePad, padClaimed } from "./input";
 import { useGame } from "./store";
 
 /**
@@ -45,15 +45,34 @@ function items(): HTMLElement[] {
   return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(visible);
 }
 
-/** Where the pad starts in a layer: its first control, passing over a corner close button (B closes). */
+/**
+ * Where the pad starts in a layer: a control marked data-pad-default (the
+ * title's Start), else its first control, passing over a corner close button
+ * (B closes) and text boxes (typing a name is not where a controller starts).
+ */
 function first(list: HTMLElement[]) {
-  return list.find((el) => !/^close/i.test(el.getAttribute("aria-label") ?? "")) ?? list[0];
+  return (
+    list.find((el) => el.hasAttribute("data-pad-default")) ??
+    list.find((el) => el.tagName !== "INPUT" && !/^close/i.test(el.getAttribute("aria-label") ?? "")) ??
+    list[0]
+  );
+}
+
+/** A focused box with more to read: up and down scroll it before moving on. */
+function scrollWithin(el: HTMLElement, dir: "up" | "down") {
+  if (el.scrollHeight <= el.clientHeight + 2) return false;
+  const room = dir === "down" ? el.scrollHeight - el.clientHeight - el.scrollTop : el.scrollTop;
+  if (room <= 1) return false;
+  el.scrollBy({ top: (dir === "down" ? 1 : -1) * Math.max(80, el.clientHeight * 0.45), behavior: "smooth" });
+  return true;
 }
 
 export function PadMenu() {
   const phase = useGame((s) => s.phase);
   const wardrobeOpen = useGame((s) => s.wardrobeOpen);
   const controlsOpen = useGame((s) => s.controlsOpen);
+  const quizOpen = useGame((s) => s.quiz != null);
+  const rpsOpen = useGame((s) => s.rps != null);
 
   useEffect(() => {
     let prev = {
@@ -65,17 +84,65 @@ export function PadMenu() {
       b: false,
     };
     let raf = 0;
-    let cooldown = 0;
+    let repeatAt = 0;
 
-    const move = (dir: 1 | -1) => {
+    type Dir = "up" | "down" | "left" | "right";
+    /**
+     * Spatial: from the focused control, pick the nearest control whose centre
+     * lies in the pressed direction, weighting sideways drift heavily so up and
+     * down stay in a column and left and right stay in a row. Grids, two-column
+     * menus and rows of buttons all behave the way they look. At an edge it
+     * wraps to the far side of the same row or column.
+     */
+    const move = (dir: Dir) => {
       const list = items();
       if (!list.length) return;
       const active = document.activeElement as HTMLElement | null;
-      let i = active ? list.indexOf(active) : -1;
-      if (i < 0) i = dir === 1 ? -1 : 0;
-      const next = list[(i + dir + list.length) % list.length];
+      if (!active || !list.includes(active)) {
+        first(list)?.focus();
+        sfx.click();
+        return;
+      }
+      if ((dir === "up" || dir === "down") && scrollWithin(active, dir)) return;
+      const a = active.getBoundingClientRect();
+      const ax = a.left + a.width / 2;
+      const ay = a.top + a.height / 2;
+      const horiz = dir === "left" || dir === "right";
+      const sign = dir === "right" || dir === "down" ? 1 : -1;
+      let best: HTMLElement | null = null;
+      let bestScore = Infinity;
+      let wrap: HTMLElement | null = null;
+      let wrapScore = -Infinity;
+      for (const el of list) {
+        if (el === active) continue;
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const along = (horiz ? cx - ax : cy - ay) * sign;
+        // overlap along the other axis counts as "in line"
+        const gap = horiz
+          ? Math.max(0, Math.max(r.top, a.top) - Math.min(r.bottom, a.bottom))
+          : Math.max(0, Math.max(r.left, a.left) - Math.min(r.right, a.right));
+        const across = horiz ? Math.abs(cy - ay) : Math.abs(cx - ax);
+        if (along > 4) {
+          const score = along + (gap > 0 ? across * 3 + 200 : across * 0.3);
+          if (score < bestScore) {
+            bestScore = score;
+            best = el;
+          }
+        } else if (along < -4 && gap === 0) {
+          // candidates for wrapping: in line, furthest the other way
+          const far = -along - across * 0.3;
+          if (far > wrapScore) {
+            wrapScore = far;
+            wrap = el;
+          }
+        }
+      }
+      const next = best ?? wrap;
       if (next) {
         next.focus();
+        next.scrollIntoView({ block: "nearest", inline: "nearest" });
         sfx.click();
       }
     };
@@ -83,8 +150,7 @@ export function PadMenu() {
     const loop = () => {
       raf = window.requestAnimationFrame(loop);
 
-      const pads = navigator.getGamepads?.() ?? [];
-      const pad = pads.find((p) => p && p.buttons.length > 0);
+      const pad = activePad();
       if (!pad) return;
 
       const ly = pad.axes[1] ?? 0;
@@ -107,17 +173,20 @@ export function PadMenu() {
       // during play the pad drives the character, not the menu
       if (st.phase === "playing") return;
 
+      // a fresh press moves at once; holding repeats after a short wait
       const t = performance.now();
-      const step = (dir: 1 | -1) => {
-        if (t < cooldown) return;
-        cooldown = t + 170;
-        move(dir);
-      };
-
-      if (now.down && !was.down) step(1);
-      else if (now.up && !was.up) step(-1);
-      else if (now.right && !was.right) step(1);
-      else if (now.left && !was.left) step(-1);
+      const dirs: Dir[] = ["up", "down", "left", "right"];
+      const held = dirs.find((d) => now[d]);
+      if (held) {
+        const fresh = !was[held];
+        if (fresh) {
+          move(held);
+          repeatAt = t + 380;
+        } else if (t >= repeatAt) {
+          move(held);
+          repeatAt = t + 130;
+        }
+      }
 
       if (now.a && !was.a) {
         const active = document.activeElement as HTMLElement | null;
@@ -145,15 +214,35 @@ export function PadMenu() {
     return () => window.cancelAnimationFrame(raf);
   }, []);
 
+  // A sub-screen (controls, wardrobe) remembers the button that opened it, and
+  // focus goes back there when it closes rather than to the top of the menu.
+  const returnTo = useRef<HTMLElement[]>([]);
+  const wasOpen = useRef({ wardrobeOpen, controlsOpen });
+  useEffect(() => {
+    const before = wasOpen.current;
+    wasOpen.current = { wardrobeOpen, controlsOpen };
+    const opened = (wardrobeOpen && !before.wardrobeOpen) || (controlsOpen && !before.controlsOpen);
+    if (opened && document.activeElement instanceof HTMLElement) returnTo.current.push(document.activeElement);
+  }, [wardrobeOpen, controlsOpen]);
+
   // when a panel opens or closes, put focus on its first control so the pad has a start
   useEffect(() => {
     const id = window.setTimeout(() => {
-      const list = items();
       const active = document.activeElement as HTMLElement | null;
-      if (list.length && (!active || !list.includes(active))) first(list)?.focus();
+      // in play, and while the quiz or rock paper scissors run their own
+      // highlight, nothing in the overlay keeps a focus ring
+      if (phase === "playing" || quizOpen || rpsOpen) {
+        if (active && active !== document.body && active.closest(".overlay-root")) active.blur();
+        return;
+      }
+      const list = items();
+      if (!list.length || (active && list.includes(active))) return;
+      let back = returnTo.current.pop();
+      while (back && !(back.isConnected && list.includes(back))) back = returnTo.current.pop();
+      (back ?? first(list))?.focus();
     }, 60);
     return () => window.clearTimeout(id);
-  }, [phase, wardrobeOpen, controlsOpen]);
+  }, [phase, wardrobeOpen, controlsOpen, quizOpen, rpsOpen]);
 
   return null;
 }

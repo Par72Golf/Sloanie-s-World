@@ -21,6 +21,8 @@ import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "
 import {
   bindInput,
   clearInjectedKeys,
+  camLeftHeld,
+  camRightHeld,
   consumeJumpTap,
   consumeLook,
   consumePadHint,
@@ -33,8 +35,6 @@ import {
   getMoveAxes,
   isDown,
   look,
-  padCamLeft,
-  padCamRight,
   pollGamepad,
   setInjectedKeys,
   wantsInteract,
@@ -67,6 +67,9 @@ function wrapAngle(a: number) {
   return a - Math.PI * 2 * Math.floor((a + Math.PI) / (Math.PI * 2));
 }
 
+/** How early before landing a jump press still counts. */
+const JUMP_BUFFER = 0.18;
+
 export class GameRuntime {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -88,6 +91,8 @@ export class GameRuntime {
   coyote = 0;
   /** seconds left in which a jump tap counts toward a super bounce */
   bounceBuffer = 0;
+  /** seconds a jump press waits for her to land */
+  jumpBuffer = 0;
   acc = 0;
   clock = 0;
   last = performance.now();
@@ -766,6 +771,10 @@ export class GameRuntime {
   /** Hands follow the camera, with a walk bob and a lean into turns. */
   updateHands() {
     const g = this.hands.group;
+    // holding something else: the iPod goes away rather than being in both
+    // her hand in third person and her hand in first person at the same time
+    const ipod = this.hands.right.getObjectByName("fp-ipod");
+    if (ipod) ipod.visible = !useGame.getState().worn.hand;
     g.position.copy(this.camera.position);
     g.quaternion.copy(this.camera.quaternion);
     const pace = THREE.MathUtils.clamp(this.speed / WALK, 0, 1.6);
@@ -1152,13 +1161,9 @@ export class GameRuntime {
   lastChannelGen = -1;
   lastMusicGen = 0;
 
-  /** Next channel: off, then each channel in turn, then off again. Needs the iPod in her hand. */
+  /** Next channel: off, then each channel in turn, then off again. Plays whatever she is holding. */
   nextChannel() {
     const st = useGame.getState();
-    if (st.worn.hand) {
-      st.setEmmettNotice("Put your iPod back in your hand to listen. Open your backpack to change what you hold.");
-      return;
-    }
     const cur = currentChannel();
     const i = cur ? CHANNELS.findIndex((c) => c.id === cur) : -1;
     const next = i + 1 < CHANNELS.length ? CHANNELS[i + 1]!.id : null;
@@ -1178,8 +1183,8 @@ export class GameRuntime {
       this.lastChannelGen = st.channelGen;
       this.channelTime = 0;
     }
-    // back on the title screen, or holding something else: the music stops
-    if (st.channel && (st.worn.hand || st.phase === "title")) {
+    // back on the title screen the music stops
+    if (st.channel && st.phase === "title") {
       setChannel(null);
       st.setChannelPlaying(null);
     }
@@ -1290,6 +1295,8 @@ export class GameRuntime {
   emmettTalkReady() {
     const e = this.emmett;
     if (!e || !this.level.emmettBase || e.state !== "home" || this.ride || this.carouselRide || this.cap.y > 2) return false;
+    // while he is resting between games there is nothing to press
+    if (this.clock - this.emmettPlayedAt < 40) return false;
     const [tx, , tz] = EMMETT_BASE.talkSpot;
     return (
       Math.hypot(this.cap.x - tx, this.cap.z - tz) < 2.4 ||
@@ -1385,6 +1392,8 @@ export class GameRuntime {
     }
   }
 
+  private celebrateDir = new THREE.Vector3();
+
   onCollected(id: string) {
     if (!this.world) return;
     const d = this.world.dumplings.find((x) => x.def.id === id);
@@ -1418,9 +1427,26 @@ export class GameRuntime {
     const RISE = 0.55;
     const HOLD = 1.65;
     const END = 2.25;
-    const headX = this.cap.x;
-    const headZ = this.cap.z;
-    const headY = this.cap.y + 2.6;
+    let headX = this.cap.x;
+    let headZ = this.cap.z;
+    let headY = this.cap.y + 2.6;
+    let peak = 2.5;
+    // where it shrinks away to at the end: into her in third person
+    let endY = this.cap.y + 1.05;
+    if (this.firstPerson) {
+      // over her head is out of view in first person: show it off in front of
+      // her eyes instead, a little below centre so the name card stays clear,
+      // and tuck it down toward her hands at the end
+      const fwd = this.camera.getWorldDirection(this.celebrateDir);
+      fwd.y = 0;
+      if (fwd.lengthSq() < 1e-6) fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+      fwd.normalize();
+      headX = this.camera.position.x + fwd.x * 2.4;
+      headZ = this.camera.position.z + fwd.z * 2.4;
+      headY = this.camera.position.y - 0.15;
+      endY = this.camera.position.y - 1.1;
+      peak = 1.35;
+    }
     const base = 1.28;
 
     const g = c.d.group;
@@ -1435,13 +1461,13 @@ export class GameRuntime {
         THREE.MathUtils.lerp(c.from.y, headY, e) + Math.sin(k * Math.PI) * 0.7,
         THREE.MathUtils.lerp(c.from.z, headZ, e),
       );
-      g.scale.setScalar(base * (1 + e * 1.5));
+      g.scale.setScalar(base * (1 + e * (peak - 1)));
       g.rotation.y += dt * 6;
     } else if (c.t < HOLD) {
       const k = (c.t - RISE) / (HOLD - RISE);
       g.position.set(headX, headY + Math.sin(k * Math.PI * 3) * 0.12, headZ);
       // a little squash-and-stretch pulse while it shows off
-      g.scale.setScalar(base * (2.5 + Math.sin(k * Math.PI * 4) * 0.12));
+      g.scale.setScalar(base * (peak + Math.sin(k * Math.PI * 4) * 0.12));
       g.rotation.y += dt * 3.2;
       if (Math.random() < dt * 14) {
         this.burst(headX, headY, headZ, c.d.def.accent);
@@ -1451,10 +1477,10 @@ export class GameRuntime {
       const e = k * k;
       g.position.set(
         headX,
-        THREE.MathUtils.lerp(headY, this.cap.y + 1.05, e),
+        THREE.MathUtils.lerp(headY, endY, e),
         headZ,
       );
-      g.scale.setScalar(base * THREE.MathUtils.lerp(2.5, 0.05, e));
+      g.scale.setScalar(base * THREE.MathUtils.lerp(peak, 0.05, e));
       g.rotation.y += dt * (8 + k * 20);
     } else {
       // done: tuck it away and restore the handle for a possible rehide
@@ -1463,7 +1489,7 @@ export class GameRuntime {
       g.scale.setScalar(base);
       g.rotation.y = 0;
       g.position.set(c.d.def.pos[0], c.d.def.pos[1], c.d.def.pos[2]);
-      this.burst(headX, this.cap.y + 1.05, headZ, c.d.def.color);
+      this.burst(headX, endY, headZ, c.d.def.color);
       this.celebrating = null;
 
       const st = useGame.getState();
@@ -1557,7 +1583,10 @@ export class GameRuntime {
         (st.phase === "title" && qa)) &&
       !this.ride &&
       !this.carouselRide;
-    if (!live) consumeJumpTap();
+    if (!live) {
+      consumeJumpTap();
+      this.jumpBuffer = 0;
+    }
 
     const lookDelta = consumeLook();
     if (st.phase === "title" && !qa) {
@@ -1566,8 +1595,8 @@ export class GameRuntime {
       this.cameraYaw -= lookDelta.dx * 0.0055;
       // E is Collect, so the camera turns right on C (input.ts records every
       // key in isDown; GAME_CODES only decides which ones preventDefault)
-      if (isDown("KeyQ") || padCamLeft()) this.cameraYaw += dt * 1.6;
-      if (isDown("KeyC") || padCamRight()) this.cameraYaw -= dt * 1.6;
+      if (camLeftHeld()) this.cameraYaw += dt * 1.6;
+      if (camRightHeld()) this.cameraYaw -= dt * 1.6;
       if (this.firstPerson) {
         this.pitch = THREE.MathUtils.clamp(this.pitch - lookDelta.dy * 0.0045, -1.15, 1.0);
       }
@@ -1627,13 +1656,17 @@ export class GameRuntime {
       (z) => this.cap.x >= z.minX && this.cap.x <= z.maxX && this.cap.z >= z.minZ && this.cap.z <= z.maxZ,
     );
     const tap = live && consumeJumpTap();
-    const jump = tap && !noJump;
+    // a tap a moment before she lands still counts, so she can hop again the
+    // instant her feet touch down instead of the press being swallowed mid-air
+    this.jumpBuffer = tap ? JUMP_BUFFER : Math.max(0, this.jumpBuffer - dt);
+    const jump = this.jumpBuffer > 0 && !noJump;
     // a tap just before landing on a trampoline turns the bounce into a big one
     this.bounceBuffer = tap ? 0.35 : Math.max(0, this.bounceBuffer - dt);
     if (jump && this.coyote > 0) {
       this.velY = JUMP;
       this.grounded = false;
       this.coyote = 0;
+      this.jumpBuffer = 0;
       sfx.jump();
     }
 
@@ -2024,7 +2057,7 @@ export class GameRuntime {
     else consumePadInteract();
 
     const pauseEdge = consumePadPause();
-    if (play && (isDown("Escape") || pauseEdge)) st.pause();
+    if (play && pauseEdge) st.pause();
     else if (st.phase === "paused" && pauseEdge) st.resumePlay();
 
     if (play && consumePadHint()) st.useHint();

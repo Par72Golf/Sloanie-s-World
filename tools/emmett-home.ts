@@ -2,7 +2,8 @@
  * Emmett's day from his truck: he laps at home, rides out to find her once the
  * timer runs out, catches her (she stands still at spawn here), then pedals
  * back home and starts again. Passes if he completes at least 3 round trips
- * and his model never gets a NaN transform (zero-length frames included).
+ * and his model never gets a NaN transform (zero-length frames included), and
+ * every encounter ends with him back at the yard.
  */
 import * as THREE from "three";
 import { Emmett } from "../src/game/emmett";
@@ -34,15 +35,35 @@ const finite = () => {
   return ok;
 };
 let last = ""; let t = 0; const dt = 1 / 30;
-const her = { x: 0, z: 22 };
+/*
+ * Two meeting places: the spawn lawn, and the pond lawn south of the big
+ * stepped berm that sits between the middle of the park and his yard. The
+ * pond lawn is where a tester found him circling for good, never getting
+ * home, which took his truck game with him.
+ */
+const SPOTS = [
+  { name: "spawn lawn", x: 0, z: 22 },
+  { name: "pond lawn", x: 0, z: -38 },
+];
+let her = SPOTS[0]!;
 let caught = 0;
+let homeAgain = 0;
 for (let i = 0; i < 30 * 900; i++) {
   t += dt;
+  // swap meeting place halfway, so both routes home are exercised
+  her = SPOTS[i < 30 * 450 ? 0 : 1]!;
   const c = e.update(dt, t, her.x, her.z, 3, 16, cols, false);
-  if (e.state !== last) { console.log(`${t.toFixed(1)}s ${last} -> ${e.state} at (${e.group.position.x.toFixed(1)}, ${e.group.position.z.toFixed(1)})`); last = e.state; }
+  if (e.state !== last) {
+    console.log(`${t.toFixed(1)}s ${last} -> ${e.state} at (${e.group.position.x.toFixed(1)}, ${e.group.position.z.toFixed(1)}) [${her.name}]`);
+    if (last === "leaving" && e.state === "home") homeAgain++;
+    last = e.state;
+  }
   if (i % 30 === 0 && !finite()) nanFrames++;
   if (c) { caught++; console.log(`${t.toFixed(1)}s caught`); e.leave(); }
 }
-const ok = caught >= 3 && nanFrames === 0;
-console.log(`caught ${caught} times in 15 minutes, ${nanFrames} seconds with a NaN transform: ${ok ? "PASS" : "FAIL"}`);
+// every encounter must end with him back at the yard, or his truck game is gone
+const ok = caught >= 3 && nanFrames === 0 && homeAgain >= caught;
+console.log(
+  `caught ${caught} times in 15 minutes, got home ${homeAgain} times, ${nanFrames} seconds with a NaN transform: ${ok ? "PASS" : "FAIL"}`,
+);
 process.exit(ok ? 0 : 1);

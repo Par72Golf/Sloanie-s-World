@@ -4,9 +4,60 @@
     {
       "name": "game-dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--host", "127.0.0.1", "--port", "8080"],
+      "runtimeArgs": [
+        "vite",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080"
+      ],
       "url": "http://127.0.0.1:8080",
       "port": 8080
+    },
+    {
+      "name": "qa-1",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "url": "http://127.0.0.1:4173",
+      "port": 4173
+    },
+    {
+      "name": "qa-2",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "4174",
+        "--strictPort"
+      ],
+      "url": "http://127.0.0.1:4174",
+      "port": 4174
+    },
+    {
+      "name": "qa-3",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "4175",
+        "--strictPort"
+      ],
+      "url": "http://127.0.0.1:4175",
+      "port": 4175
     }
   ]
 }

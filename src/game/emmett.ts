@@ -35,6 +35,8 @@ export type EmmettHome = { x: number; z: number; loop: number; park: [number, nu
 /** How far away counts as "arrived near her", when the lingering clock starts. */
 const NEAR_HER = 45;
 const HOME_SPEED = 2.2;
+/** Seconds pedalling home before he just slips out of sight and turns up there. */
+const HOME_GIVE_UP = 30;
 
 /** Landmarks he rehides to. Known places, so a loss is an errand not a mystery. */
 export type RehideSpot = { name: string; say: string; pos: [number, number, number] };
@@ -46,6 +48,8 @@ export class Emmett {
   rig: EmmettRig;
   group: THREE.Group;
   state: EmmettState = "away";
+  /** seconds spent riding home, so a blocked route cannot strand him */
+  private ridingHome = 0;
   timer = FIRST_DELAY;
   speed = 0;
   facing = 0;
@@ -127,6 +131,7 @@ export class Emmett {
   leave(cooldown = COOLDOWN) {
     this.state = "leaving";
     this.timer = cooldown;
+    this.ridingHome = 0;
     if (this.home) {
       // pedal back home
       this.target.set(this.home.park[0], 0, this.home.park[2]);
@@ -254,7 +259,21 @@ export class Emmett {
     }
 
     if (this.state === "leaving" && this.home) {
-      if (Math.hypot(this.group.position.x - this.home.park[0], this.group.position.z - this.home.park[2]) < 3) {
+      this.ridingHome += dt;
+      const away = Math.hypot(this.group.position.x - this.home.park[0], this.group.position.z - this.home.park[2]);
+      if (away < 3) {
+        this.goHome(Math.max(this.timer, GAP_MIN * 0.5));
+        return false;
+      }
+      /*
+       * Berms and buildings can leave him circling: the park has a stepped
+       * berm between the middle of the park and his yard, and his sidestep
+       * can oscillate in front of it. Rather than have him stuck out there
+       * for the rest of the game (with his truck game gone with him), after
+       * a while he pedals out of sight and turns up back at the yard.
+       */
+      if (this.ridingHome > HOME_GIVE_UP) {
+        this.group.visible = false;
         this.goHome(Math.max(this.timer, GAP_MIN * 0.5));
         return false;
       }

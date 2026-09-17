@@ -186,7 +186,8 @@ export type GameStore = {
   nextLevel: () => void;
   replayLevel: () => void;
   toTitle: () => void;
-  resetAll: () => void;
+  /** Wipe all progress. Best times are kept unless asked; settings always are. */
+  resetAll: (opts?: { bestTimes?: boolean }) => void;
   setHud: (p: {
     temp: TempBand;
     nearestName: string | null;
@@ -695,8 +696,8 @@ export const useGame = create<GameStore>((set, get) => ({
     });
     persistSlice(get());
   },
-  resetAll: () => {
-    const keptBoard = get().leaderboard.map((r) => r.slice());
+  resetAll: (opts) => {
+    const keptBoard = opts?.bestTimes ? get().leaderboard.map(() => []) : get().leaderboard.map((r) => r.slice());
     clearSave();
     useHome.getState().reset();
     set({
@@ -730,6 +731,9 @@ export const useGame = create<GameStore>((set, get) => ({
       stickers: [],
       quest: { stage: "none", treats: [] },
       pet: null,
+      // instruction cards pop up again for a new explorer
+      seenHelp: [],
+      helpCard: null,
     });
   },
   toTitle: () =>

@@ -142,8 +142,9 @@ export class QuestWorld {
     if (Math.hypot(x - fx, z - fz) < 2.8 && y < 1.5) return "farmer";
     const st = useGame.getState();
     if (st.quest.stage === "trail") {
-      const [hx, , hz] = PET_QUEST.hideout;
-      if (Math.hypot(x - hx, z - hz) < 3.2) return "pets";
+      const [hx, hy, hz] = PET_QUEST.hideout;
+      // inside the cave, not standing on the mountain over their heads
+      if (Math.hypot(x - hx, z - hz) < 3.2 && Math.abs(y - hy) < 4) return "pets";
     }
     return null;
   }
