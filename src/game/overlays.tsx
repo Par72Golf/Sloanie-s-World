@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
+  FerrisWheel,
   Gamepad2,
   HelpCircle,
   Maximize,
@@ -386,6 +387,9 @@ function HUD() {
   const clearHint = useGame((s) => s.clearHint);
   const phase = useGame((s) => s.phase);
   const rideNear = useGame((s) => s.rideNear);
+  const boardReady = useGame((s) => s.boardReady);
+  const riding = useGame((s) => s.riding);
+  const rps = useGame((s) => s.rps);
   const setControls = useGame((s) => s.setControls);
   const level = LEVELS[levelIndex]!;
   const found = collected[levelIndex]?.length ?? 0;
@@ -397,7 +401,9 @@ function HUD() {
     ? fleeNotice
     : nearCollect
       ? `${playerName ? `${playerName}, ` : ""}this is ${nearestName}. Press Collect!`
-      : rideNear
+      : boardReady
+        ? "All aboard the ferris wheel!"
+        : rideNear
         ? "Ferris wheel! Stand on the yellow platform and press Collect to ride."
         : close
           ? "Getting warmer…"
@@ -496,11 +502,19 @@ function HUD() {
         </div>
       )}
 
+      {phase === "playing" && !rps && (boardReady || (riding && nearCollect)) && (
+        <BigAction
+          key={boardReady ? "ride" : "grab"}
+          label={boardReady ? "Ride the ferris wheel!" : `Grab ${nearestName ?? "it"}!`}
+          onPress={requestInteract}
+        />
+      )}
+
       {phase === "playing" && (
         <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 flex items-end justify-between gap-3 px-3 pb-[env(safe-area-inset-bottom)] sm:bottom-6">
           <Joystick />
           <div className="pointer-events-auto flex flex-col items-end gap-2">
-            {nearCollect && (
+            {nearCollect && !riding && (
               <Btn onClick={requestInteract} className="min-w-36 shadow-[0_18px_40px_-24px_rgb(42_33_24_/_0.45)]">
                 Collect
               </Btn>
@@ -805,6 +819,31 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
       >
         {Math.ceil(value)}s
       </span>
+    </div>
+  );
+}
+
+/**
+ * The big pop-up action for the ferris wheel: boarding on the platform, and
+ * grabbing the sky dumpling as the gondola passes the top. Sized to read from
+ * the sofa and to be an easy target for a thumb, since on a touch screen this
+ * is the only way to press Collect there.
+ */
+function BigAction({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-[26%] z-20 flex flex-col items-center gap-2 px-4">
+      <button
+        type="button"
+        onClick={onPress}
+        className="press chunk pointer-events-auto flex items-center gap-4 bg-accent px-9 py-5 font-display text-3xl font-semibold text-accent-fg sm:px-12 sm:py-6 sm:text-5xl"
+        style={{ animation: "catchPop 260ms ease-out, bigNudge 1.3s ease-in-out 400ms infinite" }}
+      >
+        <FerrisWheel className="size-9 shrink-0 sm:size-12" />
+        {label}
+      </button>
+      <p className="rounded-full bg-ink/55 px-3 py-1 text-sm font-semibold text-white">
+        Tap it, or press Collect (X · E · F)
+      </p>
     </div>
   );
 }

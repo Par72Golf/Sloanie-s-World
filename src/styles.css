@@ -157,6 +157,17 @@
   }
 }
 
+/* a gentle breathing pulse for the big pop-up action */
+@keyframes bigNudge {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 /* Controller focus needs to be obvious from a couch, and JS-driven focus does
    not trigger :focus-visible, so style :focus directly inside the overlay. */
 .overlay-root button:focus,

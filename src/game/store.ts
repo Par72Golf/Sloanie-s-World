@@ -84,6 +84,9 @@ export type GameStore = {
   /** Standing near the wheel's platform: the HUD explains how to ride. */
   rideNear: boolean;
   setRideNear: (v: boolean) => void;
+  /** On the boarding spot, so Collect would start a ride: the HUD shows a big Ride button. */
+  boardReady: boolean;
+  setBoardReady: (v: boolean) => void;
   /** Camera view; the runtime reads it every frame. */
   view: "third" | "first";
   toggleView: () => void;
@@ -198,6 +201,10 @@ export const useGame = create<GameStore>((set, get) => ({
   rideNear: false,
   setRideNear: (rideNear) => {
     if (get().rideNear !== rideNear) set({ rideNear });
+  },
+  boardReady: false,
+  setBoardReady: (boardReady) => {
+    if (get().boardReady !== boardReady) set({ boardReady });
   },
   view: saved.view,
   toggleView: () => {

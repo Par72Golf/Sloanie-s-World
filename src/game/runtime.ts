@@ -43,6 +43,10 @@ import { DRESS, HAIR, type LevelDef } from "./types";
 import { GRAVITY, JUMP, PLAYER_H, PLAYER_W, WALK } from "./tuning";
 const FIXED = 1 / 60;
 const COLLECT_R = 2.15;
+// On the ferris wheel the sky dumpling floats clear above the rim so it stands
+// out against the sky, which puts it further from her seat than a normal reach.
+// At 2.3m above her this still gives roughly a 4.5 second window at the top.
+const RIDE_COLLECT_R = 3.1;
 
 function pickFleePos(
   homes: [number, number, number][],
@@ -786,13 +790,19 @@ export class GameRuntime {
     this.highlightUntil = 0;
   }
 
-  /** Standing on the boarding platform and pressing Collect starts a ride. */
-  tryBoard(): boolean {
+  /** On the wheel's boarding spot and not already riding: Collect would board. */
+  onBoardSpot(): boolean {
     const wheel = this.world?.ride;
     if (!wheel || this.ride) return false;
     const bx = wheel.origin.x + wheel.boardLocal.x;
     const bz = wheel.origin.z + wheel.boardLocal.z;
-    if (Math.hypot(this.cap.x - bx, this.cap.z - bz) > 2.4 || this.cap.y > 1.4) return false;
+    return Math.hypot(this.cap.x - bx, this.cap.z - bz) <= 2.4 && this.cap.y <= 1.4;
+  }
+
+  /** Standing on the boarding platform and pressing Collect starts a ride. */
+  tryBoard(): boolean {
+    const wheel = this.world?.ride;
+    if (!wheel || !this.onBoardSpot()) return false;
     // the gondola nearest the bottom of the wheel is the one she steps into
     let best = 0;
     let bestY = Infinity;
@@ -858,7 +868,7 @@ export class GameRuntime {
       d.def.pos[1] - (this.cap.y + 0.8),
       d.def.pos[2] - this.cap.z,
     );
-    if (dist > COLLECT_R) return;
+    if (dist > (this.ride ? RIDE_COLLECT_R : COLLECT_R)) return;
     const found = (st.collected[st.levelIndex] ?? []).length;
     st.openQuiz(d.def.id, makeQuestion(st.levelIndex, found));
   }
@@ -1336,6 +1346,7 @@ export class GameRuntime {
         Math.hypot(this.cap.x - (w.origin.x + w.boardLocal.x), this.cap.z - (w.origin.z + w.boardLocal.z)) < 9 &&
         this.cap.y < 2;
       useGame.getState().setRideNear(near);
+      useGame.getState().setBoardReady(this.onBoardSpot());
     }
     const d = this.nearestUnfound();
     if (!d) {
@@ -1359,7 +1370,7 @@ export class GameRuntime {
       temp: tempFromDist(Math.max(distXZ, Math.abs(d.def.pos[1] - this.cap.y) > 1.6 ? dist3 : 0)),
       nearestName: d.def.name,
       nearestDist: distXZ,
-      nearCollect: dist3 <= COLLECT_R,
+      nearCollect: dist3 <= (this.ride ? RIDE_COLLECT_R : COLLECT_R),
     });
   }
 

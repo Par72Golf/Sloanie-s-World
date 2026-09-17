@@ -488,9 +488,10 @@ const picnicDumplings: DumplingDef[] = [
     name: "Sky Dumpling",
     color: "#cfe6ff",
     accent: "#7ec4e8",
-    // sits at the top of the ferris wheel's arc: she rides up to it and has to
-    // press Collect while her gondola passes the top
-    pos: [30, 13.3, 58],
+    // floats just above the top of the ferris wheel, clear of the rim and the
+    // gondola roofs so it shows against the sky: she rides up to it and has to
+    // press Collect while her gondola passes the top (RIDE_COLLECT_R in runtime)
+    pos: [30, 15.2, 58],
     finish: "glow",
     hide: "hard",
     region: "the top of the ferris wheel",
