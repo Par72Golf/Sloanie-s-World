@@ -367,17 +367,33 @@ export function MiniMap() {
       <div
         className={
           open
-            ? "pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-4"
+            ? "ui-backdrop animate-ui-fade pointer-events-auto absolute inset-0 z-30 flex items-center justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]"
             : // On phones the bottom right corner is Collect, Hint and Jump, so
               // the map sits under the icon row instead. Desktop keeps it low.
-              "pointer-events-auto absolute right-3 top-[4.75rem] z-20 sm:bottom-3 sm:right-3 sm:top-auto"
+              "pointer-events-auto absolute right-[max(1rem,calc(env(safe-area-inset-right)+0.5rem))] top-[calc(5rem+env(safe-area-inset-top))] z-20 sm:bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:top-auto"
         }
         onClick={() => open && setOpen(false)}
       >
         <div
-          className="relative"
+          className={open ? "chunk animate-ui-pop relative w-min overflow-hidden bg-surface" : "relative"}
           onClick={(e) => e.stopPropagation()}
         >
+          {open && (
+            <div className="ui-ribbon flex items-center gap-3 bg-leaf py-2 pl-3 pr-2 [@media(max-height:480px)]:py-1">
+              <span className="chunk-sm grid size-10 shrink-0 place-items-center rounded-full bg-surface text-leaf sm:size-11">
+                <MapIcon className="size-6" strokeWidth={2.5} />
+              </span>
+              <h2 className="ui-title w-0 min-w-0 flex-1 truncate py-1 text-2xl leading-tight sm:text-3xl [@media(max-height:480px)]:text-lg">{level.name}</h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="chunk-sm press grid size-11 shrink-0 place-items-center rounded-full bg-surface text-ink sm:size-12"
+                aria-label="Close map"
+              >
+                <X className="size-6" strokeWidth={3} />
+              </button>
+            </div>
+          )}
           <canvas
             ref={canvasRef}
             width={open ? 620 : 168}
@@ -385,23 +401,15 @@ export function MiniMap() {
             onClick={() => !open && setOpen(true)}
             className={
               open
-                ? "h-[min(86vw,86vh,620px)] w-[min(86vw,86vh,620px)] rounded-xl border-2 border-line bg-surface shadow-[0_18px_40px_-24px_rgb(42_33_24_/_0.6)]"
-                : "size-[112px] cursor-pointer rounded-full border-2 border-line bg-surface/90 shadow-[0_10px_24px_-16px_rgb(42_33_24_/_0.6)] sm:size-[168px]"
+                ? "block size-[min(88vw,calc(88dvh-5.5rem),620px)] bg-surface [@media(max-height:480px)]:size-[min(88vw,calc(90dvh-4rem),620px)]"
+                : // a bezel: navy rim, white ring, navy ring, and a hard base shadow like the other chunky pieces
+                  "block size-[112px] cursor-pointer rounded-full border-[3px] border-edge bg-surface shadow-[0_0_0_4px_#fff,0_0_0_7px_var(--color-edge),0_9px_0_4px_var(--color-edge),0_20px_30px_-12px_rgb(29_36_82/0.55)] sm:size-[168px]"
             }
           />
-          {open ? (
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="absolute -right-2 -top-2 rounded-full border border-line bg-surface p-1.5 text-ink shadow"
-              aria-label="Close map"
-            >
-              <X className="size-4" />
-            </button>
-          ) : (
+          {!open && (
             // outside the round map's lower left, clear of the compass letters
-            <span className="pointer-events-none absolute -left-2 bottom-0 flex items-center gap-1 rounded border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
-              <MapIcon className="size-3" />M
+            <span className="ui-chip pointer-events-none absolute -bottom-1 -left-3 bg-surface px-2 text-sm text-ink">
+              <MapIcon className="size-4" strokeWidth={2.5} />M
             </span>
           )}
         </div>

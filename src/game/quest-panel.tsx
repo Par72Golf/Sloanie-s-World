@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Cat, Check, Dog, Heart, Rabbit, X, type LucideIcon } from "lucide-react";
+import { Bone, Cat, Check, Dog, Heart, PawPrint, Rabbit, Tractor, type LucideIcon } from "lucide-react";
 import { sfx } from "./audio";
-import { useInput } from "./carnival-games";
+import { ModalFrame, PadKey, PanelRibbon, useInput } from "./carnival-games";
 import { PET_QUEST } from "./collectibles";
-import { Btn, Panel } from "./overlays";
+import { Btn } from "./overlays";
 import { PETS, type PetKind } from "./pets";
 import { HearButton } from "./help-cards";
 import { speak } from "./speech";
@@ -18,6 +18,15 @@ import { cn } from "@/lib/utils";
  */
 
 const ICON: Record<PetKind, LucideIcon> = { puppy: Dog, kitten: Cat, bunny: Rabbit };
+/** Each pet's own colour on the chooser: warm puppy, sky kitten, grape bunny. */
+const TINT: Record<PetKind, string> = { puppy: "#f0a91c", kitten: "#3a9ad9", bunny: "#7b5cf0" };
+const LEAF = "#22b37a";
+/** Dark coats get a white face so the icon still reads. */
+const darkCoat = (hex: string) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 110;
+};
+const TEAL = "#14a3a6";
 const NAMES: Record<PetKind, string[]> = {
   puppy: ["Biscuit", "Buddy", "Coco", "Waffles"],
   kitten: ["Mittens", "Luna", "Pip", "Mochi"],
@@ -33,19 +42,9 @@ export function QuestPanel() {
   const panel = useGame((s) => s.questPanel);
   if (!panel) return null;
   return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-ink/45 p-3">
-      <Panel className="relative w-full max-w-xl p-5 sm:p-6">
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={closePanel}
-          className="absolute right-3 top-3 grid size-10 place-items-center rounded-full border-[3px] border-edge bg-surface"
-        >
-          <X className="size-5" />
-        </button>
-        {panel === "farmer" ? <Farmer /> : <Choose />}
-      </Panel>
-    </div>
+    <ModalFrame className={panel === "farmer" ? "max-w-xl lg:max-w-2xl 2xl:max-w-3xl" : "max-w-xl sm:max-w-2xl 2xl:max-w-3xl"}>
+      {panel === "farmer" ? <Farmer /> : <Choose />}
+    </ModalFrame>
   );
 }
 
@@ -108,35 +107,52 @@ function Farmer() {
   useEffect(() => speak(said), [said]);
 
   return (
-    <div className="grid gap-4">
-      <div className="flex items-center justify-between gap-3 pr-12">
-        <h2 className="font-display text-3xl font-semibold text-[#3f6fa8]">Farmer Joe</h2>
-        <HearButton text={said} />
-      </div>
-      <div className="grid gap-2 rounded-xl bg-surface-2 p-4 text-2xl font-semibold leading-snug">
-        {lines.map((l, i) => (
-          <p key={i}>{l}</p>
-        ))}
-      </div>
-      {quest.stage === "treats" && (
-        <div className="flex justify-center gap-2">
-          {PET_QUEST.treats.map((_, i) => (
-            <span
-              key={i}
-              className={cn(
-                "grid size-9 place-items-center rounded-full border-[3px] border-edge",
-                quest.treats.includes(i) ? "bg-[#d9a05a] text-white" : "bg-surface",
-              )}
-            >
-              {quest.treats.includes(i) && <Check className="size-5" />}
-            </span>
-          ))}
+    <>
+      <PanelRibbon color={LEAF} Icon={Tractor} title="Farmer Joe" onClose={closePanel} closeLabel="Close" pattern="gingham" />
+      <div className="ui-dots grid gap-4 p-4 sm:gap-5 sm:p-6 [@media(max-height:760px)]:sm:py-4 [@media(max-height:500px)]:py-3">
+        {/* his words, as a speech bubble pointing up at his name */}
+        <div className="animate-ui-rise relative mt-1 rounded-2xl border-[3px] border-edge bg-[#effaf4] p-4 shadow-[0_4px_0_#1d2452] sm:p-5">
+          <span
+            aria-hidden
+            className="absolute -top-[11px] left-8 size-5 rotate-45 border-l-[3px] border-t-[3px] border-edge bg-[#effaf4]"
+          />
+          <div className="relative grid gap-2.5 text-xl font-semibold leading-snug text-ink sm:text-2xl">
+            {lines.map((l, i) => (
+              <p key={i}>{l}</p>
+            ))}
+          </div>
         </div>
-      )}
-      <Btn onClick={action.run} className="min-h-14 text-2xl">
-        {action.label}
-      </Btn>
-    </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+        {quest.stage === "treats" && (
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {PET_QUEST.treats.map((_, i) => {
+              const got = quest.treats.includes(i);
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "relative grid size-12 place-items-center rounded-full border-[3px]",
+                    got ? "gloss border-edge bg-[#d9a05a] text-white shadow-[0_3px_0_#1d2452]" : "border-dashed border-muted bg-surface text-muted",
+                  )}
+                >
+                  <Bone className="size-6" strokeWidth={2.5} />
+                  {got && (
+                    <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border-2 border-edge bg-teal text-white">
+                      <Check className="size-3" strokeWidth={4} />
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        )}
+          <HearButton text={said} className="press ml-auto min-h-12" />
+        </div>
+        <Btn onClick={action.run} variant={quest.stage === "none" || quest.stage === "choose" ? "primary" : "go"} className="min-h-16 w-full text-2xl sm:text-3xl">
+          {action.label}
+        </Btn>
+      </div>
+    </>
   );
 }
 
@@ -190,96 +206,148 @@ function Choose() {
     }
   });
 
+  const steps = ["pet", "coat", "name"] as const;
+  const tint = TINT[def.kind];
   return (
-    <div className="grid gap-4">
-      <h2 className="font-display text-3xl font-semibold">
-        {step === "pet" ? "Which one will you keep?" : step === "coat" ? `Pick a coat for your ${def.name.toLowerCase()}` : "What's their name?"}
-      </h2>
-      {step === "pet" && (
-        <div className="grid grid-cols-3 gap-3">
-          {PETS.map((p, i) => {
-            const Icon = ICON[p.kind];
+    <>
+      <PanelRibbon
+        color={TEAL}
+        Icon={PawPrint}
+        title={step === "pet" ? "Which one will you keep?" : step === "coat" ? `Pick a coat for your ${def.name.toLowerCase()}` : "What's their name?"}
+        onClose={closePanel}
+        closeLabel="Close"
+        pattern="gingham"
+      />
+      <div className="ui-dots grid gap-4 p-4 sm:gap-5 sm:p-6 [@media(max-height:760px)]:sm:py-4 [@media(max-height:500px)]:py-3">
+        {/* where she is: pet, coat, name */}
+        <div className="flex items-center justify-center gap-2" aria-hidden>
+          {steps.map((st, i) => {
+            const at = steps.indexOf(step);
             return (
-              <button
-                key={p.kind}
-                type="button"
-                onClick={() => {
-                  setKindIdx(i);
-                  setCoatIdx(0);
-                  setStep("coat");
-                }}
-                className={cn(
-                  "chunk-sm grid justify-items-center gap-2 bg-surface-2 p-3 text-center",
-                  i === kindIdx && "outline outline-4 outline-offset-2 outline-accent",
-                )}
-              >
-                <span className="grid size-16 place-items-center rounded-full border-[3px] border-edge" style={{ background: p.colors[0] }}>
-                  <Icon className="size-9 text-ink" />
+              <span key={st} className="flex items-center gap-2">
+                {i > 0 && <span className={cn("h-1 w-6 rounded-full sm:w-10", i <= at ? "bg-teal" : "bg-line")} />}
+                <span
+                  className={cn(
+                    "ui-chip px-3 text-base sm:text-lg",
+                    i === at ? "bg-teal text-white" : i < at ? "bg-[#e3f6ef] text-teal-deep" : "border-line bg-surface text-muted shadow-none",
+                  )}
+                >
+                  {i < at && <Check className="size-4" strokeWidth={3.5} />}
+                  {st === "pet" ? "Pet" : st === "coat" ? "Coat" : "Name"}
                 </span>
-                <span className="font-display text-xl font-semibold">{p.name}</span>
-                <span className="text-sm text-ink-soft">{p.blurb}</span>
-              </button>
+              </span>
             );
           })}
         </div>
-      )}
-      {step === "coat" && (
-        <div className="flex justify-center gap-4">
-          {def.colors.map((c, i) => {
-            const Icon = ICON[def.kind];
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => {
-                  setCoatIdx(i);
-                  setStep("name");
-                }}
-                className={cn(
-                  "grid size-24 place-items-center rounded-full border-[3px] border-edge",
-                  i === coatIdx && "outline outline-4 outline-offset-4 outline-accent",
-                )}
-                style={{ background: c }}
-                aria-label={`coat ${i + 1}`}
-              >
-                <Icon className="size-12 text-ink" />
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {step === "name" && (
-        <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {names.map((nm, i) => (
-              <button
-                key={nm}
-                type="button"
-                onClick={() => {
-                  setTyped("");
-                  setNameIdx(i);
-                }}
-                className={cn(
-                  "chunk-sm bg-surface-2 px-3 py-2 font-display text-lg font-semibold",
-                  !typed && i === nameIdx && "bg-accent text-accent-fg",
-                )}
-              >
-                {nm}
-              </button>
-            ))}
+        {step === "pet" && (
+          <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+            {PETS.map((p, i) => {
+              const Icon = ICON[p.kind];
+              const on = i === kindIdx;
+              return (
+                <button
+                  key={p.kind}
+                  type="button"
+                  onClick={() => {
+                    setKindIdx(i);
+                    setCoatIdx(0);
+                    setStep("coat");
+                  }}
+                  className={cn(
+                    "press animate-ui-rise relative flex items-center gap-4 overflow-hidden rounded-2xl border-[3px] border-edge bg-surface p-3 text-left shadow-[0_5px_0_#1d2452] sm:grid sm:justify-items-center sm:gap-2 sm:p-4 sm:pt-5 sm:text-center",
+                    on && "outline outline-4 outline-offset-2 outline-accent",
+                  )}
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
+                  {/* a sunburst in the pet's colour behind its portrait */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 top-0 h-full sm:h-28"
+                    style={{
+                      backgroundColor: `${TINT[p.kind]}22`,
+                      backgroundImage: `repeating-conic-gradient(from 0deg at 50% 100%, ${TINT[p.kind]}2e 0 9deg, transparent 9deg 22deg)`,
+                    }}
+                  />
+                  <span
+                    className="gloss relative grid size-20 shrink-0 place-items-center rounded-full border-[3px] border-edge shadow-[0_4px_0_#1d2452] sm:size-24"
+                    style={{ background: p.colors[0] }}
+                  >
+                    <Icon className="size-11 text-ink sm:size-12" strokeWidth={2.25} />
+                  </span>
+                  <span className="relative grid min-w-0 gap-1 sm:justify-items-center">
+                    <span className="ui-chip w-fit px-3 text-2xl text-white" style={{ backgroundColor: TINT[p.kind] }}>
+                      {p.name}
+                    </span>
+                    <span className="text-lg font-semibold leading-snug text-ink-soft">{p.blurb}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <input
-            value={typed}
-            onChange={(e) => setTyped(e.target.value.slice(0, 16))}
-            placeholder="Or type your own name"
-            className="rounded-lg border-[3px] border-edge bg-surface px-3 py-2 text-lg"
-          />
-          <Btn onClick={adopt} className="min-h-14 gap-2 text-2xl">
-            <Heart className="size-6" fill="currentColor" /> Adopt {finalName}!
-          </Btn>
-        </div>
-      )}
-      <p className="text-center text-xs text-ink-soft">Left and right to choose · A to pick · B to go back</p>
-    </div>
+        )}
+        {step === "coat" && (
+          <div
+            className="flex flex-wrap justify-center gap-4 rounded-2xl border-[3px] border-edge p-4 sm:gap-6 sm:p-6"
+            style={{ backgroundColor: `${tint}1f` }}
+          >
+            {def.colors.map((c, i) => {
+              const Icon = ICON[def.kind];
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setCoatIdx(i);
+                    setStep("name");
+                  }}
+                  className={cn(
+                    "press gloss grid size-20 place-items-center rounded-full border-[3px] border-edge shadow-[0_5px_0_#1d2452] sm:size-28",
+                    i === coatIdx && "outline outline-4 outline-offset-4 outline-accent",
+                  )}
+                  style={{ background: c }}
+                  aria-label={`coat ${i + 1}`}
+                >
+                  <Icon className={cn("size-10 sm:size-14", darkCoat(c) ? "text-white" : "text-ink")} strokeWidth={2.25} />
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {step === "name" && (
+          <div className="grid gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {names.map((nm, i) => (
+                <button
+                  key={nm}
+                  type="button"
+                  onClick={() => {
+                    setTyped("");
+                    setNameIdx(i);
+                  }}
+                  className={cn(
+                    "chunk-sm press min-h-14 bg-surface px-3 py-2 font-display text-xl font-semibold",
+                    !typed && i === nameIdx && "gloss bg-teal text-white",
+                  )}
+                >
+                  {nm}
+                </button>
+              ))}
+            </div>
+            <input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value.slice(0, 16))}
+              placeholder="Or type your own name"
+              className="min-h-14 rounded-2xl border-[3px] border-edge bg-surface px-4 py-2 font-display text-xl shadow-[inset_0_3px_0_rgb(29_36_82/0.08)] placeholder:text-muted"
+            />
+            <Btn onClick={adopt} className="min-h-16 gap-3 text-2xl sm:text-3xl">
+              <Heart className="size-7" fill="currentColor" /> Adopt {finalName}!
+            </Btn>
+          </div>
+        )}
+        <p className="text-center text-lg font-semibold leading-snug text-ink-soft">
+          Left and right to choose · <PadKey>A</PadKey> to pick · <PadKey>B</PadKey> to go back
+        </p>
+      </div>
+    </>
   );
 }

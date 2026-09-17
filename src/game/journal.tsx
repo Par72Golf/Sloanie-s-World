@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Backpack,
   Bird,
@@ -54,6 +54,13 @@ const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: "bag", label: "Bag", Icon: Backpack },
 ];
 
+/** Each page has its own colour: its tab, its header band and its badge match. */
+const TAB_LOOK: Record<Tab, { title: string; bg: string; text: string }> = {
+  dumplings: { title: "Dumpling journal", bg: "bg-accent", text: "text-accent" },
+  stickers: { title: "Sticker book", bg: "bg-grape", text: "text-grape" },
+  bag: { title: "Backpack", bg: "bg-teal", text: "text-teal" },
+};
+
 function useTabKeys() {
   const setTab = useGame((s) => s.setJournalTab);
   const setJournal = useGame((s) => s.setJournal);
@@ -103,41 +110,84 @@ export function Journal() {
   const setTab = useGame((s) => s.setJournalTab);
   const setJournal = useGame((s) => s.setJournal);
   useTabKeys();
+  const look = TAB_LOOK[tab];
+  const Icon = TABS.find((t) => t.id === tab)!.Icon;
   return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-4">
-      <Panel className="relative flex max-h-[86dvh] w-full max-w-lg flex-col p-5">
-        <button
-          type="button"
-          aria-label="Close journal"
-          className="absolute right-3 top-3 grid size-10 place-items-center rounded-sm text-ink"
-          onClick={() => setJournal(false)}
-        >
-          <X className="size-5" />
-        </button>
-        <div className="mb-4 flex gap-2 pr-10">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "chunk-sm flex flex-1 items-center justify-center gap-1.5 px-2 py-2 font-display text-base font-semibold",
-                tab === t.id ? "bg-accent text-accent-fg" : "bg-surface-2 text-ink",
-              )}
-            >
-              <t.Icon className="size-4" />
-              {t.label}
-            </button>
-          ))}
+    <div className="ui-backdrop animate-ui-fade pointer-events-auto absolute inset-0 z-30 flex items-center justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
+      <div className="animate-ui-pop flex h-full max-h-[52rem] w-full max-w-4xl flex-col 2xl:max-w-5xl">
+        {/* folder tabs standing up off the top of the book; the chosen one joins its page */}
+        <div className="relative z-10 -mb-[3px] flex items-end gap-1.5 px-2 sm:gap-2 sm:px-6">
+          <span aria-hidden className="mb-2 mr-1 hidden rounded-md border-2 border-white/80 bg-edge px-1.5 font-display text-sm font-bold text-white sm:block [@media(pointer:coarse)]:hidden">
+            LB
+          </span>
+          {TABS.map((t) => {
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-t-[1.1rem] border-[3px] border-b-0 border-edge px-1 font-display font-semibold transition-[height,background-color] duration-150 sm:max-w-52 sm:flex-row sm:gap-2 sm:px-3",
+                  on
+                    ? cn(TAB_LOOK[t.id].bg, "h-16 text-white [text-shadow:0_2px_0_rgb(0_0_0/0.18)] sm:h-[3.75rem] lg:h-16 [@media(max-height:500px)]:h-12")
+                    : "h-14 bg-surface-3 text-ink-soft sm:h-12 lg:h-[3.25rem] [@media(max-height:500px)]:h-11",
+                )}
+                style={on ? { backgroundImage: "linear-gradient(180deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0) 70%)" } : undefined}
+              >
+                <t.Icon className={cn("shrink-0", on ? "size-6 lg:size-7" : "size-5 lg:size-6")} strokeWidth={2.5} />
+                <span className={cn("truncate", on ? "text-sm sm:text-xl lg:text-2xl" : "text-sm sm:text-lg lg:text-xl")}>{t.label}</span>
+              </button>
+            );
+          })}
+          <span aria-hidden className="mb-2 ml-1 hidden rounded-md border-2 border-white/80 bg-edge px-1.5 font-display text-sm font-bold text-white sm:block [@media(pointer:coarse)]:hidden">
+            RB
+          </span>
+          <button
+            type="button"
+            aria-label="Close journal"
+            className="chunk-sm press mb-2 ml-auto grid size-12 shrink-0 place-items-center rounded-full bg-surface text-ink"
+            onClick={() => setJournal(false)}
+          >
+            <X className="size-6" strokeWidth={3} />
+          </button>
         </div>
-        <div className="min-h-0 overflow-y-auto">
-          {tab === "dumplings" && <DumplingsTab />}
-          {tab === "stickers" && <StickersTab />}
-          {tab === "bag" && <BagTab />}
-        </div>
-        <p className="mt-3 text-center text-xs text-ink-soft">LB / RB (or Q / E) to switch pages · B to close</p>
-      </Panel>
+        <Panel className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className={cn("ui-ribbon flex shrink-0 items-center gap-3 rounded-none px-4 py-2.5 sm:px-5 [@media(max-height:480px)]:py-1.5", look.bg)}>
+            <span className={cn("chunk-sm grid size-11 shrink-0 place-items-center rounded-full bg-surface sm:size-12", look.text)}>
+              <Icon className="size-6 sm:size-7" strokeWidth={2.5} />
+            </span>
+            <h2 className="ui-title min-w-0 flex-1 truncate py-1 text-2xl leading-tight sm:text-3xl lg:text-4xl [@media(max-height:500px)]:text-2xl">{look.title}</h2>
+            <JournalCount tab={tab} />
+          </div>
+          <div className="ui-dots min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 [@media(max-height:480px)]:py-3">
+            {tab === "dumplings" && <DumplingsTab />}
+            {tab === "stickers" && <StickersTab />}
+            {tab === "bag" && <BagTab />}
+          </div>
+          <p className="shrink-0 border-t-[3px] border-line bg-surface-2 px-3 py-2 text-center text-sm font-bold text-ink-soft lg:text-base [@media(max-height:480px)]:hidden">
+            LB / RB (or Q / E) to switch pages · B to close
+          </p>
+        </Panel>
+      </div>
     </div>
+  );
+}
+
+/** The count in a page's header band: dumplings found, stickers stuck in, tickets carried. */
+function JournalCount({ tab }: { tab: Tab }) {
+  const levelIndex = useGame((s) => s.levelIndex);
+  const found = useGame((s) => (s.collected[levelIndex] ?? []).length);
+  const hasBook = useGame((s) => s.stickerBook);
+  const stickers = useGame((s) => s.stickers.length);
+  const tickets = useGame((s) => s.tickets);
+  const chip = "ui-chip shrink-0 bg-surface py-1 text-lg text-ink sm:text-xl";
+  if (tab === "dumplings") return <span className={chip}>{found} / {LEVELS[levelIndex]!.dumplings.length}</span>;
+  if (tab === "stickers") return hasBook ? <span className={chip}>{stickers} / {STICKER_ART.length}</span> : null;
+  return (
+    <span className={cn(chip, "bg-sun")}>
+      <Ticket className="size-5" strokeWidth={2.5} /> {tickets}
+    </span>
   );
 }
 
@@ -153,19 +203,37 @@ function DumplingsTab() {
   });
   return (
     <>
-      <h2 className="font-display text-2xl font-semibold">Dumpling journal</h2>
-      <p className="mt-1 text-sm text-ink-soft">
+      <p className="px-1 text-lg font-bold text-ink-soft lg:text-xl">
         {collected.length} of {level.dumplings.length} found in {level.name}
       </p>
-      <ul ref={list} className="mt-4 space-y-2">
-        {level.dumplings.map((d) => {
+      <ul ref={list} className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-3">
+        {level.dumplings.map((d, i) => {
           const got = collected.includes(d.id);
           return (
-            <li key={d.id} className="chunk-sm flex items-center gap-3 bg-surface-2 px-3 py-2">
-              <span className="size-8 rounded-full border border-line" style={{ background: got ? d.color : "#e2d5c4" }} />
-              <span>
-                <span className="block font-semibold">{got ? d.name : "Unknown dumpling"}</span>
-                <span className="block text-sm text-ink-soft">
+            <li
+              key={d.id}
+              className={cn(
+                "animate-ui-rise flex items-center gap-3 rounded-[1.1rem] border-[3px] px-3 py-2.5",
+                got ? "border-edge bg-surface shadow-[0_4px_0_var(--color-edge)]" : "border-dashed border-muted bg-surface-2/80",
+              )}
+              style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+            >
+              {got ? (
+                <span className="relative size-12 shrink-0 rounded-full border-[3px] border-edge shadow-[inset_0_-5px_0_rgb(0_0_0/0.12),inset_0_4px_0_rgb(255_255_255/0.45)]" style={{ background: d.color }}>
+                  <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full border-2 border-edge bg-teal text-white">
+                    <Check className="size-3.5" strokeWidth={4} />
+                  </span>
+                </span>
+              ) : (
+                <span className="grid size-12 shrink-0 place-items-center rounded-full border-[3px] border-dashed border-muted bg-surface font-display text-2xl font-bold text-muted">
+                  ?
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className={cn("block font-display text-lg font-semibold leading-tight lg:text-xl", got ? "text-ink" : "text-ink-soft")}>
+                  {got ? d.name : "Unknown dumpling"}
+                </span>
+                <span className="block text-base font-semibold leading-snug text-ink-soft">
                   {got ? `Found near ${d.region}` : d.hide === "hard" ? "Well hidden" : "Still out there"}
                 </span>
               </span>
@@ -177,20 +245,34 @@ function DumplingsTab() {
   );
 }
 
+/** A friendly empty page: a big badge, a heading and a line of help. */
+function EmptyPage({ Icon, tone, title, children }: { Icon: typeof BookOpen; tone: string; title: string; children: ReactNode }) {
+  return (
+    <div className="grid justify-items-center gap-3 px-2 py-6 text-center sm:py-10">
+      <span className={cn("grid size-24 place-items-center rounded-full border-[3px] border-dashed border-muted bg-surface", tone)}>
+        <Icon className="size-12" strokeWidth={2.2} />
+      </span>
+      <h2 className="font-display text-2xl font-semibold sm:text-3xl">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
 function StickersTab() {
   const hasBook = useGame((s) => s.stickerBook);
   const stickers = useGame((s) => s.stickers);
   if (!hasBook) {
     return (
-      <div className="grid justify-items-center gap-2 py-8 text-center">
-        <Sticker className="size-12 text-ink-soft" />
-        <h2 className="font-display text-2xl font-semibold">No sticker book yet</h2>
-        <p className="text-ink-soft">There's a sticker book somewhere near the start of the park. Find it to collect stickers!</p>
-      </div>
+      <EmptyPage Icon={Sticker} tone="text-grape" title="No sticker book yet">
+        <p className="max-w-md text-lg font-semibold text-ink-soft lg:text-xl">There's a sticker book somewhere near the start of the park. Find it to collect stickers!</p>
+      </EmptyPage>
     );
   }
   return <StickerBook stickers={stickers} />;
 }
+
+/** a hand-stuck look: each collected sticker sits at its own slight angle */
+const TILT = [-7, 4, -3, 6, -5, 3, 5, -4, 2, -6, 7, -2];
 
 /**
  * The sticker book: all 30 spaces, found stickers in colour, the rest as grey
@@ -214,39 +296,70 @@ function StickerBook({ stickers }: { stickers: string[] }) {
     // A is the Hear it button for the chosen space
     else if (e === "a") speak(line, true);
   });
-  useEffect(() => grid.current?.children[cursor]?.scrollIntoView({ block: "nearest" }), [cursor]);
+  useEffect(() => {
+    // braces matter: newer Chrome returns a Promise from scrollIntoView, and an effect must not return one
+    grid.current?.children[cursor]?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
   return (
-    <div className="grid gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-display text-2xl font-semibold">Sticker book</h2>
-        <span className="rounded-full bg-[#b98ce0] px-3 py-1 font-display text-lg font-semibold text-white">
-          {stickers.length} / {n}
-        </span>
-      </div>
-      <div ref={grid} className="grid grid-cols-6 gap-1.5 rounded-xl border-[3px] border-edge bg-[#fdf6ff] p-2">
+    <div className="grid gap-4 lg:grid-cols-[1fr_18rem] lg:items-start 2xl:grid-cols-[1fr_20rem] [@media(max-height:500px)]:grid-cols-[minmax(0,24rem)_1fr] [@media(max-height:500px)]:items-start">
+      {/* the album page */}
+      <div
+        ref={grid}
+        className="grid grid-cols-6 gap-1.5 rounded-[1.1rem] border-[3px] border-edge bg-[#fffdf7] p-2 shadow-[inset_0_0_0_5px_#fff,inset_0_0_0_7px_var(--color-line),0_4px_0_var(--color-edge)] sm:gap-2.5 sm:p-4 lg:gap-2 lg:p-3 2xl:gap-3 2xl:p-4"
+      >
         {STICKER_ART.map((art, i) => {
           const got = stickers.includes(art.id);
+          const on = i === cursor;
           return (
             <button
               key={art.id}
               type="button"
               onClick={() => setCursor(i)}
               className={cn(
-                "grid aspect-square place-items-center rounded-lg",
-                got && art.rarity === "shiny" && "bg-[linear-gradient(135deg,#fff4b0,#f5c8ff,#c8f0ff)]",
-                i === cursor && "outline outline-4 outline-offset-1 outline-accent",
+                "relative grid aspect-square min-h-11 place-items-center rounded-[0.8rem] transition-transform duration-150",
+                got ? "bg-transparent" : "border-[2.5px] border-dashed border-muted/70 bg-surface-2/70",
+                got && art.rarity === "shiny" && "bg-[radial-gradient(circle,#fff4b0_0%,#f0e2ff_45%,transparent_72%)]",
+                on && "z-10 scale-110 bg-accent/15 outline outline-4 outline-offset-2 outline-accent",
               )}
               aria-label={got ? art.name : "hidden sticker"}
             >
-              <img src={stickerDataUrl(art.id, 96, got)} alt="" className="size-full" draggable={false} />
+              <img
+                src={stickerDataUrl(art.id, 96, got)}
+                alt=""
+                className={cn(
+                  "size-full",
+                  got ? "drop-shadow-[0_3px_2px_rgb(29_36_82/0.3)]" : "scale-75 opacity-45",
+                )}
+                style={got ? { transform: `rotate(${on ? 0 : TILT[i % TILT.length]}deg)` } : undefined}
+                draggable={false}
+              />
             </button>
           );
         })}
       </div>
-      <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
-        <img src={stickerDataUrl(sel.id, 128, have)} alt="" className="size-16" />
-        <p className="flex-1 text-lg font-semibold leading-snug">{line}</p>
-        <HearButton text={line} />
+      {/* the chosen space, big */}
+      <div className="flex items-center gap-3 rounded-[1.1rem] border-[3px] border-edge bg-surface p-3 shadow-[0_4px_0_var(--color-edge)] lg:sticky lg:top-0 lg:flex-col lg:p-4 lg:text-center [@media(max-height:500px)]:sticky [@media(max-height:500px)]:top-0">
+        <span
+          className={cn(
+            "grid size-20 shrink-0 place-items-center rounded-full lg:size-36",
+            have ? (sel.rarity === "shiny" ? "bg-[radial-gradient(circle,#fff4b0,#f0e2ff_60%,#eef5ff)]" : "bg-surface-2") : "border-[3px] border-dashed border-muted bg-surface-2",
+          )}
+        >
+          <img
+            src={stickerDataUrl(sel.id, 128, have)}
+            alt=""
+            className={cn("size-full", have ? "-rotate-6 drop-shadow-[0_4px_3px_rgb(29_36_82/0.3)]" : "scale-75 opacity-50")}
+          />
+        </span>
+        <div className="grid min-w-0 flex-1 gap-2 lg:w-full lg:justify-items-center">
+          {have && sel.rarity !== "common" && (
+            <span className={cn("ui-chip w-fit text-sm shadow-none", sel.rarity === "shiny" ? "bg-sun text-ink" : "bg-grape text-white")}>
+              <Sparkles className="size-3.5" strokeWidth={3} /> {sel.rarity === "shiny" ? "Shiny" : "Rare"}
+            </span>
+          )}
+          <p className="text-lg font-bold leading-snug lg:text-2xl">{line}</p>
+          <HearButton text={line} className="w-fit" />
+        </div>
       </div>
     </div>
   );
@@ -291,7 +404,10 @@ function EquipGrid() {
   const [cursor, setCursor] = useState(0);
   const cols = 5;
   const grid = useRef<HTMLDivElement>(null);
-  useEffect(() => grid.current?.children[cursor]?.scrollIntoView({ block: "nearest" }), [cursor]);
+  useEffect(() => {
+    // braces matter: newer Chrome returns a Promise from scrollIntoView, and an effect must not return one
+    grid.current?.children[cursor]?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
   const toggle = (id: AccessoryId) => {
     const def = accessory(id);
     sfx.click();
@@ -306,9 +422,13 @@ function EquipGrid() {
     else if (e === "down") setCursor((c) => (c + cols) % n);
     else if (e === "a") toggle(items[Math.min(cursor, n - 1)]!.id);
   });
+  // empty slots fill out the grid, so it reads as an inventory with room to spare
+  const fillers = Math.max(10, Math.ceil(items.length / cols) * cols) - items.length;
+  const slotWell = "rounded-[0.8rem] border-[3px] border-edge shadow-[inset_0_4px_0_rgb(29_36_82/0.12)]";
   return (
-    <div className="grid gap-3 sm:grid-cols-[9rem_1fr]">
-      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-1">
+    <div className="grid gap-3 sm:grid-cols-[11rem_1fr] sm:gap-4 lg:grid-cols-[12rem_1fr] 2xl:grid-cols-[14rem_1fr]">
+      {/* what she has on */}
+      <div className="grid grid-cols-5 content-start gap-1.5 rounded-[1.1rem] border-[3px] border-edge bg-surface-3 p-1.5 shadow-[0_4px_0_var(--color-edge)] sm:grid-cols-1 sm:gap-2 sm:p-2">
         {SLOTS.map((slot) => {
           const id = worn[slot];
           const Icon = id ? (ITEM_ICON[id] ?? Shirt) : Shirt;
@@ -317,53 +437,67 @@ function EquipGrid() {
               key={slot}
               type="button"
               onClick={() => id && toggle(id)}
-              className="chunk-sm flex flex-col items-center gap-0.5 bg-surface px-1 py-1.5 sm:flex-row sm:gap-2 sm:px-2"
+              className="flex min-h-11 flex-col items-center gap-1 rounded-[0.8rem] bg-surface px-0.5 py-1.5 sm:flex-row sm:gap-2.5 sm:p-1.5"
               aria-label={id ? `Take off ${accessory(id).name}` : `${SLOT_LABEL[slot]} is empty`}
             >
-              <span className={cn("grid size-8 place-items-center rounded-md border-2 border-edge", id ? "bg-sun" : "bg-surface-2")}>
-                <Icon className={cn("size-5", id ? "text-ink" : "text-muted")} />
+              <span className={cn("grid size-10 shrink-0 place-items-center lg:size-12", slotWell, id ? "gloss bg-sun" : "border-dashed border-muted bg-surface-2 shadow-none")}>
+                <Icon className={cn("size-6 lg:size-7", id ? "text-ink" : "text-muted")} strokeWidth={2.4} />
               </span>
-              <span className="text-left leading-tight">
-                <span className="block text-[11px] font-bold uppercase text-ink-soft">{SLOT_LABEL[slot]}</span>
-                <span className="hidden text-xs font-semibold sm:block">{id ? accessory(id).name : "Empty"}</span>
+              <span className="min-w-0 text-left leading-tight">
+                <span className="block font-display text-xs font-semibold uppercase tracking-wide text-ink-soft sm:text-sm">{SLOT_LABEL[slot]}</span>
+                <span className={cn("hidden truncate text-base font-bold sm:block", id ? "text-ink" : "text-muted")}>
+                  {id ? accessory(id).name : "Empty"}
+                </span>
               </span>
             </button>
           );
         })}
       </div>
       {items.length ? (
-        <div ref={grid} className="grid grid-cols-5 content-start gap-1.5">
-          {items.map((a, i) => {
-            const on = worn[a.slot] === a.id;
-            const Icon = ITEM_ICON[a.id] ?? Shirt;
-            return (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => {
-                  setCursor(i);
-                  toggle(a.id);
-                }}
-                title={a.name}
-                className={cn(
-                  "relative grid aspect-square place-items-center rounded-lg border-[3px] border-edge",
-                  on ? "bg-sun" : "bg-surface-2",
-                  i === cursor && "outline outline-4 outline-offset-1 outline-accent",
-                )}
-                aria-label={`${on ? "Take off" : "Put on"} ${a.name}`}
-              >
-                <Icon className="size-7 text-ink" />
-                {on && <Check className="absolute right-0.5 top-0.5 size-4 text-ok" />}
-              </button>
-            );
-          })}
-          <p className="col-span-5 text-sm font-semibold text-ink-soft">
-            {items[Math.min(cursor, items.length - 1)]!.name} ·{" "}
-            {SLOT_LABEL[items[Math.min(cursor, items.length - 1)]!.slot]}
+        <div className="grid content-start gap-3">
+          <div ref={grid} className="grid grid-cols-5 content-start gap-2 rounded-[1.1rem] border-[3px] border-edge bg-surface-3 p-2 shadow-[0_4px_0_var(--color-edge)] sm:gap-2.5 sm:p-2.5">
+            {items.map((a, i) => {
+              const on = worn[a.slot] === a.id;
+              const Icon = ITEM_ICON[a.id] ?? Shirt;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    setCursor(i);
+                    toggle(a.id);
+                  }}
+                  title={a.name}
+                  className={cn(
+                    "relative grid aspect-square min-h-11 place-items-center transition-transform duration-150",
+                    slotWell,
+                    on ? "gloss bg-sun" : "bg-surface",
+                    i === cursor && "z-10 scale-105 outline outline-4 outline-offset-2 outline-accent",
+                  )}
+                  aria-label={`${on ? "Take off" : "Put on"} ${a.name}`}
+                >
+                  <Icon className="size-7 text-ink sm:size-9 lg:size-10" strokeWidth={2.2} />
+                  {on && (
+                    <span className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full border-2 border-edge bg-teal text-white">
+                      <Check className="size-3.5" strokeWidth={4} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {Array.from({ length: fillers }, (_, i) => (
+              <span key={`empty${i}`} aria-hidden className={cn("aspect-square min-h-11 bg-surface-2/70", slotWell)} />
+            ))}
+          </div>
+          <p className="flex items-center justify-center gap-2 rounded-full border-[3px] border-edge bg-surface px-4 py-1.5 text-center font-display text-lg font-semibold lg:text-xl">
+            {items[Math.min(cursor, items.length - 1)]!.name}
+            <span className="ui-chip bg-surface-3 text-sm text-ink-soft shadow-none">{SLOT_LABEL[items[Math.min(cursor, items.length - 1)]!.slot]}</span>
           </p>
         </div>
       ) : (
-        <p className="self-center text-ink-soft">Nothing to wear yet. Find things around the park and win prizes at the carnival!</p>
+        <p className="self-center rounded-[1.1rem] border-[3px] border-dashed border-muted bg-surface px-4 py-6 text-center text-lg font-semibold text-ink-soft">
+          Nothing to wear yet. Find things around the park and win prizes at the carnival!
+        </p>
       )}
     </div>
   );
@@ -379,59 +513,64 @@ function BagTab() {
   const setTab = useGame((s) => s.setJournalTab);
   if (!hasBag) {
     return (
-      <div className="grid justify-items-center gap-2 py-8 text-center">
-        <Backpack className="size-12 text-ink-soft" />
-        <h2 className="font-display text-2xl font-semibold">No backpack yet</h2>
-        <p className="text-ink-soft">
+      <EmptyPage Icon={Backpack} tone="text-teal" title="No backpack yet">
+        <p className="max-w-md text-lg font-semibold text-ink-soft lg:text-xl">
           Without a backpack you can't carry anything you find. There's one out on the ball field!
         </p>
-        <p className="mt-2 flex items-center gap-2 rounded-full bg-sun px-4 py-1 font-display text-lg font-semibold">
-          <Ticket className="size-5" /> {tickets} tickets in your pocket
+        <p className="ui-chip mt-1 bg-sun px-4 py-1.5 text-lg text-ink">
+          <Ticket className="size-5" strokeWidth={2.5} /> {tickets} tickets in your pocket
         </p>
-      </div>
+      </EmptyPage>
     );
   }
-  const row = "chunk-sm flex items-center gap-3 bg-surface-2 px-3 py-2.5";
+  const row = "flex min-h-16 items-center gap-3 rounded-[1.1rem] border-[3px] border-edge bg-surface px-3 py-2.5 shadow-[0_4px_0_var(--color-edge)]";
+  const badge = "gloss grid size-11 shrink-0 place-items-center rounded-full border-[3px] border-edge";
+  const title = "block font-display text-lg font-semibold leading-tight lg:text-xl";
+  const sub = "block text-base font-semibold leading-snug text-ink-soft";
   return (
-    <div className="grid gap-2">
-      <h2 className="font-display text-2xl font-semibold">Backpack</h2>
+    <div className="grid gap-4 lg:grid-cols-[1fr_16rem] lg:items-start 2xl:grid-cols-[1fr_20rem]">
       <EquipGrid />
-      <div className={row}>
-        <span className="grid size-10 place-items-center rounded-full bg-sun">
-          <Ticket className="size-5" />
-        </span>
-        <span className="flex-1">
-          <span className="block font-semibold">{tickets} tickets</span>
-          <span className="block text-sm text-ink-soft">Win more at the carnival. Spend them at the prize booth.</span>
-        </span>
+      <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-1">
+        <h3 className="-mb-0.5 px-1 font-display text-lg font-semibold uppercase tracking-wide text-ink-soft sm:col-span-2 lg:col-span-1 lg:-mt-1">In your pockets</h3>
+        <div className={row}>
+          <span className={cn(badge, "bg-sun text-ink")}>
+            <Ticket className="size-5" strokeWidth={2.5} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={title}>{tickets} tickets</span>
+            <span className={sub}>Win more at the carnival. Spend them at the prize booth.</span>
+          </span>
+        </div>
+        <button type="button" className={cn(row, "press text-left")} onClick={() => setTab("stickers")}>
+          <span className={cn(badge, "bg-grape text-white")}>
+            <Sticker className="size-5" strokeWidth={2.5} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={title}>{hasBook ? "Sticker book" : "Sticker book (not found)"}</span>
+            <span className={sub}>{hasBook ? `${stickers} stickers inside` : "Look near the start of the park."}</span>
+          </span>
+        </button>
+        {quest.stage !== "none" && quest.stage !== "done" && (
+          <div className={row}>
+            <span className={cn(badge, "bg-leaf font-display text-lg font-bold text-white")}>{quest.treats.length}</span>
+            <span className="min-w-0 flex-1">
+              <span className={title}>Pet treats</span>
+              <span className={sub}>{quest.treats.length} of 5 found for the lost pet.</span>
+            </span>
+          </div>
+        )}
+        {pet && (
+          <div className={row}>
+            <span className={cn(badge, "bg-berry text-white")}>
+              <Heart className="size-5 fill-current" strokeWidth={2.5} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={title}>{pet.name}</span>
+              <span className={sub}>Your {pet.kind}. Always by your side.</span>
+            </span>
+          </div>
+        )}
       </div>
-      <button type="button" className={cn(row, "text-left")} onClick={() => setTab("stickers")}>
-        <span className="grid size-10 place-items-center rounded-full bg-[#b98ce0] text-white">
-          <Sticker className="size-5" />
-        </span>
-        <span className="flex-1">
-          <span className="block font-semibold">{hasBook ? "Sticker book" : "Sticker book (not found)"}</span>
-          <span className="block text-sm text-ink-soft">{hasBook ? `${stickers} stickers inside` : "Look near the start of the park."}</span>
-        </span>
-      </button>
-      {quest.stage !== "none" && quest.stage !== "done" && (
-        <div className={row}>
-          <span className="grid size-10 place-items-center rounded-full bg-[#e8c49a] font-display font-semibold">{quest.treats.length}</span>
-          <span className="flex-1">
-            <span className="block font-semibold">Pet treats</span>
-            <span className="block text-sm text-ink-soft">{quest.treats.length} of 5 found for the lost pet.</span>
-          </span>
-        </div>
-      )}
-      {pet && (
-        <div className={row}>
-          <span className="grid size-10 place-items-center rounded-full bg-[#f5a8c8] font-display font-semibold">♥</span>
-          <span className="flex-1">
-            <span className="block font-semibold">{pet.name}</span>
-            <span className="block text-sm text-ink-soft">Your {pet.kind}. Always by your side.</span>
-          </span>
-        </div>
-      )}
     </div>
   );
 }

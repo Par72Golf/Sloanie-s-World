@@ -1,22 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Apple,
+  Bird,
   Carrot,
+  Cat,
   Check,
   Cherry,
   Cloud,
+  Crown,
+  Fan,
+  Feather,
   Fish,
   Flower,
   Gift,
+  Glasses,
+  Hammer,
   Heart,
+  Lock,
+  Lollipop,
   Moon,
   PawPrint,
+  Play,
+  Rabbit,
   Rainbow,
+  Shield,
   Snowflake,
   Sparkles,
   Star,
+  Store,
   Sun,
+  Target,
   Ticket,
+  Timer,
+  Trophy,
+  WandSparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +50,7 @@ import {
   duckDeck,
   ringSweep,
   type Booth,
+  type BoothGame,
 } from "./carnival";
 import { Btn, Panel } from "./overlays";
 import { HearButton } from "./help-cards";
@@ -169,22 +187,142 @@ const PRIZE_ICON: Record<string, { Icon: LucideIcon; color: string }> = {
   teddy: { Icon: PawPrint, color: "#b87a4a" },
 };
 
+/* ------------------------------------------------------- shared chrome */
+
+const CREAM = "#fff4e8";
+
+/**
+ * The full-screen modal layer. Keeps `pointer-events-auto absolute inset-0
+ * z-30` on the outermost element: pad-menu.tsx finds the top layer by those.
+ * Scrolls as a whole when a panel is taller than the screen (phone landscape).
+ */
+export function ModalFrame({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className="ui-backdrop animate-ui-fade pointer-events-auto absolute inset-0 z-30 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-full items-center justify-center pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <Panel className={cn("animate-ui-pop relative w-full overflow-hidden", className)}>{children}</Panel>
+      </div>
+    </div>
+  );
+}
+
+// the scalloped bottom edge of a carnival awning, one scallop per stripe
+const SCALLOP_MASK =
+  "radial-gradient(circle at 14px 0, #000 14px, transparent 14.5px) 0 100% / 28px 14px repeat-x, linear-gradient(#000 0 0) 0 0 / 100% calc(100% - 13.5px) no-repeat";
+
+function Awning({ color, pattern }: { color: string; pattern: "awning" | "gingham" }) {
+  if (pattern === "gingham") {
+    return (
+      <div
+        aria-hidden
+        className="h-5 border-b-[3px] border-edge/80 [@media(max-height:500px)]:h-3"
+        style={{
+          backgroundColor: color,
+          backgroundImage: `linear-gradient(90deg, rgb(255 255 255 / 0.45) 50%, transparent 50%), linear-gradient(rgb(255 255 255 / 0.45) 50%, transparent 50%)`,
+          backgroundSize: "20px 20px",
+        }}
+      />
+    );
+  }
+  return (
+    <div aria-hidden className="[filter:drop-shadow(0_3px_0_rgb(29_36_82/0.3))]">
+      <div
+        className="h-8 [@media(max-height:760px)]:h-6 [@media(max-height:500px)]:h-5"
+        style={{
+          backgroundImage: `repeating-linear-gradient(90deg, ${color} 0 28px, ${CREAM} 28px 56px)`,
+          WebkitMask: SCALLOP_MASK,
+          mask: SCALLOP_MASK,
+        }}
+      />
+    </div>
+  );
+}
+
+/** Coloured header band: pattern strip, icon badge, outlined title, close button. */
+export function PanelRibbon({
+  color,
+  Icon,
+  title,
+  onClose,
+  closeLabel,
+  padSkip,
+  pattern = "awning",
+}: {
+  color: string;
+  Icon: LucideIcon;
+  title: React.ReactNode;
+  onClose: () => void;
+  closeLabel: string;
+  padSkip?: boolean;
+  pattern?: "awning" | "gingham";
+}) {
+  return (
+    <div className="ui-ribbon relative z-10" style={{ backgroundColor: color }}>
+      <Awning color={color} pattern={pattern} />
+      <div className="flex items-center gap-3 px-4 pb-3.5 pt-2 sm:gap-4 sm:px-6 [@media(max-height:760px)]:pb-2.5 [@media(max-height:500px)]:pb-2 [@media(max-height:500px)]:pt-1">
+        <span className="chunk-sm gloss grid size-12 shrink-0 place-items-center bg-surface sm:size-14" aria-hidden>
+          <Icon className="size-7 sm:size-8" style={{ color }} strokeWidth={2.5} />
+        </span>
+        <h2 className="ui-title min-w-0 flex-1 text-[1.75rem] leading-tight [overflow-wrap:anywhere] sm:text-4xl">{title}</h2>
+        <button
+          type="button"
+          aria-label={closeLabel}
+          {...(padSkip ? { "data-pad-skip": true } : {})}
+          onClick={onClose}
+          className="chunk-sm press grid size-12 shrink-0 place-items-center bg-surface text-ink"
+        >
+          <X className="size-6" strokeWidth={3} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** A controller button glyph for the little "A to play" hints. */
+export function PadKey({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mx-0.5 inline-grid size-7 place-items-center rounded-full border-2 border-edge bg-surface align-middle font-display text-base font-bold leading-none text-ink shadow-[0_2px_0_#1d2452]">
+      {children}
+    </span>
+  );
+}
+
+const SHOP_ICON: Partial<Record<AccessoryId, { Icon: LucideIcon; color: string }>> = {
+  pinwheel: { Icon: Fan, color: "#ff6a55" },
+  catears: { Icon: Cat, color: "#e0842e" },
+  heartglasses: { Icon: Glasses, color: "#f0506e" },
+  lollipop: { Icon: Lollipop, color: "#e8455f" },
+  bunnyears: { Icon: Rabbit, color: "#7b5cf0" },
+  cottoncandy: { Icon: Cloud, color: "#e0609a" },
+  wand: { Icon: WandSparkles, color: "#7b5cf0" },
+  tiara: { Icon: Crown, color: "#f0a91c" },
+  cape: { Icon: Shield, color: "#2f7fd6" },
+  wings: { Icon: Feather, color: "#14a3a6" },
+};
+
+const BOOTH_ICON: Record<BoothGame, LucideIcon> = { rings: Target, ducks: Bird, moles: Hammer, prizes: Gift };
+
 function PrizeBadge({ id, have, size = "md" }: { id: AccessoryId; have: boolean; size?: "md" | "lg" }) {
   const { Icon, color } = PRIZE_ICON[id]!;
   return (
     <div
       className={cn(
-        "grid shrink-0 place-items-center rounded-full border-[3px] border-edge",
-        size === "lg" ? "size-20" : "size-12",
-        have ? "bg-surface" : "bg-surface-2 opacity-60",
+        "relative grid shrink-0 place-items-center rounded-full border-[3px]",
+        size === "lg" ? "size-24" : "size-14",
+        have ? "gloss border-edge bg-surface shadow-[0_4px_0_#1d2452]" : "border-dashed border-muted bg-surface-2",
       )}
     >
       {id === "duckhat" ? (
-        <div className={cn(size === "lg" ? "size-14" : "size-9", !have && "grayscale")}>
+        <div className={cn(size === "lg" ? "size-16" : "size-10", !have && "opacity-50 grayscale")}>
           <DuckSvg />
         </div>
       ) : (
-        <Icon className={size === "lg" ? "size-10" : "size-6"} style={{ color: have ? color : "#9a8468" }} fill={have ? color : "none"} />
+        <Icon
+          className={size === "lg" ? "size-12" : "size-7"}
+          style={{ color: have ? color : "#8a93b8" }}
+          fill={have ? color : "none"}
+          strokeWidth={have ? 2 : 2.5}
+        />
       )}
     </div>
   );
@@ -194,22 +332,25 @@ function Intro({ booth, onPlay, children }: { booth: Booth; onPlay: () => void; 
   const have = useGame((s) => s.foundAccessories.includes(booth.prize));
   useEffect(() => speak(`${booth.name}. ${booth.pitch}`), [booth]);
   return (
-    <div className="grid gap-4">
-      <div className="flex items-start gap-3">
-        <p className="flex-1 text-2xl font-semibold leading-snug text-ink">{booth.pitch}</p>
-        <HearButton text={`${booth.name}. ${booth.pitch}`} />
+    <div className="grid gap-4 sm:gap-5">
+      <div className="animate-ui-rise flex flex-wrap items-start gap-3">
+        <p className="min-w-[12rem] flex-1 text-2xl font-semibold leading-snug text-ink">{booth.pitch}</p>
+        <HearButton text={`${booth.name}. ${booth.pitch}`} className="press min-h-12 shrink-0" />
       </div>
       {children}
-      <div className="flex items-center gap-3 rounded-lg bg-surface-2 p-3">
+      <div
+        className="animate-ui-rise flex items-center gap-4 rounded-2xl border-[3px] border-edge bg-sun/20 p-3 pr-4 shadow-[0_4px_0_#1d2452]"
+        style={{ animationDelay: "60ms" }}
+      >
         <PrizeBadge id={booth.prize} have={have} />
-        <p className="text-sm font-semibold text-ink-soft">
+        <p className="min-w-0 text-lg font-bold leading-snug text-ink sm:text-xl">
           {have
             ? `You already won the ${accessory(booth.prize).name.toLowerCase()}. Play for fun!`
             : `Prize: the ${accessory(booth.prize).name.toLowerCase()}!`}
         </p>
       </div>
-      <Btn onClick={onPlay} className="min-h-14 text-2xl">
-        Play!
+      <Btn onClick={onPlay} className="min-h-16 w-full gap-3 text-3xl">
+        <Play className="size-7" fill="currentColor" /> Play!
       </Btn>
     </div>
   );
@@ -238,31 +379,66 @@ function Result({
     );
   }, [won, line, tickets, isNew, booth]);
   return (
-    <div className="grid justify-items-center gap-3 text-center">
-      {won && <PrizeBadge id={booth.prize} have size="lg" />}
-      <h3 className="font-display text-3xl font-semibold">{won ? "You won!" : "So close!"}</h3>
-      <p className="text-lg text-ink">{line}</p>
+    <div className="grid justify-items-center gap-3 text-center sm:gap-4">
+      <div className="relative grid place-items-center">
+        {/* sun rays behind the prize, or a soft glow when it was close */}
+        <div
+          aria-hidden
+          className={cn("absolute size-48 rounded-full", won && "animate-[spin_16s_linear_infinite]")}
+          style={
+            won
+              ? {
+                  background: "repeating-conic-gradient(#ffc83a 0 11deg, transparent 11deg 30deg)",
+                  WebkitMask: "radial-gradient(circle, #000 28%, transparent 70%)",
+                  mask: "radial-gradient(circle, #000 28%, transparent 70%)",
+                }
+              : { background: "radial-gradient(circle, rgb(20 163 166 / 0.22) 30%, transparent 68%)" }
+          }
+        />
+        <div className="animate-ui-pop relative">
+          {won ? (
+            <PrizeBadge id={booth.prize} have size="lg" />
+          ) : (
+            <div className="gloss grid size-24 place-items-center rounded-full border-[3px] border-edge bg-teal shadow-[0_4px_0_#1d2452]">
+              <Heart className="size-12 text-white" fill="currentColor" />
+            </div>
+          )}
+          {won && (
+            <>
+              <Sparkles className="absolute -left-7 -top-2 size-7 text-sun" fill="#ffc83a" strokeWidth={1.5} aria-hidden />
+              <Star className="absolute -right-6 top-1 size-6 text-sun" fill="#ffc83a" strokeWidth={1.5} aria-hidden />
+            </>
+          )}
+        </div>
+      </div>
+      <h3 className={cn("ui-title animate-ui-rise text-5xl leading-none", won ? "text-sun" : "text-white")}>
+        {won ? "You won!" : "So close!"}
+      </h3>
+      <p className="text-xl font-semibold text-ink">{line}</p>
       {tickets > 0 && (
-        <p className="rounded-full bg-sun px-4 py-1 font-display text-xl font-semibold text-ink" style={{ animation: "catchPop 260ms ease-out" }}>
-          +{tickets} ticket{tickets === 1 ? "" : "s"}!
+        <p className="ui-chip animate-ui-pop gloss gap-2 bg-sun px-5 py-1.5 text-2xl text-ink" style={{ animationDelay: "120ms" }}>
+          <Ticket className="size-7" strokeWidth={2.5} /> +{tickets} ticket{tickets === 1 ? "" : "s"}!
         </p>
       )}
       {won && (
-        <p className="text-sm font-semibold text-ok">
+        <p className="flex items-center gap-2 rounded-2xl bg-teal/12 px-4 py-2 text-lg font-bold leading-snug text-teal-deep">
+          <Check className="size-6 shrink-0" strokeWidth={3} />
           {isNew
             ? `The ${accessory(booth.prize).name.toLowerCase()} is yours. It's on! Change it in the wardrobe.`
             : "Champion again!"}
         </p>
       )}
-      <div className="mt-1 flex gap-2">
-        <Btn onClick={onAgain} variant={won ? "secondary" : "primary"}>
+      <div className="mt-1 grid w-full grid-cols-2 gap-3">
+        <Btn onClick={onAgain} variant={won ? "secondary" : "primary"} className="min-h-14 px-3 text-xl">
           {won ? "Play again" : "Try again"}
         </Btn>
-        <Btn onClick={close} variant={won ? "primary" : "secondary"}>
+        <Btn onClick={close} variant={won ? "primary" : "secondary"} className="min-h-14 px-3 text-xl">
           Done
         </Btn>
       </div>
-      <p className="text-xs text-ink-soft">A to play again · B to leave</p>
+      <p className="text-lg font-semibold text-ink-soft">
+        <PadKey>A</PadKey> to play again · <PadKey>B</PadKey> to leave
+      </p>
     </div>
   );
 }
@@ -355,20 +531,28 @@ function RingToss({ booth }: { booth: Booth }) {
   }
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-ink-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="ui-chip bg-surface px-3 py-1 text-lg text-ink sm:px-4 sm:text-xl">
           Ring {Math.min(throwNo + 1, RING_TOSS.rings)} of {RING_TOSS.rings}
         </p>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1 sm:gap-2">
           {Array.from({ length: RING_TOSS.rings }).map((_, i) => (
             <span
               key={i}
               className={cn(
-                "grid size-6 place-items-center rounded-full border-2 border-edge",
-                hits[i] === true ? "bg-ok text-ok-fg" : hits[i] === false ? "bg-surface-2" : "bg-surface",
+                "grid size-7 place-items-center rounded-full border-[3px] border-edge sm:size-8",
+                hits[i] === true
+                  ? "gloss bg-teal text-white shadow-[0_2px_0_#1d2452]"
+                  : hits[i] === false
+                    ? "bg-surface-3 text-muted"
+                    : i === hits.length
+                      ? "bg-surface"
+                      : "bg-surface-2",
               )}
+              style={hits[i] === undefined && i === hits.length ? { borderColor: booth.awning[0] } : undefined}
             >
-              {hits[i] === true && <Check className="size-4" />}
+              {hits[i] === true && <Check className="size-5" strokeWidth={3.5} />}
+              {hits[i] === false && <X className="size-4" strokeWidth={3} />}
             </span>
           ))}
         </div>
@@ -376,13 +560,17 @@ function RingToss({ booth }: { booth: Booth }) {
       <button
         type="button"
         onClick={toss}
-        className="relative h-56 w-full overflow-hidden rounded-xl border-[3px] border-edge bg-[#fdf0d8]"
+        className="relative h-56 w-full overflow-hidden rounded-2xl border-[3px] border-edge shadow-[0_4px_0_#1d2452]"
+        style={{ backgroundImage: "repeating-linear-gradient(90deg, #fff7ea 0 34px, #fdecd2 34px 68px)" }}
         aria-label="Throw the ring"
       >
+        {/* booth back wall trim and the shelf the bottles stand on */}
+        <div aria-hidden className="absolute inset-x-0 top-0 h-2" style={{ backgroundColor: booth.awning[0] }} />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-3 border-t-[3px] border-edge bg-[#c98a4f]" />
         {/* the swinging ring */}
         <div
           ref={flight ? undefined : marker}
-          className="absolute top-3 size-16 -translate-x-1/2 rounded-full border-[10px] border-accent transition-[top,transform] duration-300 ease-in"
+          className="absolute top-3 size-16 -translate-x-1/2 rounded-full border-[10px] border-accent shadow-[0_0_0_3px_#1d2452,inset_0_0_0_3px_#1d2452] transition-[top,transform] duration-300 ease-in"
           style={
             flight
               ? { left: `${flight.x * 100}%`, top: "38%", transform: "translateX(-50%) scale(0.8, 0.45)" }
@@ -401,27 +589,26 @@ function RingToss({ booth }: { booth: Booth }) {
               />
               <div
                 className={cn(
-                  "h-20 w-14 rounded-xl border-[3px] border-edge",
+                  "relative h-20 w-14 rounded-xl border-[3px] border-edge",
                   i === target ? "bg-sun shadow-[0_0_24px_8px_rgba(255,197,61,0.8)]" : "bg-[#3fa35c]",
                 )}
-              />
+              >
+                <span aria-hidden className="absolute left-1.5 top-2 h-9 w-2 rounded-full bg-white/45" />
+              </div>
             </div>
           ))}
         </div>
         {flight && (
           <p
-            className={cn(
-              "absolute inset-x-0 top-24 font-display text-4xl font-semibold drop-shadow",
-              flight.hit ? "text-ok" : "text-ink-soft",
-            )}
+            className={cn("ui-title absolute inset-x-0 top-24 text-4xl sm:text-5xl", flight.hit ? "text-sun" : "text-white")}
             style={{ animation: "catchPop 260ms ease-out" }}
           >
             {flight.hit ? "Ringed it!" : "Missed!"}
           </p>
         )}
       </button>
-      <p className="text-center text-sm font-semibold text-ink-soft">
-        Tap, press A or Space when the ring is over the glowing bottle. Ring {RING_TOSS.toWin} to win!
+      <p className="text-center text-lg font-semibold leading-snug text-ink-soft">
+        Tap, press <PadKey>A</PadKey> or Space when the ring is over the glowing bottle. Ring {RING_TOSS.toWin} to win!
       </p>
     </div>
   );
@@ -547,16 +734,29 @@ function DuckPond({ booth }: { booth: Booth }) {
     );
   }
   return (
-    <div className="grid gap-3">
-      <div className="flex items-center justify-between font-semibold">
-        <span className="text-ink-soft">
-          Pairs {matched.size / 2} of {DUCK_POND.pairs}
+    <div className="grid gap-3 sm:gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="ui-chip bg-surface px-4 py-1 text-xl text-ink">
+          <Heart className="size-5 text-[#4f93c4]" fill="#4f93c4" /> Pairs {matched.size / 2} of {DUCK_POND.pairs}
         </span>
-        <span className={cn(DUCK_POND.turns - turns <= 3 ? "text-accent" : "text-ink-soft")}>
+        <span
+          className={cn(
+            "ui-chip px-4 py-1 text-xl",
+            DUCK_POND.turns - turns <= 3 ? "bg-accent text-accent-fg" : "bg-surface text-ink",
+          )}
+        >
           Turns left: {DUCK_POND.turns - turns}
         </span>
       </div>
-      <div className="grid grid-cols-4 gap-2 rounded-xl border-[3px] border-edge bg-[#8fd8f0] p-2">
+      <div
+        className="mx-auto grid w-full grid-cols-4 gap-2 rounded-2xl border-[3px] border-edge p-2 shadow-[0_4px_0_#1d2452] sm:gap-3 sm:p-3"
+        style={{
+          maxWidth: "max(16rem, calc((100dvh - 22rem) * 4 / 3))",
+          backgroundColor: "#8fd8f0",
+          backgroundImage:
+            "radial-gradient(ellipse 40px 10px at 25% 30%, rgb(255 255 255 / 0.35) 45%, transparent 55%), radial-gradient(ellipse 56px 12px at 75% 75%, rgb(255 255 255 / 0.3) 45%, transparent 55%)",
+        }}
+      >
         {deck.map((key, i) => {
           const up = open.includes(i) || matched.has(i);
           const pic = PICTURES.find((p) => p.key === key)!;
@@ -569,10 +769,10 @@ function DuckPond({ booth }: { booth: Booth }) {
                 flip(i);
               }}
               className={cn(
-                "relative grid aspect-square place-items-center rounded-lg border-[3px] border-edge transition-transform",
-                up ? "bg-surface" : "bg-[#6cc4e0]",
+                "press relative grid aspect-square place-items-center rounded-xl border-[3px] border-edge shadow-[0_4px_0_#1d2452]",
+                up ? "bg-surface" : "gloss bg-[#6cc4e0]",
                 i === cursor && "outline outline-4 outline-offset-2 outline-accent",
-                matched.has(i) && "bg-[#e8f8e8]",
+                matched.has(i) && "bg-[#e3f6ef]",
               )}
               aria-label={up ? pic.key : "duck"}
             >
@@ -588,11 +788,18 @@ function DuckPond({ booth }: { booth: Booth }) {
                   <DuckSvg />
                 </div>
               )}
+              {matched.has(i) && (
+                <span aria-hidden className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full border-2 border-edge bg-teal text-white">
+                  <Check className="size-4" strokeWidth={3.5} />
+                </span>
+              )}
             </button>
           );
         })}
       </div>
-      <p className="text-center text-sm font-semibold text-ink-soft">Tap a duck, or move with the arrows and press A.</p>
+      <p className="text-center text-lg font-semibold leading-snug text-ink-soft">
+        Tap a duck, or move with the arrows and press <PadKey>A</PadKey>.
+      </p>
     </div>
   );
 }
@@ -731,19 +938,30 @@ function WhackAMole({ booth }: { booth: Booth }) {
   if (stage === "intro") {
     return (
       <Intro booth={booth} onPlay={start}>
-        <div className="grid grid-cols-3 gap-2 text-center text-sm font-semibold">
+        <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
           {(
             [
               ["mole", "+1"],
               ["gold", "+3"],
               ["bunny", "Don't!"],
             ] as const
-          ).map(([k, label]) => (
-            <div key={k} className="grid justify-items-center gap-1 rounded-lg bg-surface-2 p-2">
-              <div className="size-14">
+          ).map(([k, label], i) => (
+            <div
+              key={k}
+              className="animate-ui-rise grid justify-items-center gap-2 rounded-2xl border-[3px] border-edge bg-[#e4f3df] p-2.5 shadow-[0_4px_0_#1d2452]"
+              style={{ animationDelay: `${40 + i * 50}ms` }}
+            >
+              <div className="size-16 sm:size-20">
                 <CritterSvg kind={k} />
               </div>
-              <span className={k === "bunny" ? "text-accent" : "text-ink"}>{label}</span>
+              <span
+                className={cn(
+                  "ui-chip px-3 text-lg",
+                  k === "mole" ? "bg-teal text-white" : k === "gold" ? "bg-sun text-ink" : "bg-accent text-accent-fg",
+                )}
+              >
+                {label}
+              </span>
             </div>
           ))}
         </div>
@@ -766,17 +984,27 @@ function WhackAMole({ booth }: { booth: Booth }) {
   const now = performance.now();
   const left = Math.max(0, WHACK.seconds - (now - s.start) / 1000);
   return (
-    <div className="grid gap-3">
-      <div className="flex items-center justify-between font-display text-2xl font-semibold">
-        <span>
-          {s.score} <span className="text-base text-ink-soft">/ {WHACK.goal}</span>
+    <div className="grid gap-3 sm:gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="ui-chip gap-2 bg-surface px-4 py-0.5 text-3xl text-ink">
+          <Hammer className="size-6 text-[#3fa35c]" strokeWidth={2.5} />
+          {s.score} <span className="text-lg text-ink-soft">/ {WHACK.goal}</span>
         </span>
-        <span className={cn(left < 6 && "text-accent")}>{Math.ceil(left)}s</span>
+        <span className={cn("ui-chip gap-2 px-4 py-0.5 text-3xl", left < 6 ? "bg-accent text-accent-fg" : "bg-surface text-ink")}>
+          <Timer className="size-6" strokeWidth={2.5} />
+          {Math.ceil(left)}s
+        </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-        <div className="h-full bg-leaf transition-[width]" style={{ width: `${(left / WHACK.seconds) * 100}%` }} />
+      <div className="h-4 overflow-hidden rounded-full border-[3px] border-edge bg-surface-2">
+        <div
+          className={cn("h-full rounded-full transition-[width]", left < 6 ? "bg-accent" : "bg-leaf")}
+          style={{ width: `${(left / WHACK.seconds) * 100}%` }}
+        />
       </div>
-      <div className="relative grid grid-cols-3 gap-3 rounded-xl border-[3px] border-edge bg-[#6aae5c] p-3">
+      <div
+        className="relative mx-auto grid w-full grid-cols-3 gap-3 rounded-2xl border-[3px] border-edge bg-[#6aae5c] p-3 shadow-[0_4px_0_#1d2452]"
+        style={{ maxWidth: "max(16rem, calc((100dvh - 22rem) * 3 / 2))" }}
+      >
         {s.holes.map((c, i) => (
           <button
             key={i}
@@ -787,11 +1015,12 @@ function WhackAMole({ booth }: { booth: Booth }) {
               whack(i);
             }}
             className={cn(
-              "relative aspect-square overflow-hidden rounded-xl",
+              "relative aspect-square overflow-hidden rounded-2xl bg-[#78bb69]",
               i === cursor && "outline outline-4 outline-offset-2 outline-sun",
             )}
             aria-label={`hole ${i + 1}`}
           >
+            <div className="absolute inset-x-[4%] bottom-[3%] h-[40%] rounded-[50%] bg-[#8a5a3a]" />
             <div className="absolute inset-x-[8%] bottom-[6%] h-[34%] rounded-[50%] bg-[#3a2b20]" />
             <div
               className="absolute inset-x-[14%] bottom-[14%] h-[72%] transition-transform duration-100"
@@ -799,25 +1028,29 @@ function WhackAMole({ booth }: { booth: Booth }) {
             >
               {c && <CritterSvg kind={c.kind} />}
             </div>
-            <div className="absolute inset-x-0 bottom-0 h-[20%] bg-[#6aae5c]" />
+            <div className="absolute inset-x-0 bottom-0 h-[20%] bg-[#78bb69]" />
             {s.bonk === i && s.bonkUntil > now && (
               <div className="absolute inset-0 grid place-items-center">
                 <Star className="size-2/3 text-sun" fill="#ffc53d" />
               </div>
             )}
-            <span className="absolute left-1.5 top-1 text-xs font-bold text-white/80">{i + 1}</span>
+            <span className="absolute left-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-black/25 font-display text-sm font-bold text-white">
+              {i + 1}
+            </span>
           </button>
         ))}
         {s.msg && s.msgUntil > now && (
           <p
-            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center font-display text-3xl font-semibold text-white drop-shadow-[0_2px_0_rgba(0,0,0,0.5)]"
+            className="ui-title pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-3xl sm:text-4xl"
             style={{ animation: "catchPop 200ms ease-out" }}
           >
             {s.msg}
           </p>
         )}
       </div>
-      <p className="text-center text-sm font-semibold text-ink-soft">Tap the holes, press 1 to 6, or move with the arrows and press A.</p>
+      <p className="text-center text-lg font-semibold leading-snug text-ink-soft">
+        Tap the holes, press 1 to 6, or move with the arrows and press <PadKey>A</PadKey>.
+      </p>
     </div>
   );
 }
@@ -861,39 +1094,47 @@ function PrizeBooth({ booth }: { booth: Booth }) {
     else if (e === "a") buy(cursor);
   });
   const tabs = (
-    <div className="flex gap-2">
-      {(["shop", "prizes"] as const).map((p) => (
-        <button
-          key={p}
-          type="button"
-          onClick={() => setPage(p)}
-          className={cn(
-            "chunk-sm flex-1 px-3 py-1.5 font-display text-lg font-semibold",
-            page === p ? "bg-accent text-accent-fg" : "bg-surface-2 text-ink",
-          )}
-        >
-          {p === "shop" ? "Shop" : `Game prizes ${won}/${GAME_PRIZES.length}`}
-        </button>
-      ))}
+    <div className="grid flex-1 grid-cols-2 gap-1.5 rounded-full border-[3px] border-edge bg-surface-3 p-1.5">
+      {(["shop", "prizes"] as const).map((p) => {
+        const Icon = p === "shop" ? Store : Trophy;
+        return (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPage(p)}
+            className={cn(
+              "press flex min-h-12 items-center justify-center gap-2 rounded-full px-2 font-display text-base font-semibold leading-tight min-[400px]:text-lg sm:text-xl",
+              "border-[3px]",
+              page === p ? "gloss border-edge bg-grape text-white shadow-[0_3px_0_#1d2452]" : "border-transparent text-ink-soft",
+            )}
+          >
+            <Icon className="hidden size-5 shrink-0 sm:block" strokeWidth={2.5} />
+            {p === "shop" ? "Shop" : `Game prizes ${won}/${GAME_PRIZES.length}`}
+          </button>
+        );
+      })}
     </div>
   );
   if (page === "shop") {
     return (
-      <div className="grid gap-3">
-        {tabs}
-        <p className="flex items-center justify-center gap-2 rounded-full bg-sun px-4 py-1.5 font-display text-2xl font-semibold">
-          <Ticket className="size-6" /> {tickets} tickets
-        </p>
+      <div className="grid gap-4 [@media(max-height:760px)]:gap-3">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+          {tabs}
+          <p className="ui-chip gloss gap-2 self-center bg-sun px-5 py-1.5 text-2xl text-ink">
+            <Ticket className="size-7" strokeWidth={2.5} /> {tickets} tickets
+          </p>
+        </div>
         {ready && (
-          <Btn onClick={() => setPage("prizes")} className="gap-2">
-            <Gift className="size-5" /> Your giant teddy is ready!
+          <Btn onClick={() => setPage("prizes")} className="min-h-14 gap-2 px-3 text-lg sm:text-xl [@media(max-height:760px)]:min-h-12">
+            <Gift className="size-6" /> Your giant teddy is ready!
           </Btn>
         )}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
           {SHOP.map((item, i) => {
             const have = found.includes(item.id);
             const afford = tickets >= item.price;
             const def = accessory(item.id);
+            const { Icon, color } = SHOP_ICON[item.id] ?? { Icon: Gift, color: "#7b5cf0" };
             return (
               <button
                 key={item.id}
@@ -903,19 +1144,28 @@ function PrizeBooth({ booth }: { booth: Booth }) {
                   buy(i);
                 }}
                 className={cn(
-                  "chunk-sm grid justify-items-center gap-1 p-2 text-center",
-                  have ? "bg-[#e8f8e8]" : afford ? "bg-surface" : "bg-surface-2 opacity-70",
+                  "press relative grid content-between justify-items-center gap-1.5 rounded-2xl border-[3px] border-edge px-1 pb-2.5 pt-2.5 text-center sm:gap-2 sm:px-1.5 sm:py-3 [@media(max-height:760px)]:sm:gap-1.5 [@media(max-height:760px)]:sm:py-2 shadow-[0_4px_0_#1d2452]",
+                  have ? "bg-[#e3f6ef]" : afford ? "bg-surface" : "bg-surface-2",
                   i === cursor && "outline outline-4 outline-offset-2 outline-accent",
                 )}
               >
-                <span className="text-sm font-semibold leading-tight">{def.name}</span>
+                <span
+                  className={cn(
+                    "grid size-12 place-items-center rounded-full border-[3px] sm:size-14 [@media(max-height:760px)]:sm:size-12",
+                    afford || have ? "gloss border-edge" : "border-dashed border-muted bg-surface-3",
+                  )}
+                  style={afford || have ? { backgroundColor: `${color}26` } : undefined}
+                >
+                  <Icon className="size-7 sm:size-8" style={{ color: afford || have ? color : "#8a93b8" }} strokeWidth={2.25} />
+                </span>
+                <span className={cn("text-base font-bold leading-tight sm:text-lg", !afford && !have && "text-ink-soft")}>{def.name}</span>
                 {have ? (
-                  <span className="flex items-center gap-1 text-sm font-bold text-ok">
-                    <Check className="size-4" /> Yours
+                  <span className="ui-chip bg-teal px-2.5 text-base text-white">
+                    <Check className="size-4" strokeWidth={3.5} /> Yours
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 font-display text-lg font-semibold">
-                    <Ticket className="size-4" /> {item.price}
+                  <span className={cn("ui-chip px-3 text-lg", afford ? "bg-sun text-ink" : "border-muted bg-surface-3 text-ink-soft shadow-none")}>
+                    {afford ? <Ticket className="size-4" strokeWidth={2.5} /> : <Lock className="size-4" strokeWidth={2.5} />} {item.price}
                   </span>
                 )}
               </button>
@@ -925,10 +1175,15 @@ function PrizeBooth({ booth }: { booth: Booth }) {
         {(() => {
           const item = SHOP[cursor]!;
           const def = accessory(item.id);
-          if (found.includes(item.id)) return <p className="text-center text-sm text-ink-soft">{def.name}: already yours. Wear it from your backpack.</p>;
+          if (found.includes(item.id))
+            return (
+              <p className="rounded-2xl bg-teal/12 px-4 py-2.5 text-center text-lg font-semibold leading-snug text-teal-deep">
+                {def.name}: already yours. Wear it from your backpack.
+              </p>
+            );
           return (
-            <p className="text-center text-sm font-semibold text-ink-soft">
-              {def.name} costs {item.price}.{" "}
+            <p className="rounded-2xl bg-surface-2 px-4 py-2.5 text-center text-lg font-semibold leading-snug text-ink-soft">
+              <span className="text-ink">{def.name}</span> costs {item.price}.{" "}
               {tickets >= item.price
                 ? `You'd have ${tickets - item.price} tickets left.`
                 : `You need ${item.price - tickets} more. Win tickets at the booths and the carousel!`}
@@ -940,42 +1195,80 @@ function PrizeBooth({ booth }: { booth: Booth }) {
   }
   return (
     <div className="grid gap-4">
-      {tabs}
-      <p className="text-lg leading-relaxed text-ink">{booth.pitch}</p>
-      <ul className="grid gap-2">
+      <div className="flex">{tabs}</div>
+      <p className="text-xl font-semibold leading-snug text-ink">{booth.pitch}</p>
+      <ul className="grid gap-2.5 sm:grid-cols-2">
         {GAME_PRIZES.map((p) => {
           const have = found.includes(p.prize);
           return (
-            <li key={p.prize} className="flex items-center gap-3 rounded-lg bg-surface-2 p-2.5">
+            <li
+              key={p.prize}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl border-[3px] p-2.5",
+                have ? "border-edge bg-[#e3f6ef] shadow-[0_3px_0_#1d2452]" : "border-line bg-surface-2",
+              )}
+            >
               <PrizeBadge id={p.prize} have={have} />
-              <div className="flex-1">
-                <p className="font-semibold">{accessory(p.prize).name}</p>
-                <p className="text-sm text-ink-soft">{have ? "Won!" : `Win it at ${p.where}.`}</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-lg font-semibold leading-tight">{accessory(p.prize).name}</p>
+                <p className="text-base leading-snug text-ink-soft sm:text-lg">{have ? "Won!" : `Win it at ${p.where}.`}</p>
               </div>
-              {have && <Check className="size-6 text-ok" />}
+              {have && (
+                <span className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-edge bg-teal text-white">
+                  <Check className="size-5" strokeWidth={3.5} />
+                </span>
+              )}
             </li>
           );
         })}
       </ul>
-      <div className="flex items-center gap-3 rounded-lg border-[3px] border-edge bg-surface p-3">
-        <PrizeBadge id="teddy" have={hasTeddy || ready} size="lg" />
-        <div className="flex-1">
-          <p className="font-display text-xl font-semibold">Giant teddy</p>
-          <p className="text-sm text-ink-soft">
+      <div
+        className={cn(
+          "relative flex items-center gap-4 overflow-hidden rounded-2xl border-[3px] border-edge p-3 shadow-[0_4px_0_#1d2452]",
+          hasTeddy || ready ? "bg-[#fff6dc]" : "bg-surface",
+        )}
+      >
+        {(hasTeddy || ready) && (
+          <div
+            aria-hidden
+            className="absolute -left-10 top-1/2 size-44 -translate-y-1/2 animate-[spin_18s_linear_infinite]"
+            style={{
+              background: "repeating-conic-gradient(rgb(255 200 58 / 0.7) 0 10deg, transparent 10deg 30deg)",
+              WebkitMask: "radial-gradient(circle, #000 25%, transparent 70%)",
+              mask: "radial-gradient(circle, #000 25%, transparent 70%)",
+            }}
+          />
+        )}
+        <div className="relative">
+          <PrizeBadge id="teddy" have={hasTeddy || ready} size="lg" />
+        </div>
+        <div className="relative min-w-0 flex-1">
+          <p className="font-display text-2xl font-semibold">Giant teddy</p>
+          <p className="text-lg leading-snug text-ink-soft">
             {hasTeddy
               ? "He's yours! You won every carnival game."
               : ready
                 ? "You won every game. Claim your teddy!"
                 : `${won} of ${GAME_PRIZES.length} games won so far.`}
           </p>
+          {!hasTeddy && !ready && (
+            <div className="mt-2 flex gap-1.5" aria-hidden>
+              {GAME_PRIZES.map((p) => (
+                <span
+                  key={p.prize}
+                  className={cn("h-3 flex-1 rounded-full border-2 border-edge", found.includes(p.prize) ? "bg-sun" : "bg-surface-2")}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
       {ready ? (
-        <Btn onClick={claim} className="min-h-14 gap-2 text-2xl">
-          <Gift className="size-6" /> Claim the giant teddy!
+        <Btn onClick={claim} className="min-h-16 gap-2 text-2xl">
+          <Gift className="size-7" /> Claim the giant teddy!
         </Btn>
       ) : (
-        <Btn onClick={close} variant="secondary">
+        <Btn onClick={close} variant="secondary" className="min-h-14 text-xl">
           Done
         </Btn>
       )}
@@ -990,27 +1283,14 @@ export function CarnivalPanel() {
   if (!game) return null;
   const booth = BOOTHS.find((b) => b.game === game)!;
   return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-ink/45 p-3">
-      <Panel className="relative w-full max-w-xl p-5 sm:p-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-display text-3xl font-semibold" style={{ color: booth.awning[0] }}>
-            {booth.name}
-          </h2>
-          <button
-            type="button"
-            aria-label="Leave"
-            data-pad-skip
-            onClick={close}
-            className="grid size-10 place-items-center rounded-full border-[3px] border-edge bg-surface"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
+    <ModalFrame className={game === "prizes" ? "max-w-xl sm:max-w-2xl lg:max-w-3xl" : "max-w-xl lg:max-w-2xl 2xl:max-w-3xl"}>
+      <PanelRibbon color={booth.awning[0]} Icon={BOOTH_ICON[game]} title={booth.name} onClose={close} closeLabel="Leave" padSkip />
+      <div className="ui-dots p-4 sm:p-6 [@media(max-height:760px)]:sm:py-4 [@media(max-height:500px)]:py-3">
         {game === "rings" && <RingToss key="rings" booth={booth} />}
         {game === "ducks" && <DuckPond key="ducks" booth={booth} />}
         {game === "moles" && <WhackAMole key="moles" booth={booth} />}
         {game === "prizes" && <PrizeBooth key="prizes" booth={booth} />}
-      </Panel>
-    </div>
+      </div>
+    </ModalFrame>
   );
 }

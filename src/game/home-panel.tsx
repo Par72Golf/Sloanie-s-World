@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Check, Lock, Ticket, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Check, Lock, Paintbrush, Ticket, X } from "lucide-react";
 import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { FURNITURE, SPOTS, type FurnitureDef } from "./furniture";
@@ -101,63 +101,92 @@ function Decorate() {
       : `${sel.name}. ${HOW_TO_EARN[sel.source] ?? ""}`;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center p-3">
-      <Panel className="pointer-events-auto relative w-full max-w-2xl p-4 sm:p-5">
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={() => close(false)}
-          className="absolute right-3 top-3 grid size-10 place-items-center rounded-full border-[3px] border-edge bg-surface"
-        >
-          <X className="size-5" />
-        </button>
-        <div className="mb-3 flex items-center gap-3 pr-12">
-          <h2 className="font-display text-3xl font-semibold">{spotName}</h2>
-          <span className="flex items-center gap-1 rounded-full bg-sun px-3 py-0.5 font-display text-lg font-semibold">
-            <Ticket className="size-4" /> {tickets}
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-3">
+      <Panel className="animate-ui-rise pointer-events-auto relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden 2xl:max-w-4xl">
+        <div className="ui-ribbon flex shrink-0 items-center gap-3 bg-sky px-3 py-2 sm:px-4 [@media(max-height:480px)]:py-1.5">
+          <span className="chunk-sm grid size-11 shrink-0 place-items-center rounded-full bg-surface text-sky sm:size-12 [@media(max-height:480px)]:size-10">
+            <Paintbrush className="size-6" strokeWidth={2.5} />
           </span>
+          <h2 className="ui-title min-w-0 flex-1 truncate py-1 text-3xl leading-tight [@media(max-height:480px)]:text-2xl">{spotName}</h2>
+          <span className="ui-chip bg-sun py-1 text-xl text-ink">
+            <Ticket className="size-5" strokeWidth={2.5} /> {tickets}
+          </span>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => close(false)}
+            className="chunk-sm press grid size-11 shrink-0 place-items-center rounded-full bg-surface text-ink sm:size-12"
+          >
+            <X className="size-6" strokeWidth={3} />
+          </button>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {options.map((f, i) => {
-            const have = owns(f);
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => (i === cursor ? choose() : preview(i))}
-                className={cn(
-                  "chunk-sm grid min-h-20 content-center justify-items-center gap-1 p-2 text-center",
-                  have ? "bg-surface" : "bg-surface-2",
-                  f.id === original.current && "bg-[#e8f8e8]",
-                  i === cursor && "outline outline-4 outline-offset-2 outline-accent",
-                )}
-              >
-                <span className="text-sm font-bold leading-tight">{f.name}</span>
-                {f.id === original.current ? (
-                  <Check className="size-5 text-ok" />
-                ) : have ? (
-                  <span className="text-xs font-semibold text-ink-soft">Yours</span>
-                ) : f.source === "shop" ? (
-                  <span className="flex items-center gap-1 font-display text-base font-semibold">
-                    <Ticket className="size-4" /> {f.price}
+        <div className="ui-dots min-h-0 overflow-y-auto px-3 pb-3 pt-3.5 sm:px-4 sm:pb-4 [@media(max-height:480px)]:pb-2 [@media(max-height:480px)]:pt-2.5">
+          <div
+            className="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(var(--n),minmax(0,1fr))] sm:gap-3"
+            style={{ "--n": options.length } as CSSProperties}
+          >
+            {options.map((f, i) => {
+              const have = owns(f);
+              const current = f.id === original.current;
+              const on = i === cursor;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => (i === cursor ? choose() : preview(i))}
+                  className={cn(
+                    "press relative grid min-h-24 content-between lg:min-h-28 justify-items-center gap-1.5 rounded-[1.1rem] border-[3px] border-edge px-1.5 pb-2 pt-2.5 text-center shadow-[0_4px_0_var(--color-edge)] [@media(max-height:480px)]:min-h-[4.5rem] [@media(max-height:480px)]:pt-1.5",
+                    current ? "bg-[#dff5ee]" : have ? "bg-surface" : f.source === "shop" ? "bg-surface-2" : "bg-surface-3",
+                    on && "-translate-y-1 bg-[#fff1ee] outline outline-4 outline-offset-2 outline-accent",
+                  )}
+                >
+                  {current && (
+                    <span className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full border-[2.5px] border-edge bg-teal text-white">
+                      <Check className="size-4" strokeWidth={3.5} />
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      "self-center text-sm font-extrabold leading-tight min-[420px]:text-base lg:text-lg",
+                      !have && f.source !== "shop" ? "text-ink-soft" : "text-ink",
+                    )}
+                  >
+                    {f.name}
                   </span>
-                ) : (
-                  <Lock className="size-4 text-ink-soft" />
-                )}
-              </button>
-            );
-          })}
+                  {current ? (
+                    <span className="ui-chip bg-teal text-sm text-white shadow-none">In room</span>
+                  ) : have ? (
+                    <span className="ui-chip bg-surface text-sm text-teal-deep shadow-none">Yours</span>
+                  ) : f.source === "shop" ? (
+                    <span className="ui-chip bg-sun text-base text-ink shadow-none">
+                      <Ticket className="size-4" strokeWidth={2.5} /> {f.price}
+                    </span>
+                  ) : (
+                    <span className="ui-chip bg-surface text-sm text-ink-soft shadow-none">
+                      <Lock className="size-3.5" strokeWidth={3} /> Earn it
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-2.5 sm:flex-nowrap sm:gap-3">
+            <p className="min-w-0 basis-full text-lg font-bold leading-snug sm:flex-1 sm:basis-auto lg:text-xl">{line}</p>
+            <HearButton text={line} />
+            <Btn
+              onClick={choose}
+              variant={selOwned ? "primary" : sel.source === "shop" ? "sun" : "secondary"}
+              className="min-w-32"
+            >
+              {selOwned ? <Check className="size-5" strokeWidth={3} /> : sel.source === "shop" ? <Ticket className="size-5" strokeWidth={2.5} /> : <Lock className="size-5" strokeWidth={2.5} />}
+              {selOwned ? "Keep" : sel.source === "shop" ? "Buy" : "Locked"}
+            </Btn>
+          </div>
+          <p className="mt-2.5 text-center text-sm font-semibold text-ink-soft [@media(max-height:480px)]:hidden">
+            Left and right to look · A to keep or buy · B to put it back
+          </p>
         </div>
-        <div className="mt-3 flex items-center gap-3">
-          <p className="flex-1 text-lg font-semibold leading-snug">{line}</p>
-          <HearButton text={line} />
-          <Btn onClick={choose} className="min-w-28">
-            {selOwned ? "Keep" : sel.source === "shop" ? "Buy" : "Locked"}
-          </Btn>
-        </div>
-        <p className="mt-2 text-center text-xs text-ink-soft">Left and right to look · A to keep or buy · B to put it back</p>
       </Panel>
     </div>
   );
 }
-
