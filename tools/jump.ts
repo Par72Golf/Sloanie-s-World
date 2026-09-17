@@ -37,6 +37,8 @@ const targets: [string, number, number][] = [
   ["climbing tower", -90, -32],
   ["ferris platform", 30, 63],
   ["campground", 128, 128],
+  ["ninja course", 8, 136],
+  ["farm tractor", -54, -121],
 ];
 
 let teleports = 0;

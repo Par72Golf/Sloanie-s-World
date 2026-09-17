@@ -37,6 +37,8 @@ function categorise(p: Prop): { fill: string; layer: number } | null {
   if (p.kind === "house") return { fill: COL.roof, layer: 3 };
   if (p.kind === "tent") return { fill: p.color, layer: 3 };
   if (p.kind === "tractor") return { fill: "#c9442f", layer: 3 };
+  if (p.kind === "trampoline") return { fill: "#2f6f8f", layer: 3 };
+  if (p.kind === "tyre") return { fill: "#2a2724", layer: 3 };
   if (p.kind === "cloud" || p.kind === "lollipop") return null;
 
   const color = (p as { color?: string }).color?.toLowerCase() ?? "";
@@ -104,6 +106,12 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
       } else if (p.kind === "tent") {
         const w = 2.6 * s;
         g.fillRect(wx(p.x) - w / 2, wz(p.z) - w / 2, w, w);
+      } else if (p.kind === "trampoline") {
+        g.fillRect(wx(p.x) - (p.w * s) / 2, wz(p.z) - (p.d * s) / 2, p.w * s, p.d * s);
+      } else if (p.kind === "tyre") {
+        g.beginPath();
+        g.arc(wx(p.x), wz(p.z), Math.max(1, p.r * s), 0, Math.PI * 2);
+        g.fill();
       } else if (p.kind === "tractor") {
         const w = 3.6 * s;
         g.fillRect(wx(p.x) - w / 2, wz(p.z) - w / 2, w, w);

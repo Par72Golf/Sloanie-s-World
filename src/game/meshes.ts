@@ -1839,6 +1839,65 @@ export function makeTractor() {
   return g;
 }
 
+/**
+ * Rectangular backyard trampoline, mat at TRAMPOLINE_TOP: black mat, a ring
+ * of springs, a padded blue border and short legs. Centred on its footprint.
+ */
+export function makeTrampoline(w: number, d: number) {
+  const g = new THREE.Group();
+  const top = 0.55;
+  const pad = 0.34;
+  const flat = (c: string, roughness = 0.55) => lam(c, { flat: true, roughness });
+  // legs
+  for (const [x, z] of [
+    [-w / 2 + 0.15, -d / 2 + 0.15],
+    [w / 2 - 0.15, -d / 2 + 0.15],
+    [-w / 2 + 0.15, d / 2 - 0.15],
+    [w / 2 - 0.15, d / 2 - 0.15],
+  ] as const) {
+    g.add(mesh(boxGeo, "#5a6470", 0.12, top - 0.1, 0.12, x, (top - 0.1) / 2, z, false));
+  }
+  // padded border, four pieces so the mat shows through the middle
+  g.add(mesh(boxGeo, "#3a8fd0", w, 0.12, pad, 0, top - 0.03, -d / 2 + pad / 2));
+  g.add(mesh(boxGeo, "#3a8fd0", w, 0.12, pad, 0, top - 0.03, d / 2 - pad / 2));
+  g.add(mesh(boxGeo, "#3a8fd0", pad, 0.12, d - pad * 2, -w / 2 + pad / 2, top - 0.03, 0));
+  g.add(mesh(boxGeo, "#3a8fd0", pad, 0.12, d - pad * 2, w / 2 - pad / 2, top - 0.03, 0));
+  // mat, a touch lower than the pads
+  const mat = new THREE.Mesh(new THREE.BoxGeometry(w - pad * 2, 0.04, d - pad * 2), flat("#1e1f22", 0.8));
+  mat.position.y = top - 0.07;
+  mat.receiveShadow = true;
+  g.add(mat);
+  // springs peeking out between mat and pad
+  const n = Math.max(3, Math.round((w - pad * 2) / 0.45));
+  const m = Math.max(3, Math.round((d - pad * 2) / 0.45));
+  for (let i = 0; i < n; i++) {
+    const x = -w / 2 + pad + ((i + 0.5) * (w - pad * 2)) / n;
+    g.add(mesh(boxGeo, "#c8d0d6", 0.04, 0.03, 0.14, x, top - 0.06, -d / 2 + pad + 0.02, false));
+    g.add(mesh(boxGeo, "#c8d0d6", 0.04, 0.03, 0.14, x, top - 0.06, d / 2 - pad - 0.02, false));
+  }
+  for (let i = 0; i < m; i++) {
+    const z = -d / 2 + pad + ((i + 0.5) * (d - pad * 2)) / m;
+    g.add(mesh(boxGeo, "#c8d0d6", 0.14, 0.03, 0.04, -w / 2 + pad + 0.02, top - 0.06, z, false));
+    g.add(mesh(boxGeo, "#c8d0d6", 0.14, 0.03, 0.04, w / 2 - pad - 0.02, top - 0.06, z, false));
+  }
+  return g;
+}
+
+const tyreGeo = new THREE.TorusGeometry(1, 0.42, 12, 28);
+/** A tyre lying flat on the ground, outer radius r. */
+export function makeTyre(r: number) {
+  const g = new THREE.Group();
+  const t = new THREE.Mesh(tyreGeo, lam("#2a2724", { flat: true, roughness: 0.9 }));
+  const s = r / 1.42;
+  t.scale.set(s, s, s * 0.9);
+  t.rotation.x = Math.PI / 2;
+  t.position.y = 0.42 * s * 0.9;
+  t.castShadow = true;
+  t.receiveShadow = true;
+  g.add(t);
+  return g;
+}
+
 export type Campfire = { group: THREE.Group; flames: THREE.Mesh[]; light: THREE.PointLight };
 
 /** Stone ring, logs, and emissive flames that flicker (animated by the runtime). */

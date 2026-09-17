@@ -5,6 +5,12 @@
 export const WALK = 6.4;
 export const JUMP = 11.2;
 export const GRAVITY = 23;
+/** Trampolines: mat height (low enough to walk onto), and launch speeds. */
+export const TRAMPOLINE_TOP = 0.55;
+export const BOUNCE = 13.5;
+/** Tapping jump just before landing on the mat: about 6.5m up. */
+export const SUPER_BOUNCE = 17.2;
+
 /** Her capsule: half-width and full height. */
 export const PLAYER_W = 0.34;
 export const PLAYER_H = 1.62;

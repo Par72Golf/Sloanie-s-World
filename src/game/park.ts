@@ -447,51 +447,79 @@ export function swimmingPool(cx: number, cz: number): Prop[] {
 /* --------------------------------------------------------------------- gym */
 
 /**
- * Outdoor gym: rubber floor, pull-up and parallel bars, monkey bars, sit-up
- * benches, a balance beam, a tyre to flip and a small shed. Thin bars are
- * marked non-colliding and are under 0.35m, so they never become walls or
- * ceilings; the posts are solid.
+ * Kids' ninja course, built to be played on rather than looked at: two
+ * trampolines (walk on to bounce, tap jump as she lands for a big one), a
+ * tyre run, stepping posts that climb and fall, a balance beam, and a
+ * climbing wall of chunky steps up to a lookout platform with a fireman's
+ * pole. Every step is under the 0.62m step-up, so nothing needs a precise
+ * jump. Thin rails and the pole are non-colliding and under 0.35m.
  */
 export function outdoorGym(cx: number, cz: number): Prop[] {
   const p: Prop[] = [];
   p.push(surf(cx, TOP.apron, cz, 26, 18, C.rubber));
-  p.push(surf(cx, TOP.court, cz, 8, 8, C.rubberWarm));
-  // pull-up bars, three heights
-  for (let i = 0; i < 3; i++) {
-    const x = cx - 10 + i * 2.2;
-    const h = 1.6 + i * 0.4;
-    p.push(box(x - 0.8, h / 2, cz - 6, 0.14, h, 0.14, C.chrome));
-    p.push(box(x + 0.8, h / 2, cz - 6, 0.14, h, 0.14, C.chrome));
-    p.push(box(x, h, cz - 6, 1.7, 0.08, 0.08, C.chrome, false));
+
+  // trampolines, west end
+  p.push({ kind: "trampoline", x: cx - 8.5, z: cz - 4, w: 3.6, d: 3.6 });
+  p.push({ kind: "trampoline", x: cx - 8.5, z: cz + 3, w: 3.6, d: 3.6 });
+
+  // tyre run: two staggered rows along the north edge
+  for (let i = 0; i < 5; i++) {
+    p.push({ kind: "tyre", x: cx - 3.5 + i * 1.6, z: cz - 6.6, r: 0.62 });
+    p.push({ kind: "tyre", x: cx - 2.7 + i * 1.6, z: cz - 5.1, r: 0.62 });
   }
-  // parallel bars
-  for (const s of [-1, 1]) {
-    p.push(box(cx - 2 - 1.2, 0.7, cz - 6 + s * 0.5, 0.14, 1.4, 0.14, C.chrome));
-    p.push(box(cx - 2 + 1.2, 0.7, cz - 6 + s * 0.5, 0.14, 1.4, 0.14, C.chrome));
-    p.push(box(cx - 2, 1.4, cz - 6 + s * 0.5, 2.6, 0.08, 0.08, C.chrome, false));
+
+  // stepping posts: up, over the tall one, and down again
+  // Wide enough to land on at running speed (a cyl collides at 1.6r across),
+  // and each one no more than a step-up above the last, so she can walk the
+  // whole row or hop between them.
+  const posts = [0.3, 0.55, 0.8, 1.05, 0.8, 0.55, 0.3];
+  const postCol = ["#ffc53d", "#e8455f", "#3fa35c", "#4f93c4", "#3fa35c", "#e8455f", "#ffc53d"];
+  posts.forEach((h, i) => {
+    p.push(cyl(cx - 3.8 + i * 1.45, h / 2, cz + 0.2, 0.66, h, postCol[i]!));
+  });
+
+  // balance beam on two low trestles, south edge
+  p.push(box(cx - 1, 0.28, cz + 5.6, 7.5, 0.56, 0.36, C.wood));
+  p.push(box(cx - 4.2, 0.12, cz + 5.6, 0.3, 0.24, 1.2, C.woodLight, false));
+  p.push(box(cx + 2.2, 0.12, cz + 5.6, 0.3, 0.24, 1.2, C.woodLight, false));
+
+  // climbing tower, east end: steps rise west to east onto a 2.4m deck
+  const tx = cx + 9;
+  const tz = cz - 1;
+  const hold = ["#e8455f", "#ffc53d", "#3fa35c", "#4f93c4", "#d47a96"];
+  [0.6, 1.2, 1.8].forEach((h, i) => {
+    const sx = tx - 3.3 + i * 0.9;
+    p.push(box(sx, h / 2, tz, 0.9, h, 3, "#f0e6d2"));
+    // chunky holds on each riser (decoration only)
+    for (let k = 0; k < 3; k++) {
+      p.push(box(sx - 0.47, h - 0.3, tz - 1 + k, 0.1, 0.18, 0.24, hold[(i + k) % hold.length]!, false));
+    }
+  });
+  // deck on four posts, open underneath
+  p.push(box(tx, 2.25, tz, 3, 0.3, 3, C.woodLight));
+  for (const [ox, oz] of [
+    [-1.35, -1.35],
+    [1.35, -1.35],
+    [-1.35, 1.35],
+    [1.35, 1.35],
+  ]) {
+    p.push(box(tx + ox, 1.05, tz + oz, 0.22, 2.1, 0.22, C.paint));
   }
-  // monkey bars
-  for (const s of [-1, 1]) {
-    p.push(box(cx + 6 + s * 2.4, 1.1, cz - 6 - 0.5, 0.14, 2.2, 0.14, C.paint));
-    p.push(box(cx + 6 + s * 2.4, 1.1, cz - 6 + 0.5, 0.14, 2.2, 0.14, C.paint));
-    p.push(box(cx + 6, 2.2, cz - 6 + s * 0.5, 5.0, 0.08, 0.08, C.paint, false));
-  }
-  for (let i = 0; i < 7; i++) {
-    p.push(box(cx + 6 - 2.1 + i * 0.7, 2.2, cz - 6, 0.06, 0.06, 1.1, C.chrome, false));
-  }
-  // sit-up benches and a balance beam
-  for (let i = 0; i < 2; i++) {
-    p.push(box(cx - 8 + i * 3, 0.35, cz + 3, 0.7, 0.2, 2.2, "#4f93c4"));
-    p.push(box(cx - 8 + i * 3, 0.15, cz + 3, 0.5, 0.3, 0.3, C.chrome));
-  }
-  p.push(box(cx + 2, 0.22, cz + 4, 0.3, 0.45, 6, "#8a5a32"));
-  // tyre and a couple of kettlebells
-  p.push(cyl(cx + 8, 0.16, cz + 4, 0.9, 0.32, "#2f2a26"));
-  p.push(cyl(cx + 8, 0.16, cz + 4, 0.35, 0.34, C.rubber, false));
-  p.push(cyl(cx + 10.5, 0.2, cz + 2, 0.22, 0.4, "#2f2a26", false));
-  p.push(cyl(cx + 11.2, 0.2, cz + 2.8, 0.22, 0.4, "#2f2a26", false));
-  // shed
-  p.push({ kind: "house", x: cx - 9, z: cz + 7.5, body: "#7ec4e8", roof: "#2f6f8f", w: 4, d: 3 });
+  // rails on the three open sides, and a flag
+  p.push(box(tx, 2.95, tz - 1.45, 3, 0.08, 0.08, C.chrome, false));
+  p.push(box(tx, 2.95, tz + 1.45, 3, 0.08, 0.08, C.chrome, false));
+  p.push(box(tx + 1.45, 2.95, tz, 0.08, 0.08, 3, C.chrome, false));
+  p.push(box(tx + 1.35, 3.4, tz - 1.35, 0.1, 2.0, 0.1, C.chrome, false));
+  p.push(box(tx + 1.35, 4.1, tz - 1.0, 0.04, 0.5, 0.7, "#e8455f", false));
+  // fireman's pole off the south side of the deck
+  p.push(cyl(tx + 0.6, 1.7, tz + 2.1, 0.06, 3.4, C.chrome, false));
+  p.push(box(tx + 0.6, 2.3, tz + 1.75, 0.08, 0.08, 0.7, C.chrome, false));
+
+  // water fountain and a bench where the shed used to be
+  p.push(cyl(cx - 11, 0.5, cz + 7.6, 0.28, 1.0, "#8a9aa4"));
+  p.push(cyl(cx - 11, 1.02, cz + 7.6, 0.36, 0.08, C.chrome, false));
+  p.push(box(cx - 7.5, 0.25, cz + 7.8, 2.4, 0.18, 0.7, "#4f93c4"));
+  p.push(box(cx - 7.5, 0.1, cz + 7.8, 2.0, 0.2, 0.4, C.chrome, false));
   return p;
 }
 

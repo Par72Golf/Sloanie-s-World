@@ -86,7 +86,26 @@ export type TractorProp = {
   ry?: number;
 };
 
+/** A rectangular trampoline: walk onto the mat and she bounces. */
+export type TrampolineProp = {
+  kind: "trampoline";
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+};
+
+/** A tyre lying flat, for tyre runs. */
+export type TyreProp = {
+  kind: "tyre";
+  x: number;
+  z: number;
+  r: number;
+};
+
 export type Prop =
+  | TrampolineProp
+  | TyreProp
   | TractorProp
   | BoxProp
   | CylinderProp

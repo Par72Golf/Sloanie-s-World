@@ -17,6 +17,8 @@ import {
   type FerrisWheel,
   makeTent,
   makeTractor,
+  makeTrampoline,
+  makeTyre,
   makeCampfire,
   type Campfire,
   makeSprayArches,
@@ -59,6 +61,8 @@ export type BuiltWorld = {
   merged: THREE.BufferGeometry[];
   mergeReport: MergeReport;
   ride: FerrisWheel | null;
+  /** Trampoline mats, as footprints; their top is TRAMPOLINE_TOP. */
+  bouncers: { minX: number; maxX: number; minZ: number; maxZ: number }[];
   spray: SprayArches | null;
   campfire: Campfire | null;
 };
@@ -103,6 +107,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   // Every collider comes from the pure builder; the mesh code below only
   // decides what to draw (and whether it casts a shadow).
   const colliders: AABB[] = collidersFor(level).map(({ label: _l, index: _i, ...b }) => b);
+  const bouncers: BuiltWorld["bouncers"] = [];
   const textures: THREE.Texture[] = [];
   const waterMats: THREE.ShaderMaterial[] = [];
   const grass = grassTexture();
@@ -193,6 +198,15 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       group.add(l);
     } else if (p.kind === "tent") {
       const t = makeTent(p.color);
+      t.position.set(p.x, 0, p.z);
+      group.add(t);
+    } else if (p.kind === "trampoline") {
+      const t = makeTrampoline(p.w, p.d);
+      t.position.set(p.x, 0, p.z);
+      group.add(t);
+      bouncers.push({ minX: p.x - p.w / 2, maxX: p.x + p.w / 2, minZ: p.z - p.d / 2, maxZ: p.z + p.d / 2 });
+    } else if (p.kind === "tyre") {
+      const t = makeTyre(p.r);
       t.position.set(p.x, 0, p.z);
       group.add(t);
     } else if (p.kind === "tractor") {
@@ -434,6 +448,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     merged,
     mergeReport,
     ride,
+    bouncers,
     spray,
     campfire,
   };

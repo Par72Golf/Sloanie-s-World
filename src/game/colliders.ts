@@ -1,4 +1,5 @@
 import { aabbFromCenter, type AABB } from "./collision";
+import { TRAMPOLINE_TOP } from "./tuning";
 import type { BoxProp, LevelDef, Prop } from "./types";
 
 /**
@@ -69,6 +70,10 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
       push(aabbFromCenter(p.x, 1.2, p.z, 0.3, 2.4, 0.3), "lollipop", i);
     } else if (p.kind === "tent") {
       push(aabbFromCenter(p.x, 1.0, p.z, 2.6, 2.0, 2.6), "tent", i);
+    } else if (p.kind === "trampoline") {
+      push(aabbFromCenter(p.x, TRAMPOLINE_TOP / 2, p.z, p.w, TRAMPOLINE_TOP, p.d), "trampoline", i);
+    } else if (p.kind === "tyre") {
+      push(aabbFromCenter(p.x, 0.14, p.z, p.r * 2, 0.28, p.r * 2), "tyre", i);
     } else if (p.kind === "tractor") {
       // body and wheels as one block; the cab roof is out of reach anyway
       const turned = Math.abs(Math.abs(p.ry ?? 0) - Math.PI / 2) < 0.2;

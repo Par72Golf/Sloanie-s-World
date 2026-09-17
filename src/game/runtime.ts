@@ -40,7 +40,7 @@ import { animateFace, makeJuiceBox, type GirlMood } from "./meshes";
 import { useGame } from "./store";
 import { DRESS, HAIR, type LevelDef } from "./types";
 
-import { GRAVITY, JUMP, PLAYER_H, PLAYER_W, WALK } from "./tuning";
+import { BOUNCE, GRAVITY, JUMP, PLAYER_H, PLAYER_W, SUPER_BOUNCE, TRAMPOLINE_TOP, WALK } from "./tuning";
 const FIXED = 1 / 60;
 const COLLECT_R = 2.15;
 // On the ferris wheel the sky dumpling floats clear above the rim so it stands
@@ -101,6 +101,8 @@ export class GameRuntime {
   speed = 0;
   grounded = true;
   coyote = 0;
+  /** seconds left in which a jump tap counts toward a super bounce */
+  bounceBuffer = 0;
   acc = 0;
   clock = 0;
   last = performance.now();
@@ -1151,7 +1153,10 @@ export class GameRuntime {
     const noJump = this.level.noJump?.some(
       (z) => this.cap.x >= z.minX && this.cap.x <= z.maxX && this.cap.z >= z.minZ && this.cap.z <= z.maxZ,
     );
-    const jump = live && consumeJumpTap() && !noJump;
+    const tap = live && consumeJumpTap();
+    const jump = tap && !noJump;
+    // a tap just before landing on a trampoline turns the bounce into a big one
+    this.bounceBuffer = tap ? 0.35 : Math.max(0, this.bounceBuffer - dt);
     if (jump && this.coyote > 0) {
       this.velY = JUMP;
       this.grounded = false;
@@ -1177,6 +1182,20 @@ export class GameRuntime {
       );
       this.velY = moved.vy;
       this.grounded = moved.grounded;
+      // trampolines: landing on the mat launches her again
+      if (this.grounded && Math.abs(this.cap.y - TRAMPOLINE_TOP) < 0.08) {
+        const onMat = this.world?.bouncers.some(
+          (b) => this.cap.x >= b.minX && this.cap.x <= b.maxX && this.cap.z >= b.minZ && this.cap.z <= b.maxZ,
+        );
+        if (onMat) {
+          const big = this.bounceBuffer > 0;
+          this.velY = big ? SUPER_BOUNCE : BOUNCE;
+          this.grounded = false;
+          this.coyote = 0;
+          this.bounceBuffer = 0;
+          sfx.boing(big);
+        }
+      }
     }
 
     this.sun.position.set(this.cap.x + 24, 48, this.cap.z + 14);

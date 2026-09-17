@@ -83,6 +83,11 @@ export const sfx = {
   },
   step: () => tone(140 + Math.random() * 30, 0.05, "sine", 0.03),
   click: () => tone(640, 0.05, "square", 0.05),
+  // trampoline: a rising boing, higher and longer for a super bounce
+  boing: (big = false) => {
+    tone(big ? 150 : 190, big ? 0.42 : 0.28, "sine", 0.14, 0, big ? 760 : 520);
+    tone(big ? 300 : 380, big ? 0.3 : 0.2, "triangle", 0.05, 0.02, big ? 1200 : 900);
+  },
 };
 
 /* ---------------------------------------------------------------------------
