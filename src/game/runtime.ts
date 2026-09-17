@@ -692,8 +692,14 @@ export class GameRuntime {
       st.openRps();
     }
 
-    // resolve a finished round exactly once
+    /*
+     * Resolve a finished round exactly once. The key has to be cleared when the
+     * panel closes: two encounters that both end "round 1, lose" produce the
+     * same key, and the second one was being treated as already resolved, so
+     * Emmett won and took nothing.
+     */
     const rps = st.rps;
+    if (!rps) this.lastRpsKey = "";
     if (rps?.result) {
       const key = `${rps.round}:${rps.result}`;
       if (key !== this.lastRpsKey) {
