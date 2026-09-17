@@ -24,6 +24,7 @@ import {
   houseRow,
   parkPath,
   picnicArea,
+  playCorner,
   playground,
   splashPad,
   tennisCourts,
@@ -616,22 +617,13 @@ function picnicPark(): LevelDef {
     box(-50.6, 0.35, -46, 0.7, 0.6, 0.7, "#8aaa5a", false),
     box(-45.4, 0.3, -50.2, 0.6, 0.5, 0.6, "#6a9a4a", false),
 
-    box(22, 0.15, 8, 8, 0.22, 8, "#e2d2a8", false),
-    box(26.4, 1.1, 9.4, 1.8, 2.2, 1.8, "#f0c44a"),
-    box(26.4, 2.3, 9.4, 1.5, 0.2, 1.5, "#e8d7b8"),
-    box(26.4, 2.5, 8.6, 0.35, 1.6, 0.35, "#e8d7b8"),
-    box(26.4, 3.4, 9.0, 0.35, 0.14, 0.9, "#e8d7b8"),
-    box(24.2, 0.7, 10.8, 1.2, 0.18, 3.2, "#4f93c4"),
-    // (0.8m further from the east road than they were, which is what makes
-    // room for the road between the slide steps and Emmett's yard)
-    ...climbStairs(18.4, 6.2, 0, 1, 5, 0.38, 1.35, 1.8, "#e8c46a"),
-    box(18.4, 2.1, 12.2, 2.2, 0.28, 2.2, "#e8c46a"),
-    box(32, 0.12, 12, 6, 0.18, 6, "#e8d7b0", false),
-    box(33.4, 0.45, 12.2, 2.8, 0.12, 2.8, "#d4b06a"),
-    box(30.6, 0.7, 10.4, 0.35, 1.2, 0.35, "#c4a06a"),
-    box(34.8, 0.7, 10.4, 0.35, 1.2, 0.35, "#c4a06a"),
-    box(30.6, 1.4, 10.4, 0.18, 0.18, 1.6, "#8a6a3a"),
-    box(32, 0.35, 14.6, 1.6, 0.55, 1.2, "#d4894a"),
+    // Sandcastle Corner, east of the plaza. This used to be sixteen props with
+    // no plan between them: a pad with the slide standing in the middle of it,
+    // a stray tower, a mat floating at 0.7m, a second pad with a plate on two
+    // legs, and stairs to a deck that went nowhere. park.ts lays it out now.
+    // The slide itself stays where it is: world-build.ts places that mesh at
+    // (22, 8) and colliders.ts has its box, and neither is level data.
+    ...playCorner(),
 
     box(8, 0.08, -6, 5.2, 0.12, 5.2, "#efe4d0", false),
     box(4.4, 0.35, -2.2, 1.4, 0.55, 1.4, "#c48a5a"),
@@ -893,6 +885,9 @@ function picnicPark(): LevelDef {
     rectAt(ZOO.x, ZOO.z, ZOO.w + 6, ZOO.d + 6),
     // Emmett's monster truck yard on the east lawn
     rectAt(EMMETT_BASE.x, EMMETT_BASE.z, 14, 18),
+    // Sandcastle Corner and the lawn round it, so no berm or tree line lands
+    // on the one place near the spawn that is meant to read as tidy
+    rectAt(23.0, 12.7, 19, 18),
     rectAt(-40, 115, 8, 24),
     rectAt(8, 115, 8, 24),
     rectAt(-60, -110, 8, 14),
@@ -1035,7 +1030,7 @@ function picnicPark(): LevelDef {
   const accessories: LevelDef["accessories"] = [
     { id: "sunglasses", pos: [-95, 0, 28], region: "the splash pad" },
     { id: "partyhat", pos: [88.75, 0, 25], region: "the tennis courts" },
-    { id: "bow", pos: [-82, 0, -14], region: "the sandbox" },
+    { id: "bow", pos: [-82, 0, -14], region: "the playground sandbox" },
     { id: "backpack", pos: [4, 0, -84], region: "the ball field" },
     { id: "flowercrown", pos: [138, 0, 130], region: "the campground hammock" },
   ];

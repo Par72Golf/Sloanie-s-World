@@ -1466,15 +1466,28 @@ export function makeGazebo() {
   return g;
 }
 
+/**
+ * The slide: a tower with a chute running down its south (+z) face.
+ *
+ * The chute used to tilt the wrong way. `rotation.x = -0.55` raises the +z end
+ * (y' = y cos - z sin), so the blue ramp started at ground level inside the
+ * tower and climbed 2.3m into the open air, and the two red side rails were
+ * never rotated at all, so they hung in space beside it. From the ground it
+ * read as wreckage, which is most of why the corner east of the spawn looked
+ * like junk. The chute is a group now, so the rails tilt with it.
+ */
 export function makeSlide() {
   const g = new THREE.Group();
   g.add(mesh(boxGeo, "#f0c44a", 2.2, 2.6, 2.2, 0, 1.3, 0));
   g.add(mesh(boxGeo, "#e8b83a", 2.3, 0.12, 2.3, 0, 2.64, 0, false));
-  const ramp = mesh(boxGeo, "#4f93c4", 1.4, 0.18, 4.2, 0, 1.2, 2.4);
-  ramp.rotation.x = -0.55;
-  g.add(ramp);
-  g.add(mesh(boxGeo, "#d45a4a", 0.16, 0.7, 3.6, -0.7, 1.45, 2.2));
-  g.add(mesh(boxGeo, "#d45a4a", 0.16, 0.7, 3.6, 0.7, 1.45, 2.2));
+  // deck top 2.6 at z 1.1 down to the ground at z 4.5: a 4.2m run at 0.6 rad
+  const chute = new THREE.Group();
+  chute.position.set(0, 1.35, 2.8);
+  chute.rotation.x = 0.6;
+  chute.add(mesh(boxGeo, "#4f93c4", 1.4, 0.2, 4.2, 0, 0, 0));
+  chute.add(mesh(boxGeo, "#d45a4a", 0.16, 0.5, 4.2, -0.72, 0.32, 0));
+  chute.add(mesh(boxGeo, "#d45a4a", 0.16, 0.5, 4.2, 0.72, 0.32, 0));
+  g.add(chute);
   g.add(mesh(boxGeo, "#e8d7b8", 0.4, 2.4, 0.4, -0.7, 2.4, -0.7));
   g.add(mesh(boxGeo, "#e8d7b8", 0.4, 0.18, 0.18, -0.7, 3.5, -0.2));
   g.add(mesh(boxGeo, "#e8d7b8", 0.4, 0.18, 0.18, -0.7, 3.2, 0.15));

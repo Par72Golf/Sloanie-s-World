@@ -807,6 +807,194 @@ export function playground(cx: number, cz: number): Prop[] {
   return p;
 }
 
+/* ------------------------------------------------- sandcastle corner (east) */
+
+/**
+ * The little play corner on the lawn east of the spawn plaza.
+ *
+ * It used to be a heap: an 8x8 pad with the slide standing in the middle of
+ * it, a stray yellow tower, a blue mat floating at 0.7m, a second pad 10m away
+ * with a raised plate on two legs, and a flight of stairs to a deck that went
+ * nowhere. Nothing was arranged around anything else. This lays the same
+ * ground out as one place: a framed sandpit the slide lands in, a bark path in
+ * from the gate, a bench, and a picket-and-bush edge so it reads as a corner
+ * of the park rather than props dropped on grass.
+ *
+ * Three fixed points it has to live with:
+ *  - the slide is a composite mesh `world-build.ts` places at (22, 8), with
+ *    its collider in `colliders.ts`. Its chute runs south and reaches the
+ *    ground at about (22, 12.2), so the sand goes under that: she lands in it.
+ *  - the walkway spur SANDJ -> SAND (`walkways.ts`) ends at (32, 9.4) facing
+ *    south, so the gate is on the east side, on that line.
+ *  - a pet treat sits at (22, 12.6) (`collectibles.ts`). Nothing solid goes
+ *    near it; the sand under it is flat.
+ *
+ * Heights are chosen against the 0.62m step-up: the sandpit frame tops out at
+ * 0.4 and the fence rails at 0.45, so no edge here can pen her in anywhere.
+ * The pickets are 0.16m thick and non-colliding for the same reason the stair
+ * handrails are — a thin solid prop is an unexplained wall.
+ *
+ * Every colour is one the park already uses near the spawn, so the static
+ * merge does not gain a material (and therefore a draw call) for any of it.
+ */
+export function playCorner(): Prop[] {
+  const p: Prop[] = [];
+
+  // Palette note: the static merge buckets by material, shadow flag and 80m
+  // cell, so a colour nothing else uses near the spawn costs a draw call no
+  // matter how few props wear it. Everything here is either already in this
+  // cell or shared between several pieces, and the path takes the walkway's
+  // own sand colour so it merges straight into the network it leads off.
+  const FENCE = "#efe4d0";
+  const PATH = "#d8c49a";
+  const DARKWOOD = "#8a5a32";
+  const CASTLE = "#c4a06a";
+  const BUSH = "#3f9a6b";
+
+  // --- the sandpit: 8 x 6.4, with the slide's chute coming down into it
+  const px = 22;
+  const pz = 13.8;
+  const hw = 4.0;
+  const hd = 3.2;
+  p.push(surf(px, TOP.inner, pz, hw * 2, hd * 2, C.sand));
+
+  // frame boards, 0.4 high so she can sit on them and step over them
+  const t = 0.36;
+  const fy = 0.2;
+  const fh = 0.4;
+  p.push(box(px, fy, pz + hd + t / 2, hw * 2 + t * 2, fh, t, C.woodLight));
+  p.push(box(px - hw - t / 2, fy, pz, t, fh, hd * 2, C.woodLight));
+  p.push(box(px + hw + t / 2, fy, pz, t, fh, hd * 2, C.woodLight));
+  // the north board is split: the slide chute comes down through the gap,
+  // which doubles as the way she walks in
+  const gap = 1.2;
+  const nz = pz - hd - t / 2;
+  for (const s of [-1, 1] as const) {
+    const inner = px + s * gap;
+    const outer = px + s * (hw + t);
+    p.push(box((inner + outer) / 2, fy, nz, Math.abs(outer - inner), fh, t, C.woodLight));
+  }
+  // A darker block at each corner so the frame reads as built, not painted on.
+  // Flush with the boards on purpose: a corner post standing 16cm proud is one
+  // more ledge to walk off, and stepping off it left her pinned against the
+  // fence rail while she fell (tools/walk.ts).
+  for (const sx of [-1, 1] as const) {
+    for (const sz of [-1, 1] as const) {
+      p.push(box(px + sx * (hw + t / 2), fy, pz + sz * (hd + t / 2), 0.52, fh, 0.52, DARKWOOD));
+    }
+  }
+
+  // --- half-built sandcastle, west end of the pit
+  const cx = 19.6;
+  const cz = 14.4;
+  p.push(box(cx, TOP.inner + 0.16, cz, 1.7, 0.32, 1.7, CASTLE));
+  p.push(box(cx, TOP.inner + 0.44, cz, 1.05, 0.24, 1.05, CASTLE));
+  p.push(box(cx - 0.4, TOP.inner + 0.7, cz - 0.38, 0.44, 0.28, 0.44, CASTLE));
+  p.push(box(cx + 0.4, TOP.inner + 0.7, cz + 0.38, 0.44, 0.28, 0.44, CASTLE));
+  // flag: pole and pennant are decoration, thin and non-colliding
+  p.push(box(cx, TOP.inner + 0.84, cz, 0.12, 0.56, 0.12, "#d45a4a", false));
+  p.push(box(cx + 0.25, TOP.inner + 1.04, cz, 0.42, 0.26, 0.05, "#d45a4a", false));
+
+  // --- bucket and spade, left where a seven-year-old would leave them
+  p.push(box(24.3, TOP.inner + 0.21, 15.4, 0.6, 0.42, 0.6, "#4f93c4"));
+  p.push(box(24.3, TOP.inner + 0.46, 15.4, 0.66, 0.1, 0.1, FENCE, false));
+  p.push(box(23.3, TOP.inner + 0.45, 14.2, 0.12, 0.9, 0.12, "#d45a4a", false));
+  p.push(box(23.3, TOP.inner + 0.08, 14.2, 0.34, 0.16, 0.26, FENCE, false));
+
+  // --- footprints leading away from the bottom of the slide. Big enough to be
+  // wide props, which means the same material and shadow flag as the castle:
+  // one bucket in the merge rather than two. Their tops are 6cm over the sand,
+  // well clear of the 3cm floor tolerance, so she walks over them.
+  for (const [fx, fz] of [
+    // the first print starts clear of the pet treat that hovers at (22, 12.6):
+    // standing it on a 6cm pad changes the floor the treat is measured against
+    [22.6, 13.25],
+    [21.8, 13.8],
+    [22.3, 14.5],
+    [21.6, 15.1],
+    [21.0, 15.6],
+  ] as [number, number][]) {
+    p.push(surf(fx, TOP.mark, fz, 0.42, 0.54, CASTLE, 0.08));
+  }
+
+  // --- the path in from the gate, then south down the side of the pit. Its
+  // top is 0.12: 2.5cm over the walkway slab and 2cm under its edging, so it
+  // meets the spur without z-fighting either.
+  const PATH_TOP = 0.12;
+  p.push(surf(28.75, PATH_TOP, 9.4, 4.3, 2.4, PATH));
+  p.push(surf(px + hw + t + 1.2, PATH_TOP, 14.0, 2.4, 7.2, PATH));
+
+  // --- the gate, on the line the walkway spur arrives on
+  for (const gz of [8.1, 10.7]) p.push(box(30.2, 0.95, gz, 0.4, 1.9, 0.4, DARKWOOD));
+  // the crossbeam's underside is at 1.78, over her 1.62 head, so it is solid
+  // only in the sense that it merges with the posts; nothing can touch it
+  p.push(box(30.2, 2.02, 9.4, 0.32, 0.24, 3.0, DARKWOOD));
+
+  // --- picket fence. The rail is the only solid part and its top is 0.45, so
+  // the edge is something she steps over rather than something that traps her.
+  const fence = (x1: number, z1: number, x2: number, z2: number) => {
+    const alongX = Math.abs(x2 - x1) > Math.abs(z2 - z1);
+    const len = Math.abs(alongX ? x2 - x1 : z2 - z1);
+    p.push(
+      box(
+        (x1 + x2) / 2,
+        0.34,
+        (z1 + z2) / 2,
+        alongX ? len + 0.2 : 0.2,
+        0.22,
+        alongX ? 0.2 : len + 0.2,
+        FENCE,
+      ),
+    );
+    const n = Math.max(1, Math.round(len / 2.8));
+    for (let i = 0; i <= n; i++) {
+      const f = i / n;
+      p.push(
+        box(
+          x1 + (x2 - x1) * f,
+          0.46,
+          z1 + (z2 - z1) * f,
+          alongX ? 0.28 : 0.16,
+          0.92,
+          alongX ? 0.16 : 0.28,
+          FENCE,
+          false,
+        ),
+      );
+    }
+  };
+  // north, along the road; the run stops short of the name board and the gate
+  fence(15.6, 5.8, 28.2, 5.8);
+  // West and south face the open lawn. They stand a clear 1.9m off the sandpit
+  // frame: walking off a 0.4m rim she is in the air for about 1.2m, and a rail
+  // any closer pins her against it while she falls (tools/walk.ts calls that an
+  // invisible wall, and it feels like one). Runs also start inside the corners
+  // so two of them never drop a picket on the same spot.
+  fence(15.6, 7.0, 15.6, 19.0);
+  fence(16.8, 19.6, 26.8, 19.6);
+  // east, between the gate and the tree that already stands at (30, 16)
+  fence(30.2, 11.4, 30.2, 14.8);
+
+  // --- bushes fill the corners the fence runs leave open
+  for (const [bx, bz, bw] of [
+    [16.3, 6.5, 1.3],
+    [16.2, 18.4, 1.2],
+    [29.6, 6.6, 1.2],
+    [29.9, 15.0, 1.1],
+    [29.2, 18.3, 1.3],
+  ] as [number, number, number][]) {
+    p.push(box(bx, bw * 0.42, bz, bw, bw * 0.84, bw, BUSH));
+  }
+
+  // --- a bench at the end of the path, looking back at the sandpit
+  p.push(box(27.6, 0.44, 18.1, 2.4, 0.18, 0.72, C.woodLight));
+  p.push(box(27.6, 0.86, 18.42, 2.4, 0.66, 0.16, C.woodLight));
+  p.push(box(26.6, 0.22, 18.1, 0.2, 0.44, 0.72, DARKWOOD));
+  p.push(box(28.6, 0.22, 18.1, 0.2, 0.44, 0.72, DARKWOOD));
+
+  return p;
+}
+
 /* --------------------------------------------------------------- housing */
 
 export function houseRow(

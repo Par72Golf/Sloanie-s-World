@@ -373,7 +373,7 @@ export const PARK_DIRECTORIES: Directory[] = [
     exits: [
       { dir: "N", label: "Pond · Ball Field" },
       { dir: "W", label: "Maze · Splash Pad" },
-      { dir: "E", label: "Sandbox · Tennis" },
+      { dir: "E", label: "Sandpit · Tennis" },
       { dir: "S", label: "Carnival · Rides" },
     ],
   },
@@ -475,7 +475,9 @@ export const PARK_NAME_SIGNS: NameSign[] = [
   { x: -87.4, z: 16.6, face: "N", name: "Splash Pad" },
   { x: -87.4, z: -16.4, face: "S", name: "Playground" },
   { x: -101.5, z: -2.2, face: "E", name: "Woods Trail" },
-  { x: 28.0, z: 7.4, face: "N", name: "Sandbox" },
+  // renamed off "Sandbox": the bow hides by the playground sandbox on the
+  // far west side, and two places called the sandbox made that hint a coin toss
+  { x: 28.0, z: 7.4, face: "N", name: "Sandcastle Corner", sub: "slide · sandpit" },
   { x: 44.5, z: 6.4, face: "N", name: "Emmett's Truck" },
   { x: 72.4, z: 6.6, face: "N", name: "Tennis" },
   { x: 86.0, z: -19.6, face: "S", name: "Basketball" },

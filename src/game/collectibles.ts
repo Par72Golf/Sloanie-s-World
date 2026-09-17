@@ -236,10 +236,11 @@ export const PET_QUEST: {
   farmer: [-69.8, 0.03, -138.5],
   treats: [
     {
-      // off the east road, on the grass between the slide and the sandbox
-      pos: [22.0, 0.9, 12.6],
+      // in the sandpit at Sandcastle Corner, right where the slide lands.
+      // y is floor + 0.9 and the floor here is the sand at 0.16, not grass.
+      pos: [22.0, 1.06, 12.6],
       area: "the slide",
-      hint: "Sniff sniff! A pet treat is behind the slide, east of where you start.",
+      hint: "Sniff sniff! A pet treat is in the sandpit at the bottom of the slide, east of where you start.",
     },
     {
       pos: [-106, 1.03, -26],
