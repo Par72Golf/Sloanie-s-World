@@ -1,3 +1,4 @@
+import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
 import * as THREE from "three";
 import type { AABB } from "./collision";
 import { beveledBox } from "./beveled";
@@ -67,6 +68,7 @@ export type BuiltWorld = {
   bouncers: { minX: number; maxX: number; minZ: number; maxZ: number }[];
   spray: SprayArches | null;
   splash: SplashRig | null;
+  carnival: CarnivalRig | null;
   campfire: Campfire | null;
 };
 
@@ -281,6 +283,11 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     group.add(th);
 
   }
+  let carnival: CarnivalRig | null = null;
+  if (level.carnival) {
+    carnival = makeCarnival();
+    group.add(carnival.group);
+  }
   if (level.caveZone) {
     // the mountain's boulders, entrance and everything inside the tunnels
     group.add(makeMountainCave());
@@ -416,6 +423,10 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   if (ride) live.add(ride.group);
   if (spray) live.add(spray.group);
   if (splash) live.add(splash.group);
+  if (carnival) {
+    live.add(carnival.spin);
+    live.add(carnival.ring);
+  }
   if (campfire) live.add(campfire.group);
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.
@@ -445,6 +456,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     bouncers,
     spray,
     splash,
+    carnival,
     campfire,
   };
 }

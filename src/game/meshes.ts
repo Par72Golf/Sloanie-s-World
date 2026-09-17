@@ -52,7 +52,7 @@ export function lam(
   return m;
 }
 
-function mesh(
+export function mesh(
   geo: THREE.BufferGeometry,
   color: string,
   sx: number,
@@ -2004,7 +2004,7 @@ function rockMat(color: string, emissive?: string, glow = 0) {
 }
 
 /** A sign board with painted words on a canvas. */
-function signBoard(text: string, w: number, h: number) {
+export function signBoard(text: string, w: number, h: number) {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = Math.round((512 * h) / w);

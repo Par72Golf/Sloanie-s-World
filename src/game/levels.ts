@@ -1,5 +1,6 @@
 import type { BoxProp, DumplingDef, LevelDef, Prop } from "./types";
 import { CAVE_SPOTS, caveFootprint, mountainCave } from "./cave";
+import { carnivalProps } from "./carnival";
 import { cloudField, findClear, gatedRing, hits, occupancy, pathOccupancy, rectAt } from "./placement";
 import {
   baseballDiamond,
@@ -779,6 +780,8 @@ function picnicPark(): LevelDef {
     ...campground(CAMP.x, CAMP.z),
     ...pavilion(PAV.x, PAV.z),
     ...mountainCave(),
+    // inside the old hill's reserved ground, so nothing else moves
+    ...carnivalProps(),
     ...trail,
     ...forest(-155, -108, -150, 150, 150, 8121, trailRects),
   ];
@@ -846,6 +849,8 @@ function picnicPark(): LevelDef {
     rectAt(PITCH.x, PITCH.z, 52, 40),
     // the mountain and a clear apron round it, widest at the entrance
     rectAt(73, -128, 50, 46),
+    // the carnival's way in: its arch and the carousel gate face south
+    rectAt(-16, 40, 24, 12),
     rectAt(-40, 115, 8, 24),
     rectAt(8, 115, 8, 24),
     rectAt(-60, -110, 8, 14),
@@ -965,7 +970,11 @@ function picnicPark(): LevelDef {
   // centre: the outer hedge is at 13.2m and a boosted running jump can land on
   // a 1.7m top from 9.3m away. tools/maze.ts checks the arithmetic.
   // 15 cells: outer hedge at 18m from the centre, plus 9.3m reach, rounded up.
-  const noJump = [{ minX: -70, maxX: -14, minZ: -46, maxZ: 10, why: "the hedge maze" }];
+  const noJump = [
+    { minX: -70, maxX: -14, minZ: -46, maxZ: 10, why: "the hedge maze" },
+    // the carousel's fence is 0.9m; she would hop it onto the turning deck
+    { minX: -25.5, maxX: -6.5, minZ: 43.5, maxZ: 62.5, why: "the carousel" },
+  ];
 
   // Things to find and wear. Each sits beside a landmark the reachability
   // check already proves walkable; check-layout verifies the spots too.
@@ -1010,6 +1019,7 @@ function picnicPark(): LevelDef {
     // on the east lawn; the reachability check covers (30, 65) in front of it
     ride: { x: 30, z: 58 },
     caveZone: caveFootprint(),
+    carnival: true,
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

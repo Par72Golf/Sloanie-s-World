@@ -1,9 +1,12 @@
+import { CarnivalPanel } from "./carnival-games";
+import type { BoothGame } from "./carnival";
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   FerrisWheel,
   Gamepad2,
   Gauge,
+  PartyPopper,
   HelpCircle,
   Maximize,
   Minimize,
@@ -47,7 +50,7 @@ const TEMP_TINT: Record<string, string> = {
   burning: "text-accent",
 };
 
-function Panel({
+export function Panel({
   children,
   className,
 }: {
@@ -66,7 +69,7 @@ function Panel({
   );
 }
 
-function Btn({
+export function Btn({
   children,
   onClick,
   variant = "primary",
@@ -171,7 +174,7 @@ function TitleScreen() {
   return (
     <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-end overflow-y-auto bg-ink/25 p-4 pb-6 pt-10 sm:justify-center sm:pb-10">
       <Panel className="w-full max-w-lg p-5 sm:p-7">
-        <p className="text-sm font-semibold tracking-wide text-ink-soft">v2.9</p>
+        <p className="text-sm font-semibold tracking-wide text-ink-soft">v3.0</p>
         <h1 className="mt-1 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
           Sloanie's World
         </h1>
@@ -389,6 +392,9 @@ function HUD() {
   const phase = useGame((s) => s.phase);
   const rideNear = useGame((s) => s.rideNear);
   const boardReady = useGame((s) => s.boardReady);
+  const carnivalNear = useGame((s) => s.carnivalNear);
+  const carouselRing = useGame((s) => s.carouselRing);
+  const carnivalOpen = useGame((s) => s.carnival);
   const riding = useGame((s) => s.riding);
   const rps = useGame((s) => s.rps);
   const setControls = useGame((s) => s.setControls);
@@ -503,10 +509,20 @@ function HUD() {
         </div>
       )}
 
-      {phase === "playing" && !rps && (boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && (carouselRing || carnivalNear || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={boardReady ? "ride" : "grab"}
-          label={boardReady ? "Ride the ferris wheel!" : `Grab ${nearestName ?? "it"}!`}
+          key={carouselRing ?? carnivalNear ?? (boardReady ? "ride" : "grab")}
+          label={
+            carouselRing
+              ? `Grab the ${carouselRing} ring!`
+              : carnivalNear
+                ? CARNIVAL_LABEL[carnivalNear]
+                : boardReady
+                  ? "Ride the ferris wheel!"
+                  : `Grab ${nearestName ?? "it"}!`
+          }
+          icon={carouselRing || carnivalNear ? "carnival" : "wheel"}
+          gold={carouselRing === "gold"}
           onPress={requestInteract}
         />
       )}
@@ -830,16 +846,38 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
  * the sofa and to be an easy target for a thumb, since on a touch screen this
  * is the only way to press Collect there.
  */
-function BigAction({ label, onPress }: { label: string; onPress: () => void }) {
+const CARNIVAL_LABEL: Record<BoothGame | "carousel", string> = {
+  rings: "Play Ring Toss!",
+  ducks: "Play Duck Pond!",
+  moles: "Play Whack-a-Mole!",
+  prizes: "Visit the prize booth!",
+  carousel: "Ride the carousel!",
+};
+
+function BigAction({
+  label,
+  onPress,
+  icon = "wheel",
+  gold = false,
+}: {
+  label: string;
+  onPress: () => void;
+  icon?: "wheel" | "carnival";
+  gold?: boolean;
+}) {
+  const Icon = icon === "wheel" ? FerrisWheel : PartyPopper;
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[26%] z-20 flex flex-col items-center gap-2 px-4">
       <button
         type="button"
         onClick={onPress}
-        className="press chunk pointer-events-auto flex items-center gap-4 bg-accent px-9 py-5 font-display text-3xl font-semibold text-accent-fg sm:px-12 sm:py-6 sm:text-5xl"
+        className={cn(
+          "press chunk pointer-events-auto flex items-center gap-4 px-9 py-5 font-display text-3xl font-semibold sm:px-12 sm:py-6 sm:text-5xl",
+          gold ? "bg-sun text-ink" : "bg-accent text-accent-fg",
+        )}
         style={{ animation: "catchPop 260ms ease-out, bigNudge 1.3s ease-in-out 400ms infinite" }}
       >
-        <FerrisWheel className="size-9 shrink-0 sm:size-12" />
+        <Icon className="size-9 shrink-0 sm:size-12" />
         {label}
       </button>
       <p className="rounded-full bg-ink/55 px-3 py-1 text-sm font-semibold text-white">
@@ -1329,6 +1367,7 @@ export function Overlays() {
       {phase === "complete" && <CompleteScreen />}
       {phase === "victory" && <VictoryScreen />}
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
+      {phase === "playing" && <CarnivalPanel />}
       {controlsOpen && <ControlsPanel />}
       {showFps && phase !== "title" && <FpsCounter />}
       {debugEnabled() && <DebugOverlay />}

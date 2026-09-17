@@ -1,3 +1,4 @@
+import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
 import * as THREE from "three";
 import { placeCamera } from "./camera";
 import { perf, recordFrame } from "./debug";
@@ -82,6 +83,11 @@ function pickFleePos(
 }
 
 type Puff = { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number };
+
+/** An angle folded into -PI..PI. */
+function wrapAngle(a: number) {
+  return a - Math.PI * 2 * Math.floor((a + Math.PI) / (Math.PI * 2));
+}
 
 export class GameRuntime {
   renderer: THREE.WebGLRenderer;
@@ -561,7 +567,7 @@ export class GameRuntime {
   updateEmmett(dt: number) {
     if (!this.emmett || !this.world) return;
     const st = useGame.getState();
-    const busy = st.phase !== "playing" || st.quiz != null || st.rps != null || st.riding;
+    const busy = st.phase !== "playing" || st.quiz != null || st.rps != null || st.carnival != null || st.riding;
 
     const collected = st.collected[st.levelIndex] ?? [];
     const caught = this.emmett.update(
@@ -825,7 +831,7 @@ export class GameRuntime {
     const lz = this.cap.z - at.z;
     const near = lx * lx + lz * lz < 30 * 30;
     const st = useGame.getState();
-    const playing = st.phase === "playing" && !st.quiz && !st.rps && !this.ride;
+    const playing = st.phase === "playing" && !st.quiz && !st.rps && !st.carnival && !this.ride && !this.carouselRide;
 
     const PERIOD = 7;
     s.jets.forEach((j, i) => {
@@ -892,6 +898,144 @@ export class GameRuntime {
         const r = 0.35 + life * 0.9;
         d.position.set(sp.x + Math.cos(a) * r, 1.8 + Math.sin(life * Math.PI) * 0.7 - life * 0.9, sp.z + Math.sin(a) * r);
       });
+    }
+  }
+
+  /* ---------------------------------------------------------- carnival */
+
+  carouselAngle = 0;
+  carouselRide: {
+    horse: number;
+    turned: number;
+    pass: number;
+    inWindow: boolean;
+    grabbed: boolean;
+    missNoted: boolean;
+  } | null = null;
+  lastCarnival: BoothGame | null = null;
+  /** seconds during which Collect will not reopen a booth that just closed */
+  carnivalBlock = 0;
+
+  /** Collect at the carnival: grab the ring while riding, open a booth, or board. */
+  tryCarnival(): boolean {
+    if (!this.world?.carnival) return false;
+    const r = this.carouselRide;
+    if (r) {
+      if (r.inWindow && !r.grabbed) this.grabRing();
+      return true;
+    }
+    if (this.carnivalBlock > 0) return false;
+    const st = useGame.getState();
+    const near = st.carnivalNear;
+    if (!near) return false;
+    if (near === "carousel") {
+      this.boardCarousel();
+    } else {
+      sfx.click();
+      st.openCarnival(near);
+    }
+    return true;
+  }
+
+  boardCarousel() {
+    const rig = this.world?.carnival;
+    if (!rig || this.carouselRide) return;
+    // the horse nearest the gate, which is due south of the centre
+    let best = 0;
+    let bestD = Infinity;
+    rig.horses.forEach((h, i) => {
+      const a = (h.userData.angle as number) + this.carouselAngle;
+      const d = Math.abs(wrapAngle(a + Math.PI / 2));
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    this.carouselRide = { horse: best, turned: 0, pass: 0, inWindow: false, grabbed: false, missNoted: false };
+    this.velY = 0;
+    this.speed = 0;
+    sfx.click();
+    const st = useGame.getState();
+    st.setRiding(true);
+    st.setEmmettNotice("Giddy up! Grab the gold ring as you ride past the arm.");
+  }
+
+  grabRing() {
+    const r = this.carouselRide;
+    const rig = this.world?.carnival;
+    if (!r || !rig) return;
+    r.grabbed = true;
+    const st = useGame.getState();
+    const gold = r.pass === CAROUSEL.goldPass;
+    this.burst(rig.ring.position.x, rig.ring.position.y, rig.ring.position.z, gold ? "#ffd23a" : "#d8dde4");
+    if (gold) {
+      sfx.win();
+      this.mood = "cheer";
+      this.moodT = 2;
+      if (st.foundAccessories.includes("unicorn")) st.setEmmettNotice("Another gold ring! You're a carousel champion.");
+      else st.winPrize("unicorn");
+    } else {
+      sfx.correct();
+      st.setEmmettNotice("A silver ring! Keep riding, the gold one is coming.");
+    }
+  }
+
+  /**
+   * The carousel turns slowly all the time and at ride speed while she is on
+   * it. On a horse she is carried round; each time she passes the ring arm
+   * there is a short window to grab its ring, which is gold on one pass.
+   */
+  updateCarousel(dt: number) {
+    const rig = this.world?.carnival;
+    if (!rig) return;
+    const c = CAROUSEL;
+    const r = this.carouselRide;
+    const speed = (Math.PI * 2) / (r ? c.period : 24);
+    this.carouselAngle += dt * speed;
+    rig.spin.rotation.y = -this.carouselAngle;
+    rig.horses.forEach((h, i) => {
+      h.position.y = 1.35 + Math.sin(this.carouselAngle * 3 + i * 1.7) * 0.18;
+    });
+    const st = useGame.getState();
+    if (!r) {
+      rig.ring.material = rig.silver;
+      rig.ring.visible = true;
+      return;
+    }
+    r.turned += dt * speed;
+    const h = rig.horses[r.horse]!;
+    const a = (h.userData.angle as number) + this.carouselAngle;
+    this.cap.x = c.x + Math.cos(a) * c.seatRadius;
+    this.cap.z = c.z + Math.sin(a) * c.seatRadius;
+    this.cap.y = h.position.y - 0.25;
+    this.yaw = Math.PI - a;
+
+    // about 1.2 seconds to grab each ring as she passes
+    const inWin = Math.abs(wrapAngle(a - c.armAngle)) < CAROUSEL.grabHalfAngle;
+    if (inWin && !r.inWindow) {
+      r.pass++;
+      r.grabbed = false;
+    }
+    if (!inWin && r.inWindow && r.pass === c.goldPass && !r.grabbed && !r.missNoted) {
+      r.missNoted = true;
+      st.setEmmettNotice("The gold ring got away! Ride again for another go.");
+    }
+    r.inWindow = inWin;
+    const upcoming = inWin ? r.pass : r.pass + 1;
+    rig.ring.material = upcoming === c.goldPass ? rig.gold : rig.silver;
+    rig.ring.visible = !(inWin && r.grabbed);
+    st.setCarouselRing(inWin && !r.grabbed ? (r.pass === c.goldPass ? "gold" : "silver") : null);
+
+    if (r.turned >= c.laps * Math.PI * 2) {
+      this.carouselRide = null;
+      const [gx, gz] = carouselGate();
+      this.cap.x = gx;
+      this.cap.y = 0.05;
+      this.cap.z = gz;
+      this.yaw = Math.PI;
+      st.setRiding(false);
+      st.setCarouselRing(null);
+      if (!r.missNoted) st.setEmmettNotice("What a ride!");
     }
   }
 
@@ -973,6 +1117,7 @@ export class GameRuntime {
   tryCollect() {
     const st = useGame.getState();
     if (st.phase !== "playing") return;
+    if (this.tryCarnival()) return;
     if (this.tryBoard()) return;
     const d = this.nearestUnfound();
     if (!d) return;
@@ -1131,6 +1276,9 @@ export class GameRuntime {
       // the spokes. Watch from the platform side instead, rising with her.
       const w = this.world.ride;
       desired.set(w.origin.x + 2.5, this.cap.y + 3.0, w.origin.z + 14.5);
+    } else if (this.carouselRide) {
+      // watch the carousel go round from outside the fence, by the ring arm
+      desired.set(CAROUSEL.x + 10, 5, CAROUSEL.z - 11);
     } else if (this.firstPerson && !title) {
       // eyes: a touch forward of the capsule centre, with a little walk bob
       const pace = THREE.MathUtils.clamp(this.speed / WALK, 0, 1.6);
@@ -1179,7 +1327,10 @@ export class GameRuntime {
     const st = useGame.getState();
     const qa = Boolean(window.__controlsTest && (isDown("KeyW") || isDown("KeyA") || isDown("KeyD") || isDown("KeyS")));
     // rock paper scissors freezes her in place, like the quiz does
-    const live = ((st.phase === "playing" && st.rps == null) || (st.phase === "title" && qa)) && !this.ride;
+    const live =
+      ((st.phase === "playing" && st.rps == null && st.carnival == null) || (st.phase === "title" && qa)) &&
+      !this.ride &&
+      !this.carouselRide;
     if (!live) consumeJumpTap();
 
     const lookDelta = consumeLook();
@@ -1258,8 +1409,8 @@ export class GameRuntime {
       sfx.jump();
     }
 
-    if (this.ride) {
-      // the wheel carries her; updateRide sets the capsule each frame
+    if (this.ride || this.carouselRide) {
+      // the wheel or the carousel carries her; their updates set the capsule
       this.velY = 0;
       this.grounded = true;
       this.speed = 0;
@@ -1445,6 +1596,7 @@ export class GameRuntime {
     this.updateJuice(dt);
     this.updatePickups(dt);
     this.updateRide(dt);
+    this.updateCarousel(dt);
     this.updateEmmett(dt);
     this.updateCelebration(dt);
 
@@ -1453,7 +1605,7 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const ticking =
-        st.runActive && st.phase === "playing" && st.quiz == null && st.rps == null && !st.riding;
+        st.runActive && st.phase === "playing" && st.quiz == null && st.rps == null && st.carnival == null && !st.riding;
       if (ticking) {
         this.runAccum += dt;
         if (Math.floor(this.runAccum) !== Math.floor(st.runSeconds)) {
@@ -1486,6 +1638,19 @@ export class GameRuntime {
         this.cap.y < 2;
       useGame.getState().setRideNear(near);
       useGame.getState().setBoardReady(this.onBoardSpot());
+    }
+    // at a carnival booth's counter, or the carousel gate
+    {
+      let near: BoothGame | "carousel" | null = null;
+      if (this.world?.carnival && !this.carouselRide && !this.ride && this.cap.y < 1.2) {
+        for (const b of BOOTHS) {
+          const [sx, sz] = boothStand(b);
+          if (Math.hypot(this.cap.x - sx, this.cap.z - sz) < 1.9) near = b.game;
+        }
+        const [gx, gz] = carouselGate();
+        if (Math.hypot(this.cap.x - gx, this.cap.z - gz) < 2.1) near = "carousel";
+      }
+      useGame.getState().setCarnivalNear(near);
     }
     const d = this.nearestUnfound();
     if (!d) {
@@ -1542,6 +1707,11 @@ export class GameRuntime {
       this.lastFlee = st.fleeGen;
       if (st.fleeId) this.relocateDumpling(st.fleeId);
     }
+    if (st.carnival !== this.lastCarnival) {
+      if (!st.carnival) this.carnivalBlock = 0.6;
+      this.lastCarnival = st.carnival;
+    }
+    this.carnivalBlock = Math.max(0, this.carnivalBlock - FIXED);
     if (st.phase === "playing" && (wantsInteract() || consumePadInteract())) this.tryCollect();
     else consumePadInteract();
 
@@ -1592,9 +1762,10 @@ export class GameRuntime {
     }
     this.animateWorld(raw);
     this.hud(raw);
-    if (this.firstPerson && !this.ride) this.updateHands();
+    const carried = this.ride || this.carouselRide;
+    if (this.firstPerson && !carried) this.updateHands();
     else this.hands.group.visible = false;
-    if (this.firstPerson && !this.ride) this.hands.group.visible = true;
+    if (this.firstPerson && !carried) this.hands.group.visible = true;
     // Roblox has no outlines; the bevel highlight does the edge definition now
     this.renderFrame();
 

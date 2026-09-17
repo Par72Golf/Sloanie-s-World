@@ -39,6 +39,7 @@ const targets: [string, number, number][] = [
   ["campground", 128, 128],
   ["ninja course", 8, 136],
   ["farm tractor", -54, -121],
+  ["carnival", -16, 55],
 ];
 
 let teleports = 0;

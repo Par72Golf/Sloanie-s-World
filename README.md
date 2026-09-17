@@ -1,6 +1,6 @@
 # Sloanie's World
 
-A 3D dumpling hunt built for Sloan. Explore the park, find the 12 hidden dumplings,
+A 3D dumpling hunt built for Sloan. Explore the park, find the 16 hidden dumplings,
 answer a little maths question to keep each one, and watch out for Emmett on his
 tricycle.
 

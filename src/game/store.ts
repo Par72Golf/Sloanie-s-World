@@ -9,7 +9,8 @@ import {
   type TempBand,
 } from "./types";
 import { clearSave, loadSave, persistSave, type RunRecord } from "./save";
-import { NOTHING_WORN, accessory, type AccessoryId, type Slot, type Worn } from "./accessories";
+import { ACCESSORIES, NOTHING_WORN, accessory, type AccessoryId, type Slot, type Worn } from "./accessories";
+import type { BoothGame } from "./carnival";
 
 /** Never hand out the same layout twice in a row. */
 const LAYOUT_COUNT = 3;
@@ -87,6 +88,18 @@ export type GameStore = {
   /** On the boarding spot, so Collect would start a ride: the HUD shows a big Ride button. */
   boardReady: boolean;
   setBoardReady: (v: boolean) => void;
+  /** The carnival game panel she is playing, if any. Input and Emmett pause. */
+  carnival: BoothGame | null;
+  openCarnival: (game: BoothGame) => void;
+  closeCarnival: () => void;
+  /** Standing where Collect would open a carnival game or board the carousel. */
+  carnivalNear: BoothGame | "carousel" | null;
+  setCarnivalNear: (v: BoothGame | "carousel" | null) => void;
+  /** On the carousel, with the brass-ring arm in reach: which ring it holds. */
+  carouselRing: "gold" | "silver" | null;
+  setCarouselRing: (v: "gold" | "silver" | null) => void;
+  /** A carnival prize: it goes on straight away and the HUD says so. */
+  winPrize: (id: AccessoryId) => void;
   /** Camera view; the runtime reads it every frame. */
   view: "third" | "first";
   toggleView: () => void;
@@ -163,6 +176,21 @@ function persistSlice(s: GameStore) {
   });
 }
 
+/**
+ * Worn items from a save, keeping only known items in the slot they belong to
+ * now. An item can change slot between versions (the unicorn headband moved
+ * from hair to head), and an unknown id would otherwise crash the dresser.
+ */
+function wornFromSave(raw: Record<string, string | null>): Worn {
+  const worn: Worn = { ...NOTHING_WORN };
+  for (const id of Object.values(raw ?? {})) {
+    if (!id) continue;
+    const def = ACCESSORIES.find((a) => a.id === id);
+    if (def) worn[def.slot] = def.id;
+  }
+  return worn;
+}
+
 export const useGame = create<GameStore>((set, get) => ({
   phase: "title",
   playerName: saved.playerName,
@@ -197,7 +225,7 @@ export const useGame = create<GameStore>((set, get) => ({
   leaderboard: saved.leaderboard ?? [[], [], []],
   lastRun: null,
   foundAccessories: saved.foundAccessories as AccessoryId[],
-  worn: { ...NOTHING_WORN, ...(saved.worn as Partial<Worn>) },
+  worn: wornFromSave(saved.worn),
   wornGen: 0,
   wardrobeOpen: false,
   riding: false,
@@ -209,6 +237,29 @@ export const useGame = create<GameStore>((set, get) => ({
   boardReady: false,
   setBoardReady: (boardReady) => {
     if (get().boardReady !== boardReady) set({ boardReady });
+  },
+  carnival: null,
+  openCarnival: (carnival) => set({ carnival, carnivalNear: null }),
+  closeCarnival: () => set({ carnival: null }),
+  carnivalNear: null,
+  setCarnivalNear: (carnivalNear) => {
+    if (get().carnivalNear !== carnivalNear) set({ carnivalNear });
+  },
+  carouselRing: null,
+  setCarouselRing: (carouselRing) => {
+    if (get().carouselRing !== carouselRing) set({ carouselRing });
+  },
+  winPrize: (id) => {
+    const found = get().foundAccessories;
+    if (found.includes(id)) return;
+    const def = accessory(id);
+    set({
+      foundAccessories: [...found, id],
+      worn: { ...get().worn, [def.slot]: id },
+      wornGen: get().wornGen + 1,
+      emmettNotice: `You won the ${def.name.toLowerCase()}! It's on.`,
+    });
+    persistSlice(get());
   },
   view: saved.view,
   toggleView: () => {
@@ -279,6 +330,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeNotice: null,
       fleeId: null,
       rps: null,
+      carnival: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -440,6 +492,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeNotice: null,
       fleeId: null,
       rps: null,
+      carnival: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -464,6 +517,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeNotice: null,
       fleeId: null,
       rps: null,
+      carnival: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -491,6 +545,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeNotice: null,
       fleeId: null,
       rps: null,
+      carnival: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,
@@ -506,6 +561,7 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeNotice: null,
       fleeId: null,
       rps: null,
+      carnival: null,
       boostLeft: 0,
       emmettNotice: null,
       celebrate: null,

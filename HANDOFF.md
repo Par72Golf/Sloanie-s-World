@@ -8,7 +8,7 @@ context. It covers what exists, what the tooling is for, the bugs that cost the 
 time and why, what "finished" would actually require, and how to prompt effectively
 on this specific project.
 
-Current version: **v2.9**.
+Current version: **v3.0** (17 Sept 2026).
 
 ### Since v2.8 (16 Sept 2026)
 
@@ -148,6 +148,29 @@ Current version: **v2.9**.
   (631 to 635) and triangles fell slightly with the old hill gone.
 - Test hook `__gameTest.lookAt(pos, target)` parks the camera for photographing a
   spot; `lookAt(null)` hands it back.
+- **v3.0: the carnival** (`carnival.ts` layout, prizes and rules; `carnival-mesh.ts`
+  look; `carnival-games.tsx` panels), on the old hill's reserved lawn beside the
+  ferris wheel. Four booths facing south and a carousel. Standing at a counter or
+  the carousel gate shows a big pop-up (`carnivalNear`); Collect opens the booth's
+  panel (`carnival` in the store), which freezes her, pauses Emmett and the run
+  clock like rock paper scissors. Every game plays with the pad (stick or d-pad,
+  A, B to leave), keyboard (arrows, Space, Esc, digits) or touch.
+  - Ring Toss (timing): drop the ring over the glowing bottle, 3 of 5. Prize: heart
+    balloon (back).
+  - Duck Pond (memory): 12 ducks hiding 6 random pairs, 14 turns. Prize: duck hat.
+  - Whack-a-Mole (reactions and a rule): moles +1, golden moles +3, the bunny -1,
+    12 points in 30s. Slowed after playtesting (moles up 2.2s easing to 1.45s).
+    Prize: star glasses.
+  - Carousel: ridden like the wheel (`carouselRide`, forced camera outside the
+    fence); each lap passes the brass-ring arm with a ~1.2s grab window; the ring
+    is gold on pass 3 of 4. Prize: unicorn headband (a head item).
+  - Prize booth: shows the four prizes and hands out the giant teddy (back) once
+    all four are won.
+  Prizes are accessories (`winPrize`), so they save and live in the wardrobe.
+  `wornFromSave` drops unknown items and re-slots moved ones on load. The fence is
+  closed and there is a `noJump` zone round the carousel. Adding the carnival
+  moved one hedge 2m south and dropped one berm in front of its entrance (a
+  `keepClear` rect keeps the approach open); nothing else in the park moved.
 ---
 
 ## 1. What this is
@@ -226,6 +249,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `probe.ts` | Tall props that are not solid (walk-through walls) and solid props too faint to see (invisible walls). |
 | `thin.ts` | Thin solid props, the other source of invisible walls. |
 | `cave.ts` | The mountain cave through the real collision code: walks from outside the entrance along the tunnel grid to every open cell and each hiding spot, checks the lowest roof, that no hop is ever needed except onto the cavern ledge, and that no hiding spot is visible from the entrance. |
+| `carnival.ts` | The carnival: walks from the lawn to every booth counter and the carousel gate, checks nothing solid is on a standing spot, and holds the games to fair limits (ring over a bottle at least 0.28s per pass, duck turns above perfect play, moles up at least 1.2s, carousel grab window at least 1s). |
 | `gym.ts` | The ninja course: walking up the climbing wall onto the deck, trampolines launching her (and the tapped big bounce), and the stepping posts walkable and landable. Caught the first post row being impossible to land on. |
 | `spread.ts` | Nearest-neighbour distance between dumplings, to catch clustering. |
 | `coplanar.ts` | Near-coplanar faces in the hill region. |

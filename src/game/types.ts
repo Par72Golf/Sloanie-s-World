@@ -184,6 +184,8 @@ export type LevelDef = {
   splash?: { x: number; z: number };
   /** The mountain cave's footprint: inside it, first person is forced. */
   caveZone?: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** The carnival (carnival.ts): booths, the carousel and their games. */
+  carnival?: boolean;
   /** Campfire position: flames flicker and there is a warm light. */
   campfire?: { x: number; z: number };
 };
