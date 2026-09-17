@@ -257,11 +257,11 @@ const picnicDumplings: DumplingDef[] = [
     pos: [3.5, 0.62, 16],
     finish: "plain",
     hide: "easy",
-    region: "the start of the path",
-    hint: "Right by where you start, on the grass beside the path.",
+    region: "where you start",
+    hint: "Right by where you start, on the grass.",
 
     alts: [
-      { pos: [-3.5, 0.62, 15], region: "the start of the path", hint: "Right by where you start, on the other side of the path." },
+      { pos: [-3.5, 0.62, 15], region: "where you start", hint: "Right by where you start, a few steps the other way." },
       { pos: [8, 0.62, -3.6], region: "the picnic blanket", hint: "Somebody left one on the picnic blanket near the gazebo." },
     ],
   },
@@ -293,7 +293,7 @@ const picnicDumplings: DumplingDef[] = [
     hint: "Down at the big pond with the fountain, tucked in the reeds on the bank.",
  
     alts: [
-      { pos: [-9.5, 0.62, -46.5], region: "the big pond", hint: "On the far side of the pond from the path, near the water." },
+      { pos: [-9.5, 0.62, -46.5], region: "the big pond", hint: "On the far side of the pond from the little dock, near the water." },
       { pos: [3, 0.62, -32], region: "the pond lawn", hint: "On the grass just north of the big pond." },
     ],
   },
@@ -447,10 +447,10 @@ const picnicDumplings: DumplingDef[] = [
     finish: "plain",
     hide: "medium",
     region: "the woods clearing",
-    hint: "Follow the trail into the deep woods west of the park, all the way to the clearing.",
+    hint: "Head into the deep woods west of the park, all the way to the clearing.",
     alts: [
-      { pos: [-131, 0.62, 6.5], region: "the woods trail", hint: "On the woods trail west of the park, at one of the bends." },
-      { pos: [-108, 0.62, 5.5], region: "the woods trail", hint: "By the little signpost where the woods trail begins, west of the ring road." },
+      { pos: [-131, 0.62, 6.5], region: "the woods", hint: "In the woods west of the park, between the trees on the way to the clearing." },
+      { pos: [-108, 0.62, 5.5], region: "the edge of the woods", hint: "By the little signpost at the edge of the woods, west of the park." },
     ],
   },
   {
@@ -477,7 +477,7 @@ const picnicDumplings: DumplingDef[] = [
     finish: "iridescent",
     hide: "medium",
     region: "the pavilion",
-    hint: "On a table under the big red roof of the pavilion, out past the east ring road.",
+    hint: "On a table under the big red roof of the pavilion, out past the east gate.",
     alts: [
       { pos: [136, 0.95, 60], region: "the pavilion", hint: "On the other table under the pavilion roof, east side of the park." },
       { pos: [126.5, 0.62, 57.8], region: "the pavilion", hint: "Under the noticeboard on the pavilion's corner post." },
@@ -508,8 +508,12 @@ function picnicPark(): LevelDef {
     ...mazeGate(maze.exit[0], maze.exit[1], -1, "#ffc53d", "#ffe08a"),
   ];
 
-  const core: Prop[] = [
-    ...gatedRing(-70, 70, -70, 70, "#c4b48a"),
+  // Walkways are laid out but not built while the park is still growing: they
+  // stopped matching the layout, and they get re-mapped once the buildings are
+  // in. They still reserve their ground in the placement map below, so berms,
+  // hedges and tree lines land exactly where they did with paths present.
+  // To bring them back, add `walkways` to `props` at the end of this function.
+  const coreWalks: Prop[] = [
     // crossing walkways sit on their own layers so they do not z-fight
     box(0, 0.04, 8, 4.4, 0.08, 52, "#d8c49a", false),
     box(-10, 0.06, 12, 28, 0.08, 4.4, "#d8c49a", false),
@@ -517,6 +521,10 @@ function picnicPark(): LevelDef {
     box(0, 0.10, -20, 4.2, 0.08, 28, "#d8c49a", false),
     box(40, 0.04, -8, 3.6, 0.08, 36, "#d8c49a", false),
     box(-36, 0.04, 20, 3.6, 0.08, 40, "#d8c49a", false),
+  ];
+
+  const core: Prop[] = [
+    ...gatedRing(-70, 70, -70, 70, "#c4b48a"),
 
     box(-14, 0.4, 10, 2.8, 0.8, 1.4, "#c48a5a"),
     box(-14, 0.85, 10, 2.6, 0.1, 1.2, "#e8d2b0"),
@@ -712,12 +720,14 @@ function picnicPark(): LevelDef {
   // winding trail from the west gate spur into the woods, as slabs end to end
   // each slab a hair higher than the last: they overlap end to end and
   // same-height tops z-fight
-  const trail: Prop[] = [
+  const trailSlabs: Prop[] = [
     box(-111, 0.055, 0, 12, 0.12, 4.4, "#d8c49a", false),
     box(-120, 0.07, 3, 8, 0.12, 4.4, "#d8c49a", false),
     box(-126, 0.085, 7, 8, 0.12, 4.4, "#d8c49a", false),
     box(-131, 0.1, 3, 6, 0.12, 4.4, "#d8c49a", false),
     box(-136, 0.115, 8, 8, 0.12, 4.4, "#d8c49a", false),
+  ];
+  const trail: Prop[] = [
     // the clearing: a lighter lawn disc, a log to sit on, a stump
     { kind: "cyl", pos: [CLEARING.x, 0.01, CLEARING.z], r: 9, h: 0.08, color: "#8fcf74", collide: false },
     box(CLEARING.x - 3, 0.3, CLEARING.z + 4, 2.4, 0.6, 0.7, "#8a5a32"),
@@ -794,9 +804,10 @@ function picnicPark(): LevelDef {
   ];
 
   // Anything already standing, plus corridors that must stay walkable.
-  const taken = occupancy([...core, ...zones, ...boundary]);
-  // keep berms and hedges off the walkways
-  taken.push(...pathOccupancy([...core, ...paths, ...zones]));
+  const walkways = [...coreWalks, ...trailSlabs, ...paths];
+  const taken = occupancy([...core, ...coreWalks, ...zones, ...trailSlabs, ...boundary]);
+  // keep berms and hedges off the walkways (reserved even while not built)
+  taken.push(...pathOccupancy([...core, ...coreWalks, ...paths, ...zones, ...trailSlabs]));
   const keepClear = [
     rectAt(0, 86, GATE + 6, 36),
     rectAt(0, -86, GATE + 6, 36),
@@ -905,7 +916,6 @@ function picnicPark(): LevelDef {
   const props: Prop[] = [
     ...core,
     ...boundary,
-    ...paths,
     ...zones,
     ...blockers,
     ...cloudField(-150, 150, -150, 150, 48, 20260928),
