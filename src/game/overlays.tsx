@@ -17,6 +17,7 @@ import {
   Calculator,
   Candy,
   Castle,
+  Compass,
   Crown,
   Check,
   ChevronDown,
@@ -130,9 +131,12 @@ export function Btn({
   className,
   disabled,
   type = "button",
+  padDefault,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
+  /** where the controller lands when this screen opens */
+  padDefault?: boolean;
   /** primary: coral, the one thing to press. go: teal. sun: rewards. grape: special. secondary: white. */
   variant?: "primary" | "secondary" | "ghost" | "go" | "sun" | "grape";
   className?: string;
@@ -144,6 +148,7 @@ export function Btn({
       type={type}
       disabled={disabled}
       onClick={onClick}
+      data-pad-default={padDefault || undefined}
       className={cn(
         "press inline-flex min-h-12 items-center justify-center gap-2 px-6 font-display text-lg font-semibold tracking-wide",
         variant !== "ghost" && "chunk-sm gloss",
@@ -1943,6 +1948,7 @@ function CompleteScreen() {
   const playerName = useGame((s) => s.playerName);
   const nextLevel = useGame((s) => s.nextLevel);
   const replayLevel = useGame((s) => s.replayLevel);
+  const keepExploring = useGame((s) => s.keepExploring);
   const toTitle = useGame((s) => s.toTitle);
   const lastRun = useGame((s) => s.lastRun);
   const level = LEVELS[levelIndex]!;
@@ -2014,8 +2020,14 @@ function CompleteScreen() {
               </p>
             )}
             <div className="mt-5 grid gap-3">
+              {/* first, because finding them all is where the rest of the park
+                  opens up: the carnival, Farmer Joe's pets, stickers, her house */}
+              <Btn padDefault onClick={keepExploring} className="min-h-14 text-xl">
+                <Compass className="size-5" strokeWidth={2.6} />
+                Keep exploring
+              </Btn>
               {next && (
-                <Btn onClick={nextLevel} className="min-h-14 text-xl">
+                <Btn variant="go" onClick={nextLevel} className="min-h-14 text-xl">
                   <Play className="size-5 fill-current" />
                   Play {next.name}
                 </Btn>

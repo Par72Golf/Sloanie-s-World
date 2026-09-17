@@ -188,6 +188,8 @@ export type GameStore = {
   markCollected: (dumplingId: string) => void;
   uncollectDumpling: (dumplingId: string) => void;
   completeLevel: () => void;
+  /** Close the finished-park screen and stay in the park: the run is over, the side quests are not. */
+  keepExploring: () => void;
   nextLevel: () => void;
   replayLevel: () => void;
   toTitle: () => void;
@@ -659,6 +661,20 @@ export const useGame = create<GameStore>((set, get) => ({
     });
     persistSlice(get());
   },
+  keepExploring: () =>
+    set({
+      phase: "playing",
+      // the time is already on the board; the clock stays stopped
+      runActive: false,
+      quiz: null,
+      rps: null,
+      carnival: null,
+      questPanel: null,
+      journalOpen: false,
+      mapOpen: false,
+      celebrate: null,
+      emmettNotice: "The park is all yours! Carnival, pets, stickers and your house are waiting.",
+    }),
   nextLevel: () => {
     const levelIndex = Math.min(2, get().levelIndex + 1);
     set({
