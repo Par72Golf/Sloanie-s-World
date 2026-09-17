@@ -474,6 +474,18 @@ function TitleScreen() {
     };
   }, [sel, unlocked, detail]);
 
+  /*
+   * Wipe and reload. The park is built once, so without the reload the old
+   * world stays up: pickups she had already taken never come back, and the
+   * backpack cannot be found again, which leaves nothing carryable.
+   */
+  const startOver = (bestTimes: boolean) => {
+    sfx.click();
+    resetAll({ bestTimes });
+    setDetail(null);
+    window.setTimeout(() => window.location.reload(), 150);
+  };
+
   const toggle = (d: Exclude<TitleDetail, null>) => {
     sfx.click();
     setDetail((cur) => (cur === d ? null : d));
@@ -773,19 +785,15 @@ function TitleScreen() {
                 {detail === "reset" && (
                   <>
                     <p className="text-base font-semibold text-ink 2xl:text-xl">
-                      Hide every dumpling again and lock the other parks?
+                      Start a brand new adventure? Dumplings, stickers, tickets, pets, prizes and the house all go back
+                      to the beginning.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2.5">
-                      <Btn
-                        onClick={() => {
-                          sfx.click();
-                          resetAll();
-                          setDetail(null);
-                        }}
-                      >
-                        Yes, start over
+                      <Btn onClick={() => startOver(false)}>Yes, start over</Btn>
+                      <Btn variant="secondary" onClick={() => startOver(true)}>
+                        Start over and clear best times
                       </Btn>
-                      <Btn variant="secondary" onClick={() => setDetail(null)}>
+                      <Btn variant="ghost" onClick={() => setDetail(null)}>
                         Cancel
                       </Btn>
                     </div>
