@@ -361,6 +361,19 @@ export class GameRuntime {
         });
       },
       scene: () => this.scene,
+      // Park the camera at a point looking at another, for photographing a
+      // spot without walking there; null hands the camera back to the game.
+      // Fog is pushed out while parked so aerial shots are not washed out.
+      lookAt: (pos: [number, number, number] | null, target?: [number, number, number]) => {
+        if (!pos) {
+          this.camOverride = null;
+          if (this.scene.fog instanceof THREE.Fog) this.scene.fog.far = this.level.fogFar;
+          return;
+        }
+        const t = target ?? [pos[0], 0, pos[2] - 1];
+        this.camOverride = { pos: new THREE.Vector3(...pos), target: new THREE.Vector3(...t) };
+        if (this.scene.fog instanceof THREE.Fog) this.scene.fog.far = 2000;
+      },
       setBloom: (on: boolean, strength?: number) => {
         this.bloom.enabled = on;
         if (strength != null) this.bloom.strength = strength;
@@ -1006,7 +1019,15 @@ export class GameRuntime {
     c.d.spark.position.set(g.position.x, g.position.y + 0.3, g.position.z);
   }
 
+  /** Test hook: a fixed camera for inspecting a spot (see __gameTest.lookAt). */
+  camOverride: { pos: THREE.Vector3; target: THREE.Vector3 } | null = null;
+
   syncCamera(snap = false) {
+    if (this.camOverride) {
+      this.camera.position.copy(this.camOverride.pos);
+      this.camera.lookAt(this.camOverride.target);
+      return;
+    }
     const title = useGame.getState().phase === "title";
     const desired = this.camPos;
     if (this.ride && this.world?.ride) {
@@ -1493,6 +1514,7 @@ declare global {
       setPixelRatio: (r: number) => void;
       setShadows: (on: boolean, mapSize?: number) => void;
       scene: () => THREE.Scene;
+      lookAt: (pos: [number, number, number] | null, target?: [number, number, number]) => void;
       setBloom: (on: boolean, strength?: number) => void;
       frames: (n: number, dtMs?: number) => number[];
       store: () => typeof useGame;

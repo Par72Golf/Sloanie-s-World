@@ -240,6 +240,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
 
     // banks, cattails and lily pads for both ponds
     for (const w of level.water ?? []) {
+      if (w.pool) continue;
       const edge = makePondEdge(w.r);
       edge.position.set(w.x, 0, w.z);
       group.add(edge);
@@ -370,6 +371,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   }
 
   for (const w of level.water ?? []) {
+    if (w.pool) continue;
     const foam = new THREE.Mesh(
       cylGeo,
       lam("#eef8ff", { transparent: true, opacity: 0.45, roughness: 0.3 }),

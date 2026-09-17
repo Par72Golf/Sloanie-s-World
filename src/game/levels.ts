@@ -990,8 +990,8 @@ function picnicPark(): LevelDef {
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },
       // the pool, as two circles under its 20x10 rectangle
-      { kind: "water", x: POOL.x - 5, z: POOL.z, r: 5 },
-      { kind: "water", x: POOL.x + 5, z: POOL.z, r: 5 },
+      { kind: "water", x: POOL.x - 5, z: POOL.z, r: 5, pool: true },
+      { kind: "water", x: POOL.x + 5, z: POOL.z, r: 5, pool: true },
     ],
   };
 }

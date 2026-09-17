@@ -91,6 +91,12 @@ export type WaterZone = {
   x: number;
   z: number;
   r: number;
+  /**
+   * A built pool rather than a pond: she still swims slowly in it, but it
+   * gets no rocky bank, cattails, lily pads or foam ring. Without this the
+   * swimming pool was dressed as a pond, rocks and reeds in the lanes.
+   */
+  pool?: boolean;
 };
 
 import type { Finish } from "./finishes";
