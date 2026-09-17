@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { texturesFor, type TexKind } from "./textures";
 import { SPLASH_BUCKET, SPLASH_FLOWERS, SPLASH_RADIUS, splashJets, type Jet } from "./splash";
+import { CAVE, CAVE_MAP, CAVE_SPOTS, caveCellCenter, caveEntrance } from "./cave";
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 const sphereGeo = new THREE.SphereGeometry(1, 14, 12);
@@ -1942,6 +1943,342 @@ export function makeCampfire(): Campfire {
   light.position.set(0, 1.0, 0);
   g.add(light);
   return { group: g, flames, light };
+}
+
+/* ------------------------------------------------------------ mountain cave */
+
+/** Deterministic random for decoration, so the cave looks the same every load. */
+function seeded(seed: number) {
+  let v = seed % 2147483647;
+  if (v <= 0) v += 2147483646;
+  return () => {
+    v = (v * 16807) % 2147483647;
+    return (v - 1) / 2147483646;
+  };
+}
+
+const rockGeos: THREE.BufferGeometry[] = [];
+/** A few lumpy low-poly boulder shapes, shared. */
+function rockGeo(i: number) {
+  if (!rockGeos.length) {
+    for (let k = 0; k < 4; k++) {
+      const geo = new THREE.IcosahedronGeometry(1, 1);
+      const rand = seeded(9173 + k * 131);
+      const bump = new Map<string, number>();
+      const pos = geo.attributes.position as THREE.BufferAttribute;
+      const v = new THREE.Vector3();
+      for (let n = 0; n < pos.count; n++) {
+        v.fromBufferAttribute(pos, n);
+        const key = `${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)}`;
+        let b = bump.get(key);
+        if (b == null) {
+          b = 0.78 + rand() * 0.38;
+          bump.set(key, b);
+        }
+        v.multiplyScalar(b);
+        pos.setXYZ(n, v.x, v.y, v.z);
+      }
+      geo.computeVertexNormals();
+      rockGeos.push(geo);
+    }
+  }
+  return rockGeos[i % rockGeos.length]!;
+}
+
+const rockMats = new Map<string, THREE.MeshStandardMaterial>();
+function rockMat(color: string, emissive?: string, glow = 0) {
+  const key = `${color}|${emissive ?? ""}|${glow}`;
+  let m = rockMats.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.92,
+      metalness: 0,
+      flatShading: true,
+      emissive: emissive ? new THREE.Color(emissive) : undefined,
+      emissiveIntensity: glow,
+    });
+    rockMats.set(key, m);
+  }
+  return m;
+}
+
+/** A sign board with painted words on a canvas. */
+function signBoard(text: string, w: number, h: number) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = Math.round((512 * h) / w);
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#8a5a32";
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = "#a8743f";
+  for (let y = 0; y < c.height; y += 22) g.fillRect(0, y, c.width, 3);
+  g.fillStyle = "#fff4d6";
+  g.font = `bold ${Math.round(c.height * 0.52)}px system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(text, c.width / 2, c.height / 2 + 2);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.12), [
+    lam("#6a4a32", { flat: true }),
+    lam("#6a4a32", { flat: true }),
+    lam("#6a4a32", { flat: true }),
+    lam("#6a4a32", { flat: true }),
+    new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 }),
+    lam("#6a4a32", { flat: true }),
+  ]);
+  return m;
+}
+
+/**
+ * The mountain around the tunnels, and everything inside them. The solid
+ * rock and roofs are props (cave.ts); this is decoration only and adds no
+ * colliders, so every boulder is kept within a short bulge of the rock face
+ * it sits on, and nothing inside hangs lower than 2.2m or stands out into a
+ * tunnel by more than about 0.35m.
+ */
+export function makeMountainCave() {
+  const g = new THREE.Group();
+  const rand = seeded(20260917);
+  const { x0, z0, cell, height } = CAVE;
+  const rows = CAVE_MAP.length;
+  const cols = CAVE_MAP[0]!.length;
+  const minX = x0;
+  const maxX = x0 + cols * cell;
+  const maxZ = z0;
+  const minZ = z0 - rows * cell;
+  const at = (r: number, c: number) => CAVE_MAP[r]?.[c];
+  const rockCols = ["#7d766c", "#6a655d", "#8a8378", "#726b61"];
+  // The rock shapes bulge between 0.78 and 1.16 of their radius, so anything
+  // placed against a face is positioned from the 0.78 minimum. ry null spins
+  // it freely; a number keeps its scaled axes lined up with the world.
+  const boulder = (
+    x: number,
+    y: number,
+    z: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    color?: string,
+    ry: number | null = null,
+    tilt = 0.4,
+  ) => {
+    const m = new THREE.Mesh(rockGeo(Math.floor(rand() * 4)), rockMat(color ?? rockCols[Math.floor(rand() * rockCols.length)]!));
+    m.position.set(x, y, z);
+    m.scale.set(sx, sy, sz);
+    m.rotation.set((rand() - 0.5) * tilt, ry ?? rand() * Math.PI * 2, (rand() - 0.5) * tilt);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    g.add(m);
+    return m;
+  };
+  const [ex] = caveEntrance();
+
+  // ---- outside: cliffs of overlapping boulders over the rock faces ----------
+  // Each row sits in front of the flat collider face and bulges out past it by
+  // `out`; the lowest row bulges least, since she can walk up to it.
+  const tiers = [
+    { y: 1.5, sy: 2.0, out: 0.55, depth: 2.2 },
+    { y: 4.2, sy: 2.2, out: 1.1, depth: 2.4 },
+    { y: 6.9, sy: 2.1, out: 0.9, depth: 2.4 },
+    { y: 9.2, sy: 1.6, out: 0.3, depth: 2.2 },
+  ];
+  const edge = (along: "x" | "z", face: number, from: number, to: number, out: number) => {
+    for (const t of tiers) {
+      for (let a = from + 1.2; a < to - 0.8; a += 2.6 + rand() * 0.8) {
+        // keep the entrance open: skip rows that would hang below its lintel
+        if (along === "x" && out > 0 && t.y - t.sy < 3.6 && Math.abs(a - ex) < 3.2) continue;
+        const sx = 2.1 + rand() * 0.9;
+        const centre = face + out * (t.out - t.depth);
+        const sy = t.sy * (0.9 + rand() * 0.3);
+        if (along === "x") boulder(a, t.y, centre, sx, sy, t.depth, undefined, 0);
+        else boulder(centre, t.y, a, t.depth, sy, sx, undefined, 0);
+      }
+    }
+  };
+  edge("x", maxZ, minX, maxX, 1);
+  edge("x", minZ, minX, maxX, -1);
+  edge("z", minX, minZ, maxZ, -1);
+  edge("z", maxX, minZ, maxZ, 1);
+  // corners
+  for (const [cx, cz] of [
+    [minX + 1.5, maxZ - 1.5],
+    [maxX - 1.5, maxZ - 1.5],
+    [minX + 1.5, minZ + 1.5],
+    [maxX - 1.5, minZ + 1.5],
+  ]) {
+    boulder(cx, 3, cz, 2.6, 3.6, 2.6);
+    boulder(cx + Math.sign((minX + maxX) / 2 - cx) * 2, 7, cz + Math.sign((minZ + maxZ) / 2 - cz) * 2, 2.8, 3, 2.8);
+  }
+  // grassy top with a scatter of rocks and pines
+  const top = new THREE.Mesh(boxGeo, lam("#6aae5c", { flat: true, roughness: 0.9 }));
+  top.scale.set(maxX - minX - 7, 0.6, maxZ - minZ - 7);
+  top.position.set((minX + maxX) / 2, height + 0.25, (minZ + maxZ) / 2);
+  top.receiveShadow = true;
+  g.add(top);
+  for (let i = 0; i < 9; i++) {
+    const x = minX + 7 + rand() * (maxX - minX - 14);
+    const z = minZ + 7 + rand() * (maxZ - minZ - 14);
+    boulder(x, height + 0.9, z, 2 + rand() * 2.4, 1.2 + rand(), 2 + rand() * 2.4);
+  }
+  for (let i = 0; i < 7; i++) {
+    const x = minX + 6 + rand() * (maxX - minX - 12);
+    const z = minZ + 6 + rand() * (maxZ - minZ - 12);
+    const s = 0.8 + rand() * 0.5;
+    const trunk = mesh(cylGeo, "#6a4a32", 0.22 * s, 1.4 * s, 0.22 * s, x, height + 0.55 + 0.7 * s, z);
+    g.add(trunk);
+    for (let k = 0; k < 3; k++) {
+      g.add(mesh(coneGeo, k % 2 ? "#3f8a4a" : "#4f9a54", (1.9 - k * 0.45) * s, 1.8 * s, (1.9 - k * 0.45) * s, x, height + 0.55 + (1.9 + k * 1.05) * s, z));
+    }
+  }
+
+  // ---- the entrance: a rock arch, timber frame, sign and lanterns ----------
+  const ez = maxZ;
+  boulder(ex - 2.6, 2, ez + 0.5, 1.4, 2.4, 1.6, "#8a8378", 0.2);
+  boulder(ex + 2.6, 2, ez + 0.5, 1.4, 2.4, 1.6, "#7d766c", -0.2);
+  // the arch stone sits above the sign board, which hangs over the timber frame
+  boulder(ex, 5.6, ez + 0.4, 3.8, 1.1, 1.7, "#8a8378", 0.05);
+  for (const s of [-1, 1]) g.add(mesh(boxGeo, "#6a4a32", 0.3, 3.3, 0.3, ex + s * 1.35, 1.65, ez + 0.2));
+  g.add(mesh(boxGeo, "#6a4a32", 3.2, 0.32, 0.36, ex, 3.3, ez + 0.2));
+  const sign = signBoard("CAVE", 2.4, 0.8);
+  sign.position.set(ex, 3.9, ez + 1.25);
+  g.add(sign);
+  const lanternGlass = rockMat("#ffcf6a", "#ffb640", 1.4);
+  const lantern = (x: number, y: number, z: number) => {
+    g.add(mesh(boxGeo, "#3a3632", 0.3, 0.06, 0.3, x, y + 0.25, z, false));
+    const glass = new THREE.Mesh(boxGeo, lanternGlass);
+    glass.scale.set(0.22, 0.34, 0.22);
+    glass.position.set(x, y, z);
+    g.add(glass);
+    g.add(mesh(boxGeo, "#3a3632", 0.3, 0.06, 0.3, x, y - 0.2, z, false));
+  };
+  lantern(ex - 1.35, 2.5, ez + 0.5);
+  lantern(ex + 1.35, 2.5, ez + 0.5);
+
+  // ---- inside --------------------------------------------------------------
+  const HEAD: Record<string, number> = { ".": 3.2, N: 3.2, C: 5, M: 5, G: 6.5 };
+  const crystal = [rockMat("#b98ce0", "#9a5ad8", 0.9), rockMat("#7fd8f0", "#3ab8e0", 0.9), rockMat("#f28bc4", "#e0508f", 0.8)];
+  const shroomCaps = [rockMat("#5fe0c8", "#2fc0a8", 1.0), rockMat("#ff9ad0", "#f060a8", 0.9), rockMat("#a8f06a", "#78d040", 0.8)];
+  const stalMat = rockMat("#8a8378");
+  let lanternCount = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const ch = at(r, c);
+      if (!ch || ch === "#") continue;
+      const [cx, cz] = caveCellCenter(r, c);
+      const head = HEAD[ch]!;
+      // Rocky walls: overlapping boulders tiled over each rock face around the
+      // cell, floor to ceiling, so the flat collider face barely shows. Each
+      // bulges at most ~0.25m into the tunnel, which keeps the first-person
+      // camera (0.34m from a wall at the closest) out of the rock.
+      const face = cell / 2;
+      for (const [dr, dc, nx, nz] of [
+        [-1, 0, 0, 1],
+        [1, 0, 0, -1],
+        [0, -1, -1, 0],
+        [0, 1, 1, 0],
+      ] as const) {
+        const n = at(r + dr, c + dc);
+        if (n && n !== "#") continue;
+        if (r === 0 && dr === -1) continue; // the open mouth
+        // A sphere of radius R showing only its outer b metres has a visible
+        // cap about sqrt(2Rb) across; at R 1.8 and b 0.22 that is ~1.8m, so a
+        // 1.1m grid of them overlaps with no flat wall between.
+        const levels = Math.max(3, Math.ceil(head / 1.1));
+        for (let lv = 0; lv < levels; lv++) {
+          for (const along of [-1.05, 0, 1.05]) {
+            // wide and tall along the wall, shallow out of it: the front shows
+            // between 0.1 and ~0.37m past the collider face
+            const rad = 1.6 + rand() * 0.4;
+            const depth = 0.55;
+            const bulge = 0.1 + rand() * 0.06;
+            const off = face + depth * 0.78 - bulge;
+            const jitter = along + (rand() - 0.5) * 0.25;
+            const y = ((lv + 0.5) / levels) * head + (rand() - 0.5) * 0.3;
+            const bx = cx + nx * off + (nz !== 0 ? jitter : 0);
+            const bz = cz + nz * off + (nx !== 0 ? jitter : 0);
+            if (nz !== 0) boulder(bx, y, bz, rad, rad * 0.8, depth, undefined, 0, 0.12);
+            else boulder(bx, y, bz, depth, rad * 0.8, rad, undefined, 0, 0.12);
+          }
+        }
+        // lanterns along the tunnel walls to light the way
+        if ((ch === "." || ch === "N") && lanternCount++ % 3 === 0) {
+          lantern(cx + nx * (face - 0.3), 2.0, cz + nz * (face - 0.3));
+        }
+      }
+      // ceiling: flattened boulders hanging a little below the roof slab
+      for (const ox of [-1, 0, 1]) {
+        for (const oz of [-1, 0, 1]) {
+          const rad = 1.3 + rand() * 0.3;
+          // hangs 0.15 to ~0.45m below the roof slab
+          boulder(cx + ox + (rand() - 0.5) * 0.3, head + rad * 0.5 * 0.78 - 0.15, cz + oz + (rand() - 0.5) * 0.3, rad, rad * 0.5, rad, undefined, null, 0.1);
+        }
+      }
+      // stalactites
+      const drips = ch === "G" ? 5 : ch === "." || ch === "N" ? 1 : 3;
+      for (let k = 0; k < drips; k++) {
+        const len = 0.4 + rand() * (head - 2.4 > 1 ? 1 : 0.6);
+        const st = new THREE.Mesh(coneGeo, stalMat);
+        st.scale.set(0.18 + rand() * 0.14, len, 0.18 + rand() * 0.14);
+        st.rotation.x = Math.PI;
+        st.position.set(cx + (rand() - 0.5) * 2.2, head - len / 2, cz + (rand() - 0.5) * 2.2);
+        g.add(st);
+      }
+      if (ch === "C") {
+        // crystal clusters hugging the floor at the grotto's edges
+        for (let k = 0; k < 4; k++) {
+          const px = cx + (rand() < 0.5 ? -1 : 1) * (1.05 + rand() * 0.3);
+          const pz = cz + (rand() - 0.5) * 2.2;
+          for (let q = 0; q < 3; q++) {
+            const cr = new THREE.Mesh(cone4Geo, crystal[(k + q) % crystal.length]);
+            const h = 0.5 + rand() * 0.9;
+            cr.scale.set(0.12 + rand() * 0.1, h, 0.12 + rand() * 0.1);
+            cr.position.set(px + (rand() - 0.5) * 0.4, h / 2 + 0.04, pz + (rand() - 0.5) * 0.4);
+            cr.rotation.set((rand() - 0.5) * 0.7, rand() * 3, (rand() - 0.5) * 0.7);
+            g.add(cr);
+          }
+        }
+      }
+      if (ch === "M") {
+        for (let k = 0; k < 5; k++) {
+          const px = cx + (rand() - 0.5) * 2.4;
+          const pz = cz + (rand() - 0.5) * 2.4;
+          const s = 0.5 + rand() * 0.7;
+          g.add(mesh(cylGeo, "#efe6d0", 0.08 * s, 0.5 * s, 0.08 * s, px, 0.25 * s + 0.04, pz, false));
+          const cap = new THREE.Mesh(sphereGeo, shroomCaps[k % shroomCaps.length]);
+          cap.scale.set(0.34 * s, 0.18 * s, 0.34 * s);
+          cap.position.set(px, 0.5 * s + 0.04, pz);
+          g.add(cap);
+        }
+      }
+      if (ch === "G") {
+        // the odd stalagmite, only in cells against a wall so the floor stays open
+        const walled = [at(r - 1, c), at(r + 1, c), at(r, c - 1), at(r, c + 1)].some((n) => !n || n === "#");
+        if (walled && rand() < 0.45) {
+          const h = 0.7 + rand() * 1.0;
+          const sg = new THREE.Mesh(coneGeo, stalMat);
+          sg.scale.set(0.28 + rand() * 0.15, h, 0.28 + rand() * 0.15);
+          sg.position.set(cx + (rand() < 0.5 ? -1 : 1) * 1.1, h / 2 + 0.04, cz + (rand() < 0.5 ? -1 : 1) * 1.1);
+          g.add(sg);
+        }
+        // a few glowing crystals so the big room has colour too
+        if (rand() < 0.35) {
+          const cr = new THREE.Mesh(cone4Geo, crystal[Math.floor(rand() * crystal.length)]);
+          const h = 0.5 + rand() * 0.6;
+          cr.scale.set(0.14, h, 0.14);
+          cr.position.set(cx + (rand() - 0.5) * 2, h / 2 + 0.04, cz + (rand() - 0.5) * 2);
+          cr.rotation.z = (rand() - 0.5) * 0.5;
+          g.add(cr);
+        }
+      }
+    }
+  }
+  // lanterns on the cavern ledge, either side of the prize
+  const [lx, , lz] = CAVE_SPOTS.ledge;
+  lantern(lx - 1.6, 1.55, lz - 0.6);
+  lantern(lx + 1.8, 1.55, lz - 0.6);
+  return g;
 }
 
 export type SplashRig = {

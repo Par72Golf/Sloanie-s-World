@@ -102,6 +102,52 @@ Current version: **v2.9**.
   of `store.ts` alive (React on one, the runtime on the other), so the DOM stops
   matching `__gameTest.store()`. Do a full page reload before trusting any test.
 
+
+### 17 Sept 2026
+
+- First-person hands and iPod rebuilt. Fingers, thumbs and forearms are `limb()`
+  joint lists merged into one mesh per hand; `makeIpod` is shared with the
+  third-person model (menu screen, round click wheel, chrome back, jack).
+- Ferris wheel on touch: a big pop-up Ride button on the platform (`boardReady` in
+  the store, `onBoardSpot()` in the runtime) and a Grab button at the top. The sky
+  dumpling floats at 15.2m, above the rim, so it reaches from the gondola with
+  `RIDE_COLLECT_R` 3.1 instead of 2.15; about a 4 second window.
+- Frame-rate counter, from the pause menu (saved): fps, worst frame, CPU ms per
+  frame and the real drawing size. Retina draws at 2x.
+- Walkways are not built for now. They are still reserved in the placement map
+  (`coreWalks`, `trailSlabs`, `paths`), so nothing else moved; re-map them once the
+  buildings are in by adding `walkways` back to `props`.
+- The pool's water zones are `pool: true`: no pond bank, reeds or foam.
+- Farm tractor is a model (`makeTractor`, prop kind `tractor`). Cylinder props are
+  always upright, which is why its wheels looked like barrels.
+- The gym is a kids' ninja course: prop kinds `trampoline` and `tyre`, bounce in
+  `physics()` (grounded at `TRAMPOLINE_TOP` inside a mat; a jump tap within 0.35s
+  before landing gives `SUPER_BOUNCE`), stepping posts, balance beam, climbing wall
+  to a deck. `tools/gym.ts`.
+- Splash pad (`splash.ts` layout shared by props, `makeSplashPad` and the runtime):
+  painted deck, ground jets firing in a chase that launch her (`GEYSER`), a tipping
+  bucket that dumps every 12s and soaks her ("SPLASH!"), sprinkler droplets, and a
+  noise-based splash sound. The deck is grey-tinted and matte so it stays under the
+  bloom threshold.
+- The cave moved. The lookout hill and its cave are gone (their footprint is
+  reserved as `oldHillReserve`; that lawn beside the ferris wheel is for the
+  carnival). The new mountain cave is in the south-east band at x 52..94,
+  z -113..-149 (`cave.ts`): a 12x14 grid of 3m cells, each rock cell a full-height
+  solid column and each open cell a roof slab at its headroom (tunnels 3.2m, rooms
+  5m, cavern 6.5m). Entrance tunnel, a crystal grotto, a glowing mushroom room,
+  a great cavern with the Moon Gyoza on a ledge, and a dead-end nook. About four
+  times the old floor area. Inside the footprint the runtime forces first person
+  (`inCave()`), because no third-person boom fits a tunnel; the saved view is
+  untouched. Emmett is kept out. Decoration (`makeMountainCave`) adds no colliders:
+  wall boulders are shallow ellipsoids positioned from their 0.78 minimum radius so
+  they always show 0.1 to ~0.37m past the rock face, which keeps the first-person
+  camera out of them. `tools/cave.ts`. The layout checker's 2D flood fill reports
+  the grotto and ledge spots unreachable; `cave.ts` walks to both.
+- Cost of the mountain: looking straight at it, +119 draw calls and +340k
+  triangles against the previous build; from the spawn, draw calls are unchanged
+  (631 to 635) and triangles fell slightly with the old hill gone.
+- Test hook `__gameTest.lookAt(pos, target)` parks the camera for photographing a
+  spot; `lookAt(null)` hands it back.
 ---
 
 ## 1. What this is
@@ -179,9 +225,8 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `check-layout.ts` | The main one. Rebuilds the exact colliders the engine builds, then reports overlapping solids, coplanar surfaces that will z-fight, dumplings that are floating or buried, boundary containment, and reachability by flood fill from the spawn. `LAYOUT=1 npx jiti tools/check-layout.ts` checks an alternate dumpling layout. |
 | `probe.ts` | Tall props that are not solid (walk-through walls) and solid props too faint to see (invisible walls). |
 | `thin.ts` | Thin solid props, the other source of invisible walls. |
-| `climb.ts` | Walks a route and reports the height change at each step, flagging anything above the 0.62m step-up. |
-| `cavewalk.ts` | Same, for the route into the cave and up to the ledge. |
-| `los.ts` | Line of sight from the cave mouth to the dumpling, from 15 positions. Proves it is actually hidden. |
+| `cave.ts` | The mountain cave through the real collision code: walks from outside the entrance along the tunnel grid to every open cell and each hiding spot, checks the lowest roof, that no hop is ever needed except onto the cavern ledge, and that no hiding spot is visible from the entrance. |
+| `gym.ts` | The ninja course: walking up the climbing wall onto the deck, trampolines launching her (and the tapped big bounce), and the stepping posts walkable and landable. Caught the first post row being impossible to land on. |
 | `spread.ts` | Nearest-neighbour distance between dumplings, to catch clustering. |
 | `coplanar.ts` | Near-coplanar faces in the hill region. |
 | `bevel.ts` | How many distinct geometries the bevel cache needs. |
@@ -197,7 +242,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `camera.ts` | Walks the hedge maze at 60Hz with the camera yaw fixed and following, and reports how often the camera is pulled in, lurches, or falls back to sitting on her head. This is what proved the maze camera bug (58% of frames pulled in, 330 emergency frames) and the low-obstacle lift fix (0 and 0). |
 | `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
 | `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
-| `diamond.ts`, `cave.ts`, `summit.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. |
+| `diamond.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. (The old hill's `climb.ts`, `cavewalk.ts`, `los.ts`, `summit.ts` and `cave.ts` went with the hill.) |
 
 ### In-browser perf probes
 

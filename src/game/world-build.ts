@@ -23,7 +23,7 @@ import {
   type Campfire,
   makeSprayArches,
   type SprayArches,
-  makeCaveMouth,
+  makeMountainCave,
   makeFountain,
   makeGazebo,
   makePondEdge,
@@ -280,24 +280,10 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     th.rotation.y = Math.PI;
     group.add(th);
 
-    // dark mouth set into the gap through the lookout hill
-    // Turned to face south, out of the hill. Without this the hollow pointed
-    // away from the hillside and the mouth opened into solid ground.
-    // Sized to sit just inside the carved chamber. It used to be 7m wide in a
-    // 16m room, leaving bare green hill either side, and its back wall landed
-    // on the park wall at z 70, which is what was flickering.
-    const cave = makeCaveMouth(15.2, 4, 7.8);
-    cave.position.set(-13, 0, 59.8);
-    cave.rotation.y = Math.PI;
-    group.add(cave);
-    // two fills: one at the mouth so the way out is always visible from
-    // inside, one deeper in so the chamber reads as a space
-    const caveGlow = new THREE.PointLight("#8fd8e8", 0.7, 22);
-    caveGlow.position.set(-13.5, 2.4, 65);
-    group.add(caveGlow);
-    const mouthGlow = new THREE.PointLight("#ffeec4", 0.9, 16);
-    mouthGlow.position.set(-13.5, 2.6, 60.5);
-    group.add(mouthGlow);
+  }
+  if (level.caveZone) {
+    // the mountain's boulders, entrance and everything inside the tunnels
+    group.add(makeMountainCave());
   }
   if (level.id === "village") {
     const f = makeFountain();

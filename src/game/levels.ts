@@ -1,4 +1,5 @@
 import type { BoxProp, DumplingDef, LevelDef, Prop } from "./types";
+import { CAVE_SPOTS, caveFootprint, mountainCave } from "./cave";
 import { cloudField, findClear, gatedRing, hits, occupancy, pathOccupancy, rectAt } from "./placement";
 import {
   baseballDiamond,
@@ -353,7 +354,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-91.5, 2.15, -33.5], region: "the climbing tower", hint: "Climb the steps at the playground and look in the corner of the platform." },
-      { pos: [-13, 8.85, 64], region: "the lookout summit", hint: "Take the zigzag steps up the west side of the big hill, right to the top." },
+      { pos: [16.4, 3.02, 135.4], region: "the ninja course", hint: "Climb the wall at the ninja course, right up onto the deck with the flag." },
     ],
   },
   {
@@ -394,15 +395,15 @@ const picnicDumplings: DumplingDef[] = [
     name: "Moon Gyoza",
     color: "#d8dce8",
     accent: "#9aa4c4",
-    pos: [-17, 1.82, 66.5],
+    pos: CAVE_SPOTS.ledge,
     finish: "glow",
     hide: "hard",
-    region: "the hill cave",
-    hint: "Go into the hill cave, round the rock in the middle, then up the little steps at the back.",
- 
+    region: "the mountain cave",
+    hint: "Find the rocky mountain past the south gate, to the east. Follow the tunnels to the biggest cavern and look up on the ledge.",
+
     alts: [
-      { pos: [-8, 1.82, 66.5], region: "the hill cave", hint: "Inside the cave, up the steps and along to the far end of the ledge." },
-      { pos: [-12.5, 1.82, 67.2], region: "the hill cave", hint: "Inside the cave, up the steps, right at the back." },
+      { pos: CAVE_SPOTS.grotto, region: "the mountain cave", hint: "Inside the mountain cave, in the sparkly crystal room." },
+      { pos: CAVE_SPOTS.nook, region: "the mountain cave", hint: "Inside the mountain cave, past the glowing mushrooms, at the end of a little dead-end tunnel." },
     ],
   },
   {
@@ -523,6 +524,46 @@ function picnicPark(): LevelDef {
     box(-36, 0.04, 20, 3.6, 0.08, 40, "#d8c49a", false),
   ];
 
+  // The old lookout hill and its cave came out when the cave moved to the
+  // mountain (cave.ts). Its ground stays reserved in the placement map, like
+  // the walkways, so nothing else shifts; the lawn is kept for the carnival.
+  const oldHillReserve: Prop[] = [
+    /* ---- lookout hill, hollowed into a proper cave --------------------
+     * Chamber is x -19..-7, z 59..67, with 4.2m of headroom: about four
+     * times the floor area of the old one and twice the height, which is
+     * what the third-person camera needs to sit behind her indoors.
+     * The mouth is 6m wide on the south face so the exit stays in view.
+     * Sized to stop short of the park wall at z 70 and the central path.
+     */
+    box(-23, 2.1, 63.2, 4, 4.2, 12.4, "#7aaa62"),
+    box(-4, 2.1, 63.5, 2, 4.2, 13, "#7aaa62"),
+    box(-13.5, 2.1, 68.75, 17, 4.2, 1.5, "#7aaa62"),
+    box(-19, 2.1, 58.5, 4, 4.2, 3, "#6e9e58"),
+    box(-8, 2.1, 58.5, 4, 4.2, 3, "#6e9e58"),
+    box(-13.5, 4.9, 63.5, 17, 1.4, 13, "#6e9e58"),
+    // Baffle across the middle of the chamber: standing at the mouth you see
+    // rock, not the prize. You go round it on either side.
+    box(-12, 2.1, 62, 10, 4.2, 1.2, "#6a655d"),
+    // raised back ledge, reached by steps on the west side
+    box(-13, 0.6, 66.5, 16, 1.2, 3, "#5f5a53"),
+    ...climbStairs(-19, 62.8, 0, 1, 3, 0.4, 0.9, 3.4, "#6f6a62"),
+    box(-13, 5.9, 63, 20, 1.6, 12, "#7aaa62"),
+    box(-13, 7.0, 63.5, 14, 1.4, 9, "#6e9e58"),
+    box(-13, 7.9, 64, 8, 1.2, 6, "#649454"),
+    // Path up to the lookout: a switchback on the west face. Two flights,
+    // because one straight run at this height would overshoot the park wall.
+    ...climbStairs(-27, 52, 0, 1, 8, 0.53, 1.0, 3.4, "#8aba6a"),
+    box(-27, 4.12, 60.4, 3.4, 0.32, 2.4, "#8aba6a"),
+    ...climbStairs(-26, 60.6, 0, 1, 8, 0.53, 0.8, 3.4, "#8aba6a", 4.28),
+    // walkway east from the top of the second flight onto the summit
+    box(-20, 8.37, 67.3, 12, 0.3, 2.2, "#8aba6a"),
+    // summit rail, so standing up there feels like a lookout
+    box(-13, 8.85, 61.2, 8, 0.7, 0.2, "#a07848"),
+    // stops short of the walkway, which arrives across z 66..68
+    box(-17.2, 8.85, 63.1, 0.2, 0.7, 4.2, "#a07848"),
+    box(-8.8, 8.85, 64, 0.2, 0.7, 6, "#a07848"),
+  ];
+
   const core: Prop[] = [
     ...gatedRing(-70, 70, -70, 70, "#c4b48a"),
 
@@ -572,40 +613,6 @@ function picnicPark(): LevelDef {
     box(4.4, 0.35, -2.2, 1.4, 0.55, 1.4, "#c48a5a"),
     box(11.6, 0.35, -2.4, 1.4, 0.55, 1.4, "#c48a5a"),
 
-    /* ---- lookout hill, hollowed into a proper cave --------------------
-     * Chamber is x -19..-7, z 59..67, with 4.2m of headroom: about four
-     * times the floor area of the old one and twice the height, which is
-     * what the third-person camera needs to sit behind her indoors.
-     * The mouth is 6m wide on the south face so the exit stays in view.
-     * Sized to stop short of the park wall at z 70 and the central path.
-     */
-    box(-23, 2.1, 63.2, 4, 4.2, 12.4, "#7aaa62"),
-    box(-4, 2.1, 63.5, 2, 4.2, 13, "#7aaa62"),
-    box(-13.5, 2.1, 68.75, 17, 4.2, 1.5, "#7aaa62"),
-    box(-19, 2.1, 58.5, 4, 4.2, 3, "#6e9e58"),
-    box(-8, 2.1, 58.5, 4, 4.2, 3, "#6e9e58"),
-    box(-13.5, 4.9, 63.5, 17, 1.4, 13, "#6e9e58"),
-    // Baffle across the middle of the chamber: standing at the mouth you see
-    // rock, not the prize. You go round it on either side.
-    box(-12, 2.1, 62, 10, 4.2, 1.2, "#6a655d"),
-    // raised back ledge, reached by steps on the west side
-    box(-13, 0.6, 66.5, 16, 1.2, 3, "#5f5a53"),
-    ...climbStairs(-19, 62.8, 0, 1, 3, 0.4, 0.9, 3.4, "#6f6a62"),
-    box(-13, 5.9, 63, 20, 1.6, 12, "#7aaa62"),
-    box(-13, 7.0, 63.5, 14, 1.4, 9, "#6e9e58"),
-    box(-13, 7.9, 64, 8, 1.2, 6, "#649454"),
-    // Path up to the lookout: a switchback on the west face. Two flights,
-    // because one straight run at this height would overshoot the park wall.
-    ...climbStairs(-27, 52, 0, 1, 8, 0.53, 1.0, 3.4, "#8aba6a"),
-    box(-27, 4.12, 60.4, 3.4, 0.32, 2.4, "#8aba6a"),
-    ...climbStairs(-26, 60.6, 0, 1, 8, 0.53, 0.8, 3.4, "#8aba6a", 4.28),
-    // walkway east from the top of the second flight onto the summit
-    box(-20, 8.37, 67.3, 12, 0.3, 2.2, "#8aba6a"),
-    // summit rail, so standing up there feels like a lookout
-    box(-13, 8.85, 61.2, 8, 0.7, 0.2, "#a07848"),
-    // stops short of the walkway, which arrives across z 66..68
-    box(-17.2, 8.85, 63.1, 0.2, 0.7, 4.2, "#a07848"),
-    box(-8.8, 8.85, 64, 0.2, 0.7, 6, "#a07848"),
 
     // stairs stop at the treehouse deck; the structure itself is a mesh now
     ...climbStairs(54.2, -40.6, 0, -1, 9, 0.4, 1.25, 3.6, "#c4a06a"),
@@ -771,6 +778,7 @@ function picnicPark(): LevelDef {
     ...playground(-95, -30),
     ...campground(CAMP.x, CAMP.z),
     ...pavilion(PAV.x, PAV.z),
+    ...mountainCave(),
     ...trail,
     ...forest(-155, -108, -150, 150, 150, 8121, trailRects),
   ];
@@ -805,9 +813,10 @@ function picnicPark(): LevelDef {
 
   // Anything already standing, plus corridors that must stay walkable.
   const walkways = [...coreWalks, ...trailSlabs, ...paths];
-  const taken = occupancy([...core, ...coreWalks, ...zones, ...trailSlabs, ...boundary]);
+  const reserved = [...coreWalks, ...trailSlabs, ...oldHillReserve];
+  const taken = occupancy([...core, ...reserved, ...zones, ...boundary]);
   // keep berms and hedges off the walkways (reserved even while not built)
-  taken.push(...pathOccupancy([...core, ...coreWalks, ...paths, ...zones, ...trailSlabs]));
+  taken.push(...pathOccupancy([...core, ...reserved, ...paths, ...zones]));
   const keepClear = [
     rectAt(0, 86, GATE + 6, 36),
     rectAt(0, -86, GATE + 6, 36),
@@ -835,6 +844,8 @@ function picnicPark(): LevelDef {
     rectAt(FARM.x, FARM.z, 58, 42),
     rectAt(GOLF.x, GOLF.z, 38, 30),
     rectAt(PITCH.x, PITCH.z, 52, 40),
+    // the mountain and a clear apron round it, widest at the entrance
+    rectAt(73, -128, 50, 46),
     rectAt(-40, 115, 8, 24),
     rectAt(8, 115, 8, 24),
     rectAt(-60, -110, 8, 14),
@@ -944,6 +955,8 @@ function picnicPark(): LevelDef {
   // The hedge maze is 11 cells of 2.4m and the secret garden is walled, so a
   // trike has no way through either. He waits outside instead.
   const emmettKeepOut = [
+    // the mountain cave: he cannot ride a trike through tunnels
+    { minX: 46, maxX: 100, minZ: -155, maxZ: -107 },
     { minX: -61, maxX: -23, minZ: -37, maxZ: 1 },
     { minX: -64, maxX: -48, minZ: 16, maxZ: 38 },
   ];
@@ -996,6 +1009,7 @@ function picnicPark(): LevelDef {
     accessories,
     // on the east lawn; the reachability check covers (30, 65) in front of it
     ride: { x: 30, z: 58 },
+    caveZone: caveFootprint(),
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

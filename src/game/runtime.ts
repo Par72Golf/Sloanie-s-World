@@ -895,6 +895,14 @@ export class GameRuntime {
     }
   }
 
+  wasInCave = false;
+  /** Inside the mountain cave's footprint, low enough to be in the tunnels. */
+  inCave(): boolean {
+    const z = this.level.caveZone;
+    if (!z) return false;
+    return this.cap.x > z.minX && this.cap.x < z.maxX && this.cap.z > z.minZ && this.cap.z < z.maxZ && this.cap.y < 7;
+  }
+
   /** On the wheel's boarding spot and not already riding: Collect would board. */
   onBoardSpot(): boolean {
     const wheel = this.world?.ride;
@@ -1549,7 +1557,14 @@ export class GameRuntime {
     else consumePadMap();
     if (st.phase === "playing" && consumePadView()) st.toggleView();
     else consumePadView();
-    this.setFirstPerson(st.view === "first" && st.phase !== "title");
+    // Inside the mountain's tunnels the view is always first person, whatever
+    // is saved; stepping back out restores her own choice.
+    const inCave = this.inCave();
+    if (inCave && !this.wasInCave && st.phase === "playing" && st.view !== "first") {
+      st.setEmmettNotice("Into the cave! Look around to explore.");
+    }
+    this.wasInCave = inCave;
+    this.setFirstPerson((st.view === "first" || inCave) && st.phase !== "title");
 
     const collectedNow = st.collected[st.levelIndex] ?? [];
     if (this.world) {

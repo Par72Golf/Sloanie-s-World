@@ -182,6 +182,8 @@ export type LevelDef = {
   ride?: { x: number; z: number };
   /** Splash pad centre: the animated spray arches and the little slide go here. */
   splash?: { x: number; z: number };
+  /** The mountain cave's footprint: inside it, first person is forced. */
+  caveZone?: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** Campfire position: flames flicker and there is a warm light. */
   campfire?: { x: number; z: number };
 };
