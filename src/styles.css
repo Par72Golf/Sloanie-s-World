@@ -1,75 +1,206 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #fdf3dd;
-  --color-surface: #fffaf0;
-  --color-surface-2: #f8ead0;
-  --color-ink: #3a2b20;
-  --color-ink-soft: #7a6450;
-  --color-muted: #9a8468;
-  --color-line: #e6d6b8;
+  /*
+   * Sunny adventure. Navy outlines, clean white surfaces, a sky-cool second
+   * surface, coral for the one thing to press, teal for "go / good", sunshine
+   * for rewards, grape for special. Bright without being pink-first.
+   */
+  --color-bg: #e6f4ff;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef5ff;
+  --color-surface-3: #dcebff;
+  --color-ink: #1d2452;
+  --color-ink-soft: #56608f;
+  --color-muted: #8a93b8;
+  --color-line: #d3e0f3;
   /* borders are a feature here, not a hairline */
-  --color-edge: #3a2b20;
-  --color-accent: #e8455f;
-  --color-accent-fg: #fffaf0;
-  --color-sun: #ffc53d;
-  --color-leaf: #3fa35c;
-  --color-berry: #e8455f;
-  --color-accent-2: #2f6f8f;
-  --color-ok: #2f7d4a;
-  --color-ok-fg: #f4fff6;
-  --color-warm: #c45c2c;
-  --color-cold: #3a6f9a;
-  --color-sky: #7ec4e8;
+  --color-edge: #1d2452;
+  --color-accent: #ff6a55;
+  --color-accent-deep: #e24e3a;
+  --color-accent-fg: #ffffff;
+  --color-sun: #ffc83a;
+  --color-sun-deep: #f0a91c;
+  --color-leaf: #22b37a;
+  --color-teal: #14a3a6;
+  --color-teal-deep: #0e8588;
+  --color-grape: #7b5cf0;
+  --color-berry: #f0506e;
+  --color-accent-2: #2f7fd6;
+  --color-ok: #1b9a61;
+  --color-ok-fg: #f2fff8;
+  --color-warm: #e0602e;
+  --color-cold: #3a7bd5;
+  --color-sky: #5ab8f0;
   --font-display: "Fredoka", "Segoe UI", system-ui, sans-serif;
   --font-sans: "Nunito", "Segoe UI", system-ui, sans-serif;
-  --radius-xs: 0.4rem;
-  --radius-sm: 0.7rem;
-  --radius-md: 1rem;
-  --radius-lg: 1.5rem;
-  --radius-xl: 1.85rem;
-  --shadow-panel: 0 18px 40px -24px rgb(42 33 24 / 0.45);
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.8rem;
+  --radius-md: 1.1rem;
+  --radius-lg: 1.6rem;
+  --radius-xl: 2rem;
+  --shadow-panel: 0 22px 40px -18px rgb(29 36 82 / 0.45);
+  --animate-ui-pop: ui-pop 260ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  --animate-ui-rise: ui-rise 320ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  --animate-ui-fade: ui-fade 200ms ease-out both;
 }
 
 @layer components {
   /*
-   * Chunky toy treatment: thick outline, generous radius and a hard offset
-   * shadow with no blur, so panels and buttons read as physical blocks sitting
-   * on the screen rather than flat cards. Sized to be legible from a couch.
+   * Chunky toy treatment, polished: thick navy outline, generous radius, a hard
+   * offset "base" shadow plus a soft drop shadow, and a thin white highlight
+   * along the top inside edge, so panels and buttons read as glossy physical
+   * blocks sitting on the screen. Sized to be legible from a couch.
+   *
+   * Everything below is shared by every screen. Prefer these over one-off
+   * shadows and borders:
+   *   .chunk / .chunk-sm   panel and button blocks
+   *   .press               goes down when pressed; add to anything clickable
+   *   .gloss               soft top sheen for coloured buttons and badges
+   *   .ui-backdrop         full-screen dim + blur behind a modal
+   *   .ui-glass            frosted HUD chip over the 3D world
+   *   .ui-title            big display heading with a navy outline
+   *   .ui-chip             small rounded pill (tickets, counts, tags)
+   *   .ui-dots             faint dotted-paper pattern for panel bodies
+   *   .ui-ribbon           coloured header band on top of a panel
+   *   animate-ui-pop / animate-ui-rise / animate-ui-fade  entrances
    */
   .chunk {
     border: 3px solid var(--color-edge);
-    border-radius: 1.5rem;
-    box-shadow: 0 6px 0 var(--color-edge);
+    border-radius: 1.6rem;
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 0.75),
+      0 6px 0 var(--color-edge),
+      0 22px 36px -16px rgb(29 36 82 / 0.5);
   }
 
   .chunk-sm {
     border: 3px solid var(--color-edge);
-    border-radius: 1rem;
-    box-shadow: 0 5px 0 var(--color-edge);
+    border-radius: 1.1rem;
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 0.6),
+      0 5px 0 var(--color-edge),
+      0 14px 22px -14px rgb(29 36 82 / 0.45);
   }
 
-  /* buttons actually go down when pressed */
+  .gloss {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.34) 0%, rgb(255 255 255 / 0.08) 48%, rgb(0 0 0 / 0.04) 100%);
+  }
+
+  /* buttons actually go down when pressed, and lift a touch on hover */
   .press {
     transition:
-      transform 90ms ease,
-      box-shadow 90ms ease;
+      transform 110ms ease,
+      box-shadow 110ms ease,
+      filter 140ms ease;
+  }
+
+  @media (hover: hover) {
+    .press:hover:not(:disabled) {
+      filter: brightness(1.05) saturate(1.05);
+      transform: translateY(-1px);
+    }
   }
 
   .press:active:not(:disabled) {
     transform: translateY(5px);
-    box-shadow: 0 1px 0 var(--color-edge);
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 0.4),
+      0 1px 0 var(--color-edge);
   }
 
   .press:disabled {
     box-shadow: 0 2px 0 var(--color-edge);
     opacity: 0.5;
+    filter: grayscale(0.4);
+  }
+
+  .ui-backdrop {
+    background: radial-gradient(ellipse at center, rgb(29 36 82 / 0.35), rgb(29 36 82 / 0.62));
+    backdrop-filter: blur(6px) saturate(1.1);
+    -webkit-backdrop-filter: blur(6px) saturate(1.1);
+  }
+
+  .ui-glass {
+    background: rgb(255 255 255 / 0.86);
+    border: 3px solid var(--color-edge);
+    border-radius: 1.1rem;
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 0.9),
+      0 4px 0 var(--color-edge),
+      0 14px 24px -14px rgb(29 36 82 / 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .ui-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #fff;
+    paint-order: stroke fill;
+    -webkit-text-stroke: 7px var(--color-edge);
+    text-shadow: 0 5px 0 var(--color-edge);
+  }
+
+  .ui-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border: 2.5px solid var(--color-edge);
+    border-radius: 999px;
+    padding: 0.05rem 0.6rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    box-shadow: 0 3px 0 var(--color-edge);
+  }
+
+  .ui-dots {
+    background-image: radial-gradient(rgb(90 184 240 / 0.16) 1.4px, transparent 1.5px);
+    background-size: 14px 14px;
+  }
+
+  .ui-ribbon {
+    border-bottom: 3px solid var(--color-edge);
+    border-radius: calc(1.6rem - 3px) calc(1.6rem - 3px) 0 0;
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.25), rgb(255 255 255 / 0));
   }
 
   @media (prefers-reduced-motion: reduce) {
     .press {
       transition: none;
     }
+  }
+}
+
+@keyframes ui-pop {
+  0% {
+    transform: scale(0.85) translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ui-rise {
+  0% {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ui-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
   }
 }
 
@@ -173,6 +304,9 @@
 .overlay-root button:focus,
 .overlay-root input:focus,
 .overlay-root [tabindex]:focus {
-  outline: 4px solid var(--color-accent);
+  outline: 4px solid var(--color-sun);
   outline-offset: 3px;
+  box-shadow:
+    0 0 0 7px var(--color-edge),
+    0 5px 0 var(--color-edge);
 }

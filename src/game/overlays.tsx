@@ -92,7 +92,8 @@ export function Btn({
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: "primary" | "secondary" | "ghost";
+  /** primary: coral, the one thing to press. go: teal. sun: rewards. grape: special. secondary: white. */
+  variant?: "primary" | "secondary" | "ghost" | "go" | "sun" | "grape";
   className?: string;
   disabled?: boolean;
   type?: "button" | "submit";
@@ -103,10 +104,13 @@ export function Btn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "press inline-flex min-h-12 items-center justify-center px-6 font-display text-lg font-semibold",
-        variant !== "ghost" && "chunk-sm",
-        variant === "primary" && "bg-accent text-accent-fg",
-        variant === "secondary" && "bg-surface-2 text-ink",
+        "press inline-flex min-h-12 items-center justify-center gap-2 px-6 font-display text-lg font-semibold tracking-wide",
+        variant !== "ghost" && "chunk-sm gloss",
+        variant === "primary" && "bg-accent text-accent-fg [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
+        variant === "go" && "bg-teal text-white [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
+        variant === "sun" && "bg-sun text-ink",
+        variant === "grape" && "bg-grape text-white [text-shadow:0_2px_0_rgb(0_0_0/0.15)]",
+        variant === "secondary" && "bg-surface text-ink",
         variant === "ghost" && "bg-transparent text-ink",
         className,
       )}
