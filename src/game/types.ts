@@ -196,6 +196,8 @@ export type LevelDef = {
   caveZone?: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** The carnival (carnival.ts): booths, the carousel and their games. */
   carnival?: boolean;
+  /** Emmett's monster truck yard (emmett-base.ts): he lives and laps there. */
+  emmettBase?: boolean;
   /** Campfire position: flames flicker and there is a warm light. */
   campfire?: { x: number; z: number };
 };

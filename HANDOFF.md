@@ -8,7 +8,7 @@ context. It covers what exists, what the tooling is for, the bugs that cost the 
 time and why, what "finished" would actually require, and how to prompt effectively
 on this specific project.
 
-Current version: **v3.0** (17 Sept 2026).
+Current version: **v3.1** (17 Sept 2026): the birthday build plus her house and Emmett's truck.
 
 ### Since v2.8 (16 Sept 2026)
 
@@ -203,6 +203,37 @@ Current version: **v3.0** (17 Sept 2026).
   - Tools: `tools/collectibles.ts` (walks to every sticker, treat and the trail),
     `tools/pets.ts` (its allocation check is sensitive to GC noise when the
     machine is busy; rerun before trusting a failure).
+- **Her house and Emmett's truck (17 Sept 2026, evening):**
+  - Sloan's house is the house at (-9, 110) on the south street, with a name
+    board and a glowing doorstep. Collect there moves her into a room built at
+    y 150 straight above it (`home.ts`), so the minimap still shows her at home.
+    Inside, the view is forced to first person (the room is 10m x 8m). The
+    doormat takes her back out. The room, furniture and spots are
+    `home-mesh.ts` and `furniture.ts` (cabin theme, 10 spots, 34 pieces: five
+    wallpapers and five floors, three of everything else).
+  - Decorating (`home-panel.tsx`): each spot has a glowing marker; the panel
+    previews by placing, A keeps or buys with tickets, B puts back what was
+    there. Reward pieces unlock from the crown, all 30 stickers and adopting a
+    pet. The house has its own store and save slot (`home-store.ts`,
+    `sloanies-world-home-v1`), cleared by the main reset.
+  - Emmett lives at a monster truck yard on the east lawn at (50.5, -9)
+    (`emmett-base.ts` data, `monster-truck.ts` meshes). He laps the truck on
+    his trike, rides out to find her when his timer runs out, and pedals back
+    home after. At the truck, "Play with Emmett" is rock paper scissors for 3
+    tickets with nothing to lose, with a 40s rest between games.
+  - The truck's colliders come from `colliders.ts` (`emmettBase` level flag);
+    the yard's solid bits are props hidden inside the drawn tyres and ramp;
+    the grass mask skips the dirt yard.
+- **Fixes the same evening:**
+  - Berm "reset": rising with her feet within 3cm of a box top was taken as a
+    head bump and dropped her inside the berm; she is now put on top. Step-ups
+    also need headroom (`headroom()` in collision.ts), which stopped her
+    popping 3m up onto posts from under a bench. `tools/berm.ts` hammers it.
+  - Fleeing dumplings pick their new spot in `flee.ts`: 25m+ from spawn, never
+    on a cleared spot, only low spots. `tools/flee.ts`.
+  - Controller: panels claim the pad (`claimPad`) so A on a panel does not also
+    jump or collect; J / H / P keys for journal, hint and pause.
+  - Pause menu has a Graphics choice (sharp or smooth) for slower machines.
 
 ## 1. What this is
 
@@ -296,6 +327,11 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `near.ts` | `near.ts x z radius` lists every solid collider near a point with the usual suspects flagged: rotated boxes, low opacity, ledges above the step-up. The first thing to run on any "invisible wall at <place>" report. |
 | `camera.ts` | Walks the hedge maze at 60Hz with the camera yaw fixed and following, and reports how often the camera is pulled in, lurches, or falls back to sitting on her head. This is what proved the maze camera bug (58% of frames pulled in, 330 emergency frames) and the low-obstacle lift fix (0 and 0). |
 | `maze.ts` | Prints the hedge maze as built, scores its difficulty (route length from the opening, junctions, dead ends), and fails if her jump can land on the hedges without a `noJump` zone wide enough to stop a boosted running jump from outside. |
+| `home.ts` | Her house: every furniture piece builds, the room's worst-case triangle count, colliders and reachability of each decoration spot. |
+| `emmett-base.ts` | The truck yard: clear ground, 12m from every hiding spot, walkable round the truck and up the ramp, the roof seat on the roof, and his laps clear of anything solid. |
+| `emmett-home.ts` | Emmett's routine headless: laps at home, rides out, catches her, goes back; fails under 3 round trips in 15 minutes. |
+| `berm.ts` | Jumps at every stepped berm in the park through the real collision and camera code, stepped like the runtime; hunts the "reset" where she dropped inside a tier. Must report 0 events. |
+| `flee.ts` | The new-spot picker for a fleeing dumpling against its rules, compared with the old picker. |
 | `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
 | `diamond.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. (The old hill's `climb.ts`, `cavewalk.ts`, `los.ts`, `summit.ts` and `cave.ts` went with the hill.) |
 

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { sfx } from "./audio";
+import { padClaimed } from "./input";
 import { useGame } from "./store";
 
 /**
@@ -10,8 +11,11 @@ import { useGame } from "./store";
  * that is a button or an input gets controller support for free, including
  * panels added later.
  *
- * The quiz and the rock paper scissors panel run their own pad loops, so this
- * stands down while either is open to avoid double input.
+ * The quiz, rock paper scissors and every panel that claims the pad (booths,
+ * the farmer, instruction cards, the journal) run their own pad loops, so this
+ * stands down while any of them is open to avoid double input. It still
+ * watches the buttons, so the A that closes one of them is not a fresh press
+ * on the menu underneath.
  */
 
 const FOCUSABLE =
@@ -26,11 +30,30 @@ function visible(el: HTMLElement) {
 function items(): HTMLElement[] {
   const root = document.querySelector(".overlay-root");
   if (!root) return [];
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(visible);
+  // only the topmost full-screen layer: the pause menu and not the HUD under
+  // it, the wardrobe and not the pause menu under that
+  let scope: Element = root;
+  let top = -Infinity;
+  for (const layer of root.querySelectorAll<HTMLElement>(".pointer-events-auto.inset-0")) {
+    if (!visible(layer)) continue;
+    const z = Number.parseInt(getComputedStyle(layer).zIndex, 10) || 0;
+    if (z >= top) {
+      top = z;
+      scope = layer;
+    }
+  }
+  return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(visible);
+}
+
+/** Where the pad starts in a layer: its first control, passing over a corner close button (B closes). */
+function first(list: HTMLElement[]) {
+  return list.find((el) => !/^close/i.test(el.getAttribute("aria-label") ?? "")) ?? list[0];
 }
 
 export function PadMenu() {
   const phase = useGame((s) => s.phase);
+  const wardrobeOpen = useGame((s) => s.wardrobeOpen);
+  const controlsOpen = useGame((s) => s.controlsOpen);
 
   useEffect(() => {
     let prev = {
@@ -60,15 +83,6 @@ export function PadMenu() {
     const loop = () => {
       raf = window.requestAnimationFrame(loop);
 
-      const st = useGame.getState();
-      // those two panels own the pad while they are up
-      if (st.quiz || st.rps) {
-        prev = { up: false, down: false, left: false, right: false, a: false, b: false };
-        return;
-      }
-      // during play the pad drives the character, not the menu
-      if (st.phase === "playing") return;
-
       const pads = navigator.getGamepads?.() ?? [];
       const pad = pads.find((p) => p && p.buttons.length > 0);
       if (!pad) return;
@@ -83,6 +97,15 @@ export function PadMenu() {
         a: Boolean(pad.buttons[0]?.pressed),
         b: Boolean(pad.buttons[1]?.pressed),
       };
+      // buttons are tracked even while the menu is not listening
+      const was = prev;
+      prev = now;
+
+      const st = useGame.getState();
+      // those panels own the pad while they are up
+      if (st.quiz || st.rps || padClaimed()) return;
+      // during play the pad drives the character, not the menu
+      if (st.phase === "playing") return;
 
       const t = performance.now();
       const step = (dir: 1 | -1) => {
@@ -91,44 +114,46 @@ export function PadMenu() {
         move(dir);
       };
 
-      if (now.down && !prev.down) step(1);
-      else if (now.up && !prev.up) step(-1);
-      else if (now.right && !prev.right) step(1);
-      else if (now.left && !prev.left) step(-1);
+      if (now.down && !was.down) step(1);
+      else if (now.up && !was.up) step(-1);
+      else if (now.right && !was.right) step(1);
+      else if (now.left && !was.left) step(-1);
 
-      if (now.a && !prev.a) {
+      if (now.a && !was.a) {
         const active = document.activeElement as HTMLElement | null;
         const list = items();
-        const target = active && list.includes(active) ? active : list[0];
-        if (target) {
-          if (target.tagName === "INPUT") target.focus();
-          else target.click();
+        if (active && list.includes(active)) {
+          if (active.tagName === "INPUT") active.focus();
+          else active.click();
+        } else {
+          // focus was left behind on a layer that closed: land first, then act
+          first(list)?.focus();
         }
       }
 
-      // B backs out of whatever is open
-      if (now.b && !prev.b) {
+      // B backs out of whatever is open, topmost first
+      if (now.b && !was.b) {
         const s = useGame.getState();
-        if (s.journalOpen) s.toggleJournal();
+        if (s.controlsOpen) s.setControls(false);
+        else if (s.wardrobeOpen && (s.phase === "title" || s.phase === "paused")) s.setWardrobe(false);
+        else if (s.journalOpen) s.toggleJournal();
         else if (s.phase === "paused") s.resumePlay();
       }
-
-      prev = now;
     };
 
     raf = window.requestAnimationFrame(loop);
     return () => window.cancelAnimationFrame(raf);
   }, []);
 
-  // when a panel opens, put focus on its first control so the pad has a start
+  // when a panel opens or closes, put focus on its first control so the pad has a start
   useEffect(() => {
     const id = window.setTimeout(() => {
       const list = items();
       const active = document.activeElement as HTMLElement | null;
-      if (list.length && (!active || !list.includes(active))) list[0]?.focus();
+      if (list.length && (!active || !list.includes(active))) first(list)?.focus();
     }, 60);
     return () => window.clearTimeout(id);
-  }, [phase]);
+  }, [phase, wardrobeOpen, controlsOpen]);
 
   return null;
 }

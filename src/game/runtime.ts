@@ -1,3 +1,7 @@
+import { EMMETT_BASE } from "./emmett-base";
+import { animateMonsterTruck } from "./monster-truck";
+import { HomeWorld } from "./home";
+import { useHome } from "./home-store";
 import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
 import { QuestWorld } from "./quest";
@@ -48,44 +52,13 @@ import { DRESS, HAIR, type LevelDef } from "./types";
 
 import { BOUNCE, GRAVITY, JUMP, PLAYER_H, PLAYER_W, SUPER_BOUNCE, TRAMPOLINE_TOP, WALK } from "./tuning";
 import { GEYSER } from "./splash";
+import { pickFleePos } from "./flee";
 const FIXED = 1 / 60;
 const COLLECT_R = 2.15;
 // On the ferris wheel the sky dumpling floats clear above the rim so it stands
 // out against the sky, which puts it further from her seat than a normal reach.
 // At 2.3m above her this still gives roughly a 4.5 second window at the top.
 const RIDE_COLLECT_R = 3.1;
-
-function pickFleePos(
-  homes: [number, number, number][],
-  occupied: [number, number, number][],
-  playerX: number,
-  playerZ: number,
-  current: [number, number, number],
-  bounds: { minX: number; maxX: number; minZ: number; maxZ: number },
-): [number, number, number] {
-  const order = homes.map((_, i) => i).sort(() => Math.random() - 0.5);
-  for (const i of order) {
-    const h = homes[i]!;
-    const x = h[0] + (Math.random() - 0.5) * 5;
-    const z = h[2] + (Math.random() - 0.5) * 5;
-    if (Math.hypot(x - playerX, z - playerZ) < 16) continue;
-    if (Math.hypot(x - current[0], z - current[2]) < 12) continue;
-    if (occupied.some((o) => Math.hypot(x - o[0], z - o[2]) < 4.5)) continue;
-    const cx = Math.min(bounds.maxX - 3, Math.max(bounds.minX + 3, x));
-    const cz = Math.min(bounds.maxZ - 3, Math.max(bounds.minZ + 3, z));
-    return [cx, h[1], cz];
-  }
-  let best = current;
-  let bestD = -1;
-  for (const h of homes) {
-    const dist = Math.hypot(h[0] - playerX, h[2] - playerZ);
-    if (dist > bestD) {
-      bestD = dist;
-      best = h;
-    }
-  }
-  return [best[0], best[1], best[2]];
-}
 
 type Puff = { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number };
 
@@ -278,7 +251,61 @@ export class GameRuntime {
     this.bindCanvasLook();
     this.loadLevel(st.levelIndex);
     this.installProbe();
+    // sets the pixel ratio, composer samples, bloom and shadow map from the
+    // saved setting, then sizes everything (it ends in resize())
+    this.applyGraphics(st.graphics);
+  }
+
+  /** The graphics setting currently applied; null until the first apply. */
+  graphics: "sharp" | "smooth" | null = null;
+
+  /**
+   * Graphics quality from the pause menu. "sharp" draws at up to 2x on a
+   * Retina screen with 4x MSAA, bloom and a 2048 shadow map; "smooth" draws at
+   * 1x with 2x MSAA, no bloom, a 1024 shadow map and half the grass. Applied
+   * live: anything replaced on the GPU is disposed here.
+   */
+  applyGraphics(mode: "sharp" | "smooth") {
+    const smooth = mode === "smooth";
+    this.graphics = mode;
+    this.renderer.setPixelRatio(smooth ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+    // MSAA samples are fixed when a render target is first allocated, so a
+    // change needs new targets; reset() disposes both of the old ones
+    const samples = smooth ? 2 : 4;
+    const old = this.composer.renderTarget1;
+    if (old.samples !== samples) {
+      const target = new THREE.WebGLRenderTarget(old.width, old.height, {
+        type: THREE.HalfFloatType,
+        samples,
+      });
+      this.composer.reset(target);
+    }
+    this.bloom.enabled = !smooth;
+    const mapSize = smooth ? 1024 : 2048;
+    if (this.sun.shadow.mapSize.x !== mapSize) {
+      this.sun.shadow.mapSize.set(mapSize, mapSize);
+      // the renderer rebuilds the map at the new size when it is null;
+      // dispose() frees the old target and its depth texture
+      this.sun.shadow.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.applyGrassDensity();
     this.resize();
+  }
+
+  /**
+   * Blades and flowers are placed independently at random, so drawing only
+   * the first half of each instanced mesh is an even thinning of the field.
+   */
+  applyGrassDensity() {
+    const g = this.world?.grassField?.group;
+    if (!g) return;
+    const k = this.graphics === "smooth" ? 0.5 : 1;
+    for (const o of g.children) {
+      if (!(o instanceof THREE.InstancedMesh)) continue;
+      if (typeof o.userData.fullCount !== "number") o.userData.fullCount = o.count;
+      o.count = Math.round((o.userData.fullCount as number) * k);
+    }
   }
 
   bindCanvasLook() {
@@ -349,6 +376,10 @@ export class GameRuntime {
           geometries: r.memory.geometries,
           textures: r.memory.textures,
           programs: r.programs?.length ?? 0,
+          graphics: this.graphics,
+          bloom: this.bloom.enabled,
+          samples: this.composer.renderTarget1.samples,
+          shadowMapSize: this.sun.shadow.mapSize.x,
           pixelRatio: this.renderer.getPixelRatio(),
           size: (() => {
             const v = new THREE.Vector2();
@@ -420,6 +451,7 @@ export class GameRuntime {
     this.level = { ...this.level, layout: useGame.getState().layout };
     this.world = buildWorld(this.level);
     this.scene.add(this.world.group);
+    this.applyGrassDensity();
     noOutline(this.world.ground);
     this.scene.fog = new THREE.Fog("#c5e0f2", 48, this.level.fogFar);
     this.cap.x = this.level.spawn[0];
@@ -450,10 +482,15 @@ export class GameRuntime {
     this.stickerWorld?.dispose();
     this.questWorld = this.level.id === "picnic" ? new QuestWorld(this.scene) : null;
     this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
+    this.homeWorld?.dispose();
+    this.homeWorld = this.level.id === "picnic" && this.world ? new HomeWorld(this.scene, this.world.colliders) : null;
     this.ride = null;
     useGame.getState().setRiding(false);
     if (this.emmett) this.emmett.dispose(this.scene);
-    this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? []);
+    const base = this.level.emmettBase
+      ? { x: EMMETT_BASE.x, z: EMMETT_BASE.z, loop: EMMETT_BASE.loop, park: EMMETT_BASE.trikePark }
+      : null;
+    this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? [], base);
     this.boostLeft = 0;
     useGame.getState().setBoost(0);
     this.lastRpsKey = "";
@@ -601,6 +638,7 @@ export class GameRuntime {
       st.carnival != null ||
       st.questPanel != null ||
       st.helpCard != null ||
+      useHome.getState().inside ||
       st.riding;
 
     const collected = st.collected[st.levelIndex] ?? [];
@@ -627,7 +665,18 @@ export class GameRuntime {
       const key = `${rps.round}:${rps.result}`;
       if (key !== this.lastRpsKey) {
         this.lastRpsKey = key;
-        if (rps.result === "win") {
+        if (rps.friendly) {
+          if (rps.result === "win") {
+            sfx.win();
+            st.addTickets(3);
+            st.setEmmettNotice("You win 3 tickets!");
+            this.emmett.mood = "lose";
+          } else if (rps.result === "lose") {
+            sfx.click();
+            st.setEmmettNotice("I win! Play again any time.");
+            this.emmett.mood = "win";
+          }
+        } else if (rps.result === "win") {
           sfx.correct();
           st.setEmmettNotice("Aw, you win! Keep it.");
           this.emmett.mood = "lose";
@@ -753,11 +802,13 @@ export class GameRuntime {
 
   questWorld: QuestWorld | null = null;
   stickerWorld: StickerWorld | null = null;
+  homeWorld: HomeWorld | null = null;
 
   dispose() {
     this.disposed = true;
     this.questWorld?.dispose();
     this.stickerWorld?.dispose();
+    this.homeWorld?.dispose();
     this.stop();
     if (this.world) disposeWorld(this.world);
     this.composer.dispose();
@@ -832,14 +883,27 @@ export class GameRuntime {
     const occupied = this.world.dumplings
       .filter((x) => x.def.id !== id && !collected.includes(x.def.id))
       .map((x) => x.def.pos);
-    const homes = this.level.dumplings.map((x) => x.pos);
+    // Somewhere authored to run to: every home and alternate spot, but never
+    // back onto a spot she has already cleared (the home of a dumpling she has
+    // collected, or where she found it). The alternates matter: each unfound
+    // dumpling sits on its own home, so without them layout 0 has nowhere left.
+    const spots = this.level.dumplings.flatMap((x) => [
+      ...(collected.includes(x.id) ? [] : [x.pos]),
+      ...(x.alts ?? []).map((a) => a.pos),
+    ]);
+    const cleared = [
+      ...this.level.dumplings.filter((x) => collected.includes(x.id)).map((x) => x.pos),
+      ...this.world.dumplings.filter((x) => collected.includes(x.def.id)).map((x) => x.def.pos),
+    ];
     const next = pickFleePos(
-      homes,
+      spots,
+      cleared,
       occupied,
       this.cap.x,
       this.cap.z,
       d.def.pos,
       this.level.bounds,
+      this.level.spawn,
     );
     this.burst(d.def.pos[0], d.def.pos[1], d.def.pos[2], d.def.color);
     d.def.pos[0] = next[0];
@@ -1221,9 +1285,55 @@ export class GameRuntime {
     }
   }
 
+  emmettPlayedAt = -Infinity;
+  /** At his truck while he's home: close to the talk spot, or close to him on his laps. */
+  emmettTalkReady() {
+    const e = this.emmett;
+    if (!e || !this.level.emmettBase || e.state !== "home" || this.ride || this.carouselRide || this.cap.y > 2) return false;
+    const [tx, , tz] = EMMETT_BASE.talkSpot;
+    return (
+      Math.hypot(this.cap.x - tx, this.cap.z - tz) < 2.4 ||
+      Math.hypot(this.cap.x - e.group.position.x, this.cap.z - e.group.position.z) < 2.6
+    );
+  }
+
   tryCollect() {
     const st = useGame.getState();
     if (st.phase !== "playing") return;
+    if (this.emmettTalkReady() && st.rps == null) {
+      sfx.click();
+      // a breather between games, so the truck isn't a ticket machine
+      if (this.clock - this.emmettPlayedAt < 40) {
+        const rest = [
+          "Vroom! I'm fixing my truck. Come back soon to play!",
+          "I need a snack break. Play again in a little bit!",
+          "My truck is the best, right? Let's play again soon!",
+        ];
+        st.setEmmettNotice(rest[Math.floor(Math.random() * rest.length)]!);
+        return;
+      }
+      this.emmettPlayedAt = this.clock;
+      const lines = [
+        "Welcome to my monster truck! Want to play?",
+        "This is my house! Rock, paper, scissors?",
+        "Vroom vroom! Best truck ever. Let's play!",
+        "You found my truck! Play for tickets?",
+      ];
+      st.setEmmettNotice(lines[Math.floor(Math.random() * lines.length)]!);
+      st.openRps(true);
+      return;
+    }
+    const home = this.homeWorld?.tryInteract();
+    if (home) {
+      if (typeof home === "object") {
+        [this.cap.x, this.cap.y, this.cap.z] = home.teleport;
+        this.velY = 0;
+        this.yaw = home.yaw;
+        this.cameraYaw = home.yaw;
+        this.syncCamera(true);
+      }
+      return;
+    }
     if (this.questWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.tryCarnival()) return;
     if (this.tryBoard()) return;
@@ -1442,6 +1552,7 @@ export class GameRuntime {
         st.carnival == null &&
         st.questPanel == null &&
         st.helpCard == null &&
+        useHome.getState().panel == null &&
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
       !this.ride &&
@@ -1453,8 +1564,10 @@ export class GameRuntime {
       this.cameraYaw += dt * 0.18;
     } else {
       this.cameraYaw -= lookDelta.dx * 0.0055;
+      // E is Collect, so the camera turns right on C (input.ts records every
+      // key in isDown; GAME_CODES only decides which ones preventDefault)
       if (isDown("KeyQ") || padCamLeft()) this.cameraYaw += dt * 1.6;
-      if (isDown("KeyE") || padCamRight()) this.cameraYaw -= dt * 1.6;
+      if (isDown("KeyC") || padCamRight()) this.cameraYaw -= dt * 1.6;
       if (this.firstPerson) {
         this.pitch = THREE.MathUtils.clamp(this.pitch - lookDelta.dy * 0.0045, -1.15, 1.0);
       }
@@ -1708,8 +1821,9 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || useHome.getState().panel != null;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
+      this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (this.questWorld) {
         const d = this.nearestUnfound();
         this.questWorld.update(
@@ -1729,6 +1843,11 @@ export class GameRuntime {
           d ? { id: d.def.id, x: d.def.pos[0], z: d.def.pos[2] } : null,
         );
       }
+    }
+    if (this.world.truck) {
+      const e = this.emmett;
+      const excited = !!e && e.state === "home" && Math.hypot(this.cap.x - EMMETT_BASE.x, this.cap.z - EMMETT_BASE.z) < 14;
+      animateMonsterTruck(this.world.truck, this.clock, excited);
     }
     if (this.world.campfire) {
       const f = this.world.campfire;
@@ -1827,6 +1946,7 @@ export class GameRuntime {
       useGame
         .getState()
         .setQuestNear(this.questWorld && !this.carouselRide && !this.ride ? this.questWorld.near(this.cap.x, this.cap.y, this.cap.z) : null);
+      useGame.getState().setEmmettTalkNear(this.emmettTalkReady());
     }
     const d = this.nearestUnfound();
     if (!d) {
@@ -1865,6 +1985,7 @@ export class GameRuntime {
     this.clock += raw;
 
     const st = useGame.getState();
+    if (st.graphics !== this.graphics) this.applyGraphics(st.graphics);
     if (st.levelIndex !== this.lastLevel) this.loadLevel(st.levelIndex);
     if (st.dress !== this.lastDress || st.hair !== this.lastHair) this.rebuildGirl();
     if (st.wornGen !== this.lastWornGen) {
@@ -1888,26 +2009,37 @@ export class GameRuntime {
       this.lastCarnival = st.carnival;
     }
     this.carnivalBlock = Math.max(0, this.carnivalBlock - FIXED);
-    if (st.phase === "playing" && (wantsInteract() || consumePadInteract())) this.tryCollect();
+    // while a panel is open its own keys and buttons are for the panel: none of
+    // these play actions (collect, pause, map, journal...) may fire behind it
+    const panel =
+      st.quiz != null ||
+      st.rps != null ||
+      st.carnival != null ||
+      st.questPanel != null ||
+      st.helpCard != null ||
+      st.journalOpen ||
+      useHome.getState().panel != null;
+    const play = st.phase === "playing" && !panel;
+    if (play && (wantsInteract() || consumePadInteract())) this.tryCollect();
     else consumePadInteract();
 
     const pauseEdge = consumePadPause();
-    if (st.phase === "playing" && (isDown("Escape") || pauseEdge)) st.pause();
+    if (play && (isDown("Escape") || pauseEdge)) st.pause();
     else if (st.phase === "paused" && pauseEdge) st.resumePlay();
 
-    if (st.phase === "playing" && consumePadHint()) st.useHint();
+    if (play && consumePadHint()) st.useHint();
     else consumePadHint();
-    if (st.phase === "playing" && consumePadJournal()) st.toggleJournal();
+    if (st.phase === "playing" && !panel && consumePadJournal()) st.toggleJournal();
     else consumePadJournal();
-    if (st.phase === "playing" && consumePadMap()) st.toggleMap();
+    if (play && consumePadMap()) st.toggleMap();
     else consumePadMap();
     if (st.musicGen !== this.lastMusicGen) {
       this.lastMusicGen = st.musicGen;
       if (st.phase === "playing") this.nextChannel();
     }
-    if (st.phase === "playing" && consumePadMusic()) this.nextChannel();
+    if (play && consumePadMusic()) this.nextChannel();
     else consumePadMusic();
-    if (st.phase === "playing" && consumePadView()) st.toggleView();
+    if (play && consumePadView()) st.toggleView();
     else consumePadView();
     // Inside the mountain's tunnels the view is always first person, whatever
     // is saved; stepping back out restores her own choice.
@@ -1916,7 +2048,8 @@ export class GameRuntime {
       st.setEmmettNotice("Into the cave! Look around to explore.");
     }
     this.wasInCave = inCave;
-    this.setFirstPerson((st.view === "first" || inCave) && st.phase !== "title");
+    // her house's room is small too: third person would jam against the walls
+    this.setFirstPerson((st.view === "first" || inCave || useHome.getState().inside) && st.phase !== "title");
 
     const collectedNow = st.collected[st.levelIndex] ?? [];
     if (this.world) {
@@ -1982,6 +2115,10 @@ declare global {
         geometries: number;
         textures: number;
         programs: number;
+        graphics: "sharp" | "smooth" | null;
+        bloom: boolean;
+        samples: number;
+        shadowMapSize: number;
         pixelRatio: number;
         size: number[];
       };

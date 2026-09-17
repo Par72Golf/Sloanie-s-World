@@ -1,3 +1,5 @@
+import { useGame } from "./store";
+
 const held = new Set<string>();
 let injected: string[] | null = null;
 
@@ -149,6 +151,67 @@ export function padCamRight() {
   return padCamE;
 }
 
+/*
+ * Panels with their own pad loop (booths, the farmer, instruction cards, the
+ * journal) claim the pad while they are up, and Emmett's rock paper scissors
+ * has it too. Meanwhile presses are not turned into play actions: B in a booth
+ * does not open the big map, Y does not spend a hint, Back does not open the
+ * journal on top. Buttons are still tracked, so nothing fires late.
+ */
+let padClaims = 0;
+
+/** Take the pad for a panel; call the returned function to hand it back. */
+export function claimPad() {
+  padClaims++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    padClaims = Math.max(0, padClaims - 1);
+    if (!padClaims) swallowHeldPad();
+  };
+}
+
+export function padClaimed() {
+  return padClaims > 0;
+}
+
+function padBusy() {
+  return padClaims > 0 || useGame.getState().rps != null;
+}
+
+function usablePad() {
+  for (const pad of navigator.getGamepads?.() ?? []) {
+    if (!pad) continue;
+    if (pad.mapping !== "standard" && (pad.axes.length < 2 || pad.buttons.length < 1)) continue;
+    return pad;
+  }
+  return null;
+}
+
+/**
+ * Whatever is held right now counts as already seen, so the press that closed
+ * a panel or a menu does nothing in play: A does not jump, B does not open the
+ * map, Back does not reopen the journal.
+ */
+export function swallowHeldPad() {
+  const pad = usablePad();
+  if (!pad) return;
+  for (let i = 0; i < 16; i++) {
+    const down = Boolean(pad.buttons[i]?.pressed);
+    if (!down && !padPrev[i]) continue;
+    if (down) padPrev[i] = 1;
+    if (i === 0) jumpTap = false;
+    else if (i === 1) padMap = false;
+    else if (i === 2) padInteract = false;
+    else if (i === 3) padHint = false;
+    else if (i === 6) padView = false;
+    else if (i === 7) padMusic = false;
+    else if (i === 8) padJournal = false;
+    else if (i === 9) padPause = false;
+  }
+}
+
 let bound = false;
 
 export function bindInput() {
@@ -167,6 +230,10 @@ export function bindInput() {
     held.add(e.code);
     if (e.code === "Space") jumpTap = true;
     if (e.code === "KeyM") padMap = true;
+    // the keys the help text promises: J journal, H hint, P pause
+    if (e.code === "KeyJ") padJournal = true;
+    if (e.code === "KeyH") padHint = true;
+    if (e.code === "KeyP") padPause = true;
     if (e.code === "KeyV") padView = true;
     if (e.code === "KeyN") padMusic = true;
     if (GAME_CODES.has(e.code)) e.preventDefault();
@@ -179,18 +246,20 @@ export function bindInput() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) clear();
   });
+  // back to play from a menu or a panel, however it closed
+  const menu = (s: ReturnType<typeof useGame.getState>) =>
+    s.phase !== "playing" || s.quiz != null || s.rps != null || s.carnival != null || s.questPanel != null || s.helpCard != null || s.journalOpen;
+  useGame.subscribe((s, p) => {
+    if (menu(p) && !menu(s)) swallowHeldPad();
+  });
 }
 
 export function pollGamepad(axes: { x: number; z: number }) {
   padCamQ = false;
   padCamE = false;
-  const pads = navigator.getGamepads?.() ?? [];
-  let used = false;
-  for (const pad of pads) {
-    if (!pad) continue;
-    if (pad.mapping !== "standard" && (pad.axes.length < 2 || pad.buttons.length < 1)) continue;
-    used = true;
-
+  const pad = usablePad();
+  const busy = padBusy();
+  if (pad) {
     const stick = (ax: number, ay: number, dz: number) => {
       const x = pad.axes[ax] ?? 0;
       const y = pad.axes[ay] ?? 0;
@@ -205,9 +274,11 @@ export function pollGamepad(axes: { x: number; z: number }) {
     axes.z += -ls.y;
 
     const rs = stick(2, 3, 0.2);
-    look.dx += rs.x * 10;
-    // up/down only matters in first person, where it pitches the view
-    look.dy += rs.y * 7;
+    if (!busy) {
+      look.dx += rs.x * 10;
+      // up/down only matters in first person, where it pitches the view
+      look.dy += rs.y * 7;
+    }
 
     if (pad.buttons[14]?.pressed) axes.x -= 1;
     if (pad.buttons[15]?.pressed) axes.x += 1;
@@ -215,7 +286,7 @@ export function pollGamepad(axes: { x: number; z: number }) {
     if (pad.buttons[13]?.pressed) axes.z -= 1;
 
     const down = (i: number) => Boolean(pad.buttons[i]?.pressed);
-    const edge = (i: number) => down(i) && !padPrev[i];
+    const edge = (i: number) => !busy && down(i) && !padPrev[i];
     if (edge(0)) jumpTap = true;
     if (edge(1)) padMap = true;
     if (edge(6)) padView = true;
@@ -224,12 +295,13 @@ export function pollGamepad(axes: { x: number; z: number }) {
     if (edge(3)) padHint = true;
     if (edge(8)) padJournal = true;
     if (edge(9)) padPause = true;
-    padCamQ = down(4);
-    padCamE = down(5);
+    // LB and RB switch pages in the journal and the prize booth
+    padCamQ = !busy && down(4);
+    padCamE = !busy && down(5);
     for (let i = 0; i < 16; i++) padPrev[i] = down(i) ? 1 : 0;
-    break;
+  } else {
+    padPrev.fill(0);
   }
-  if (!used) padPrev.fill(0);
 
   const m = Math.hypot(axes.x, axes.z);
   if (m > 1) {

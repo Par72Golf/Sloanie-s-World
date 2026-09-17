@@ -75,6 +75,21 @@ const SKIN = 0.002;
 const FLOOR_TOLERANCE = 0.03;
 const STEP_UP = 0.62;
 
+/**
+ * Room for her to stand at height y over the capsule's footprint: nothing
+ * overhead cuts into her. The auto step-up checks this, or stepping onto a
+ * low pad under an overhang pushes her head into the thing above and the
+ * overlap resolution pops her on top of it (found by tools/berm.ts at the
+ * play structure near the picnic tables: a 26cm pad under a post, 3.3m pop).
+ */
+function headroom(c: Capsule, y: number, boxes: AABB[], ignore: AABB) {
+  for (const o of boxes) {
+    if (o === ignore || !overlapXZ(c, o)) continue;
+    if (o.minY < y + c.h && o.maxY > y + FLOOR_TOLERANCE) return false;
+  }
+  return true;
+}
+
 export function moveAndCollide(
   c: Capsule,
   vx: number,
@@ -95,7 +110,7 @@ export function moveAndCollide(
     const next = { ...c, x: c.x + vx * dt, z: c.z + vz * dt };
     for (const b of boxes) {
       const rise = b.maxY - c.y;
-      if (rise > 0.0005 && rise <= STEP_UP && overlapXZ(next, b)) {
+      if (rise > 0.0005 && rise <= STEP_UP && overlapXZ(next, b) && headroom(next, b.maxY + SKIN, boxes, b)) {
         c.y = b.maxY + SKIN;
         vy = 0;
       }
@@ -145,6 +160,15 @@ export function moveAndCollide(
   for (const b of boxes) {
     if (!overlapXZ(c, b)) continue;
     if (c.y + c.h <= b.minY || c.y >= b.maxY) continue;
+    // Feet within FLOOR_TOLERANCE of the top: the wall sweeps let her in as
+    // floor, so it is floor here too, even while she is still rising. Taking
+    // it for a head bump put her head under the box's bottom: at the top of a
+    // jump up a berm's long side that dropped her 2.5m inside the hill for a
+    // step ("the berm resets you"). tools/berm.ts guards this.
+    if (vy > 0 && b.maxY - c.y <= FLOOR_TOLERANCE) {
+      c.y = b.maxY + SKIN;
+      continue;
+    }
     if (vy <= 0 && c.y + c.h * 0.5 >= b.maxY) {
       c.y = b.maxY + SKIN;
       vy = 0;
@@ -169,7 +193,7 @@ export function moveAndCollide(
     for (const b of boxes) {
       if (!overlapXZ(c, b)) continue;
       const rise = b.maxY - c.y;
-      if (rise > 0.0005 && rise <= STEP_UP) {
+      if (rise > 0.0005 && rise <= STEP_UP && headroom(c, b.maxY + SKIN, boxes, b)) {
         c.y = b.maxY + SKIN;
         vy = 0;
         grounded = true;

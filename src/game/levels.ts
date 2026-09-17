@@ -1,3 +1,4 @@
+import { EMMETT_BASE, yardProps } from "./emmett-base";
 import type { BoxProp, DumplingDef, LevelDef, Prop } from "./types";
 import { CAVE_SPOTS, caveFootprint, mountainCave } from "./cave";
 import { carnivalProps } from "./carnival";
@@ -782,6 +783,7 @@ function picnicPark(): LevelDef {
     ...mountainCave(),
     // inside the old hill's reserved ground, so nothing else moves
     ...carnivalProps(),
+    ...yardProps(),
     ...trail,
     ...forest(-155, -108, -150, 150, 150, 8121, trailRects),
   ];
@@ -851,6 +853,8 @@ function picnicPark(): LevelDef {
     rectAt(73, -128, 50, 46),
     // the carnival's way in: its arch and the carousel gate face south
     rectAt(-16, 40, 24, 12),
+    // Emmett's monster truck yard on the east lawn
+    rectAt(EMMETT_BASE.x, EMMETT_BASE.z, 14, 18),
     rectAt(-40, 115, 8, 24),
     rectAt(8, 115, 8, 24),
     rectAt(-60, -110, 8, 14),
@@ -1020,6 +1024,7 @@ function picnicPark(): LevelDef {
     ride: { x: 30, z: 58 },
     caveZone: caveFootprint(),
     carnival: true,
+    emmettBase: true,
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },

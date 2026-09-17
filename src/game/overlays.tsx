@@ -1,3 +1,6 @@
+import { SPOTS } from "./furniture";
+import { HomePanel } from "./home-panel";
+import { useHome } from "./home-store";
 import { CHANNELS } from "./music";
 import { HELP_CARDS, HelpCard, type HelpId } from "./help-cards";
 import { currentVoiceName, rankedVoices, setSpeechEnabled, setVoiceName, speak } from "./speech";
@@ -17,6 +20,7 @@ import {
   HelpCircle,
   Maximize,
   Minimize,
+  MonitorCog,
   RotateCcw,
   Shirt,
   Trophy,
@@ -26,6 +30,8 @@ import {
   Volume2,
   VolumeX,
   X,
+  House,
+  Truck,
 } from "lucide-react";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
@@ -354,17 +360,20 @@ function TitleScreen() {
         )}
         {help && (
           <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-ink-soft">
-            <li>Walk with W A S D or the stick. Jump with Space.</li>
-            <li>Drag the screen to look around. Q and E also turn the camera.</li>
-            <li>
-              On a controller: left stick walk, right stick look, A jump, B big map, X collect,
-              Y hint, LB/RB turn camera, Back journal, Start pause. M on the keyboard opens the
-              map too.
-            </li>
-            <li>The temperature tells you if a dumpling is close.</li>
-            <li>When you are next to one, press Collect and answer the math.</li>
-            <li>Miss twice and the dumpling runs away to a new hiding spot.</li>
-            <li>Hints point to a region, not the exact hiding spot. Use them sparingly.</li>
+            <li>Find the hidden dumplings! Warm means close. Cold means far.</li>
+            <li>Next to one? Press Collect (E, or X on a controller) and answer the math.</li>
+            <li>Miss twice and it runs off to hide somewhere new.</li>
+            <li>Find the backpack on the ball field. Then you can carry things.</li>
+            <li>Open your backpack with J or the Back button.</li>
+            <li>The sticker book is near the start. 30 stickers are hiding in the park.</li>
+            <li>Emmett rides up on his trike. Beat him at rock paper scissors to keep your dumplings.</li>
+            <li>Grab a juice box to run super fast for a little while.</li>
+            <li>At the carnival, play games to win tickets. Spend them at the prize booth.</li>
+            <li>Farmer Joe at the farm lost his pets. Can you bring them home?</li>
+            <li>Press N (RT on a controller) to play music on your iPod. Stand still and you will dance!</li>
+            <li>Find the big mountain and explore the cave inside.</li>
+            <li>Walk with W A S D or the left stick. Jump with Space or A.</li>
+            <li>Turn the camera with Q and C, LB and RB, or by dragging the screen.</li>
           </ul>
         )}
       </Panel>
@@ -403,6 +412,9 @@ function HUD() {
   const carouselRing = useGame((s) => s.carouselRing);
   const carnivalOpen = useGame((s) => s.carnival);
   const questNear = useGame((s) => s.questNear);
+  const homeNear = useHome((s) => s.near);
+  const emmettTalkNear = useGame((s) => s.emmettTalkNear);
+  const homeOpen = useHome((s) => s.panel);
   const questOpen = useGame((s) => s.questPanel);
   const tickets = useGame((s) => s.tickets);
   const riding = useGame((s) => s.riding);
@@ -535,11 +547,19 @@ function HUD() {
         </div>
       )}
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && (questNear || carouselRing || carnivalNear || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={questNear ?? carouselRing ?? carnivalNear ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (boardReady ? "ride" : "grab")}
           label={
-            questNear
+            homeNear
+              ? homeNear === "door"
+                ? "Go inside your house"
+                : homeNear === "exit"
+                  ? "Go outside"
+                  : `Decorate: ${SPOTS.find((s) => s.id === homeNear)?.name ?? homeNear}`
+              : emmettTalkNear
+                ? "Play with Emmett"
+                : questNear
               ? questNear === "farmer"
                 ? "Talk to Farmer Joe"
                 : "Give them the treats!"
@@ -551,7 +571,7 @@ function HUD() {
                   ? "Ride the ferris wheel!"
                   : `Grab ${nearestName ?? "it"}!`
           }
-          icon={carouselRing || carnivalNear ? "carnival" : "wheel"}
+          icon={homeNear ? "home" : emmettTalkNear ? "truck" : carouselRing || carnivalNear ? "carnival" : "wheel"}
           gold={carouselRing === "gold"}
           onPress={requestInteract}
         />
@@ -841,10 +861,10 @@ function BigAction({
 }: {
   label: string;
   onPress: () => void;
-  icon?: "wheel" | "carnival";
+  icon?: "wheel" | "carnival" | "home" | "truck";
   gold?: boolean;
 }) {
-  const Icon = icon === "wheel" ? FerrisWheel : PartyPopper;
+  const Icon = icon === "wheel" ? FerrisWheel : icon === "home" ? House : icon === "truck" ? Truck : PartyPopper;
   // say what the button does as it pops up (it remounts per action)
   useEffect(() => speak(label.replace(/!$/, "")), [label]);
   return (
@@ -987,17 +1007,21 @@ function RpsPanel() {
       const pads = navigator.getGamepads?.() ?? [];
       const pad = pads.find((p) => p && p.buttons.length > 0);
       const st = useGame.getState();
-      if (pad && st.rps) {
+      if (pad) {
         const a = Boolean(pad.buttons[0]?.pressed);
         const left = Boolean(pad.buttons[14]?.pressed) || (pad.axes[0] ?? 0) < -0.55;
         const right = Boolean(pad.buttons[15]?.pressed) || (pad.axes[0] ?? 0) > 0.55;
-        if (left && !prevL) setSel((v) => (v + 2) % 3);
-        if (right && !prevR) setSel((v) => (v + 1) % 3);
-        if (a && !prevA) {
-          sfx.click();
-          if (!st.rps.result) st.playRps(RPS_HANDS[selRef.current]!);
-          else if (st.rps.result === "tie") st.nextRpsRound();
-          else st.closeRps();
+        // buttons are tracked every frame, so an A held for a jump when Emmett
+        // arrives doesn't throw a hand the instant the panel opens
+        if (st.rps) {
+          if (left && !prevL) setSel((v) => (v + 2) % 3);
+          if (right && !prevR) setSel((v) => (v + 1) % 3);
+          if (a && !prevA) {
+            sfx.click();
+            if (!st.rps.result) st.playRps(RPS_HANDS[selRef.current]!);
+            else if (st.rps.result === "tie") st.nextRpsRound();
+            else st.closeRps();
+          }
         }
         prevA = a;
         prevL = left;
@@ -1047,7 +1071,9 @@ function RpsPanel() {
         <p className="font-display text-2xl font-semibold">Emmett wants to play!</p>
         {!done && (
           <p className="mt-1 text-base text-ink-soft">
-            Win and you keep your dumplings. Lose and he takes one.
+            {rps.friendly
+              ? "Just for fun at his truck. Win and you get 3 tickets!"
+              : "Win and you keep your dumplings. Lose and he takes one."}
           </p>
         )}
 
@@ -1062,7 +1088,13 @@ function RpsPanel() {
             <p className={cn("font-display text-2xl font-semibold", banner.fg)}>{banner.text}</p>
             {!tied && (
               <p className={cn("mt-0.5 text-sm opacity-90", banner.fg)}>
-                {won ? "Every dumpling stays yours." : "He is taking one and hiding it."}
+                {rps.friendly
+                  ? won
+                    ? "3 tickets for you!"
+                    : "Good game! Play again any time."
+                  : won
+                    ? "Every dumpling stays yours."
+                    : "He is taking one and hiding it."}
               </p>
             )}
           </div>
@@ -1235,6 +1267,8 @@ function PauseScreen() {
   const toggleView = useGame((s) => s.toggleView);
   const showFps = useGame((s) => s.showFps);
   const toggleFps = useGame((s) => s.toggleFps);
+  const graphics = useGame((s) => s.graphics);
+  const toggleGraphics = useGame((s) => s.toggleGraphics);
   const readAloud = useGame((s) => s.readAloud);
   const toggleReadAloud = useGame((s) => s.toggleReadAloud);
   const showHelp = useGame((s) => s.showHelp);
@@ -1243,7 +1277,7 @@ function PauseScreen() {
   const voiceShown = voicePref || currentVoiceName();
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
-      <Panel className="w-full max-w-sm p-6 text-center">
+      <Panel className="max-h-full w-full max-w-sm overflow-y-auto p-6 text-center">
         <h2 className="font-display text-3xl font-semibold">Paused</h2>
         <p className="mt-2 text-ink-soft">The dumplings will wait.</p>
         <div className="mt-5 grid gap-2">
@@ -1293,6 +1327,10 @@ function PauseScreen() {
           <Btn variant="secondary" onClick={toggleFps} className="gap-2">
             <Gauge className="size-4" />
             {showFps ? "Hide frame rate" : "Show frame rate"}
+          </Btn>
+          <Btn variant="secondary" onClick={toggleGraphics} className="gap-2">
+            <MonitorCog className="size-4" />
+            {graphics === "smooth" ? "Graphics: Smooth" : "Graphics: Sharp"}
           </Btn>
           {canFullscreen() && (
             <Btn variant="secondary" onClick={() => void toggleFullscreen()} className="gap-2">
@@ -1430,6 +1468,7 @@ export function Overlays() {
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {phase === "playing" && <CarnivalPanel />}
       {phase === "playing" && <QuestPanel />}
+      {phase === "playing" && <HomePanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}
       {controlsOpen && <ControlsPanel />}
       {showFps && phase !== "title" && <FpsCounter />}
@@ -1461,7 +1500,7 @@ const CONTROLS: { title: string; rows: [string, string][] }[] = [
       ["W A S D or arrows", "Walk"],
       ["Space", "Jump"],
       ["E or F", "Collect a dumpling, ride the ferris wheel"],
-      ["Q / E", "Turn the camera"],
+      ["Q / C", "Turn the camera left / right"],
       ["Drag the mouse", "Look around"],
       ["M", "Big map"],
       ["H", "Hint"],

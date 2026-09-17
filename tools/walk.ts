@@ -72,7 +72,21 @@ function walk(x0: number, z0: number, dx: number, dz: number, metres: number) {
     if (moved < expected * 0.3 && r.grounded) {
       const b = blocker(c, dx, dz);
       const top = b ? b.maxY : level.groundY;
-      if (top - c.y <= STEP_UP) {
+      // no room to stand up on it (a bench under a dugout roof): the step-up
+      // rightly refuses, and she can see why, so it isn't an invisible wall
+      const overhead =
+        b &&
+        boxes.some(
+          (o) =>
+            o !== b &&
+            o.minY < b.maxY + c.h &&
+            o.maxY > b.maxY + 0.03 &&
+            c.x + dx * 0.4 + c.hw > o.minX &&
+            c.x + dx * 0.4 - c.hw < o.maxX &&
+            c.z + dz * 0.4 + c.hd > o.minZ &&
+            c.z + dz * 0.4 - c.hd < o.maxZ,
+        );
+      if (top - c.y <= STEP_UP && !overhead) {
         const key = `${Math.round(c.x)},${Math.round(c.z)}`;
         if (!seen.has(key)) {
           seen.add(key);

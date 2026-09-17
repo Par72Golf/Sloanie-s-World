@@ -36,6 +36,7 @@ import {
 } from "./carnival";
 import { Btn, Panel } from "./overlays";
 import { HearButton } from "./help-cards";
+import { claimPad } from "./input";
 import { speak } from "./speech";
 import { useGame } from "./store";
 import { cn } from "@/lib/utils";
@@ -51,14 +52,21 @@ import { cn } from "@/lib/utils";
  * memory, or quick reactions with a rule to remember.
  */
 
-export type Edge = "a" | "b" | "up" | "down" | "left" | "right";
+export type Edge = "a" | "b" | "up" | "down" | "left" | "right" | "lb" | "rb";
 
-/** Controller and keyboard presses as edges, always calling the latest handler. */
-export function useInput(onEdge: (e: Edge, key?: string) => void) {
+/**
+ * Controller and keyboard presses as edges, always calling the latest handler.
+ * While active, the panel has the pad: presses do nothing in play (see
+ * claimPad). A panel that is always mounted passes active only while it shows.
+ */
+export function useInput(onEdge: (e: Edge, key?: string) => void, active = true) {
   const cb = useRef(onEdge);
   cb.current = onEdge;
+  const on = useRef(active);
+  on.current = active;
+  useEffect(() => (active ? claimPad() : undefined), [active]);
   useEffect(() => {
-    const prev: Record<Edge, boolean> = { a: false, b: false, up: false, down: false, left: false, right: false };
+    const prev: Record<Edge, boolean> = { a: false, b: false, up: false, down: false, left: false, right: false, lb: false, rb: false };
     let armed = false;
     let raf = 0;
     const loop = () => {
@@ -73,6 +81,8 @@ export function useInput(onEdge: (e: Edge, key?: string) => void) {
           down: Boolean(pad.buttons[13]?.pressed) || ay > 0.55,
           left: Boolean(pad.buttons[14]?.pressed) || ax < -0.55,
           right: Boolean(pad.buttons[15]?.pressed) || ax > 0.55,
+          lb: Boolean(pad.buttons[4]?.pressed),
+          rb: Boolean(pad.buttons[5]?.pressed),
         };
         // whatever was already held when the panel opened does not count
         if (!armed) {
@@ -80,7 +90,7 @@ export function useInput(onEdge: (e: Edge, key?: string) => void) {
           armed = true;
         }
         for (const k of Object.keys(now) as Edge[]) {
-          if (now[k] && !prev[k]) cb.current(k);
+          if (now[k] && !prev[k] && on.current) cb.current(k);
           prev[k] = now[k];
         }
       }
@@ -88,7 +98,7 @@ export function useInput(onEdge: (e: Edge, key?: string) => void) {
     };
     raf = window.requestAnimationFrame(loop);
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      if (e.repeat || !on.current) return;
       // while typing in a text box only Enter and Esc act as controls
       const typing = (e.target as HTMLElement | null)?.tagName === "INPUT";
       if (typing && e.key !== "Enter" && e.key !== "Escape") return;
@@ -121,6 +131,20 @@ const close = () => {
   sfx.click();
   useGame.getState().closeCarnival();
 };
+
+/**
+ * Milliseconds since `value` last changed. A game ends while she is still
+ * mashing A, so the result screen ignores A for a moment rather than skipping
+ * straight into another round.
+ */
+function useSince(value: unknown) {
+  const at = useRef(0);
+  useEffect(() => {
+    at.current = performance.now();
+  }, [value]);
+  return () => performance.now() - at.current;
+}
+const SETTLE_MS = 700;
 
 /** Tickets for a round: shown on the result screen and added straight away. */
 function payTickets(n: number) {
@@ -306,9 +330,11 @@ function RingToss({ booth }: { booth: Booth }) {
     }, 1150);
   };
 
+  const since = useSince(stage);
   useInput((e) => {
     if (e === "b") return close();
     if (e !== "a") return;
+    if (stage === "done" && since() < SETTLE_MS) return;
     if (stage === "intro" || stage === "done") start();
     else toss();
   });
@@ -488,10 +514,11 @@ function DuckPond({ booth }: { booth: Booth }) {
     );
   };
 
+  const since = useSince(stage);
   useInput((e) => {
     if (e === "b") return close();
     if (stage !== "play") {
-      if (e === "a") start();
+      if (e === "a" && !(stage === "done" && since() < SETTLE_MS)) start();
       return;
     }
     const n = deck.length;
@@ -686,10 +713,11 @@ function WhackAMole({ booth }: { booth: Booth }) {
     force((n) => n + 1);
   };
 
+  const since = useSince(stage);
   useInput((e, key) => {
     if (e === "b") return close();
     if (stage !== "play") {
-      if (e === "a") start();
+      if (e === "a" && !(stage === "done" && since() < SETTLE_MS)) start();
       return;
     }
     if (key && /^[1-6]$/.test(key)) return whack(Number(key) - 1);
@@ -802,7 +830,8 @@ function PrizeBooth({ booth }: { booth: Booth }) {
   const won = GAME_PRIZES.filter((p) => found.includes(p.prize)).length;
   const hasTeddy = found.includes("teddy");
   const ready = won === GAME_PRIZES.length && !hasTeddy;
-  const [page, setPage] = useState<"shop" | "prizes">("shop");
+  // the teddy is the big moment: when it's ready, open on it
+  const [page, setPage] = useState<"shop" | "prizes">(ready ? "prizes" : "shop");
   const [cursor, setCursor] = useState(0);
   const claim = () => {
     if (!ready) return;
@@ -820,6 +849,7 @@ function PrizeBooth({ booth }: { booth: Booth }) {
   useEffect(() => speak(`Prize booth. You have ${tickets} tickets.`), []); // eslint-disable-line react-hooks/exhaustive-deps
   useInput((e) => {
     if (e === "b") return close();
+    if (e === "lb" || e === "rb") return setPage(page === "shop" ? "prizes" : "shop");
     if (page === "prizes") {
       if (e === "left" || e === "right") setPage("shop");
       else if (e === "a") (ready ? claim() : setPage("shop"));

@@ -32,6 +32,8 @@ export type SaveData = {
   view: "third" | "first";
   /** Frame-rate readout, switched on from the pause menu. */
   showFps: boolean;
+  /** Render quality: "sharp" (full resolution, bloom) or "smooth" (lighter, for a slow screen). */
+  graphics: "sharp" | "smooth";
   /** Carnival tickets, spent at the prize booth. */
   tickets: number;
   /** Whether she has found the sticker book (stickers need it), and her stickers. */
@@ -62,6 +64,7 @@ const DEFAULT: SaveData = {
   worn: { head: null, hair: null, face: null, back: null },
   view: "third",
   showFps: false,
+  graphics: "sharp",
   tickets: 0,
   stickerBook: false,
   stickers: [],
@@ -99,6 +102,7 @@ function migrate(raw: SaveData): SaveData {
   };
   if (s.view !== "first") s.view = "third";
   s.showFps = s.showFps === true;
+  if (s.graphics !== "smooth") s.graphics = "sharp";
   s.readAloud = s.readAloud !== false;
   s.voice = typeof s.voice === "string" ? s.voice : "";
   s.seenHelp = Array.isArray(s.seenHelp) ? s.seenHelp.filter((x) => typeof x === "string") : [];

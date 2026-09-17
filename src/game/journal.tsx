@@ -31,9 +31,11 @@ import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { STICKER_SPOTS } from "./collectibles";
 import { HearButton } from "./help-cards";
+import { claimPad } from "./input";
 import { STICKER_ART, stickerDataUrl } from "./sticker-art";
 import { LEVELS } from "./levels";
 import { Panel } from "./overlays";
+import { speak } from "./speech";
 import { useGame } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +44,7 @@ import { cn } from "@/lib/utils";
  * Dumplings lists the park's dumplings, Stickers is the sticker book, and Bag
  * shows what she carries, which is nothing until she finds the backpack.
  * LB and RB (Q and E on the keyboard) switch tabs; arrows or the d-pad move in
- * a tab's grid; A equips; Esc or B closes.
+ * a tab's grid; A equips; Esc, B or Back closes.
  */
 
 type Tab = "dumplings" | "stickers" | "bag";
@@ -55,7 +57,9 @@ const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
 function useTabKeys() {
   const setTab = useGame((s) => s.setJournalTab);
   const setJournal = useGame((s) => s.setJournal);
-  const prev = useRef({ l: false, r: false, b: false, armed: false });
+  const prev = useRef({ l: false, r: false, b: false, back: false, armed: false });
+  // the journal has the pad while it is open, so Back is handled here too
+  useEffect(() => claimPad(), []);
   useEffect(() => {
     const step = (d: number) => {
       const cur = useGame.getState().journalTab;
@@ -75,13 +79,14 @@ function useTabKeys() {
         const l = Boolean(pad.buttons[4]?.pressed);
         const r = Boolean(pad.buttons[5]?.pressed);
         const b = Boolean(pad.buttons[1]?.pressed);
+        const back = Boolean(pad.buttons[8]?.pressed);
         const p = prev.current;
         if (p.armed) {
           if (l && !p.l) step(-1);
           if (r && !p.r) step(1);
-          if (b && !p.b) setJournal(false);
+          if ((b && !p.b) || (back && !p.back)) setJournal(false);
         }
-        prev.current = { l, r, b, armed: true };
+        prev.current = { l, r, b, back, armed: true };
       }
       raf = window.requestAnimationFrame(loop);
     };
@@ -140,13 +145,19 @@ function DumplingsTab() {
   const levelIndex = useGame((s) => s.levelIndex);
   const collected = useGame((s) => s.collected[levelIndex] ?? []);
   const level = LEVELS[levelIndex]!;
+  const list = useRef<HTMLUListElement>(null);
+  // the list can be taller than a TV's panel: up and down scroll it
+  useInput((e) => {
+    const box = list.current?.parentElement;
+    if (box && (e === "up" || e === "down")) box.scrollBy({ top: e === "up" ? -140 : 140, behavior: "smooth" });
+  });
   return (
     <>
       <h2 className="font-display text-2xl font-semibold">Dumpling journal</h2>
       <p className="mt-1 text-sm text-ink-soft">
         {collected.length} of {level.dumplings.length} found in {level.name}
       </p>
-      <ul className="mt-4 space-y-2">
+      <ul ref={list} className="mt-4 space-y-2">
         {level.dumplings.map((d) => {
           const got = collected.includes(d.id);
           return (
@@ -190,16 +201,20 @@ function StickerBook({ stickers }: { stickers: string[] }) {
   const [cursor, setCursor] = useState(0);
   const cols = 6;
   const n = STICKER_ART.length;
+  const grid = useRef<HTMLDivElement>(null);
+  const sel = STICKER_ART[cursor]!;
+  const have = stickers.includes(sel.id);
+  const spot = STICKER_SPOTS.find((s) => s.id === sel.id);
+  const line = have ? `${sel.name}${sel.rarity === "shiny" ? ", a shiny one!" : sel.rarity === "rare" ? ", a rare one!" : "!"}` : `Still hiding. ${spot?.hint ?? ""}`;
   useInput((e) => {
     if (e === "left") setCursor((c) => (c + n - 1) % n);
     else if (e === "right") setCursor((c) => (c + 1) % n);
     else if (e === "up") setCursor((c) => (c - cols + n) % n);
     else if (e === "down") setCursor((c) => (c + cols) % n);
+    // A is the Hear it button for the chosen space
+    else if (e === "a") speak(line, true);
   });
-  const sel = STICKER_ART[cursor]!;
-  const have = stickers.includes(sel.id);
-  const spot = STICKER_SPOTS.find((s) => s.id === sel.id);
-  const line = have ? `${sel.name}${sel.rarity === "shiny" ? ", a shiny one!" : sel.rarity === "rare" ? ", a rare one!" : "!"}` : `Still hiding. ${spot?.hint ?? ""}`;
+  useEffect(() => grid.current?.children[cursor]?.scrollIntoView({ block: "nearest" }), [cursor]);
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between gap-2">
@@ -208,7 +223,7 @@ function StickerBook({ stickers }: { stickers: string[] }) {
           {stickers.length} / {n}
         </span>
       </div>
-      <div className="grid grid-cols-6 gap-1.5 rounded-xl border-[3px] border-edge bg-[#fdf6ff] p-2">
+      <div ref={grid} className="grid grid-cols-6 gap-1.5 rounded-xl border-[3px] border-edge bg-[#fdf6ff] p-2">
         {STICKER_ART.map((art, i) => {
           const got = stickers.includes(art.id);
           return (
@@ -275,6 +290,8 @@ function EquipGrid() {
   const items = ACCESSORIES.filter((a) => found.includes(a.id) && a.id !== "backpack");
   const [cursor, setCursor] = useState(0);
   const cols = 5;
+  const grid = useRef<HTMLDivElement>(null);
+  useEffect(() => grid.current?.children[cursor]?.scrollIntoView({ block: "nearest" }), [cursor]);
   const toggle = (id: AccessoryId) => {
     const def = accessory(id);
     sfx.click();
@@ -315,7 +332,7 @@ function EquipGrid() {
         })}
       </div>
       {items.length ? (
-        <div className="grid grid-cols-5 content-start gap-1.5">
+        <div ref={grid} className="grid grid-cols-5 content-start gap-1.5">
           {items.map((a, i) => {
             const on = worn[a.slot] === a.id;
             const Icon = ITEM_ICON[a.id] ?? Shirt;

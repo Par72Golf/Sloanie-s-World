@@ -1,3 +1,4 @@
+import { useHome } from "./home-store";
 import { create } from "zustand";
 import {
   DRESS,
@@ -61,7 +62,12 @@ export type GameStore = {
     emmettPick: Hand | null;
     result: "win" | "lose" | "tie" | null;
     round: number;
+    /** a game at his truck: tickets to win, nothing to lose */
+    friendly?: boolean;
   } | null;
+  /** she is at Emmett's truck while he is home */
+  emmettTalkNear: boolean;
+  setEmmettTalkNear: (v: boolean) => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -156,6 +162,9 @@ export type GameStore = {
   /** Frame-rate readout on the HUD; saved. */
   showFps: boolean;
   toggleFps: () => void;
+  /** Render quality (runtime.ts applyGraphics); saved. */
+  graphics: "sharp" | "smooth";
+  toggleGraphics: () => void;
   controlsOpen: boolean;
   setControls: (v: boolean) => void;
   findAccessory: (id: AccessoryId) => void;
@@ -189,7 +198,7 @@ export type GameStore = {
   requestInteract: () => void;
   fleeDumpling: (id: string) => void;
   clearFleeNotice: () => void;
-  openRps: () => void;
+  openRps: (friendly?: boolean) => void;
   playRps: (pick: Hand) => "win" | "lose" | "tie";
   nextRpsRound: () => void;
   closeRps: () => void;
@@ -222,6 +231,7 @@ function persistSlice(s: GameStore) {
     worn: s.worn,
     view: s.view,
     showFps: s.showFps,
+    graphics: s.graphics,
     tickets: s.tickets,
     stickerBook: s.stickerBook,
     stickers: s.stickers,
@@ -421,6 +431,11 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ showFps: !get().showFps });
     persistSlice(get());
   },
+  graphics: saved.graphics,
+  toggleGraphics: () => {
+    set({ graphics: get().graphics === "smooth" ? "sharp" : "smooth" });
+    persistSlice(get());
+  },
   controlsOpen: false,
   setControls: (controlsOpen) => set({ controlsOpen }),
   findAccessory: (id) => {
@@ -483,7 +498,8 @@ export const useGame = create<GameStore>((set, get) => ({
       celebrate: null,
     });
   },
-  resumePlay: () => set({ phase: "playing" }),
+  // close the pause menu's sub-panels too, or they reappear on the next pause
+  resumePlay: () => set({ phase: "playing", wardrobeOpen: false, controlsOpen: false }),
   pause: () => {
     if (get().phase === "playing") set({ phase: "paused" });
   },
@@ -495,8 +511,12 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ quiz: { ...quiz, attempts: quiz.attempts + 1 } });
   },
   closeQuiz: () => set({ phase: "playing", quiz: null }),
-  openRps: () =>
-    set({ rps: { playerPick: null, emmettPick: null, result: null, round: 1 } }),
+  openRps: (friendly = false) =>
+    set({ rps: { playerPick: null, emmettPick: null, result: null, round: 1, friendly } }),
+  emmettTalkNear: false,
+  setEmmettTalkNear: (emmettTalkNear) => {
+    if (get().emmettTalkNear !== emmettTalkNear) set({ emmettTalkNear });
+  },
 
   playRps: (pick) => {
     const emmett = HANDS[Math.floor(Math.random() * 3)]!;
@@ -508,6 +528,7 @@ export const useGame = create<GameStore>((set, get) => ({
         emmettPick: emmett,
         result,
         round: s.rps?.round ?? 1,
+        friendly: s.rps?.friendly,
       },
     }));
     return result;
@@ -521,6 +542,7 @@ export const useGame = create<GameStore>((set, get) => ({
         emmettPick: null,
         result: null,
         round: (s.rps?.round ?? 1) + 1,
+        friendly: s.rps?.friendly,
       },
     })),
 
@@ -676,6 +698,7 @@ export const useGame = create<GameStore>((set, get) => ({
   resetAll: () => {
     const keptBoard = get().leaderboard.map((r) => r.slice());
     clearSave();
+    useHome.getState().reset();
     set({
       leaderboard: keptBoard,
       runSeconds: 0,

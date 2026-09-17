@@ -1,3 +1,5 @@
+import { EMMETT_BASE } from "./emmett-base";
+import { makeMonsterTruck, makeTruckYard, type TruckRig } from "./monster-truck";
 import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
 import * as THREE from "three";
 import type { AABB } from "./collision";
@@ -69,6 +71,7 @@ export type BuiltWorld = {
   spray: SprayArches | null;
   splash: SplashRig | null;
   carnival: CarnivalRig | null;
+  truck: TruckRig | null;
   campfire: Campfire | null;
 };
 
@@ -288,6 +291,16 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     carnival = makeCarnival();
     group.add(carnival.group);
   }
+  let truck: TruckRig | null = null;
+  if (level.emmettBase) {
+    const yard = makeTruckYard();
+    truck = makeMonsterTruck();
+    for (const g of [yard, truck.group]) {
+      g.position.set(EMMETT_BASE.x, 0, EMMETT_BASE.z);
+      g.rotation.y = EMMETT_BASE.yaw;
+      group.add(g);
+    }
+  }
   if (level.caveZone) {
     // the mountain's boulders, entrance and everything inside the tunnels
     group.add(makeMountainCave());
@@ -428,6 +441,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     live.add(carnival.ring);
   }
   if (campfire) live.add(campfire.group);
+  if (truck) live.add(truck.group);
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.
   const noMerge =
@@ -457,6 +471,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     spray,
     splash,
     carnival,
+    truck,
     campfire,
   };
 }

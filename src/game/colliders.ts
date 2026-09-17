@@ -1,3 +1,4 @@
+import { truckColliders } from "./emmett-base";
 import { aabbFromCenter, type AABB } from "./collision";
 import { TRAMPOLINE_TOP } from "./tuning";
 import type { BoxProp, LevelDef, Prop } from "./types";
@@ -102,6 +103,8 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
     push(aabbFromCenter(x, 0.3, z + 4.0, 3.2, 0.6, 1.6), "wheel platform", -1);
     push(aabbFromCenter(x, 0.15, z + 5.2, 3.2, 0.3, 0.8), "wheel step", -1);
   }
+
+  if (level.emmettBase) truckColliders().forEach((b, i) => push(b, "monster truck", -1 - i));
 
   // composite meshes the builder places by hand
   if (level.id === "picnic") {

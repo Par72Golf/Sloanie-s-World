@@ -1,3 +1,4 @@
+import { yardFootprint } from "./emmett-base";
 import * as THREE from "three";
 import type { AABB } from "./collision";
 import type { LevelDef, WaterZone } from "./types";
@@ -156,6 +157,8 @@ export function scatterMask(level: LevelDef, colliders: AABB[], water: WaterZone
   for (const w of water) {
     circles.push({ x: w.x, z: w.z, r: w.r + 0.6 });
   }
+  // no grass through Emmett's dirt yard
+  if (level.emmettBase) rects.push(yardFootprint());
 
   return { rects, circles, grid: indexMask(rects, circles) };
 }

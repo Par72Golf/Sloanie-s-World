@@ -27,7 +27,14 @@ const MIN_FOUND = 1;
 
 let humIsOnCached = false;
 
-export type EmmettState = "away" | "arriving" | "chasing" | "leaving" | "talking";
+export type EmmettState = "away" | "home" | "arriving" | "chasing" | "leaving" | "talking";
+
+/** Where he lives: his monster truck yard. He pedals laps round it between outings. */
+export type EmmettHome = { x: number; z: number; loop: number; park: [number, number, number] };
+
+/** How far away counts as "arrived near her", when the lingering clock starts. */
+const NEAR_HER = 45;
+const HOME_SPEED = 2.2;
 
 /** Landmarks he rehides to. Known places, so a loss is an errand not a mystery. */
 export type RehideSpot = { name: string; say: string; pos: [number, number, number] };
@@ -55,15 +62,33 @@ export class Emmett {
   private bestDist = Infinity;
   private noProgressFor = 0;
 
+  private loopAngle = 0;
+
   constructor(
     scene: THREE.Object3D,
     private bounds: { minX: number; maxX: number; minZ: number; maxZ: number },
     private keepOut: KeepOut[] = [],
+    private home: EmmettHome | null = null,
   ) {
     this.rig = makeEmmett();
     this.group = this.rig.root;
     this.group.visible = false;
     scene.add(this.group);
+    if (home) this.goHome(FIRST_DELAY);
+  }
+
+  /** Park him at home, pedalling laps, until his next outing in `wait` seconds. */
+  private goHome(wait: number) {
+    const h = this.home!;
+    this.state = "home";
+    this.timer = wait;
+    this.mood = "ride";
+    this.dropCarried();
+    this.loopAngle = Math.atan2(this.group.position.z - h.z, this.group.position.x - h.x) || 0;
+    if (!this.group.visible) this.group.position.set(h.park[0], 0, h.park[2]);
+    this.group.visible = true;
+    this.detour = null;
+    setHumLevel(0);
   }
 
   dispose(scene: THREE.Object3D) {
@@ -95,12 +120,18 @@ export class Emmett {
     this.mood = "ride";
     this.dropCarried();
     setHumLevel(0);
+    if (this.home) this.goHome(FIRST_DELAY);
   }
 
   /** Send him off after an encounter. */
   leave(cooldown = COOLDOWN) {
     this.state = "leaving";
     this.timer = cooldown;
+    if (this.home) {
+      // pedal back home
+      this.target.set(this.home.park[0], 0, this.home.park[2]);
+      return;
+    }
     const b = this.bounds;
     // ride toward the nearest edge and vanish
     const ex = this.group.position.x > 0 ? b.maxX - 6 : b.minX + 6;
@@ -156,7 +187,25 @@ export class Emmett {
   ): boolean {
     if (paused) return false;
 
-    if (this.state === "away") {
+    if (this.state === "home" && this.home) {
+      // laps round the truck yard; when it's time, off he goes to find her
+      const h = this.home;
+      this.timer -= dt;
+      this.loopAngle += (dt * HOME_SPEED) / h.loop;
+      this.target.set(h.x + Math.cos(this.loopAngle) * h.loop, 0, h.z + Math.sin(this.loopAngle) * h.loop);
+      setHumLevel(0);
+      if (this.timer <= 0 && found >= MIN_FOUND && found < total - 1) {
+        if (!humIsOnCached) {
+          startHum();
+          humIsOnCached = true;
+        }
+        this.state = "arriving";
+        this.timer = LINGER;
+        this.bestDist = Infinity;
+        this.noProgressFor = 0;
+        this.detour = null;
+      }
+    } else if (this.state === "away") {
       setHumLevel(0);
       this.timer -= dt;
       // he only starts turning up once she is into the game, and he leaves the
@@ -174,11 +223,14 @@ export class Emmett {
 
     // audible well before he is visible, so noticing him is enough to escape
     const away = Math.hypot(px - this.group.position.x, pz - this.group.position.z);
-    setHumLevel(THREE.MathUtils.clamp(1 - (away - 4) / 34, 0, 1));
+    if (this.state !== "home") setHumLevel(THREE.MathUtils.clamp(1 - (away - 4) / 34, 0, 1));
 
-    this.timer -= dt;
+    // riding out from home, the lingering clock only starts once he's near her
+    if (this.state !== "home" && !(this.state === "arriving" && this.home && away > NEAR_HER)) this.timer -= dt;
 
-    if (this.state === "arriving" || this.state === "chasing") {
+    if (this.state === "arriving" && this.home && away > NEAR_HER) {
+      this.target.set(px, 0, pz);
+    } else if (this.state === "arriving" || this.state === "chasing") {
       this.state = "chasing";
       // if she ducks into the maze or the walled garden he waits outside,
       // circling near the edge rather than trying to follow her in
@@ -200,7 +252,12 @@ export class Emmett {
       if (this.timer <= 0) this.leave(GAP_MIN + Math.random() * (GAP_MAX - GAP_MIN) - LINGER);
     }
 
-    if (this.state === "leaving" && this.timer <= LINGER * 0.2) {
+    if (this.state === "leaving" && this.home) {
+      if (Math.hypot(this.group.position.x - this.home.park[0], this.group.position.z - this.home.park[2]) < 3) {
+        this.goHome(Math.max(this.timer, GAP_MIN * 0.5));
+        return false;
+      }
+    } else if (this.state === "leaving" && this.timer <= LINGER * 0.2) {
       // far enough away, park him until next time
       this.group.visible = false;
       this.state = "away";
@@ -255,9 +312,9 @@ export class Emmett {
     this.facing += applied;
     this.turn = THREE.MathUtils.lerp(this.turn, applied / turnRate, 0.2);
 
-    // ease off as he arrives so he does not jitter on top of her
+    // ease off as he arrives so he does not jitter on top of her; dawdle at home
     const approach = this.state === "chasing" ? THREE.MathUtils.clamp(dist / 6, 0.35, 1) : 1;
-    this.speed = SPEED * approach;
+    this.speed = this.state === "home" ? HOME_SPEED : SPEED * approach;
 
     const stepX = Math.sin(this.facing) * this.speed * dt;
     const stepZ = Math.cos(this.facing) * this.speed * dt;

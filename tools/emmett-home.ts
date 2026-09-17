@@ -1,0 +1,35 @@
+/**
+ * Emmett's day from his truck: he laps at home, rides out to find her once the
+ * timer runs out, catches her (she stands still at spawn here), then pedals
+ * back home and starts again. Passes if he completes at least 3 round trips.
+ */
+import * as THREE from "three";
+import { Emmett } from "../src/game/emmett";
+import { EMMETT_BASE } from "../src/game/emmett-base";
+import { LEVELS } from "../src/game/levels";
+import { collidersFor } from "../src/game/colliders";
+const warn = console.warn; console.warn = (...a: unknown[]) => { if (typeof a[0] === "string" && a[0].includes("undefined")) return; warn(...a); };
+const noop = () => {};
+const ctx = new Proxy({} as Record<string, unknown>, {
+  get: (target, k) => (k === "getImageData" || k === "createImageData" ? (a: number, b: number, w = a, h = b) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h }) : k === "measureText" ? () => ({ width: 40 }) : k in target ? target[k as string] : noop),
+  set: (target, k, v) => ((target[k as string] = v), true),
+});
+(globalThis as any).document = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) };
+const anyNode: any = new Proxy(function () {}, { get: (_t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => 0 : k === "currentTime" || k === "sampleRate" ? 1 : anyNode), apply: () => anyNode, construct: () => anyNode, set: () => true });
+(globalThis as any).window = { AudioContext: anyNode, setInterval: () => 0, clearInterval: () => {} };
+const lv = LEVELS[0]!;
+const cols = collidersFor(lv);
+const scene = new THREE.Scene();
+const e = new Emmett(scene, lv.bounds, lv.emmettKeepOut ?? [], { x: EMMETT_BASE.x, z: EMMETT_BASE.z, loop: EMMETT_BASE.loop, park: EMMETT_BASE.trikePark });
+let last = ""; let t = 0; const dt = 1 / 30;
+const her = { x: 0, z: 22 };
+let caught = 0;
+for (let i = 0; i < 30 * 900; i++) {
+  t += dt;
+  const c = e.update(dt, t, her.x, her.z, 3, 16, cols, false);
+  if (e.state !== last) { console.log(`${t.toFixed(1)}s ${last} -> ${e.state} at (${e.group.position.x.toFixed(1)}, ${e.group.position.z.toFixed(1)})`); last = e.state; }
+  if (c) { caught++; console.log(`${t.toFixed(1)}s caught`); e.leave(); }
+}
+const ok = caught >= 3;
+console.log(`caught ${caught} times in 15 minutes: ${ok ? "PASS" : "FAIL"}`);
+process.exit(ok ? 0 : 1);
