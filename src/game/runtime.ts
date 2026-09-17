@@ -714,6 +714,10 @@ export class GameRuntime {
     this.renderer.setSize(w, h, false);
     this.composer.setPixelRatio(this.renderer.getPixelRatio());
     this.composer.setSize(w, h);
+    const buf = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    perf.bufW = buf.x;
+    perf.bufH = buf.y;
+    perf.pixelRatio = this.renderer.getPixelRatio();
   }
 
   /** One frame through the post-processing chain. */
@@ -1376,6 +1380,7 @@ export class GameRuntime {
 
   frame(now: number) {
     if (this.disposed) return;
+    const workStart = performance.now();
     // wall time since the previous frame, unclamped: this is what a freeze
     // looks like from the player's chair, whatever caused it
     const frameMs = this.last ? now - this.last : 0;
@@ -1454,7 +1459,7 @@ export class GameRuntime {
     perf.calls = this.renderer.info.render.calls;
     perf.triangles = this.renderer.info.render.triangles;
     perf.puffs = this.puffs.length;
-    recordFrame(now, frameMs, () => {
+    recordFrame(now, frameMs, performance.now() - workStart, () => {
       const s = useGame.getState();
       const sinceCatch = this.lastCatchClock >= 0 ? `${(this.clock - this.lastCatchClock).toFixed(1)}s after catch` : "no catch yet";
       return `${s.phase}${s.quiz ? " quiz" : ""}${s.rps ? " rps" : ""}, ${sinceCatch}, celebrating=${this.celebrating ? "yes" : "no"}, puffs=${this.puffs.length}, emmett=${this.emmett?.state ?? "none"}`;

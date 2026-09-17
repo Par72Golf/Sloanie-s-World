@@ -30,6 +30,17 @@ export const perf = {
   puffs: 0,
   /** JS heap in MB if the browser reports it */
   heapMB: 0,
+  /**
+   * Average time the game's own code took per frame over the last window, ms:
+   * physics, animation, HUD and issuing the draw calls. If frames are slow but
+   * this is small, the GPU is the bottleneck; if it is close to the frame
+   * time, the CPU is.
+   */
+  cpuMs: 0,
+  /** drawing buffer size in real pixels, and the pixel ratio behind it */
+  bufW: 0,
+  bufH: 0,
+  pixelRatio: 1,
 };
 
 export const HITCH_MS = 120;
@@ -37,17 +48,21 @@ export const HITCH_MS = 120;
 let windowStart = 0;
 let windowFrames = 0;
 let windowWorst = 0;
+let windowCpu = 0;
 
-export function recordFrame(nowMs: number, frameMs: number, note: () => string) {
+export function recordFrame(nowMs: number, frameMs: number, cpuMs: number, note: () => string) {
   perf.frameMs = frameMs;
   windowFrames++;
   windowWorst = Math.max(windowWorst, frameMs);
+  windowCpu += cpuMs;
   if (nowMs - windowStart >= 1000) {
     perf.fps = Math.round((windowFrames * 1000) / Math.max(1, nowMs - windowStart));
     perf.worstMs = Math.round(windowWorst);
+    perf.cpuMs = Math.round((windowCpu / Math.max(1, windowFrames)) * 10) / 10;
     windowStart = nowMs;
     windowFrames = 0;
     windowWorst = 0;
+    windowCpu = 0;
   }
   if (frameMs >= HITCH_MS) {
     perf.hitches.push({ at: Math.round(nowMs / 100) / 10, ms: Math.round(frameMs), note: note() });

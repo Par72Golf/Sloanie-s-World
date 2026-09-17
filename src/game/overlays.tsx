@@ -3,6 +3,7 @@ import {
   BookOpen,
   FerrisWheel,
   Gamepad2,
+  Gauge,
   HelpCircle,
   Maximize,
   Minimize,
@@ -848,6 +849,30 @@ function BigAction({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
+/**
+ * Frame-rate readout for judging the game on the real screen. Samples the
+ * perf object on its own timer, never per frame, so it costs nothing to show.
+ * fps: frames drawn in the last second. worst: the slowest single frame, which
+ * is what a stutter feels like. cpu: the game's own work per frame (if frames
+ * are slow and this is low, the GPU is the limit). Last, the size it really
+ * draws at, which on a Retina screen is twice the window in each direction.
+ */
+function FpsCounter() {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => tick((n) => n + 1), 500);
+    return () => window.clearInterval(id);
+  }, []);
+  const fps = perf.fps;
+  const tone = fps >= 55 ? "text-[#7be08a]" : fps >= 40 ? "text-[#ffd166]" : "text-[#ff7a6b]";
+  return (
+    <div className="pointer-events-none absolute bottom-2 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink/75 px-3 py-1 font-mono text-xs text-white tabular-nums">
+      <span className={cn("font-bold", tone)}>{fps} fps</span>
+      {" · "}worst {perf.worstMs}ms · cpu {perf.cpuMs}ms · {perf.bufW}×{perf.bufH} @{perf.pixelRatio}x
+    </div>
+  );
+}
+
 /** Name card that appears while the caught dumpling floats above her head. */
 function CatchCard() {
   const celebrate = useGame((s) => s.celebrate);
@@ -1157,6 +1182,8 @@ function PauseScreen() {
   const setControls = useGame((s) => s.setControls);
   const view = useGame((s) => s.view);
   const toggleView = useGame((s) => s.toggleView);
+  const showFps = useGame((s) => s.showFps);
+  const toggleFps = useGame((s) => s.toggleFps);
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-ink/45 p-4">
       <Panel className="w-full max-w-sm p-6 text-center">
@@ -1177,6 +1204,10 @@ function PauseScreen() {
           </Btn>
           <Btn variant="secondary" onClick={toggleView} className="gap-2">
             {view === "first" ? "Third person view" : "First person view"}
+          </Btn>
+          <Btn variant="secondary" onClick={toggleFps} className="gap-2">
+            <Gauge className="size-4" />
+            {showFps ? "Hide frame rate" : "Show frame rate"}
           </Btn>
           {canFullscreen() && (
             <Btn variant="secondary" onClick={() => void toggleFullscreen()} className="gap-2">
@@ -1279,6 +1310,7 @@ export function Overlays() {
   const muted = useGame((s) => s.muted);
   const wardrobeOpen = useGame((s) => s.wardrobeOpen);
   const controlsOpen = useGame((s) => s.controlsOpen);
+  const showFps = useGame((s) => s.showFps);
 
   useEffect(() => {
     setMuted(muted);
@@ -1298,6 +1330,7 @@ export function Overlays() {
       {phase === "victory" && <VictoryScreen />}
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {controlsOpen && <ControlsPanel />}
+      {showFps && phase !== "title" && <FpsCounter />}
       {debugEnabled() && <DebugOverlay />}
     </div>
   );

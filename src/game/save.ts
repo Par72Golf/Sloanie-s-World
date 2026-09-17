@@ -30,6 +30,8 @@ export type SaveData = {
   worn: Record<string, string | null>;
   /** Camera: third person by default, first person opt-in. */
   view: "third" | "first";
+  /** Frame-rate readout, switched on from the pause menu. */
+  showFps: boolean;
 };
 
 const DEFAULT: SaveData = {
@@ -46,6 +48,7 @@ const DEFAULT: SaveData = {
   foundAccessories: [],
   worn: { head: null, hair: null, face: null, back: null },
   view: "third",
+  showFps: false,
 };
 
 function migrate(raw: SaveData): SaveData {
@@ -73,6 +76,7 @@ function migrate(raw: SaveData): SaveData {
     back: typeof s.worn.back === "string" ? s.worn.back : null,
   };
   if (s.view !== "first") s.view = "third";
+  s.showFps = s.showFps === true;
   s.version = SAVE_VERSION;
   return s;
 }

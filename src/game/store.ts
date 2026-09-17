@@ -91,6 +91,9 @@ export type GameStore = {
   view: "third" | "first";
   toggleView: () => void;
   setView: (v: "third" | "first") => void;
+  /** Frame-rate readout on the HUD; saved. */
+  showFps: boolean;
+  toggleFps: () => void;
   controlsOpen: boolean;
   setControls: (v: boolean) => void;
   findAccessory: (id: AccessoryId) => void;
@@ -156,6 +159,7 @@ function persistSlice(s: GameStore) {
     foundAccessories: s.foundAccessories,
     worn: s.worn,
     view: s.view,
+    showFps: s.showFps,
   });
 }
 
@@ -213,6 +217,11 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   setView: (view) => {
     set({ view });
+    persistSlice(get());
+  },
+  showFps: saved.showFps,
+  toggleFps: () => {
+    set({ showFps: !get().showFps });
     persistSlice(get());
   },
   controlsOpen: false,
