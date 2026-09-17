@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { beveledBox } from "./beveled";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { texturesFor, type TexKind } from "./textures";
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -98,8 +100,6 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   const white = "#f9f6f2";
   const brow = "#3a2a1c";
   const lip = "#c9605c";
-  const ipod = "#1c1c1f";
-  const wheel = "#d9d9de";
   const cord = "#f0f0f0";
   const cups = "#2a2a2e";
   const flat = (c: string, extras?: Parameters<typeof lam>[1]) => lam(c, { flat: true, ...extras });
@@ -183,19 +183,9 @@ export function makeGirl(skin: string, hair: string, dress: string) {
 
   // ---- iPod classic in the right hand -----------------------------------
   {
-    const ip = new THREE.Group();
+    const ip = makeIpod();
     ip.position.set(0.03, -0.56, 0.08);
     ip.rotation.set(-0.5, 0.15, 0);
-    ip.add(part(boxGeo, ipod, 0.12, 0.2, 0.03, 0, 0, 0, false, 0.32));
-    const screen = new THREE.Mesh(beveledBox(0.09, 0.07, 0.006), ipodScreenMaterial());
-    screen.position.set(0, 0.05, 0.016);
-    ip.add(screen);
-    const w = part(cylGeo, wheel, 0.042, 0.004, 0.042, 0, -0.05, 0.016, false, 0.35);
-    w.rotation.x = Math.PI / 2;
-    ip.add(w);
-    const c = part(cylGeo, "#b8bcc4", 0.014, 0.005, 0.014, 0, -0.05, 0.018, false, 0.35);
-    c.rotation.x = Math.PI / 2;
-    ip.add(c);
     rightArm.add(ip);
     // cord along the arm: shoulder to hand
     const along = part(cylGeo, cord, 0.008, 0.5, 0.008, 0.03, -0.29, 0.07, false, 0.7);
@@ -313,208 +303,403 @@ export function setFirstPersonBody(root: THREE.Group, firstPerson: boolean) {
   });
 }
 
+// ---- iPod classic -----------------------------------------------------------
+// Real proportions (61.8 x 103.5 x 10.5mm) at about twice the size, so it reads
+// on a TV across the room. Local frame: x right, y up, the face toward +z.
+export const IPOD = { w: 0.12, h: 0.2, d: 0.024 };
+const IPOD_FONT = "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
+
 let ipodScreenTex: THREE.CanvasTexture | null = null;
-/** The iPod's screen: dark glass with a little grey apple, like the boot logo. */
+/** The screen: the classic main menu with the blue selection bar. */
 export function ipodScreenTexture() {
   if (ipodScreenTex) return ipodScreenTex;
+  const W = 256;
+  const H = 192;
   const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 96;
+  c.width = W;
+  c.height = H;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#161a22";
-  g.fillRect(0, 0, 128, 96);
-  // faint screen glow
-  const grad = g.createRadialGradient(64, 48, 6, 64, 48, 70);
-  grad.addColorStop(0, "rgba(120,140,170,0.35)");
-  grad.addColorStop(1, "rgba(120,140,170,0)");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 128, 96);
-  // apple: two lobes, a dip at the top, a bite on the right, a leaf
-  g.fillStyle = "#c9ced8";
+  g.fillStyle = "#f7f8fa";
+  g.fillRect(0, 0, W, H);
+  // title bar
+  const bar = g.createLinearGradient(0, 0, 0, 32);
+  bar.addColorStop(0, "#ffffff");
+  bar.addColorStop(1, "#c6ccd5");
+  g.fillStyle = bar;
+  g.fillRect(0, 0, W, 32);
+  g.fillStyle = "#8f97a3";
+  g.fillRect(0, 32, W, 2);
+  g.fillStyle = "#1d2330";
+  g.font = `bold 20px ${IPOD_FONT}`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText("iPod", W / 2, 17);
+  // play glyph and battery
+  g.fillStyle = "#2f74d8";
   g.beginPath();
-  g.arc(54, 54, 20, 0, Math.PI * 2);
-  g.arc(74, 54, 20, 0, Math.PI * 2);
+  g.moveTo(11, 9);
+  g.lineTo(23, 17);
+  g.lineTo(11, 25);
+  g.closePath();
   g.fill();
-  g.beginPath();
-  g.ellipse(64, 60, 27, 22, 0, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = "#161a22";
-  g.beginPath();
-  g.arc(64, 36, 7, 0, Math.PI * 2); // top dip
-  g.fill();
-  g.beginPath();
-  g.arc(94, 46, 10, 0, Math.PI * 2); // bite
-  g.fill();
-  g.fillStyle = "#c9ced8";
-  g.save();
-  g.translate(70, 28);
-  g.rotate(-0.6);
-  g.beginPath();
-  g.ellipse(0, 0, 9, 4.5, 0, 0, Math.PI * 2);
-  g.fill();
-  g.restore();
+  g.strokeStyle = "#4a5160";
+  g.lineWidth = 2;
+  g.strokeRect(W - 40, 10, 26, 14);
+  g.fillStyle = "#4a5160";
+  g.fillRect(W - 14, 14, 3, 6);
+  g.fillStyle = "#4cb84a";
+  g.fillRect(W - 37, 13, 20, 8);
+  // menu, first row selected
+  const items = ["Music", "Photos", "Videos", "Shuffle Songs", "Settings", "Now Playing"];
+  const top = 34;
+  const row = 26;
+  items.forEach((t, i) => {
+    const y = top + i * row;
+    if (i === 0) {
+      const sel = g.createLinearGradient(0, y, 0, y + row);
+      sel.addColorStop(0, "#7cb8f7");
+      sel.addColorStop(1, "#2767d0");
+      g.fillStyle = sel;
+      g.fillRect(0, y, W, row);
+    }
+    g.fillStyle = i === 0 ? "#ffffff" : "#1d2330";
+    g.font = `bold 18px ${IPOD_FONT}`;
+    g.textAlign = "left";
+    g.fillText(t, 12, y + row / 2 + 1);
+    if (i < items.length - 1) {
+      g.font = `bold 22px ${IPOD_FONT}`;
+      g.textAlign = "right";
+      g.fillText("›", W - 12, y + row / 2);
+    }
+  });
   ipodScreenTex = new THREE.CanvasTexture(c);
   ipodScreenTex.colorSpace = THREE.SRGBColorSpace;
-  ipodScreenTex.needsUpdate = true;
+  ipodScreenTex.anisotropy = 4;
   return ipodScreenTex;
 }
 
-/** Screen material with the logo texture, slightly emissive so it reads in shade. */
-function ipodScreenMaterial() {
-  return new THREE.MeshStandardMaterial({
-    map: ipodScreenTexture(),
-    emissive: new THREE.Color("#3a4250"),
-    emissiveMap: ipodScreenTexture(),
-    emissiveIntensity: 0.5,
-    roughness: 0.25,
-    metalness: 0.05,
-  });
+/** The click wheel: a dark ring with MENU and the transport glyphs. */
+function ipodWheelTexture() {
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = S;
+  c.height = S;
+  const g = c.getContext("2d")!;
+  const m = S / 2;
+  const ring = g.createRadialGradient(m, m * 0.7, 10, m, m, m);
+  ring.addColorStop(0, "#44464c");
+  ring.addColorStop(1, "#2a2b30");
+  g.fillStyle = ring;
+  g.beginPath();
+  g.arc(m, m, m, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#d4d7dd";
+  g.font = `bold 30px ${IPOD_FONT}`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText("MENU", m, 38);
+  const tri = (x: number, y: number, dir: number, s: number) => {
+    g.beginPath();
+    g.moveTo(x - dir * s, y - s);
+    g.lineTo(x + dir * s, y);
+    g.lineTo(x - dir * s, y + s);
+    g.closePath();
+    g.fill();
+  };
+  // next |>>  and  <<| previous
+  tri(208, m, 1, 11);
+  tri(226, m, 1, 11);
+  g.fillRect(236, m - 11, 5, 22);
+  tri(48, m, -1, 11);
+  tri(30, m, -1, 11);
+  g.fillRect(15, m - 11, 5, 22);
+  // play / pause
+  tri(m - 12, 220, 1, 11);
+  g.fillRect(m + 6, 209, 5, 22);
+  g.fillRect(m + 15, 209, 5, 22);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+type IpodParts = {
+  front: THREE.BufferGeometry;
+  back: THREE.BufferGeometry;
+  screen: THREE.BufferGeometry;
+  wheel: THREE.BufferGeometry;
+  button: THREE.BufferGeometry;
+  jackRing: THREE.BufferGeometry;
+  jackHole: THREE.BufferGeometry;
+  hold: THREE.BufferGeometry;
+  mats: Record<"front" | "chrome" | "screen" | "wheel" | "button" | "hole", THREE.Material>;
+};
+let ipodParts: IpodParts | null = null;
+function ipodKit(): IpodParts {
+  if (ipodParts) return ipodParts;
+  const { w, h, d } = IPOD;
+  const wheelMap = ipodWheelTexture();
+  ipodParts = {
+    // black anodised front half, chrome back half: two rounded slabs
+    front: new RoundedBoxGeometry(w, h, d * 0.62, 4, 0.008),
+    back: new RoundedBoxGeometry(w - 0.002, h - 0.002, d * 0.62, 4, 0.009),
+    screen: new THREE.PlaneGeometry(0.094, 0.0705),
+    wheel: new THREE.CircleGeometry(0.037, 64),
+    button: new THREE.CylinderGeometry(0.0125, 0.0125, 0.0024, 40),
+    jackRing: new THREE.CylinderGeometry(0.0046, 0.0046, 0.003, 20),
+    jackHole: new THREE.CylinderGeometry(0.0026, 0.0026, 0.0034, 16),
+    hold: new RoundedBoxGeometry(0.016, 0.004, 0.007, 2, 0.0015),
+    mats: {
+      front: new THREE.MeshStandardMaterial({ color: "#16171a", roughness: 0.3, metalness: 0.1 }),
+      chrome: new THREE.MeshStandardMaterial({ color: "#d5d9df", roughness: 0.18, metalness: 0.85 }),
+      // unlit, and grey rather than white so the bloom pass leaves it alone
+      screen: new THREE.MeshBasicMaterial({ map: ipodScreenTexture(), color: "#c9c9c9" }),
+      wheel: new THREE.MeshStandardMaterial({ map: wheelMap, roughness: 0.5, metalness: 0.05 }),
+      button: new THREE.MeshStandardMaterial({ color: "#1f2024", roughness: 0.28, metalness: 0.1 }),
+      hole: new THREE.MeshBasicMaterial({ color: "#050505" }),
+    },
+  };
+  return ipodParts;
+}
+
+/**
+ * An iPod classic, shared by Sloan's third-person hand and the first-person
+ * viewmodel. `userData.jack` is the headphone socket in the local frame, for
+ * whoever routes the cord.
+ */
+export function makeIpod(shadow = false): THREE.Group {
+  const { h, d } = IPOD;
+  const k = ipodKit();
+  const g = new THREE.Group();
+  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.castShadow = shadow;
+    m.receiveShadow = false;
+    g.add(m);
+    return m;
+  };
+  add(k.front, k.mats.front, 0, 0, d * 0.19);
+  add(k.back, k.mats.chrome, 0, 0, -d * 0.19);
+  const face = d / 2;
+  add(k.screen, k.mats.screen, 0, 0.047, face + 0.0006);
+  add(k.wheel, k.mats.wheel, 0, -0.047, face + 0.0006);
+  add(k.button, k.mats.button, 0, -0.047, face + 0.0012).rotation.x = Math.PI / 2;
+  add(k.jackRing, k.mats.chrome, -0.036, h / 2, 0);
+  add(k.jackHole, k.mats.hole, -0.036, h / 2, 0);
+  add(k.hold, k.mats.chrome, 0.036, h / 2 + 0.0008, 0);
+  g.userData.jack = new THREE.Vector3(-0.036, h / 2, 0);
+  return g;
 }
 
 export type Hands = { group: THREE.Group; left: THREE.Group; right: THREE.Group };
 
+type V3 = [number, number, number];
+const Y_UP = new THREE.Vector3(0, 1, 0);
+
 /**
- * First-person hands: two forearms coming up from the bottom corners of the
- * view, the right one holding the iPod. Built in camera space (forward is
- * -z) and parented to nothing; the runtime copies the camera's transform
- * onto the group each frame and adds bob and sway.
+ * A smooth tapered limb through a list of joints: a sphere at every joint and
+ * an open cone between each pair, with matching radii, so there are no seams
+ * to line up. A finger is just its knuckle positions, which is far easier to
+ * pose than chained Euler rotations.
  */
-const forearmGeo = new THREE.CylinderGeometry(0.72, 1, 1, 12); // wrist end narrower
+function limb(out: THREE.BufferGeometry[], points: V3[], radii: number[]) {
+  points.forEach((pt, i) => {
+    const r = radii[Math.min(i, radii.length - 1)]!;
+    out.push(new THREE.SphereGeometry(r, 16, 12).translate(...pt));
+    if (i === 0) return;
+    const a = new THREE.Vector3(...points[i - 1]!);
+    const b = new THREE.Vector3(...pt);
+    const len = a.distanceTo(b);
+    if (len < 1e-5) return;
+    const ra = radii[Math.min(i - 1, radii.length - 1)]!;
+    const cone = new THREE.CylinderGeometry(r, ra, len, 16, 1, true);
+    const q = new THREE.Quaternion().setFromUnitVectors(Y_UP, b.clone().sub(a).normalize());
+    cone.applyMatrix4(new THREE.Matrix4().compose(a.add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1)));
+    out.push(cone);
+  });
+}
 
-export function makeHands(skin: string, dress: string): Hands {
-  const group = new THREE.Group();
-  const flat = (c: string, roughness = 0.55) => lam(c, { flat: true, roughness });
-  const skinMat = flat(skin, 0.6);
-  const p = (
-    geo: THREE.BufferGeometry,
-    color: string,
-    sx: number,
-    sy: number,
-    sz: number,
-    x: number,
-    y: number,
-    z: number,
-    roughness = 0.55,
-  ) => {
-    const m = new THREE.Mesh(geo === boxGeo ? beveledBox(sx, sy, sz) : geo, color === skin ? skinMat : flat(color, roughness));
-    if (geo !== boxGeo) m.scale.set(sx, sy, sz);
-    m.position.set(x, y, z);
-    m.castShadow = false;
-    m.receiveShadow = false;
-    return m;
-  };
-  // a finger: two jointed segments, curling toward +y (the palm side)
-  const finger = (len: number, width: number, curl1: number, curl2: number) => {
-    const f = new THREE.Group();
-    const s1 = p(boxGeo, skin, width, width * 0.9, len * 0.55, 0, 0, -len * 0.275);
-    f.add(s1);
-    const joint = new THREE.Group();
-    joint.position.set(0, 0, -len * 0.55);
-    joint.rotation.x = curl2;
-    joint.add(p(boxGeo, skin, width * 0.92, width * 0.85, len * 0.45, 0, 0, -len * 0.225));
-    f.add(joint);
-    f.rotation.x = curl1;
-    return f;
-  };
-  // a hand in its own frame: palm centred at the origin, thin axis y (palm
-  // faces +y), fingers along -z from the front edge, thumb off the +x side
-  const hand = (side: number, curl1: number, curl2: number, thumbCurl: number) => {
-    const h = new THREE.Group();
-    h.add(p(boxGeo, skin, 0.082, 0.028, 0.09, 0, 0, 0));
-    // slight taper toward the wrist
-    h.add(p(boxGeo, skin, 0.07, 0.026, 0.03, 0, 0, 0.055));
-    const xs = [-0.03, -0.01, 0.01, 0.03];
-    const lens = [0.046, 0.054, 0.05, 0.04];
-    xs.forEach((x, i) => {
-      const f = finger(lens[i]!, 0.017, curl1, curl2);
-      f.position.set(x * side, 0.002, -0.045);
-      h.add(f);
-    });
-    const t = new THREE.Group();
-    t.position.set(side * 0.046, 0.004, -0.012);
-    t.rotation.y = -side * 0.75;
-    t.rotation.x = thumbCurl;
-    const tb = finger(0.046, 0.02, 0, 0.5);
-    t.add(tb);
-    h.add(t);
-    return h;
-  };
-  const forearm = (side: number) => {
-    const g = new THREE.Group();
-    const arm = new THREE.Mesh(forearmGeo, skinMat);
-    arm.scale.set(0.05, 0.42, 0.05);
-    arm.position.set(0, -0.24, 0.16);
-    arm.rotation.x = -0.75;
-    arm.rotation.z = side * 0.18;
-    arm.castShadow = false;
-    g.add(arm);
-    const sleeve = p(cylGeo, dress, 0.066, 0.11, 0.066, side * 0.05, -0.42, 0.34);
-    sleeve.rotation.x = -0.75;
-    g.add(sleeve);
-    return g;
-  };
+/** A scaled sphere (palms, nails). */
+function blob(out: THREE.BufferGeometry[], at: V3, scale: V3, rot: V3 = [0, 0, 0]) {
+  const geo = new THREE.SphereGeometry(1, 20, 14);
+  geo.applyMatrix4(
+    new THREE.Matrix4().compose(
+      new THREE.Vector3(...at),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)),
+      new THREE.Vector3(...scale),
+    ),
+  );
+  out.push(geo);
+}
 
-  // ---- right hand: holding the iPod, palm toward the eye ------------------
-  const right = new THREE.Group();
-  right.add(forearm(1));
-  {
-    // Euler XYZ applies Y then X: Y by +90 turns the fingers to point left
-    // (-x), then X by +90 turns the palm to face the eye (+z). The thumb is
-    // built on the -x side so after the turn it comes toward the eye, up
-    // over the click wheel.
-    // Mitten hands, the same rounded shapes as her third-person hands. Built
-    // in the iPod's frame: a rounded palm behind the device, one smooth
-    // finger mass curling round its left edge, and a thumb over the wheel.
-    const ip = new THREE.Group();
-    ip.position.set(-0.035, 0.05, 0.03);
-    ip.rotation.set(-0.3, -0.18, -0.12);
-    const palm = p(sphereGeo, skin, 0.05, 0.07, 0.03, 0.0, -0.02, -0.03);
-    ip.add(palm);
-    const fingers = p(sphereGeo, skin, 0.03, 0.065, 0.032, -0.072, 0.02, 0.006);
-    fingers.rotation.z = 0.1;
-    ip.add(fingers);
-    const thumb = p(sphereGeo, skin, 0.02, 0.036, 0.018, 0.035, -0.06, 0.028);
-    thumb.rotation.z = -0.7;
-    ip.add(thumb);
-    ip.add(p(boxGeo, "#1c1c1f", 0.12, 0.2, 0.028, 0, 0, 0, 0.32));
-    const screen = new THREE.Mesh(beveledBox(0.09, 0.07, 0.006), ipodScreenMaterial());
-    screen.position.set(0, 0.05, 0.016);
-    ip.add(screen);
-    const w = p(cylGeo, "#d9d9de", 0.042, 0.004, 0.042, 0, -0.05, 0.016, 0.35);
-    w.rotation.x = Math.PI / 2;
-    ip.add(w);
-    const c = p(cylGeo, "#b8bcc4", 0.014, 0.005, 0.014, 0, -0.05, 0.018, 0.35);
-    c.rotation.x = Math.PI / 2;
-    ip.add(c);
-    right.add(ip);
-    // cord out of the top, leaning off to the right and out of frame
-    const cordM = p(cylGeo, "#f0f0f0", 0.005, 0.18, 0.005, 0.0, 0.2, 0.03, 0.7);
-    cordM.rotation.set(0.25, 0, -0.7);
-    right.add(cordM);
+function merged(parts: THREE.BufferGeometry[], mat: THREE.Material) {
+  const geo = mergeGeometries(parts);
+  if (!geo) throw new Error("hands: geometry merge failed");
+  parts.forEach((p) => p.dispose());
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = false;
+  m.receiveShadow = false;
+  m.userData.ownsGeometry = true;
+  return m;
+}
+
+/** A camera-space point expressed in a child group's own frame. */
+function toLocal(obj: THREE.Object3D, p: V3): V3 {
+  obj.updateMatrix();
+  const v = new THREE.Vector3(...p).applyMatrix4(obj.matrix.clone().invert());
+  return [v.x, v.y, v.z];
+}
+
+const handSkinMats = new Map<string, THREE.MeshStandardMaterial>();
+function handSkin(skin: string) {
+  let m = handSkinMats.get(skin);
+  if (!m) {
+    // a little self-light so the hands never go muddy on the shadow side
+    m = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.62, metalness: 0, emissive: skin, emissiveIntensity: 0.14 });
+    handSkinMats.set(skin, m);
   }
-  right.position.set(0.2, -0.26, -0.6);
-  right.rotation.y = -0.22;
+  return m;
+}
+const nailMat = new THREE.MeshStandardMaterial({ color: "#f6d3c2", roughness: 0.35, emissive: "#f6d3c2", emissiveIntensity: 0.1 });
+const cordMat = new THREE.MeshStandardMaterial({ color: "#f2f2f2", roughness: 0.5 });
+
+/**
+ * First-person hands. Built in camera space (forward is -z) and parented to
+ * nothing; the runtime copies the camera's transform onto the group each frame
+ * and adds bob and sway.
+ *
+ * The right hand holds the iPod the way you hold a phone: the device lies in
+ * the palm, the fingers wrap its left edge with their tips showing on the
+ * front, and the thumb reaches over the right edge onto the click wheel. The
+ * right group IS the iPod's frame, so the grip is written in the device's own
+ * coordinates. The left hand is a loose half-fist in the bottom-left corner, back of
+ * the hand toward the eye. Both forearms run to an elbow below the frame so
+ * nothing floats.
+ */
+export function makeHands(skin: string, _dress: string): Hands {
+  const group = new THREE.Group();
+  const skinMat = handSkin(skin);
+
+  // ---- right hand, in the iPod's frame --------------------------------------
+  const right = new THREE.Group();
+  right.position.set(0.17, -0.19, -0.55);
+  right.rotation.set(-0.22, -0.26, 0.1);
+  right.add(makeIpod());
+  {
+    const { w, d } = IPOD;
+    const edge = -w / 2;
+    const face = d / 2;
+    const s: THREE.BufferGeometry[] = [];
+    // palm behind the device, its heel showing past the right edge
+    blob(s, [0.022, -0.056, -face - 0.018], [0.058, 0.05, 0.02]);
+    // fingers, index at the top: behind, round the left edge, tips on the face
+    const rows = [-0.02, -0.044, -0.068, -0.09];
+    const size = [1, 1.02, 0.97, 0.85];
+    rows.forEach((y, i) => {
+      const k = size[i]!;
+      const r = 0.0122 * k;
+      limb(
+        s,
+        [
+          [-0.012, y, -face - 0.018],
+          [edge + 0.004, y, -face - 0.014],
+          [edge - r - 0.002, y + 0.002, -0.001],
+          [edge + 0.006, y + 0.004, face + r * 0.85],
+        ],
+        [r * 1.05, r, r * 0.95, r * 0.88],
+      );
+    });
+    // thumb: from the heel, round the right edge, tip resting on the wheel
+    const tr = 0.0145;
+    limb(
+      s,
+      [
+        [0.066, -0.05, -face - 0.012],
+        [w / 2 + tr + 0.002, -0.04, 0.0],
+        [0.05, -0.04, face + tr * 0.9],
+        [0.024, -0.05, face + tr * 0.8],
+      ],
+      [0.019, tr * 1.08, tr, tr * 0.9],
+    );
+    // wrist and forearm down to an elbow below the frame
+    const wrist: V3 = [0.09, -0.064, -face - 0.02];
+    limb(s, [wrist, toLocal(right, [0.33, -0.66, -0.2])], [0.028, 0.038]);
+    right.add(merged(s, skinMat));
+
+    const nail: THREE.BufferGeometry[] = [];
+    blob(nail, [0.02, -0.0505, face + tr * 0.8 + 0.0122], [0.0085, 0.0075, 0.0026]);
+    right.add(merged(nail, nailMat));
+
+    // headphone cord: up out of the jack, over, and down out of the frame
+    const jack = (right.children[0]!.userData.jack as THREE.Vector3).toArray() as V3;
+    const pts: V3[] = [
+      jack,
+      [jack[0], jack[1] + 0.02, jack[2]],
+      [jack[0] - 0.012, jack[1] + 0.036, jack[2] + 0.004],
+      [jack[0] - 0.034, jack[1] + 0.028, jack[2] + 0.01],
+      toLocal(right, [0.06, -0.16, -0.5]),
+      toLocal(right, [0.02, -0.34, -0.44]),
+      toLocal(right, [-0.02, -0.7, -0.34]),
+    ];
+    const curve = new THREE.CatmullRomCurve3(
+      pts.map((p) => new THREE.Vector3(...p)),
+      false,
+      "centripetal",
+    );
+    const cord = new THREE.Mesh(new THREE.TubeGeometry(curve, 80, 0.0024, 8, false), cordMat);
+    cord.userData.ownsGeometry = true;
+    right.add(cord);
+  }
   group.add(right);
 
-  // ---- left hand: a relaxed mitten, back of the hand toward the eye -------
+  // ---- left hand: a loose half-fist held forward, knuckles toward the eye -------
   const left = new THREE.Group();
-  left.add(forearm(-1));
+  left.position.set(-0.26, -0.3, -0.55);
+  // fingers pointing away, so the eye sees knuckles rather than a raised palm
+  left.rotation.set(-1.15, 0.3, -0.35);
   {
-    const h = new THREE.Group();
-    h.add(p(sphereGeo, skin, 0.05, 0.03, 0.062, 0, 0, 0)); // palm
-    const curl = p(sphereGeo, skin, 0.045, 0.03, 0.03, 0, -0.012, -0.06); // fingers, tucked
-    curl.rotation.x = 0.5;
-    h.add(curl);
-    h.add(p(sphereGeo, skin, 0.017, 0.016, 0.03, -0.055, 0.0, -0.01)); // thumb
-    h.rotation.set(-0.5, 0.2, 0.3);
-    h.position.set(0, 0.03, 0);
-    left.add(h);
+    const s: THREE.BufferGeometry[] = [];
+    blob(s, [0, 0, 0], [0.05, 0.054, 0.022]);
+    const xs = [0.031, 0.011, -0.009, -0.029];
+    const len = [1, 1.08, 1.02, 0.86];
+    xs.forEach((x, i) => {
+      const k = len[i]!;
+      const r = 0.0122 * (i === 3 ? 0.88 : 1);
+      limb(
+        s,
+        [
+          [x, 0.036, 0.002],
+          [x, 0.036 + 0.032 * k, -0.008],
+          [x * 0.95, 0.036 + 0.042 * k, -0.036 * k],
+          [x * 0.9, 0.036 + 0.026 * k, -0.052 * k],
+        ],
+        [r * 1.05, r, r * 0.95, r * 0.88],
+      );
+    });
+    limb(
+      s,
+      [
+        [0.036, -0.02, -0.012],
+        [0.054, 0.006, -0.026],
+        [0.048, 0.03, -0.042],
+        [0.032, 0.046, -0.05],
+      ],
+      [0.018, 0.0155, 0.0135, 0.0122],
+    );
+    limb(s, [[0, -0.052, 0], toLocal(left, [-0.36, -0.68, -0.22])], [0.027, 0.038]);
+    left.add(merged(s, skinMat));
   }
-  left.position.set(-0.23, -0.29, -0.62);
-  left.rotation.y = 0.28;
   group.add(left);
 
   return { group, left, right };
+}
+
+/** Free the per-build geometry of a hands viewmodel that is being replaced. */
+export function disposeHands(h: Hands) {
+  h.group.traverse((o) => {
+    if (o.userData.ownsGeometry) (o as THREE.Mesh).geometry.dispose();
+  });
 }
 
 export type GirlMood = "none" | "cheer" | "boost" | "sad";

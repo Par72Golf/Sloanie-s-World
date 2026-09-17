@@ -72,12 +72,19 @@ Current version: **v2.9**.
   mouse drag, field of view 70 (58 in third person), she faces the camera yaw. Body
   parts tagged `userData.fpHide` (head, arms, shoulders, neck) hide; skirt and legs
   stay. Hands are a separate viewmodel (`makeHands`) the runtime pins to the camera
-  each frame with bob and sway; rebuilt with the girl when the dress changes. The
-  right-hand grip is built in the iPod's own frame (palm behind, fingers round the
-  left edge, thumb on the wheel) because posing a palm with Euler rotations kept
-  hiding the fingers behind the device. The iPod screen is a canvas texture with a
-  small apple-style logo (`ipodScreenTexture`), used on both the character and the
-  viewmodel. The
+  each frame with bob and sway; rebuilt (and the old geometry disposed) with the girl
+  when the dress changes. Fingers, thumbs and forearms are built by `limb()`: a list
+  of joint positions with a sphere at each joint and a tapered cone between, merged
+  into one mesh per hand. Pose them by moving joints, not by rotating parts; posing
+  with Euler rotations kept hiding the fingers behind the device. The right hand's
+  group is the iPod's own frame: palm behind, fingertips wrapping the left edge onto
+  the face, thumb over the right edge onto the click wheel. The left hand is a loose
+  fist held forward. Both forearms run to an elbow below the frame so nothing floats.
+  The iPod (`makeIpod`, shared with the third-person model) is a black front with a
+  chrome back, a menu screen canvas texture (`ipodScreenTexture`, unlit and grey-white
+  so bloom ignores it), a textured 64-segment click wheel, and a headphone jack whose
+  position is `userData.jack`; the first-person cord is a tube from the jack that
+  loops down out of frame. The
   ride camera overrides both modes. Third person is the default; first person is
   opt-in because a big TV can make a 7-year-old queasy.
 - Controls panel (`ControlsPanel`): title, pause menu and a HUD gamepad icon.

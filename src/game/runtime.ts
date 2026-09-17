@@ -7,7 +7,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { animateGirl, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
+import { animateGirl, disposeHands, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import {
   bindInput,
@@ -635,6 +635,7 @@ export class GameRuntime {
     this.lastWornGen = st.wornGen;
     setFirstPersonBody(this.girl, this.firstPerson);
     this.scene.remove(this.hands.group);
+    disposeHands(this.hands);
     this.hands = makeHands("#e8b489", DRESS[st.dress]);
     this.hands.group.visible = this.firstPerson;
     this.scene.add(this.hands.group);
