@@ -38,13 +38,21 @@ The game is at **https://par72golf.github.io/Sloanie-s-World/**
 - **When she finds all 16**, the time locks in and she gets the Golden Crown,
   then **Keep exploring** (the first button) drops her back into the park so
   she can carry on with everything else.
-- **Side quests:** Farmer Joe's lost pets (he is by his tractor at the farm,
-  with a speech bubble; she keeps one of the pets), the carnival games and the
-  prize booth, her own house to decorate, Emmett's monster truck, the zoo by
-  the farm, the mountain cave and the lookout on top.
+- **Farmer Joe** (by his tractor at the farm, with a speech bubble) has three
+  rescues: a treat hunt to the cave, a feather trail into the maze, and hide and
+  seek on the farm. She walks each pet back to Joe, and **all the pets she has
+  rescued follow her at once**.
 - **Mini golf** at the north of the park: five holes, aim with left and right,
-  hold to charge the power meter, let go to putt. Tickets for the round and a
-  best score that is remembered.
+  hold to charge the power meter, let go to putt. Tickets and a saved best.
+- **Lawn bowls** (the bowls club in the east): the arrow swings on its own —
+  press to stop it straight, then hold for power. Nine pins, three turns.
+- **Floor is lava** (the big lawn south of the campground): five sections of
+  jumps over lava to a prize podium. Falling in sends her back to the start.
+  First crossing wins a Dragon tail.
+- **Around the plaza:** the kite field, the duck pond, the flower garden, the
+  story circle, the fairground green by the carousel, and Sandcastle Corner.
+- **Everything else:** the carnival games and prize booth, her house to
+  decorate, Emmett's monster truck, the zoo, the mountain cave and the lookout.
 
 ## 4. If something goes wrong
 
