@@ -20,6 +20,22 @@ export function unlockAudio() {
   if (c.state === "suspended") void c.resume();
 }
 
+/**
+ * Leaving the game (switching apps, locking the phone, another tab) should
+ * silence it. The context is suspended rather than muted, so nothing is still
+ * scheduled in the background, and the whole graph — effects, the iPod music
+ * bed, Emmett's hum — stops together and picks up where it left off.
+ */
+export function suspendAudio() {
+  if (!ctx) return;
+  if (ctx.state === "running") void ctx.suspend().catch(() => {});
+}
+
+export function resumeAudio() {
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+}
+
 export function setMuted(v: boolean) {
   muted = v;
   if (master) {
