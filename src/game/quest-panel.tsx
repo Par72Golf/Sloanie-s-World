@@ -5,16 +5,22 @@ import { ModalFrame, PadKey, PanelRibbon, useInput } from "./carnival-games";
 import { PET_QUEST } from "./collectibles";
 import { Btn } from "./overlays";
 import { PETS, type PetKind } from "./pets";
+import { HIDING_PLACE_NAMES, petsLeft } from "./quest";
 import { HearButton } from "./help-cards";
 import { speak } from "./speech";
 import { useGame } from "./store";
 import { cn } from "@/lib/utils";
 
 /**
- * The lost pet quest's panels: talking to the farmer, and choosing which of
- * the three rescued pets to keep, its coat and its name. Controller: left and
- * right to choose, A to confirm, B to go back or leave. Keyboard: arrows,
- * Enter or Space, Esc, and typing a name. Touch: tap.
+ * Farmer Joe's panels: talking to him through all three rescues, picking
+ * which pet to go looking for, and giving the one she has just brought back
+ * a coat and a name. Controller: left and right to choose, A to confirm, B to
+ * go back or leave. Keyboard: arrows, Enter or Space, Esc, and typing a name.
+ * Touch: tap.
+ *
+ * Chapter 0 lets her pick which of the three rescued pets to keep, so the
+ * chooser runs pet, coat, name. Chapters 1 and 2 are about one pet she
+ * already knows, so it runs coat, name.
  */
 
 const ICON: Record<PetKind, LucideIcon> = { puppy: Dog, kitten: Cat, bunny: Rabbit };
@@ -43,60 +49,124 @@ export function QuestPanel() {
   if (!panel) return null;
   return (
     <ModalFrame className={panel === "farmer" ? "max-w-xl lg:max-w-2xl 2xl:max-w-3xl" : "max-w-xl sm:max-w-2xl 2xl:max-w-3xl"}>
-      {panel === "farmer" ? <Farmer /> : <Choose />}
+      {panel === "farmer" ? <Farmer /> : panel === "pick" ? <Pick /> : <Choose />}
     </ModalFrame>
   );
 }
 
+/** A pet kind as Joe says it: "my puppy", "her", by name once she is hers. */
+const kindName = (k: string) => (k === "puppy" ? "puppy" : k === "kitten" ? "kitten" : "bunny");
+
 function Farmer() {
   const quest = useGame((s) => s.quest);
   const hasBag = useGame((s) => s.foundAccessories.includes("backpack"));
-  const pet = useGame((s) => s.pet);
+  const pets = useGame((s) => s.pets);
   const name = useGame((s) => s.playerName) || "friend";
+  const chapter = quest.chapter;
+  const left = petsLeft(pets);
+  const seeking = quest.seek ? kindName(quest.seek) : left[0] ? kindName(left[0]) : "pet";
   const start = () => {
     sfx.correct();
     useGame.getState().setQuestStage("treats");
     useGame.getState().setQuestPanel(null);
     useGame.getState().showHelp("farmer", true);
   };
+  const choose = {
+    label: chapter === 0 ? "Choose a pet!" : "She's mine?!",
+    run: () => {
+      sfx.correct();
+      useGame.getState().setQuestPanel("choose");
+    },
+  };
   const nextTreat = PET_QUEST.treats.find((_, i) => !quest.treats.includes(i));
+  const places = `${HIDING_PLACE_NAMES[0]}, ${HIDING_PLACE_NAMES[1]} and ${HIDING_PLACE_NAMES[2]}`;
 
   let lines: string[];
   let action: { label: string; run: () => void } = { label: "Okay!", run: closePanel };
-  if (quest.stage === "none") {
+  if (quest.stage === "done") {
     lines = [
-      `Howdy, ${name}! Oh, I'm so glad you're here.`,
-      "My puppy, my kitten and my bunny slipped out of the barn and ran off! They must be scared.",
-      "They love treats. If you can find 5 pet treats around the park, I bet they'll come to you.",
-      hasBag ? "You've got a backpack, so you can carry them. Off you go!" : "You'll need a backpack to carry the treats. I saw one out on the ball field.",
+      pets.length ? `${pets.map((p) => p.name).join(", ")} — all three of them, and they all adore you!` : "Thank you again!",
+      "You brought every one of them back to me. Come and visit any time.",
     ];
-    action = { label: "I'll help!", run: start };
-  } else if (quest.stage === "treats") {
-    lines = [
-      `You've found ${quest.treats.length} of 5 treats. Keep looking!`,
-      nextTreat ? `Here's a tip: ${nextTreat.hint}` : "",
-      hasBag ? "" : "Don't forget, you need the backpack to carry them.",
-    ].filter(Boolean);
-  } else if (quest.stage === "trail" || quest.stage === "escort") {
-    lines = [
-      "You found all the treats! Wonderful!",
-      "I spotted little paw prints leading away from the barn, all the way to the rocky mountain.",
-      "Follow the paw prints, find my pets, and bring them home to the farm.",
-    ];
-  } else if (quest.stage === "choose") {
-    lines = ["You brought them all home! Thank you!", "You've been so brave. You can keep one of them."];
-    action = {
-      label: "Choose a pet!",
-      run: () => {
-        sfx.correct();
-        useGame.getState().setQuestPanel("choose");
-      },
-    };
+  } else if (chapter === 0) {
+    // the treat hunt
+    if (quest.stage === "none") {
+      lines = [
+        `Howdy, ${name}! Oh, I'm so glad you're here.`,
+        "My puppy, my kitten and my bunny slipped out of the barn and ran off! They must be scared.",
+        "They love treats. If you can find 5 pet treats around the park, I bet they'll come to you.",
+        hasBag ? "You've got a backpack, so you can carry them. Off you go!" : "You'll need a backpack to carry the treats. I saw one out on the ball field.",
+      ];
+      action = { label: "I'll help!", run: start };
+    } else if (quest.stage === "treats") {
+      lines = [
+        `You've found ${quest.treats.length} of 5 treats. Keep looking!`,
+        nextTreat ? `Here's a tip: ${nextTreat.hint}` : "",
+        hasBag ? "" : "Don't forget, you need the backpack to carry them.",
+      ].filter(Boolean);
+    } else if (quest.stage === "choose") {
+      lines = ["You brought them all back to me! Thank you!", "You've been so brave. You can keep one of them."];
+      action = choose;
+    } else {
+      lines = [
+        "You found all the treats! Wonderful!",
+        "I spotted little paw prints leading away from the barn, all the way to the rocky mountain.",
+        "Follow the paw prints, find my pets, and walk them back here to me.",
+      ];
+    }
+  } else if (chapter === 1) {
+    // the feather trail
+    if (quest.stage === "none") {
+      lines = [
+        `Oh no, ${name} — not again!`,
+        "One of the two still here pushed the barn door open and dragged my feather pillow right out of the yard.",
+        "There are little white feathers all across the grass. Which one shall we go and look for?",
+      ];
+      action = {
+        label: "Let's look!",
+        run: () => {
+          sfx.correct();
+          useGame.getState().setQuestPanel("pick");
+        },
+      };
+    } else if (quest.stage === "choose") {
+      lines = ["You brought her all the way back to me!", `This ${seeking} clearly loves you. You keep her too.`];
+      action = choose;
+    } else {
+      lines = [
+        `Follow the white feathers, ${name}. They start right here by my tractor.`,
+        "They go all the way to the flower maze — I reckon she's hiding right in the middle of it.",
+        "Take one of those treats in with you, then bring her back here to me.",
+      ];
+    }
   } else {
-    lines = [
-      pet ? `${pet.name} just adores you!` : "Thank you again!",
-      "The others are happy here on the farm. Come and visit any time.",
-    ];
+    // hide and seek on the farm
+    if (quest.stage === "none") {
+      lines = [
+        `My ${seeking} is the very last one, and she isn't lost at all — she's playing hide and seek!`,
+        `She's somewhere right here on the farm. There are three good hiding places: ${places}.`,
+        "Go and look in all three. She'll pop out when you find her!",
+      ];
+      action = {
+        label: "Ready or not!",
+        run: () => {
+          sfx.correct();
+          const kind = left[0];
+          if (kind) useGame.getState().startChapter(kind, "seek");
+          useGame.getState().setQuestPanel(null);
+        },
+      };
+    } else if (quest.stage === "choose") {
+      lines = ["That's all three of them safe and sound!", `You've earned her, ${name}. This one's yours as well.`];
+      action = choose;
+    } else if (quest.stage === "escort") {
+      lines = ["There she is! Well done!", "Bring her right over to me."];
+    } else {
+      lines = [
+        `Keep looking! She's behind one of the three: ${places}.`,
+        `You've looked in ${quest.treats.length} of 3 so far.`,
+      ];
+    }
   }
 
   useInput((e) => {
@@ -123,7 +193,7 @@ function Farmer() {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-        {quest.stage === "treats" && (
+        {quest.stage === "treats" && chapter === 0 && (
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {PET_QUEST.treats.map((_, i) => {
               const got = quest.treats.includes(i);
@@ -156,13 +226,118 @@ function Farmer() {
   );
 }
 
+/**
+ * Which pet to go looking for, at the start of the feather trail. Only the
+ * ones still at the farm are offered, so she cannot pick one that is already
+ * hers. The same cards as the chooser, so it reads as one idea.
+ */
+function Pick() {
+  const pets = useGame((s) => s.pets);
+  const options = petsLeft(pets);
+  const [idx, setIdx] = useState(0);
+  const def = PETS.find((p) => p.kind === options[Math.min(idx, options.length - 1)]) ?? PETS[0]!;
+  const go = (kind: PetKind) => {
+    sfx.correct();
+    const st = useGame.getState();
+    st.startChapter(kind, "trail");
+    st.setQuestPanel(null);
+    st.setEmmettNotice("Off she went! Follow the white feathers from the farm.");
+  };
+  const heading = "Who shall we look for?";
+  useEffect(() => speak(heading), [heading]);
+  useInput((e) => {
+    if (e === "b") return closePanel();
+    const n = options.length;
+    if (!n) return;
+    if (e === "left" || e === "up") {
+      sfx.click();
+      setIdx((i) => (i - 1 + n) % n);
+    } else if (e === "right" || e === "down") {
+      sfx.click();
+      setIdx((i) => (i + 1) % n);
+    } else if (e === "a") go(def.kind);
+  });
+  return (
+    <>
+      <PanelRibbon color={TEAL} Icon={PawPrint} title={heading} onClose={closePanel} closeLabel="Close" pattern="gingham" />
+      <div className="ui-dots grid gap-4 p-4 sm:gap-5 sm:p-6 [@media(max-height:760px)]:sm:py-4 [@media(max-height:500px)]:py-3">
+        <PetCards
+          kinds={options}
+          at={Math.min(idx, options.length - 1)}
+          onPick={(i) => {
+            setIdx(i);
+            go(options[i]!);
+          }}
+        />
+        <p className="text-center text-lg font-semibold leading-snug text-ink-soft">
+          Left and right to choose &middot; <PadKey>A</PadKey> to pick &middot; <PadKey>B</PadKey> to go back
+        </p>
+      </div>
+    </>
+  );
+}
+
+/** The row of pet portraits, shared by the "who shall we look for" and "which will you keep" panels. */
+function PetCards({ kinds, at, onPick }: { kinds: PetKind[]; at: number; onPick: (i: number) => void }) {
+  return (
+    <div className={cn("grid gap-3 sm:gap-4", kinds.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+      {kinds.map((kind, i) => {
+        const p = PETS.find((q) => q.kind === kind)!;
+        const Icon = ICON[p.kind];
+        const on = i === at;
+        return (
+          <button
+            key={p.kind}
+            type="button"
+            onClick={() => onPick(i)}
+            className={cn(
+              "press animate-ui-rise relative flex items-center gap-4 overflow-hidden rounded-2xl border-[3px] border-edge bg-surface p-3 text-left shadow-[0_5px_0_#1d2452] sm:grid sm:justify-items-center sm:gap-2 sm:p-4 sm:pt-5 sm:text-center",
+              on && "outline outline-4 outline-offset-2 outline-accent",
+            )}
+            style={{ animationDelay: `${i * 70}ms` }}
+          >
+            {/* a sunburst in the pet's colour behind its portrait */}
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-full sm:h-28"
+              style={{
+                backgroundColor: `${TINT[p.kind]}22`,
+                backgroundImage: `repeating-conic-gradient(from 0deg at 50% 100%, ${TINT[p.kind]}2e 0 9deg, transparent 9deg 22deg)`,
+              }}
+            />
+            <span
+              className="gloss relative grid size-20 shrink-0 place-items-center rounded-full border-[3px] border-edge shadow-[0_4px_0_#1d2452] sm:size-24"
+              style={{ background: p.colors[0] }}
+            >
+              <Icon className="size-11 text-ink sm:size-12" strokeWidth={2.25} />
+            </span>
+            <span className="relative grid min-w-0 gap-1 sm:justify-items-center">
+              <span className="ui-chip w-fit px-3 text-2xl text-white" style={{ backgroundColor: TINT[p.kind] }}>
+                {p.name}
+              </span>
+              <span className="text-lg font-semibold leading-snug text-ink-soft">{p.blurb}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Choose() {
-  const [step, setStep] = useState<"pet" | "coat" | "name">("pet");
+  const pets = useGame((s) => s.pets);
+  const seek = useGame((s) => s.quest.seek);
+  // chapter 0 lets her pick from everyone she rescued; later chapters are
+  // about the one pet she went out for, so there is nothing to pick
+  const options = seek ? [seek as PetKind] : petsLeft(pets);
+  const single = options.length <= 1;
+  const [step, setStep] = useState<"pet" | "coat" | "name">(single ? "coat" : "pet");
   const [kindIdx, setKindIdx] = useState(0);
   const [coatIdx, setCoatIdx] = useState(0);
   const [nameIdx, setNameIdx] = useState(0);
   const [typed, setTyped] = useState("");
-  const def = PETS[kindIdx]!;
+  const at = Math.min(kindIdx, Math.max(0, options.length - 1));
+  const def = PETS.find((p) => p.kind === options[at]) ?? PETS[0]!;
   const names = NAMES[def.kind];
   const finalName = (typed.trim() || names[nameIdx]!).slice(0, 16);
 
@@ -171,7 +346,13 @@ function Choose() {
     const st = useGame.getState();
     st.adoptPet({ kind: def.kind, coat: def.colors[coatIdx] ?? def.colors[0]!, name: finalName });
     st.setQuestPanel(null);
-    st.setEmmettNotice(`${finalName} is yours! Your new best friend will follow you everywhere.`);
+    // read the list back: `st` is the snapshot from before the adopt
+    const now = useGame.getState().pets;
+    const others =
+      now.length > 1
+        ? ` ${now.slice(0, -1).map((p) => p.name).join(", ")} and ${now[now.length - 1]!.name} will follow you everywhere!`
+        : " Your new best friend will follow you everywhere.";
+    st.setEmmettNotice(`${finalName} is yours!${others}`);
   };
 
   const heading =
@@ -179,11 +360,11 @@ function Choose() {
   useEffect(() => speak(heading), [heading]);
   useInput((e) => {
     if (e === "b") {
-      if (step === "pet") return closePanel();
+      if (step === "pet" || (single && step === "coat")) return closePanel();
       setStep(step === "name" ? "coat" : "pet");
       return;
     }
-    const n = step === "pet" ? PETS.length : step === "coat" ? def.colors.length : names.length;
+    const n = step === "pet" ? options.length : step === "coat" ? def.colors.length : names.length;
     const move = (d: number) => {
       sfx.click();
       if (step === "pet") {
@@ -206,7 +387,7 @@ function Choose() {
     }
   });
 
-  const steps = ["pet", "coat", "name"] as const;
+  const steps = (single ? (["coat", "name"] as const) : (["pet", "coat", "name"] as const)) as readonly ("pet" | "coat" | "name")[];
   const tint = TINT[def.kind];
   return (
     <>
@@ -240,50 +421,15 @@ function Choose() {
           })}
         </div>
         {step === "pet" && (
-          <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
-            {PETS.map((p, i) => {
-              const Icon = ICON[p.kind];
-              const on = i === kindIdx;
-              return (
-                <button
-                  key={p.kind}
-                  type="button"
-                  onClick={() => {
-                    setKindIdx(i);
-                    setCoatIdx(0);
-                    setStep("coat");
-                  }}
-                  className={cn(
-                    "press animate-ui-rise relative flex items-center gap-4 overflow-hidden rounded-2xl border-[3px] border-edge bg-surface p-3 text-left shadow-[0_5px_0_#1d2452] sm:grid sm:justify-items-center sm:gap-2 sm:p-4 sm:pt-5 sm:text-center",
-                    on && "outline outline-4 outline-offset-2 outline-accent",
-                  )}
-                  style={{ animationDelay: `${i * 70}ms` }}
-                >
-                  {/* a sunburst in the pet's colour behind its portrait */}
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-0 top-0 h-full sm:h-28"
-                    style={{
-                      backgroundColor: `${TINT[p.kind]}22`,
-                      backgroundImage: `repeating-conic-gradient(from 0deg at 50% 100%, ${TINT[p.kind]}2e 0 9deg, transparent 9deg 22deg)`,
-                    }}
-                  />
-                  <span
-                    className="gloss relative grid size-20 shrink-0 place-items-center rounded-full border-[3px] border-edge shadow-[0_4px_0_#1d2452] sm:size-24"
-                    style={{ background: p.colors[0] }}
-                  >
-                    <Icon className="size-11 text-ink sm:size-12" strokeWidth={2.25} />
-                  </span>
-                  <span className="relative grid min-w-0 gap-1 sm:justify-items-center">
-                    <span className="ui-chip w-fit px-3 text-2xl text-white" style={{ backgroundColor: TINT[p.kind] }}>
-                      {p.name}
-                    </span>
-                    <span className="text-lg font-semibold leading-snug text-ink-soft">{p.blurb}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <PetCards
+            kinds={options}
+            at={at}
+            onPick={(k) => {
+              setKindIdx(k);
+              setCoatIdx(0);
+              setStep("coat");
+            }}
+          />
         )}
         {step === "coat" && (
           <div

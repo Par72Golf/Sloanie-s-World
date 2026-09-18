@@ -2,8 +2,9 @@ import * as THREE from "three";
 import { lam } from "./meshes";
 
 /**
- * Meshes for the lost pet quest: the farmer, a pet treat pickup, and the
- * trail of paw prints from the farm to the mountain cave.
+ * Meshes for Farmer Joe's three rescues: the farmer himself, a pet treat
+ * pickup, the trail of paw prints to the mountain cave, the trail of feathers
+ * to the hedge maze, and the glowing "?" over a hiding place.
  */
 
 const flat = (c: string, roughness = 0.55) => lam(c, { flat: true, roughness });
@@ -173,6 +174,54 @@ export function makeTreat(): THREE.Group {
 }
 
 /**
+ * Marks along a trail of waypoints: one every `every` metres, stepped left
+ * and right of the line, each turned to point the way to go. Shared by the
+ * paw prints and the feather trail so both lie the same way on the grass.
+ */
+function layTrail(
+  geo: THREE.BufferGeometry,
+  mat: THREE.Material,
+  points: [number, number][],
+  every: number,
+  offset: number,
+  y: number,
+  jitter = 0,
+): THREE.InstancedMesh {
+  const prints: { x: number; z: number; yaw: number }[] = [];
+  let side = 1;
+  let n = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const [ax, az] = points[i]!;
+    const [bx, bz] = points[i + 1]!;
+    const len = Math.hypot(bx - ax, bz - az);
+    const dx = (bx - ax) / len;
+    const dz = (bz - az) / len;
+    const yaw = Math.atan2(dx, dz);
+    for (let d = 0; d < len; d += every) {
+      // a repeatable wobble, so a feather trail does not look ruled
+      const w = jitter ? Math.sin(n * 2.399) * jitter : 0;
+      prints.push({ x: ax + dx * d + -dz * (offset * side + w), z: az + dz * d + dx * (offset * side + w), yaw: yaw + w });
+      side = -side;
+      n++;
+    }
+  }
+  const mesh = new THREE.InstancedMesh(geo, mat, prints.length);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const one = new THREE.Vector3(1, 1, 1);
+  const pos = new THREE.Vector3();
+  prints.forEach((p, i) => {
+    q.setFromAxisAngle(up, p.yaw);
+    m.compose(pos.set(p.x, y, p.z), q, one);
+    mesh.setMatrixAt(i, m);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/**
  * Paw prints along a trail of waypoints, as one instanced mesh: pairs of
  * little prints every ~1.2m, alternating left and right, pointing along the
  * way to go. Each print is a pad and three toes merged into one geometry.
@@ -192,32 +241,48 @@ export function makePawTrail(points: [number, number][]): THREE.InstancedMesh {
   // merge by hand: all share position/normal/uv/index layout from CylinderGeometry
   const merged = mergeSimple(parts);
   const mat = new THREE.MeshStandardMaterial({ color: "#6a4a32", roughness: 0.95 });
-  const prints: { x: number; z: number; yaw: number }[] = [];
-  let side = 1;
-  for (let i = 0; i < points.length - 1; i++) {
-    const [ax, az] = points[i]!;
-    const [bx, bz] = points[i + 1]!;
-    const len = Math.hypot(bx - ax, bz - az);
-    const dx = (bx - ax) / len;
-    const dz = (bz - az) / len;
-    const yaw = Math.atan2(dx, dz);
-    for (let d = 0; d < len; d += 1.2) {
-      prints.push({ x: ax + dx * d + -dz * 0.18 * side, z: az + dz * d + dx * 0.18 * side, yaw });
-      side = -side;
-    }
-  }
-  const mesh = new THREE.InstancedMesh(merged, mat, prints.length);
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const up = new THREE.Vector3(0, 1, 0);
-  prints.forEach((p, i) => {
-    q.setFromAxisAngle(up, p.yaw);
-    m.compose(new THREE.Vector3(p.x, 0.13, p.z), q, new THREE.Vector3(1, 1, 1));
-    mesh.setMatrixAt(i, m);
-  });
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.receiveShadow = true;
-  return mesh;
+  return layTrail(merged, mat, points, 1.2, 0.18, 0.13);
+}
+
+/**
+ * A trail of little white feathers, for the pet that dragged a pillow out of
+ * the barn. One instanced mesh, like the paw prints, but scattered wider and
+ * with a wobble so it reads as something dropped rather than something walked.
+ * Each feather is a flattened blade with a quill, tipped up at one end.
+ */
+export function makeFeatherTrail(points: [number, number][]): THREE.InstancedMesh {
+  const blade = new THREE.SphereGeometry(1, 7, 5);
+  blade.scale(0.07, 0.022, 0.19);
+  blade.translate(0, 0.03, 0.02);
+  const quill = new THREE.CylinderGeometry(0.008, 0.012, 0.3, 5);
+  quill.rotateX(Math.PI / 2);
+  quill.translate(0, 0.024, 0);
+  const merged = mergeSimple([blade, quill]);
+  const mat = new THREE.MeshStandardMaterial({ color: "#fbf6ee", roughness: 0.85 });
+  return layTrail(merged, mat, points, 1.6, 0.34, 0.06, 0.5);
+}
+
+/**
+ * A hiding place to check: a soft glow ring on the ground with a little "?"
+ * bubble over it, reusing the farmer's speech bubble so it reads from far off
+ * in the same pink and gold. `userData.bubble` bobs; `userData.ring` pulses.
+ */
+export function makeHidingMarker(): THREE.Group {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.7, 0.06, 8, 24),
+    new THREE.MeshStandardMaterial({ color: "#ffe0b0", emissive: new THREE.Color("#ff9ac4"), emissiveIntensity: 1.2 }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.08;
+  g.add(ring);
+  const bubble = makeBubble(["?"]);
+  bubble.scale.setScalar(0.85);
+  bubble.position.y = 1.7;
+  g.add(bubble);
+  g.userData.ring = ring;
+  g.userData.bubble = bubble;
+  return g;
 }
 
 function mergeSimple(geos: THREE.BufferGeometry[]) {

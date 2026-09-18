@@ -12,7 +12,7 @@ import {
 import { clearSave, loadSave, persistSave, type RunRecord } from "./save";
 import { ACCESSORIES, NOTHING_WORN, accessory, type AccessoryId, type Slot, type Worn } from "./accessories";
 import type { BoothGame } from "./carnival";
-import type { PetSave, QuestSave, QuestStage } from "./types";
+import type { PetKindId, PetSave, QuestSave, QuestStage } from "./types";
 import type { HelpId } from "./help-cards";
 import type { ChannelId } from "./music";
 
@@ -151,15 +151,20 @@ export type GameStore = {
   /** Journal tab: dumplings, stickers, or the backpack's contents. */
   journalTab: "dumplings" | "stickers" | "bag";
   setJournalTab: (t: "dumplings" | "stickers" | "bag") => void;
-  /** Lost pet quest and the pet she chose (saved). */
+  /** Farmer Joe's three rescues and the pets she has adopted (saved). */
   quest: QuestSave;
   setQuestStage: (stage: QuestStage) => void;
+  /** Start this chapter's hunt, naming the pet it is about. */
+  startChapter: (seek: PetKindId, stage: QuestStage) => void;
   collectTreat: (index: number) => void;
+  /** Every pet she has adopted, in the order she chose them. */
+  pets: PetSave[];
+  /** The first one, so the house and the journal keep reading one pet. */
   pet: PetSave | null;
   adoptPet: (pet: PetSave) => void;
-  /** Quest panel open (talking to the farmer, or choosing a pet). Freezes her like a booth. */
-  questPanel: "farmer" | "choose" | null;
-  setQuestPanel: (v: "farmer" | "choose" | null) => void;
+  /** Quest panel open (talking to the farmer, picking who to look for, or choosing a pet). Freezes her like a booth. */
+  questPanel: "farmer" | "pick" | "choose" | null;
+  setQuestPanel: (v: "farmer" | "pick" | "choose" | null) => void;
   /** Standing where Collect would talk to the farmer or help the lost pets. */
   questNear: "farmer" | "pets" | null;
   setQuestNear: (v: "farmer" | "pets" | null) => void;
@@ -302,6 +307,7 @@ function persistSlice(s: GameStore) {
     stickerBook: s.stickerBook,
     stickers: s.stickers,
     quest: s.quest,
+    pets: s.pets,
     pet: s.pet,
     readAloud: s.readAloud,
     seenHelp: s.seenHelp,
@@ -471,6 +477,10 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ quest: { ...get().quest, stage } });
     persistSlice(get());
   },
+  startChapter: (seek, stage) => {
+    set({ quest: { ...get().quest, stage, seek, treats: [] } });
+    persistSlice(get());
+  },
   collectTreat: (index) => {
     const q = get().quest;
     if (q.treats.includes(index)) return;
@@ -483,9 +493,18 @@ export const useGame = create<GameStore>((set, get) => ({
   setQuestNear: (questNear) => {
     if (get().questNear !== questNear) set({ questNear });
   },
+  pets: saved.pets,
   pet: saved.pet,
   adoptPet: (pet) => {
-    set({ pet, quest: { ...get().quest, stage: "done" } });
+    const had = get().pets;
+    const pets = had.some((p) => p.kind === pet.kind) ? had : [...had, pet];
+    // each rescue ends with a pet; after the third there is nothing left to ask
+    const chapter = Math.min(3, pets.length);
+    set({
+      pets,
+      pet: pets[0] ?? null,
+      quest: { stage: chapter >= 3 ? "done" : "none", treats: [], chapter, seek: null },
+    });
     persistSlice(get());
   },
   winPrize: (id) => {
@@ -885,7 +904,8 @@ export const useGame = create<GameStore>((set, get) => ({
       lavaTime: null,
       stickerBook: false,
       stickers: [],
-      quest: { stage: "none", treats: [] },
+      quest: { stage: "none", treats: [], chapter: 0, seek: null },
+      pets: [],
       pet: null,
       movedSpots: {},
       // instruction cards pop up again for a new explorer

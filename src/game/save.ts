@@ -1,7 +1,7 @@
 import type { DressId, HairId, PetSave, QuestSave } from "./types";
 
 const KEY = "sloanies-world-v1";
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 /** One completed run. Kept per explorer name so siblings can take turns. */
 export type RunRecord = {
@@ -48,6 +48,9 @@ export type SaveData = {
   stickerBook: boolean;
   stickers: string[];
   quest: QuestSave;
+  /** Every pet she has adopted, in the order she chose them (up to three). */
+  pets: PetSave[];
+  /** The first pet, kept so older readers of the save (and the house) still work. */
   pet: PetSave | null;
   /** Read HUD messages and panels aloud (speech.ts). */
   readAloud: boolean;
@@ -80,7 +83,8 @@ const DEFAULT: SaveData = {
   lavaBest: null,
   stickerBook: false,
   stickers: [],
-  quest: { stage: "none", treats: [] },
+  quest: { stage: "none", treats: [], chapter: 0, seek: null },
+  pets: [],
   pet: null,
   readAloud: true,
   seenHelp: [],
@@ -130,17 +134,66 @@ function migrate(raw: SaveData): SaveData {
   s.bowlsBest = Number.isFinite(s.bowlsBest) && (s.bowlsBest as number) > 0 ? Math.floor(s.bowlsBest as number) : null;
   s.lavaBest = Number.isFinite(s.lavaBest) && (s.lavaBest as number) > 0 ? Math.round((s.lavaBest as number) * 10) / 10 : null;
   s.stickers = Array.isArray(s.stickers) ? s.stickers.filter((x) => typeof x === "string") : [];
-  const stages = ["none", "treats", "trail", "escort", "choose", "done"];
-  s.quest =
-    s.quest && stages.includes(s.quest.stage)
-      ? { stage: s.quest.stage, treats: Array.isArray(s.quest.treats) ? s.quest.treats.filter((x) => Number.isInteger(x)) : [] }
-      : { stage: "none", treats: [] };
-  // escorting a pet home cannot resume mid-walk; it waits in the cave again
-  if (s.quest.stage === "escort") s.quest.stage = "trail";
-  s.pet =
-    s.pet && ["puppy", "kitten", "bunny"].includes(s.pet.kind) && typeof s.pet.name === "string"
-      ? { kind: s.pet.kind, coat: typeof s.pet.coat === "string" ? s.pet.coat : "", name: s.pet.name.slice(0, 16) }
+  const onePet = (p: PetSave | null | undefined): PetSave | null =>
+    p && ["puppy", "kitten", "bunny"].includes(p.kind) && typeof p.name === "string"
+      ? { kind: p.kind, coat: typeof p.coat === "string" ? p.coat : "", name: p.name.slice(0, 16) }
       : null;
+  // v2 saved a single `pet`; v3 keeps every pet she has adopted, that one
+  // first. The spread over DEFAULT gives a v2 save an empty `pets`, so the
+  // fallback has to trigger on an empty list, not just a missing one.
+  const list = Array.isArray(s.pets) && s.pets.length ? s.pets : s.pet ? [s.pet] : [];
+  const pets: PetSave[] = [];
+  for (const raw of list) {
+    const p = onePet(raw);
+    if (p && !pets.some((q) => q.kind === p.kind)) pets.push(p);
+  }
+  s.pets = pets.slice(0, 3);
+  s.pet = s.pets[0] ?? null;
+
+  const stages = ["none", "treats", "trail", "seek", "escort", "choose", "done"];
+  const q = s.quest as Partial<QuestSave> | undefined;
+  s.quest =
+    q && typeof q.stage === "string" && stages.includes(q.stage)
+      ? {
+          stage: q.stage,
+          treats: Array.isArray(q.treats) ? q.treats.filter((x) => Number.isInteger(x)) : [],
+          chapter: Number.isInteger(q.chapter) ? Math.min(3, Math.max(0, q.chapter as number)) : s.pets.length,
+          seek: q.seek && ["puppy", "kitten", "bunny"].includes(q.seek) ? q.seek : null,
+        }
+      : { stage: "none", treats: [], chapter: s.pets.length, seek: null };
+  // escorting pets back cannot resume mid-walk; they wait where they were hiding.
+  // Chapter 2 hid its pet at the last place checked, so that hunt starts again.
+  if (s.quest.stage === "escort") {
+    if (s.quest.chapter === 2) {
+      s.quest.stage = "seek";
+      s.quest.treats = [];
+    } else {
+      s.quest.stage = "trail";
+    }
+  }
+  // a v2 save that finished the one quest is chapter 1 with Farmer Joe ready to ask again
+  if (s.quest.stage === "done" && s.pets.length < 3) s.quest.stage = "none";
+  // she cannot be further on than the pets she has: a chapter she has not
+  // finished cannot be behind her, and a finished one cannot still be open
+  s.quest.chapter = Math.max(s.quest.chapter, s.pets.length);
+  if (s.quest.chapter > s.pets.length && s.quest.stage !== "choose") s.quest.chapter = s.pets.length;
+  if (s.quest.chapter >= 3) {
+    s.quest = { stage: "done", treats: [], chapter: 3, seek: null };
+  } else if (s.quest.stage === "none") {
+    s.quest.treats = [];
+    s.quest.seek = null;
+  }
+  // a stage that belongs to another chapter would strand her: send her back to Joe
+  const belongs: Record<string, number[]> = { treats: [0], trail: [0, 1], seek: [2], escort: [0, 1, 2], choose: [0, 1, 2], none: [0, 1, 2] };
+  if (s.quest.stage !== "done" && !belongs[s.quest.stage]!.includes(s.quest.chapter)) {
+    s.quest = { stage: "none", treats: [], chapter: s.quest.chapter, seek: null };
+  }
+  // chapters 1 and 2 need to know which pet is missing before they can run
+  if (s.quest.chapter > 0 && s.quest.stage !== "none" && !s.quest.seek) {
+    const left = (["puppy", "kitten", "bunny"] as const).filter((k) => !s.pets.some((p) => p.kind === k));
+    s.quest.seek = left[0] ?? null;
+    if (!s.quest.seek) s.quest = { stage: "done", treats: [], chapter: 3, seek: null };
+  }
   s.version = SAVE_VERSION;
   return s;
 }

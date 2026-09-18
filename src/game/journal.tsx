@@ -479,7 +479,7 @@ function BagTab() {
   const hasBook = useGame((s) => s.stickerBook);
   const stickers = useGame((s) => s.stickers.length);
   const quest = useGame((s) => s.quest);
-  const pet = useGame((s) => s.pet);
+  const pets = useGame((s) => s.pets);
   const setTab = useGame((s) => s.setJournalTab);
   if (!hasBag) {
     return (
@@ -529,17 +529,18 @@ function BagTab() {
             </span>
           </div>
         )}
-        {pet && (
-          <div className={row}>
+        {/* every pet she has rescued, not just the first */}
+        {pets.map((p) => (
+          <div key={p.name + p.kind} className={row}>
             <span className={cn(badge, "bg-berry text-white")}>
               <Heart className="size-5 fill-current" strokeWidth={2.5} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className={title}>{pet.name}</span>
-              <span className={sub}>Your {pet.kind}. Always by your side.</span>
+              <span className={title}>{p.name}</span>
+              <span className={sub}>Your {p.kind}. Always by your side.</span>
             </span>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
