@@ -6,6 +6,7 @@ import { useHome } from "./home-store";
 import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
 import { QuestWorld } from "./quest";
+import { GolfWorld } from "./minigolf";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
 import * as THREE from "three";
@@ -515,6 +516,21 @@ export class GameRuntime {
     this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
     this.homeWorld?.dispose();
     this.homeWorld = this.level.id === "picnic" && this.world ? new HomeWorld(this.scene, this.world.colliders) : null;
+    // mini golf: its own ball, sails and log, like the quest and the house
+    this.golfWorld?.dispose();
+    this.golfWorld =
+      this.level.id === "picnic"
+        ? new GolfWorld(this.scene, (x, y, z, yaw) => {
+            this.cap.x = x;
+            this.cap.y = y;
+            this.cap.z = z;
+            this.velY = 0;
+            this.speed = 0;
+            this.yaw = yaw;
+            this.cameraYaw = yaw;
+            this.syncCamera(true);
+          })
+        : null;
     this.zooWorld?.dispose();
     this.zooWorld = this.level.zoo ? new ZooWorld(this.scene, (t) => useGame.getState().setEmmettNotice(t)) : null;
     this.ride = null;
@@ -672,6 +688,7 @@ export class GameRuntime {
       st.questPanel != null ||
       st.helpCard != null ||
       useHome.getState().inside ||
+      st.golfPlaying ||
       st.riding;
 
     const collected = st.collected[st.levelIndex] ?? [];
@@ -844,6 +861,7 @@ export class GameRuntime {
   /** which set of hiding spots the built park is using */
   lastLayout = -1;
   questWorld: QuestWorld | null = null;
+  golfWorld: GolfWorld | null = null;
   stickerWorld: StickerWorld | null = null;
   homeWorld: HomeWorld | null = null;
   zooWorld: ZooWorld | null = null;
@@ -851,6 +869,7 @@ export class GameRuntime {
   dispose() {
     this.disposed = true;
     this.questWorld?.dispose();
+    this.golfWorld?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
     this.zooWorld?.dispose();
@@ -1418,6 +1437,7 @@ export class GameRuntime {
     }
     if (this.zooWorld?.interact()) return;
     if (this.questWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
+    if (this.golfWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.tryCarnival()) return;
     if (this.tryBoard()) return;
     const d = this.nearestUnfound();
@@ -1599,6 +1619,13 @@ export class GameRuntime {
     } else if (this.carouselRide) {
       // watch the carousel go round from outside the fence, by the ring arm
       desired.set(CAROUSEL.x + 10, 5, CAROUSEL.z - 11);
+    } else if (this.golfWorld?.playing) {
+      // putting: behind the ball, looking straight down the hole
+      this.golfWorld.camera(desired, this.lookAt);
+      if (snap) this.camera.position.copy(desired);
+      else this.camera.position.lerp(desired, 1 - Math.exp(-6 * FIXED));
+      this.camera.lookAt(this.lookAt);
+      return;
     } else if (this.firstPerson && !title) {
       // eyes: a touch forward of the capsule centre, with a little walk bob
       const pace = THREE.MathUtils.clamp(this.speed / WALK, 0, 1.6);
@@ -1658,7 +1685,9 @@ export class GameRuntime {
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
       !this.ride &&
-      !this.carouselRide;
+      !this.carouselRide &&
+      // putting takes her controls the way the carousel does
+      !st.golfPlaying;
     if (!live) {
       consumeJumpTap();
       this.jumpBuffer = 0;
@@ -1932,9 +1961,11 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || useHome.getState().panel != null;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || useHome.getState().panel != null;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      // the sails and the log turn whether or not anyone is playing
+      this.golfWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.zooWorld?.update(this.clock, this.cap.x, this.cap.z);
       if (this.questWorld) {
         const d = this.nearestUnfound();
@@ -2005,6 +2036,7 @@ export class GameRuntime {
         st.carnival == null &&
         st.questPanel == null &&
         st.helpCard == null &&
+        !st.golfPlaying &&
         !st.riding;
       if (ticking) {
         this.runAccum += dt;
@@ -2124,6 +2156,8 @@ export class GameRuntime {
       this.lastFlee = st.fleeGen;
       if (st.fleeId) this.relocateDumpling(st.fleeId);
     }
+    // anything that leaves the park (the title, a reset) also leaves the tee
+    if (st.phase !== "playing" && this.golfWorld?.playing) this.golfWorld.quit();
     if (st.carnival !== this.lastCarnival) {
       if (!st.carnival) this.carnivalBlock = 0.6;
       this.lastCarnival = st.carnival;
@@ -2138,6 +2172,9 @@ export class GameRuntime {
       st.questPanel != null ||
       st.helpCard != null ||
       st.journalOpen ||
+      // while she is putting, A fills the power meter and nothing else
+      st.golfPlaying ||
+      st.golfCard != null ||
       useHome.getState().panel != null;
     const play = st.phase === "playing" && !panel;
     if (play && (wantsInteract() || consumePadInteract())) this.tryCollect();

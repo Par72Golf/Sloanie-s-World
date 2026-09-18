@@ -9,6 +9,7 @@ import { currentVoiceName, rankedVoices, setSpeechEnabled, setVoiceName, speak }
 import { QuestPanel } from "./quest-panel";
 import { Journal } from "./journal";
 import { CarnivalPanel } from "./carnival-games";
+import { GolfOverlay } from "./minigolf-ui";
 import type { BoothGame } from "./carnival";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -41,6 +42,7 @@ import {
   type LucideIcon,
   BookOpen,
   FerrisWheel,
+  Flag,
   Gamepad2,
   Gauge,
   PartyPopper,
@@ -866,6 +868,8 @@ function HUD() {
   const rideNear = useGame((s) => s.rideNear);
   const boardReady = useGame((s) => s.boardReady);
   const carnivalNear = useGame((s) => s.carnivalNear);
+  const golfNear = useGame((s) => s.golfNear);
+  const golfPlaying = useGame((s) => s.golfPlaying);
   const carouselRing = useGame((s) => s.carouselRing);
   const carnivalOpen = useGame((s) => s.carnival);
   const questNear = useGame((s) => s.questNear);
@@ -930,7 +934,13 @@ function HUD() {
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]">
         {/* round icon buttons, top right; the phone minimap sits just under them */}
-        <div className="pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] flex gap-1.5 sm:gap-2 2xl:gap-3">
+        <div
+          className={cn(
+            "pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] flex gap-1.5 sm:gap-2 2xl:gap-3",
+            // putting has its own Quit button up here, and its own scoreboard
+            golfPlaying && "hidden",
+          )}
+        >
           <IconBtn label="Controls" tint="text-accent-2" onClick={() => setControls(true)}>
             <Gamepad2 className="size-5 2xl:size-7" />
           </IconBtn>
@@ -967,9 +977,20 @@ function HUD() {
           sits over the middle of the screen. On a phone it starts below the
           icon row and stays clear of the minimap on the right.
         */}
-        <div className="mt-[3.75rem] flex w-[min(21rem,calc(100vw-9.75rem))] flex-col items-start gap-2 sm:mt-0 sm:w-[min(24rem,calc(100vw-21rem))] 2xl:w-[30rem] 2xl:gap-3">
+        <div
+          className={cn(
+            "mt-[3.75rem] flex w-[min(21rem,calc(100vw-9.75rem))] flex-col items-start gap-2 sm:mt-0 sm:w-[min(24rem,calc(100vw-21rem))] 2xl:w-[30rem] 2xl:gap-3",
+            // clear of the putting scoreboard, which sits in this corner
+            golfPlaying && "mt-[8.5rem] sm:mt-[7.5rem] 2xl:mt-[9rem]",
+          )}
+        >
           {/* the treasure card: how many dumplings, how close, and what she has */}
-          <div className="ui-glass animate-ui-rise pointer-events-auto w-full px-2.5 py-2 sm:px-3 sm:py-2.5 2xl:px-4 2xl:py-3">
+          <div
+            className={cn(
+              "ui-glass animate-ui-rise pointer-events-auto w-full px-2.5 py-2 sm:px-3 sm:py-2.5 2xl:px-4 2xl:py-3",
+              golfPlaying && "hidden",
+            )}
+          >
             <div className="flex items-center gap-2.5 2xl:gap-4">
               <span
                 className="ui-gem size-[3.25rem] shrink-0 sm:size-[3.75rem] 2xl:size-20"
@@ -1021,7 +1042,8 @@ function HUD() {
             </div>
           </div>
 
-          {(emmettNotice || fleeNotice || nearCollect || boardReady || rideNear || close) && (
+          {/* while she is putting, only her own golf messages belong on screen */}
+          {(golfPlaying ? !!emmettNotice : emmettNotice || fleeNotice || nearCollect || boardReady || rideNear || close) && (
             <div className="ui-glass animate-ui-rise pointer-events-auto flex max-w-full items-center gap-2.5 py-1.5 pl-1.5 pr-3 2xl:gap-3 2xl:py-2 2xl:pl-2">
               <span className="ui-gem size-9 shrink-0 2xl:size-11" style={{ ["--gem" as string]: toast.gem }}>
                 <toast.Icon className="size-5 2xl:size-6" strokeWidth={2.4} />
@@ -1061,9 +1083,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !golfPlaying && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1079,19 +1101,21 @@ function HUD() {
                 : "Give them the treats!"
               : carouselRing
               ? `Grab the ${carouselRing} ring!`
+              : golfNear != null
+                ? `Putt hole ${golfNear + 1}!`
               : carnivalNear
                 ? CARNIVAL_LABEL[carnivalNear]
                 : boardReady
                   ? "Ride the ferris wheel!"
                   : `Grab ${nearestName ?? "it"}!`
           }
-          icon={homeNear ? "home" : emmettTalkNear ? "truck" : carouselRing || carnivalNear ? "carnival" : "wheel"}
+          icon={homeNear ? "home" : emmettTalkNear ? "truck" : golfNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
           gold={carouselRing === "gold"}
           onPress={requestInteract}
         />
       )}
 
-      {phase === "playing" && (
+      {phase === "playing" && !golfPlaying && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:pl-[max(1.5rem,env(safe-area-inset-left))]">
           <Joystick />
           <div className="pointer-events-auto flex flex-col items-end gap-3 md:items-start [@media(max-height:520px)]:flex-row [@media(max-height:520px)]:items-end">
@@ -1395,10 +1419,10 @@ function BigAction({
 }: {
   label: string;
   onPress: () => void;
-  icon?: "wheel" | "carnival" | "home" | "truck";
+  icon?: "wheel" | "carnival" | "home" | "truck" | "golf";
   gold?: boolean;
 }) {
-  const Icon = icon === "wheel" ? FerrisWheel : icon === "home" ? House : icon === "truck" ? Truck : PartyPopper;
+  const Icon = icon === "wheel" ? FerrisWheel : icon === "home" ? House : icon === "truck" ? Truck : icon === "golf" ? Flag : PartyPopper;
   // say what the button does as it pops up (it remounts per action)
   useEffect(() => speak(label.replace(/!$/, "")), [label]);
   return (
@@ -2133,6 +2157,7 @@ export function Overlays() {
       {phase === "victory" && <VictoryScreen />}
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {phase === "playing" && <CarnivalPanel />}
+      {phase === "playing" && <GolfOverlay />}
       {phase === "playing" && <QuestPanel />}
       {phase === "playing" && <HomePanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}

@@ -114,6 +114,15 @@ export type GameStore = {
   setCarouselRing: (v: "gold" | "silver" | null) => void;
   /** A carnival prize: it goes on straight away and the HUD says so. */
   winPrize: (id: AccessoryId) => void;
+  /** Mini golf: the tee she is on, whether she is putting, the finished card, and her best round. */
+  golfNear: number | null;
+  setGolfNear: (v: number | null) => void;
+  golfPlaying: boolean;
+  setGolfPlaying: (v: boolean) => void;
+  golfCard: GolfCard | null;
+  setGolfCard: (c: GolfCard | null) => void;
+  golfBest: number | null;
+  setGolfBest: (total: number) => void;
   /** Carnival tickets (saved). spendTickets returns false if she can't afford it. */
   tickets: number;
   addTickets: (n: number) => void;
@@ -223,6 +232,23 @@ export type GameStore = {
   setMap: (v: boolean) => void;
 };
 
+/** The round she just finished, shown on the scorecard panel. */
+export type GolfCard = {
+  /** the hole she teed off on (0-based): a round can start at any tee */
+  from: number;
+  /** strokes, in the order she played them */
+  scores: number[];
+  total: number;
+  par: number;
+  tickets: number;
+  /** her best before this round, if she had one */
+  best: number | null;
+  isBest: boolean;
+  /** all five holes from the first tee: only those count for a best round */
+  full: boolean;
+  line: string;
+};
+
 function persistSlice(s: GameStore) {
   persistSave({
     version: 1,
@@ -242,6 +268,7 @@ function persistSlice(s: GameStore) {
     showFps: s.showFps,
     graphics: s.graphics,
     tickets: s.tickets,
+    golfBest: s.golfBest,
     stickerBook: s.stickerBook,
     stickers: s.stickers,
     quest: s.quest,
@@ -330,6 +357,19 @@ export const useGame = create<GameStore>((set, get) => ({
   carouselRing: null,
   setCarouselRing: (carouselRing) => {
     if (get().carouselRing !== carouselRing) set({ carouselRing });
+  },
+  golfNear: null,
+  setGolfNear: (golfNear) => {
+    if (get().golfNear !== golfNear) set({ golfNear });
+  },
+  golfPlaying: false,
+  setGolfPlaying: (golfPlaying) => set({ golfPlaying, golfNear: null }),
+  golfCard: null,
+  setGolfCard: (golfCard) => set({ golfCard }),
+  golfBest: saved.golfBest,
+  setGolfBest: (total) => {
+    set({ golfBest: total });
+    persistSlice(get());
   },
   tickets: saved.tickets,
   addTickets: (n) => {
@@ -509,6 +549,9 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      golfCard: null,
+      golfPlaying: false,
+      golfNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -669,6 +712,9 @@ export const useGame = create<GameStore>((set, get) => ({
       quiz: null,
       rps: null,
       carnival: null,
+      golfCard: null,
+      golfPlaying: false,
+      golfNear: null,
       questPanel: null,
       journalOpen: false,
       mapOpen: false,
@@ -693,6 +739,9 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      golfCard: null,
+      golfPlaying: false,
+      golfNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -719,6 +768,9 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      golfCard: null,
+      golfPlaying: false,
+      golfNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -749,6 +801,9 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      golfCard: null,
+      golfPlaying: false,
+      golfNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -757,6 +812,7 @@ export const useGame = create<GameStore>((set, get) => ({
       worn: { ...NOTHING_WORN },
       wornGen: get().wornGen + 1,
       tickets: 0,
+      golfBest: null,
       stickerBook: false,
       stickers: [],
       quest: { stage: "none", treats: [] },
@@ -778,6 +834,9 @@ export const useGame = create<GameStore>((set, get) => ({
       fleeId: null,
       rps: null,
       carnival: null,
+      golfCard: null,
+      golfPlaying: false,
+      golfNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,

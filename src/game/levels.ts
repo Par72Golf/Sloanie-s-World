@@ -14,6 +14,7 @@ import {
   campground,
   farm,
   forest,
+  GOLF,
   miniGolf,
   outdoorGym,
   pavilion,
@@ -774,7 +775,6 @@ function picnicPark(): LevelDef {
   const POOL = { x: -40, z: 136 };
   const GYM = { x: 8, z: 136 };
   const FARM = { x: -60, z: -132 };
-  const GOLF = { x: 20, z: -132 };
   const PITCH = { x: 130, z: -60 };
 
   const zones: Prop[] = prune([

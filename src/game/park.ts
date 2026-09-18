@@ -567,43 +567,205 @@ export function farm(cx: number, cz: number): Prop[] {
 
 /* --------------------------------------------------------------- mini golf */
 
-/** Four mini-golf holes side by side, with low borders, obstacles and flags. */
+/**
+ * The mini golf course, as one table of numbers.
+ *
+ * `minigolf.ts` builds the ball's world out of exactly these values and
+ * `miniGolf()` below draws from them, so what she can see and what the ball
+ * hits can never drift apart. Lane-local coordinates are used throughout:
+ * `dx` across the lane, `dz` along it, with the tee at `+teeDz` and the cup
+ * at `cupDz` (negative), so every hole is played northwards.
+ *
+ * Five holes, five different questions: an easy gate to warm up, a windmill
+ * to time, a dogleg to think round, two gates to pick between, and a rolling
+ * log to dodge. Everything the ball hits is knee high or lower, except the
+ * windmill, which is an open frame she can see straight through.
+ */
+export const GOLF = {
+  /** where levels.ts puts the course */
+  x: 20,
+  z: -132,
+  holes: 5,
+  /** lane centres, as offsets from the course centre */
+  laneDx: [-14, -7, 0, 7, 14],
+  /** the playable green is |dx| <= halfW and |dz| <= halfD */
+  halfW: 2.5,
+  halfD: 9,
+  /** the wooden border: thickness and height, its inner face on the green's edge */
+  wallT: 0.4,
+  wallH: 0.36,
+  /** the tee mat and the cup, along the lane */
+  teeDz: 7.5,
+  cupDz: -7,
+  cupR: 0.45,
+  par: 3,
+  apronW: 36,
+  apronD: 24,
+  green: "#4fa056",
+  flags: ["#e8455f", "#ffc53d", "#4f93c4", "#3fa35c", "#b98ce0"],
+  names: ["Straight Away", "The Windmill", "The Dogleg", "Twin Gates", "Rolling Log"],
+  /**
+   * The first thing to aim at on each hole: the gate, the doorway, the corner.
+   * On the dogleg the cup is round a wall and cannot be seen from the tee,
+   * which is fine, but this has to be in plain sight (tools/minigolf.ts).
+   */
+  sight: [
+    [0, 0],
+    [0, 0.9],
+    [1.7, 1.5],
+    [1.25, -1],
+    [0, 1.8],
+  ] as [number, number][],
+  /**
+   * Hole 2's windmill: two knee-high kerbs making a doorway, a frame of thin
+   * posts and a beam over it, and the sails turning in the opening. A sail
+   * sweeping the bottom of its turn covers the middle of the doorway, so the
+   * short way through is a matter of timing; it can never shut the hole,
+   * because a sail only reaches about 0.9m sideways while its tip is down in
+   * the grass and the ways round the kerbs are 1.25m wide.
+   *
+   * Nothing here is both tall and wide, and that is the point. A ball sitting
+   * just behind anything taller than knee height cannot be seen from behind at
+   * any sane camera height, which is what a solid windmill tower did: it filled
+   * the screen with roof. The posts and beam are thin enough not to be built as
+   * colliders at all, and the sails are thin and always moving.
+   */
+  windmill: {
+    hole: 1,
+    /** the sails' plane, in front of the frame */
+    dz: 0.9,
+    legDx: 1,
+    legW: 0.5,
+    legD: 0.5,
+    /** the kerb the ball hits */
+    legH: 0.45,
+    /** the frame over it: thin posts up to this, then a beam */
+    postH: 2.2,
+    postW: 0.16,
+    beamH: 0.16,
+    hubY: 2.05,
+    /** hub to sail tip; the tip just brushes the grass at the bottom */
+    sail: 1.95,
+    sailW: 0.44,
+    sailT: 0.16,
+    /** seconds for one turn */
+    period: 6,
+  },
+  /**
+   * Hole 5's rolling log, which trundles from side to side across the lane and
+   * gives the ball a shove. Its swing is longer than its half-length, so the
+   * middle of the lane opens up twice a pass, and both ends stay clear of the
+   * borders, so there is always a gap and nothing to be pinned against.
+   */
+  log: {
+    hole: 4,
+    dz: 1.8,
+    halfLen: 0.85,
+    r: 0.26,
+    travel: 1.25,
+    period: 5,
+  },
+};
+
+/**
+ * One solid thing on a green, in lane-local coordinates. `round` ones are
+ * circles of radius w/2 (the mushroom); the rest are boxes.
+ */
+export type GolfBlock = {
+  dx: number;
+  dz: number;
+  w: number;
+  d: number;
+  h: number;
+  color: string;
+  round?: boolean;
+};
+
+/**
+ * What stands on each green. The windmill's sails and the rolling log move,
+ * so they are not here; nor is the windmill's beam, which is over her head.
+ */
+export const GOLF_BLOCKS: GolfBlock[][] = [
+  // 1 · a wide gate straight ahead: the warm-up
+  [
+    { dx: -1.75, dz: 0, w: 1.5, d: 0.5, h: 0.45, color: "#a05040" },
+    { dx: 1.75, dz: 0, w: 1.5, d: 0.5, h: 0.45, color: "#a05040" },
+  ],
+  // 2 · the windmill frame's legs; the sails sweep the doorway between them
+  [
+    { dx: -GOLF.windmill.legDx, dz: 0, w: GOLF.windmill.legW, d: GOLF.windmill.legD, h: GOLF.windmill.legH, color: "#f3eadc" },
+    { dx: GOLF.windmill.legDx, dz: 0, w: GOLF.windmill.legW, d: GOLF.windmill.legD, h: GOLF.windmill.legH, color: "#f3eadc" },
+  ],
+  // 3 · a dogleg: the cup is round the corner, up the right-hand side
+  [
+    { dx: -0.8, dz: 1.5, w: 3.4, d: 0.4, h: 0.45, color: "#ffc53d" },
+    { dx: -1.5, dz: -3.5, w: 1, d: 1, h: 0.55, color: "#ffc53d", round: true },
+  ],
+  // 4 · round the mushroom, then pick a gate and thread it
+  [
+    { dx: 0, dz: 3.6, w: 1.1, d: 1.1, h: 0.55, color: "#e8455f", round: true },
+    { dx: 0, dz: -1, w: 1.4, d: 0.5, h: 0.5, color: "#4f93c4" },
+    { dx: -2.15, dz: -1, w: 0.7, d: 0.5, h: 0.5, color: "#4f93c4" },
+    { dx: 2.15, dz: -1, w: 0.7, d: 0.5, h: 0.5, color: "#4f93c4" },
+  ],
+  // 5 · nothing standing still: the rolling log does all the work
+  [],
+];
+
+/** Five mini-golf holes side by side, with low borders, obstacles and flags. */
 export function miniGolf(cx: number, cz: number): Prop[] {
   const p: Prop[] = [];
-  p.push(surf(cx, TOP.apron, cz, 32, 24, "#d8c49a"));
-  for (let i = 0; i < 4; i++) {
-    const hx = cx - 12 + i * 8;
-    p.push(surf(hx, TOP.court, cz, 5, 18, "#4fa056"));
-    // borders
-    p.push(box(hx - 2.7, 0.18, cz, 0.4, 0.36, 18.4, "#8a5a32"));
-    p.push(box(hx + 2.7, 0.18, cz, 0.4, 0.36, 18.4, "#8a5a32"));
-    p.push(box(hx, 0.18, cz - 9.2, 5.8, 0.36, 0.4, "#8a5a32"));
-    p.push(box(hx, 0.18, cz + 9.2, 5.8, 0.36, 0.4, "#8a5a32"));
+  const g = GOLF;
+  const inW = g.halfW * 2;
+  const inD = g.halfD * 2;
+  p.push(surf(cx, TOP.apron, cz, g.apronW, g.apronD, "#d8c49a"));
+  for (let i = 0; i < g.holes; i++) {
+    const hx = cx + g.laneDx[i]!;
+    p.push(surf(hx, TOP.court, cz, inW, inD, g.green));
+    // borders, their inner faces exactly on the edge of the playable green
+    p.push(box(hx - g.halfW - g.wallT / 2, g.wallH / 2, cz, g.wallT, g.wallH, inD + g.wallT * 2, C.wood));
+    p.push(box(hx + g.halfW + g.wallT / 2, g.wallH / 2, cz, g.wallT, g.wallH, inD + g.wallT * 2, C.wood));
+    p.push(box(hx, g.wallH / 2, cz - g.halfD - g.wallT / 2, inW, g.wallH, g.wallT, C.wood));
+    p.push(box(hx, g.wallH / 2, cz + g.halfD + g.wallT / 2, inW, g.wallH, g.wallT, C.wood));
     // tee mat and the hole with its flag
-    p.push(surf(hx, TOP.line, cz + 7.5, 1.2, 1.2, "#2f6f8f", 0.05));
-    p.push(disc(hx, TOP.line, cz - 7, 0.35, "#2f2a26", 0.05));
-    p.push(box(hx, 0.9, cz - 7, 0.06, 1.8, 0.06, C.chrome, false));
-    p.push(box(hx + 0.35, 1.55, cz - 7, 0.6, 0.35, 0.05, ["#e8455f", "#ffc53d", "#4f93c4", "#3fa35c"][i]!, false));
-    // an obstacle per hole
-    if (i === 0) {
-      p.push(box(hx, 0.4, cz, 2.2, 0.8, 0.6, "#a05040"));
-    } else if (i === 1) {
-      // windmill: house with a wheel of blades
-      p.push({ kind: "house", x: hx, z: cz, body: "#f3eadc", roof: "#a05040", w: 2.6, d: 2.2 });
-      for (let k = 0; k < 4; k++) {
-        const a = (k / 4) * Math.PI * 2;
-        p.push(box(hx + Math.cos(a) * 1.0, 3.1 + Math.sin(a) * 1.0, cz + 1.3, 0.3, 0.3, 0.08, "#4f93c4", false));
-      }
-    } else if (i === 2) {
-      p.push(cyl(hx - 1.2, 0.35, cz + 1.5, 0.5, 0.7, "#ffc53d"));
-      p.push(cyl(hx + 1.2, 0.35, cz - 1.5, 0.5, 0.7, "#ffc53d"));
-    } else {
-      p.push(box(hx - 1.4, 0.3, cz, 1.4, 0.6, 0.5, "#4f93c4"));
-      p.push(box(hx + 1.4, 0.3, cz - 3, 1.4, 0.6, 0.5, "#4f93c4"));
+    p.push(surf(hx, TOP.line, cz + g.teeDz, 1.2, 1.2, "#2f6f8f", 0.05));
+    p.push(disc(hx, TOP.line, cz + g.cupDz, g.cupR, "#2f2a26", 0.05));
+    p.push(box(hx, 0.9, cz + g.cupDz, 0.06, 1.8, 0.06, C.chrome, false));
+    p.push(box(hx + 0.35, 1.55, cz + g.cupDz, 0.6, 0.35, 0.05, g.flags[i]!, false));
+    // the tee marker, so she can tell the holes apart
+    p.push(box(hx - 1.5, 0.3, cz + g.teeDz, 0.5, 0.6, 0.12, g.flags[i]!));
+    // whatever stands on this green
+    for (const b of GOLF_BLOCKS[i] ?? []) {
+      if (b.round) p.push(cyl(hx + b.dx, b.h / 2, cz + b.dz, b.w / 2, b.h, b.color));
+      else p.push(box(hx + b.dx, b.h / 2, cz + b.dz, b.w, b.h, b.d, b.color));
     }
   }
-  // kiosk
-  p.push({ kind: "house", x: cx + 13, z: cz + 8, body: "#ffc53d", roof: "#d45a4a", w: 4, d: 3 });
+  // The windmill's frame: thin posts and a beam over the two kerbs, with the
+  // hub the sails turn on. All of it under 0.35m thick, so world-build leaves
+  // it out of the colliders and it is never a wall or a wall of a view.
+  {
+    const w = g.windmill;
+    const hx = cx + g.laneDx[w.hole]!;
+    const span = w.legDx * 2 + w.postW;
+    for (const s of [-1, 1]) {
+      p.push(box(hx + s * w.legDx, (w.legH + w.postH) / 2, cz, w.postW, w.postH - w.legH, w.postW, "#a05040", false));
+    }
+    p.push(box(hx, w.postH + w.beamH / 2, cz, span, w.beamH, w.postW, "#a05040", false));
+    // the post the hub hangs from, in front of the beam, and the hub itself
+    p.push(box(hx, (w.hubY + w.postH + w.beamH) / 2, cz + w.dz - 0.28, 0.16, w.postH + w.beamH - w.hubY, 0.16, "#a05040", false));
+    p.push(cyl(hx, w.hubY, cz + w.dz, 0.17, 0.3, "#c8a040", false));
+  }
+  // the log's run: a sandy strip so it is clear where the log will come from
+  {
+    const l = g.log;
+    const hx = cx + g.laneDx[l.hole]!;
+    p.push(surf(hx, TOP.inner, cz + l.dz, inW, l.r * 2 + 0.5, C.sand, 0.05));
+  }
+  // kiosk, clear of the lanes on the entrance side
+  // Kiosk, south of the lanes on the entrance side. It sits in the gap between
+  // two lanes' camera lines on purpose: the putting camera hangs back over the
+  // apron, and a kiosk in line with a tee put the camera inside its wall.
+  p.push({ kind: "house", x: cx + 10.5, z: cz + 11.5, body: "#ffc53d", roof: "#d45a4a", w: 4, d: 3 });
   return p;
 }
 

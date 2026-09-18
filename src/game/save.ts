@@ -38,6 +38,8 @@ export type SaveData = {
   graphics: "sharp" | "smooth";
   /** Carnival tickets, spent at the prize booth. */
   tickets: number;
+  /** Best mini golf round for the five-hole course, in strokes. */
+  golfBest: number | null;
   /** Whether she has found the sticker book (stickers need it), and her stickers. */
   stickerBook: boolean;
   stickers: string[];
@@ -69,6 +71,7 @@ const DEFAULT: SaveData = {
   showFps: false,
   graphics: "sharp",
   tickets: 0,
+  golfBest: null,
   stickerBook: false,
   stickers: [],
   quest: { stage: "none", treats: [] },
@@ -117,6 +120,7 @@ function migrate(raw: SaveData): SaveData {
   s.seenHelp = Array.isArray(s.seenHelp) ? s.seenHelp.filter((x) => typeof x === "string") : [];
   s.tickets = Number.isFinite(s.tickets) && s.tickets > 0 ? Math.floor(s.tickets) : 0;
   s.stickerBook = s.stickerBook === true;
+  s.golfBest = Number.isFinite(s.golfBest) && (s.golfBest as number) > 0 ? Math.floor(s.golfBest as number) : null;
   s.stickers = Array.isArray(s.stickers) ? s.stickers.filter((x) => typeof x === "string") : [];
   const stages = ["none", "treats", "trail", "escort", "choose", "done"];
   s.quest =
