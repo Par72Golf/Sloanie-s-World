@@ -132,6 +132,23 @@ function directoryCanvas(lines: { text: string; arrow: Arrow }[], w: number, h: 
 
   const rows = lines.length;
   const rowH = c.height / rows;
+  const arrowSize = rowH * 0.62;
+  const left = c.width * 0.05 + arrowSize / 2;
+  const maxW = c.width - (left + arrowSize) - c.width * 0.06;
+
+  // One size for the whole board, not one per row: sized per row, a short
+  // label was drawn twice the height of a long one on the same sign and the
+  // board read as three different signs stacked up.
+  let size = rowH * 0.5;
+  g.textAlign = "left";
+  g.textBaseline = "middle";
+  for (;;) {
+    g.font = `bold ${Math.round(size)}px ${FONT}`;
+    if (size <= 12) break;
+    if (lines.every((l) => g.measureText(l.text).width <= maxW)) break;
+    size -= 2;
+  }
+
   lines.forEach((l, i) => {
     const cy = rowH * (i + 0.5);
     if (i > 0) {
@@ -142,19 +159,9 @@ function directoryCanvas(lines: { text: string; arrow: Arrow }[], w: number, h: 
       g.lineTo(c.width * 0.94, rowH * i);
       g.stroke();
     }
-    const arrowSize = rowH * 0.62;
-    const left = c.width * 0.05 + arrowSize / 2;
     drawArrow(g, left, cy, arrowSize, l.arrow, "#e8455f");
     g.fillStyle = "#3a2b1c";
-    g.font = `bold ${Math.round(rowH * 0.5)}px ${FONT}`;
-    g.textAlign = "left";
-    g.textBaseline = "middle";
-    let size = rowH * 0.5;
-    const maxW = c.width - (left + arrowSize) - c.width * 0.06;
-    while (g.measureText(l.text).width > maxW && size > 12) {
-      size -= 2;
-      g.font = `bold ${Math.round(size)}px ${FONT}`;
-    }
+    g.font = `bold ${Math.round(size)}px ${FONT}`;
     g.fillText(l.text, left + arrowSize * 0.85, cy + 2);
   });
   return canvasTexture(c);
@@ -246,10 +253,17 @@ export function bannerTexture(text: string, w: number, h: number, bg: string, in
  * be six draw calls each and there are thirty-odd signs; this way the bodies
  * merge with the rest of the park's woodwork and only the painted faces cost
  * a call apiece.
+ *
+ * `depth` is what keeps the posts off the lettering. A painted face sits
+ * `depth / 2 + 0.011` out from the middle of the board, so the board has to be
+ * thicker than the posts behind it are wide, or the posts stand proud of the
+ * paint and cover whatever is painted at their x. The directories get away
+ * with 0.14 because their two boards are nudged 0.08 apart; the name boards
+ * are one board read from both sides and need the depth instead.
  */
-function boardMesh(w: number, h: number, front: THREE.Texture, back?: THREE.Texture) {
+function boardMesh(w: number, h: number, front: THREE.Texture, back?: THREE.Texture, depth = 0.14) {
   const g = new THREE.Group();
-  const body = mesh(boxGeo, "#8a5a32", w, h, 0.14, 0, 0, 0);
+  const body = mesh(boxGeo, "#8a5a32", w, h, depth, 0, 0, 0);
   g.add(body);
   const face = (z: number, turn: boolean) => {
     const geo = new THREE.PlaneGeometry(w - 0.06, h - 0.06);
@@ -268,10 +282,11 @@ function boardMesh(w: number, h: number, front: THREE.Texture, back?: THREE.Text
   // not two meshes: painted faces carry a unique texture each, so they are
   // never merged with anything, and every one of them is a draw call. The
   // park has twenty-five name boards.
-  if (back && back === front) paint(front, [face(0.081, false), face(-0.081, true)]);
+  const zf = depth / 2 + 0.011;
+  if (back && back === front) paint(front, [face(zf, false), face(-zf, true)]);
   else {
-    paint(front, [face(0.081, false)]);
-    if (back) paint(back, [face(-0.081, true)]);
+    paint(front, [face(zf, false)]);
+    if (back) paint(back, [face(-zf, true)]);
   }
   return g;
 }
@@ -280,6 +295,12 @@ function boardMesh(w: number, h: number, front: THREE.Texture, back?: THREE.Text
 
 const POST = "#8a5a32";
 const POST_W = 0.22;
+/** How far out from the middle of a name board each of its two posts stands. */
+export const NAME_POST_DX = 1.25;
+/** Post height under a name board: short enough to end inside the board. */
+const NAME_POST_H = 2.3;
+/** Name boards: wide, tall with a second line, and thicker than POST_W. */
+export const NAME_BOARD = { w: 3.1, y: 1.85, depth: 0.28 };
 
 /** Posts for every sign, as solid props, so levels.ts can place them. */
 export function signProps(directories: Directory[], names: NameSign[]): Prop[] {
@@ -295,9 +316,12 @@ export function signProps(directories: Directory[], names: NameSign[]): Prop[] {
   }
   for (const n of names) {
     const across = n.face === "N" || n.face === "S";
-    const h = 2.5;
-    post(n.x + (across ? -1.25 : 0), n.z + (across ? 0 : -1.25), h);
-    post(n.x + (across ? 1.25 : 0), n.z + (across ? 0 : 1.25), h);
+    // 2.3, not 2.5: the post has to stop inside the board it carries. At 2.5
+    // its top and its cap came out above the board and jammed into the green
+    // pitched cap over it.
+    const h = NAME_POST_H;
+    post(n.x + (across ? -NAME_POST_DX : 0), n.z + (across ? 0 : -NAME_POST_DX), h);
+    post(n.x + (across ? NAME_POST_DX : 0), n.z + (across ? 0 : NAME_POST_DX), h);
   }
   return out;
 }
@@ -337,14 +361,18 @@ export function makeSigns(directories: Directory[], names: NameSign[]) {
   }
 
   for (const n of names) {
-    const w = 3.1;
+    const { w, y, depth } = NAME_BOARD;
     const h = n.sub ? 1.15 : 0.95;
-    const y = 1.85;
     const tint = "#e8455f";
     // one canvas, shown on both faces: two of them was two textures and two
     // draw calls for the same picture
     const tex = nameCanvas(n.name, n.sub, w, h, tint);
-    const b = boardMesh(w, h, tex, tex);
+    // The board is 0.28 thick so its two painted faces clear the 0.22 posts
+    // at x +/- 1.25. At 0.14 the posts stood 0.03 proud of the paint and each
+    // one covered the outer 0.22m of the board: "Woods Trail" read "Woods
+    // Trai", "Campground" read "Campgroun", and every long name lost a letter
+    // at each end. tools/paths.ts now checks the board against every solid.
+    const b = boardMesh(w, h, tex, tex, depth);
     b.position.set(n.x, y, n.z);
     b.rotation.y = yawFor(n.face);
     g.add(b);
@@ -352,22 +380,8 @@ export function makeSigns(directories: Directory[], names: NameSign[]) {
     const cap = mesh(boxGeo, "#2f7d5b", w + 0.3, 0.16, 0.5, n.x, y + h / 2 + 0.1, n.z, false);
     cap.rotation.y = b.rotation.y;
     g.add(cap);
-    for (const s of [-1, 1]) {
-      const across = n.face === "N" || n.face === "S";
-      g.add(
-        mesh(
-          boxGeo,
-          "#c9825a",
-          0.34,
-          0.18,
-          0.34,
-          n.x + (across ? s * 1.25 : 0),
-          2.5,
-          n.z + (across ? 0 : s * 1.25),
-          false,
-        ),
-      );
-    }
+    // no post caps here: the posts stop inside the board (NAME_POST_H) and a
+    // cap on top of each one sat inside the pitched cap and poked out of it
   }
 
   return g;
@@ -493,7 +507,13 @@ export const PARK_NAME_SIGNS: NameSign[] = [
     : ([
         { x: -19.4, z: 7.0, face: "N", name: "Kite Field" },
         { x: 4.6, z: -11.4, face: "N", name: "Duck Pond", sub: "ducklings!" },
-        { x: 4.4, z: 27.0, face: "W", name: "Flower Garden" },
+        // Not (4.4, 27): that put the board in the 3m gap between the
+        // welcome arch's east leg (3.0, 25.6) and the first midway lamp
+        // (3.6, 28.6), and from the path both of them crossed the lettering.
+        // There is no window on that verge wide enough for a 3.1m board, so
+        // it stands at the garden's north-west corner instead, where she
+        // walks off the plaza with the hedge behind it and nothing in front.
+        { x: 6.4, z: 22.7, face: "W", name: "Flower Garden" },
         { x: -30.4, z: 47.4, face: "N", name: "Fairground Green" },
       ] as NameSign[])),
   { x: -87.4, z: 16.6, face: "N", name: "Splash Pad" },
@@ -518,5 +538,7 @@ export const PARK_NAME_SIGNS: NameSign[] = [
   { x: 25.5, z: 62.0, face: "S", name: "Ferris Wheel" },
   { x: -40.6, z: 120.6, face: "N", name: "Swimming Pool" },
   { x: -4.6, z: 124.6, face: "N", name: "Ninja Course" },
-  { x: -12.6, z: 102.4, face: "N", name: "Sloan's House" },
+  // (no board for her house: home.ts hangs one on the house itself, with
+  // whatever name she chose on it, and from the street the two stacked up and
+  // said the same thing twice — with this one able to say the wrong name)
 ];

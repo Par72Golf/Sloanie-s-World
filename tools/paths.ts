@@ -21,7 +21,7 @@ import { collidersFor } from "../src/game/colliders";
 import { moveAndCollide, type AABB, type Capsule } from "../src/game/collision";
 import { PLAYER_H, PLAYER_W, WALK } from "../src/game/tuning";
 import { EDGES, NODES, PAD_TOP, PATH_TOP, EDGE_TOP, edgeRect, padRect, padSize } from "../src/game/walkways";
-import { PARK_DIRECTORIES, PARK_NAME_SIGNS, arrowFor, DIR_VEC } from "../src/game/signs";
+import { PARK_DIRECTORIES, PARK_NAME_SIGNS, NAME_BOARD, NAME_POST_DX, arrowFor, DIR_VEC } from "../src/game/signs";
 import { PLAZA } from "../src/game/plaza";
 
 const level = LEVELS[0]!;
@@ -230,6 +230,111 @@ console.log("\nsigns");
       .filter((l) => l.arrow);
     console.log(`       plaza signpost, read from the ${face}: ${lines.map((l) => `${l.arrow} ${l.label}`).join(" | ")}`);
   }
+}
+
+/* ------------------------------------------- 4b. nothing crosses the lettering */
+
+/**
+ * A board with something in front of it is unreadable, and "lots of overlap /
+ * intersect blocking letters" is exactly what the first playtest of the
+ * signage came back with. Every painted board in signs.ts gets its box here
+ * and is checked against every solid in the park and against every other
+ * board. The sign's own two posts are excepted — the board is mounted on
+ * them — but nothing else is, so a lamp post, a hedge, a tree or a second
+ * sign creeping in front of the letters fails this.
+ *
+ * What it does not catch, and what a human still has to look at: anything
+ * drawn without a collider behind it (bunting, a hedge's trim, a tree's
+ * canopy), and anything standing beside a board rather than inside it that
+ * still lands between her and the lettering from where she reads it.
+ */
+console.log("\nnothing in front of the lettering");
+{
+  type Box = { label: string; sign: string; minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number };
+  const at = (label: string, sign: string, x: number, y: number, z: number, sx: number, sy: number, sz: number): Box => ({
+    label,
+    sign,
+    minX: x - sx / 2,
+    maxX: x + sx / 2,
+    minY: y - sy / 2,
+    maxY: y + sy / 2,
+    minZ: z - sz / 2,
+    maxZ: z + sz / 2,
+  });
+
+  const boards: Box[] = [];
+  /** The two posts signs.ts puts under each sign, which its board may sit on. */
+  const ownPosts = new Set<string>();
+  const postKey = (x: number, z: number) => `${x.toFixed(2)},${z.toFixed(2)}`;
+
+  const DIR_BOARD_D = 0.14;
+  for (const d of PARK_DIRECTORIES) {
+    const base = d.h ?? 1.5;
+    const rowH = 0.62;
+    const boardW = 2.6;
+    const acrossPosts = d.faces[0] === "N" || d.faces[0] === "S";
+    for (const s of [-1, 1]) {
+      ownPosts.add(postKey(d.x + (acrossPosts ? s * 0.9 : 0), d.z + (acrossPosts ? 0 : s * 0.9)));
+    }
+    const name = `directory (${d.x}, ${d.z})`;
+    for (const face of d.faces) {
+      const rows = d.exits.filter((e) => arrowFor(face, e.dir) != null).length;
+      if (!rows) continue;
+      const h = rows * rowH;
+      const [dx, dz] = DIR_VEC[face];
+      const across = face === "N" || face === "S";
+      boards.push(
+        at(
+          `${name} face ${face}`,
+          name,
+          d.x + dx * 0.08,
+          base + h / 2,
+          d.z + dz * 0.08,
+          across ? boardW : DIR_BOARD_D,
+          h,
+          across ? DIR_BOARD_D : boardW,
+        ),
+      );
+    }
+  }
+  for (const n of PARK_NAME_SIGNS) {
+    const across = n.face === "N" || n.face === "S";
+    const { w, y, depth } = NAME_BOARD;
+    const h = n.sub ? 1.15 : 0.95;
+    for (const s of [-1, 1]) {
+      ownPosts.add(postKey(n.x + (across ? s * NAME_POST_DX : 0), n.z + (across ? 0 : s * NAME_POST_DX)));
+    }
+    boards.push(at(`"${n.name}" board`, n.name, n.x, y, n.z, across ? w : depth, h, across ? depth : w));
+    // the pitched cap over it, which is wider and deeper than the board
+    boards.push(at(`"${n.name}" cap`, n.name, n.x, y + h / 2 + 0.1, n.z, across ? w + 0.3 : 0.5, 0.16, across ? 0.5 : w + 0.3));
+  }
+
+  const hits = (a: Box, b: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number }) =>
+    Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX) > 0.02 &&
+    Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY) > 0.02 &&
+    Math.min(a.maxZ, b.maxZ) - Math.max(a.minZ, b.minZ) > 0.02;
+
+  const bad: string[] = [];
+  for (const board of boards) {
+    for (const b of boxes) {
+      const px = ((b.minX + b.maxX) / 2).toFixed(2);
+      const pz = ((b.minZ + b.maxZ) / 2).toFixed(2);
+      // the sign's own posts hold it up; everything else is in the way
+      if (b.maxX - b.minX < 0.3 && b.maxZ - b.minZ < 0.3 && ownPosts.has(`${px},${pz}`)) continue;
+      if (!hits(board, b)) continue;
+      bad.push(`${board.label} is inside ${b.label} at (${f1(+px)}, ${f1(+pz)})`);
+    }
+  }
+  for (let i = 0; i < boards.length; i++) {
+    for (let j = i + 1; j < boards.length; j++) {
+      const a = boards[i]!;
+      const b = boards[j]!;
+      if (a.sign === b.sign) continue;
+      if (hits(a, b)) bad.push(`${a.label} overlaps ${b.label}`);
+    }
+  }
+  check(bad.length === 0, `all ${boards.length} painted boards and caps are clear of every other solid`);
+  for (const line of bad.slice(0, 30)) console.log(`       ${line}`);
 }
 
 /* ------------------------------------------------------------- 5. the plaza */

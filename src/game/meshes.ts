@@ -2104,7 +2104,15 @@ export function signBoard(text: string, w: number, h: number) {
   g.fillStyle = "#a8743f";
   for (let y = 0; y < c.height; y += 22) g.fillRect(0, y, c.width, 3);
   g.fillStyle = "#fff4d6";
-  g.font = `bold ${Math.round(c.height * 0.52)}px system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`;
+  const face = (px: number) => `bold ${Math.round(px)}px system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`;
+  // shrink a long name until it fits the board: "Sloanie's Bowls Club" ran
+  // edge to edge and clipped at full size
+  let size = c.height * 0.52;
+  g.font = face(size);
+  while (g.measureText(text).width > c.width * 0.88 && size > 12) {
+    size -= 2;
+    g.font = face(size);
+  }
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillText(text, c.width / 2, c.height / 2 + 2);

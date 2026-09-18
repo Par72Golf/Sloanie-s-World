@@ -204,19 +204,37 @@ export function makeKiteField() {
 
   const kx = x - 6.5;
   const kz = z + 2.5;
-  g.add(mesh(boxGeo, MOWN, 6.4, 0.06, 5.0, kx, 1.0, kz, false));
+  // the mown crown stands 2cm over the knoll's top tier (top 1.03). Flush
+  // with it, the two top faces are coplanar and z-fight across the whole
+  // crown of the knoll, which is the first thing she sees walking up it.
+  g.add(mesh(boxGeo, MOWN, 6.4, 0.06, 5.0, kx, 1.02, kz, false));
   // daisies over the knoll so it reads as a grassy mound, not a step
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2;
-    flowerTuft(g, kx + Math.cos(a) * 1.5, 1.03, kz + Math.sin(a) * 1.2, i, 0.8);
+    flowerTuft(g, kx + Math.cos(a) * 1.5, 1.05, kz + Math.sin(a) * 1.2, i, 0.8);
   }
 
-  // windsock: striped rings tapering downwind off the top of the pole
+  // Windsock: a bracket off the top of the pole and striped segments
+  // tapering downwind (+x).
+  //
+  // The taper used to be on the wrong axis: each segment was `r * 2` long
+  // ALONG the sock and a fixed 0.62 across it, so as r fell the segments got
+  // shorter instead of narrower. Spaced 0.6 apart they then came apart —
+  // the first two overlapped, the last two floated free with a gap in front
+  // of each — and the first one, 0.72 long and centred only 0.34 out, closed
+  // over the gold finial on top of the pole. Length is fixed at 0.62 now and
+  // the taper is across the sock, in y and z.
+  const sockY = 3.62;
+  // the bracket runs from inside the pole to inside the sock's mouth, so
+  // there is no gap of sky between the two
+  g.add(mesh(boxGeo, DECK, 0.42, 0.1, 0.1, kx + 0.18, sockY, kz, false));
   for (let i = 0; i < 4; i++) {
     const r = 0.36 - i * 0.06;
-    g.add(mesh(boxGeo, i % 2 ? CREAM : RED, r * 2, r * 2, 0.62, kx + 0.34 + i * 0.6, 3.88, kz, false));
+    // 0.62 long on a 0.6 pitch, so every segment overlaps the next by 2cm
+    g.add(mesh(boxGeo, i % 2 ? CREAM : RED, 0.62, r * 2, r * 2, kx + 0.45 + i * 0.6, sockY, kz, false));
   }
-  g.add(mesh(sphereGeo, GOLD, 0.16, 0.16, 0.16, kx, 4.23, kz, false));
+  // the finial sits on the pole top (4.08), clear of the sock below it
+  g.add(mesh(sphereGeo, GOLD, 0.16, 0.16, 0.16, kx, 4.24, kz, false));
 
   // four spare kites leaning on the rack
   const rx = x + 7.0;

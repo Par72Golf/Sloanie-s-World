@@ -393,7 +393,11 @@ export function makeArrivalPlaza() {
   // bunting: pole to every lamp, and lamp to lamp round the rim
   const strings = new Map<string, THREE.BufferGeometry[]>();
   const flagCols = ["#e8455f", "#ffc53d", "#4f93c4", "#3fa35c", "#fff4e8"];
-  for (const [x, z] of LAMPS) {
+  for (const [i, [x, z]] of LAMPS.entries()) {
+    // the strings due east and due west lie in the banner's own plane, so their
+    // pennants hung over her name; every other lamp still gets one
+    const deg = LAMP_ANGLES[i]!;
+    if (deg === 0 || deg === 180) continue;
     bunting([PLAZA.x, POLE_H - 0.6, PLAZA.z], [x, LAMP_H + 0.5, z], flagCols, strings);
   }
   for (let i = 0; i < LAMPS.length; i++) {

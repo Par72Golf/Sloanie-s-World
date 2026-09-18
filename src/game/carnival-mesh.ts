@@ -277,7 +277,7 @@ export function makeCarnival(): CarnivalRig {
   }
   const arch = signBoard("CARNIVAL", 5.6, 1.0);
   arch.position.set(ax, 3.8, az);
-  // painted face toward the south, where she walks up from
+  // painted face toward the north, where she walks up from
   arch.rotation.y = Math.PI;
   group.add(arch);
 
