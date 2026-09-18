@@ -1123,7 +1123,7 @@ function HUD() {
                 e.preventDefault();
                 triggerJump();
               }}
-              className="press chunk gloss grid size-20 place-items-center rounded-full bg-teal text-white [text-shadow:0_2px_0_rgb(0_0_0/0.15)] sm:hidden"
+              className="press chunk gloss grid size-20 place-items-center rounded-full bg-teal text-white [text-shadow:0_2px_0_rgb(0_0_0/0.15)] [@media(hover:hover)_and_(pointer:fine)]:hidden"
             >
               <span className="flex flex-col items-center font-display text-sm font-semibold leading-none">
                 <ArrowBigUp className="size-8 fill-current" />
@@ -1194,7 +1194,7 @@ function Joystick() {
   return (
     <div
       ref={ref}
-      className="pointer-events-auto relative size-36 rounded-full border-[3px] border-edge bg-surface/60 shadow-[inset_0_2px_0_rgb(255_255_255/0.7),0_4px_0_var(--color-edge),0_14px_24px_-14px_rgb(29_36_82/0.5)] backdrop-blur-sm md:hidden"
+      className="pointer-events-auto relative size-36 rounded-full border-[3px] border-edge bg-surface/60 shadow-[inset_0_2px_0_rgb(255_255_255/0.7),0_4px_0_var(--color-edge),0_14px_24px_-14px_rgb(29_36_82/0.5)] backdrop-blur-sm [@media(hover:hover)_and_(pointer:fine)]:hidden"
       onPointerDown={(e) => {
         pid.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);

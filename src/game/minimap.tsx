@@ -368,9 +368,14 @@ export function MiniMap() {
         className={
           open
             ? "ui-backdrop animate-ui-fade pointer-events-auto absolute inset-0 z-30 flex items-center justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]"
-            : // On phones the bottom right corner is Collect, Hint and Jump, so
-              // the map sits under the icon row instead. Desktop keeps it low.
-              "pointer-events-auto absolute right-[max(1rem,calc(env(safe-area-inset-right)+0.5rem))] top-[calc(5rem+env(safe-area-inset-top))] z-20 sm:bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:top-auto"
+            : /*
+               * On a touch screen the bottom right corner is Collect, Hint and
+               * Jump, so the map sits under the icon row instead. A mouse keeps
+               * it low. A phone held sideways is wide but short, which put the
+               * map on top of those buttons, so a short screen keeps it high
+               * whatever its width.
+               */
+              "pointer-events-auto absolute right-[max(1rem,calc(env(safe-area-inset-right)+0.5rem))] top-[calc(5rem+env(safe-area-inset-top))] z-20 sm:bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:top-auto [@media(max-height:560px)]:bottom-auto [@media(max-height:560px)]:top-[calc(4.5rem+env(safe-area-inset-top))]"
         }
         onClick={() => open && setOpen(false)}
       >
