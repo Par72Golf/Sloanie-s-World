@@ -80,7 +80,11 @@ export function makeBubble(lines: string[]): THREE.Mesh {
   c.height = H;
   const g = c.getContext("2d")!;
   const body = { x: 12, y: 10, w: W - 24, h: H - 70, r: 42 };
-  g.fillStyle = "#ffffff";
+  // pink, not white: a big white panel blooms on a sunny day and glares
+  const fill = g.createLinearGradient(0, 0, 0, H);
+  fill.addColorStop(0, "#ff8dc0");
+  fill.addColorStop(1, "#f2457f");
+  g.fillStyle = fill;
   g.strokeStyle = "#2e1856";
   g.lineWidth = 10;
   g.beginPath();
@@ -97,13 +101,23 @@ export function makeBubble(lines: string[]): THREE.Mesh {
   g.closePath();
   g.fill();
   g.stroke();
-  g.fillStyle = "#2e1856";
+  // bubble letters: gold with a thick plum outline, so they read from a
+  // distance against the pink without glowing
   g.textAlign = "center";
   g.textBaseline = "middle";
-  const size = lines.length > 1 ? 54 : 64;
-  g.font = `700 ${size}px system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`;
+  const size = lines.length > 1 ? 56 : 68;
+  g.font = `800 ${size}px system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`;
+  g.lineJoin = "round";
+  g.miterLimit = 2;
   const top = body.y + body.h / 2 - ((lines.length - 1) * size * 0.62) / 2;
-  lines.forEach((line, i) => g.fillText(line, W / 2, top + i * size * 1.24));
+  lines.forEach((line, i) => {
+    const y = top + i * size * 1.24;
+    g.strokeStyle = "#2e1856";
+    g.lineWidth = 14;
+    g.strokeText(line, W / 2, y);
+    g.fillStyle = "#ffc83a";
+    g.fillText(line, W / 2, y);
+  });
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;

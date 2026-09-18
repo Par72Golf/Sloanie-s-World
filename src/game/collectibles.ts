@@ -233,9 +233,9 @@ export const PET_QUEST: {
   home: [number, number, number];
 } = {
   // on the farm lawn by the barn's east wall, looking at the paddock
-  // beside his tractor at (-54, -121), where the path into the farm arrives,
-  // rather than tucked in the far corner of the field
-  farmer: [-54, 0.03, -123],
+  // in front of his tractor at (-54, -121), on the side she walks in from
+  // (she comes from the south, since north is -z), rather than behind it
+  farmer: [-54, 0.03, -119],
   treats: [
     {
       // in the sandpit at Sandcastle Corner, right where the slide lands.
