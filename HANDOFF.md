@@ -305,6 +305,27 @@ Current version: **v3.2** (17 Sept 2026, the day before the birthday): her house
   - **The app icon is drawn in code** (`tools/icons.ts`: a rasteriser and a PNG
     encoder using node's zlib) and written to public/, with a web manifest so
     the game installs as a desktop app, and an iconset for a macOS .icns.
+- **Late on 17 Sept 2026 (the night before):**
+  - **Playable mini golf** (`minigolf.ts`, `minigolf-ui.tsx`, `tools/minigolf.ts`): five
+    holes at (20, -132) — Straight Away, The Windmill, The Dogleg, Twin Gates,
+    Rolling Log. Walk onto a tee, aim left and right, hold for power, release.
+    Par 15, tickets from `2 x par - strokes`, a saved best round. She is frozen
+    the way the carousel freezes her, and the panel claims the pad. The tool
+    proves every hole is sinkable, the ball can never escape or stick, and the
+    view from each tee shows the ball and its first target.
+    - The aim was mirrored at first: `atan2(gx, gz) + aim` in a `(sin, cos)`
+      frame sends a positive aim to the player's left. One `aimDir` helper now
+      feeds both the drawn line and `putt()`, and the tool checks handedness.
+  - **Keep exploring** after the 16th dumpling (see above).
+  - **Farmer Joe moved** to the front of his tractor, where the path into the
+    farm arrives, with a pink speech bubble in gold bubble letters (a white
+    bubble bloomed in the sun). `makeBubble` in `quest-mesh.ts` is reusable.
+  - **Touch controls follow the input device, not the screen width.** They were
+    hidden by `md:hidden`, so a phone held sideways (and every tablet) lost the
+    joystick and the Jump button. Now `[@media(hover:hover)_and_(pointer:fine)]:hidden`,
+    and the minimap moves up on short screens so it stops covering them.
+  - **The app icon** is drawn by `tools/icons.ts` and the game installs as a
+    desktop app through `public/manifest.webmanifest`.
 - **Fixes the same evening:**
   - Berm "reset": rising with her feet within 3cm of a box top was taken as a
     head bump and dropped her inside the berm; she is now put on top. Step-ups
@@ -413,6 +434,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `icons.ts` | Draws the app icon and writes the PNGs (and the macOS iconset). Not a check: run it after changing the icon design. |
 | `paths.ts` | The walkway network, the arrival plaza and the signs: no path laid through a solid, every node walkable from spawn through the real collision code, no z-fighting between the flat layers, and sign arrows pointing the right way. |
 | `parkmap.ts` | An ASCII map of any region (north up, east right) marking solids, steps, walkways, flat surfaces and water. The fastest way to see what is actually where before moving anything. |
+| `minigolf.ts` | The five mini golf holes: geometry, containment (thousands of wild putts, no escapes or burials), no dead ends, moving parts never trap the ball, a rough-aiming model finishes under par 15, aim handedness, and the sightline from every tee. |
 | `zoo.ts` | The zoo: clear ground beside the farm, every plaque walkable from spawn, fences unclimbable, spacing from hiding spots. `tools/zoo.ts scan` searches for clear ground of a given size. |
 | `lookout.ts` | The mountain lookout: walks the switchback stair from spawn with the jump key never pressed, then shoves her at every railing to prove she cannot fall off. |
 | `emmett-home.ts` | Emmett's routine headless: laps at home, rides out, catches her, goes back; fails under 3 round trips in 15 minutes. |

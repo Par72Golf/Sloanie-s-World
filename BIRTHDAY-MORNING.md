@@ -38,9 +38,13 @@ The game is at **https://par72golf.github.io/Sloanie-s-World/**
 - **When she finds all 16**, the time locks in and she gets the Golden Crown,
   then **Keep exploring** (the first button) drops her back into the park so
   she can carry on with everything else.
-- **Side quests:** Farmer Joe's lost pets (she keeps one), the carnival games
-  and the prize booth, her own house to decorate, Emmett's monster truck,
-  the zoo by the farm, the mountain cave and the lookout on top.
+- **Side quests:** Farmer Joe's lost pets (he is by his tractor at the farm,
+  with a speech bubble; she keeps one of the pets), the carnival games and the
+  prize booth, her own house to decorate, Emmett's monster truck, the zoo by
+  the farm, the mountain cave and the lookout on top.
+- **Mini golf** at the north of the park: five holes, aim with left and right,
+  hold to charge the power meter, let go to putt. Tickets for the round and a
+  best score that is remembered.
 
 ## 4. If something goes wrong
 
