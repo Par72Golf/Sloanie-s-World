@@ -10,6 +10,7 @@ import { QuestPanel } from "./quest-panel";
 import { Journal } from "./journal";
 import { CarnivalPanel } from "./carnival-games";
 import { GolfOverlay } from "./minigolf-ui";
+import { BowlsOverlay } from "./bowls-ui";
 import type { BoothGame } from "./carnival";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -106,6 +107,19 @@ const TEMP_PILL: Record<string, string> = {
   hot: "bg-accent text-white",
   burning: "bg-accent text-white",
 };
+
+/** Follows a media query, so a layout can react to the device rather than the width. */
+function useMedia(query: string) {
+  const [on, setOn] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const onChange = () => setOn(m.matches);
+    onChange();
+    m.addEventListener("change", onChange);
+    return () => m.removeEventListener("change", onChange);
+  }, [query]);
+  return on;
+}
 
 export function Panel({
   children,
@@ -870,6 +884,8 @@ function HUD() {
   const carnivalNear = useGame((s) => s.carnivalNear);
   const golfNear = useGame((s) => s.golfNear);
   const golfPlaying = useGame((s) => s.golfPlaying);
+  const bowlsNear = useGame((s) => s.bowlsNear);
+  const bowlsPlaying = useGame((s) => s.bowlsPlaying);
   const carouselRing = useGame((s) => s.carouselRing);
   const carnivalOpen = useGame((s) => s.carnival);
   const questNear = useGame((s) => s.questNear);
@@ -883,6 +899,28 @@ function HUD() {
   const setControls = useGame((s) => s.setControls);
   const level = LEVELS[levelIndex]!;
   const found = collected[levelIndex]?.length ?? 0;
+
+  /*
+   * A phone held sideways has very little height, and the status card was
+   * eating her view of the park. There it shows only the count and how warm
+   * she is, and opens up for a few seconds whenever something actually
+   * happens: a dumpling found, tickets won, the temperature changing, a juice
+   * box. A TV, a desktop and a phone held upright are unaffected.
+   */
+  const tight = useMedia("(hover: none) and (pointer: coarse) and (max-height: 560px)");
+  const [hudOpen, setHudOpen] = useState(false);
+  const hudWas = useRef({ found, tickets, temp, boost: boostLeft > 0 });
+  useEffect(() => {
+    const was = hudWas.current;
+    const boost = boostLeft > 0;
+    const changed = was.found !== found || was.tickets !== tickets || was.temp !== temp || was.boost !== boost;
+    hudWas.current = { found, tickets, temp, boost };
+    if (!changed) return;
+    setHudOpen(true);
+    const id = window.setTimeout(() => setHudOpen(false), 3200);
+    return () => window.clearTimeout(id);
+  }, [found, tickets, temp, boostLeft]);
+  const hudFull = !tight || hudOpen;
 
   const close = temp === "warm" || temp === "hot" || temp === "burning";
   const status = emmettNotice
@@ -937,8 +975,8 @@ function HUD() {
         <div
           className={cn(
             "pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] flex gap-1.5 sm:gap-2 2xl:gap-3",
-            // putting has its own Quit button up here, and its own scoreboard
-            golfPlaying && "hidden",
+            // putting and bowling have their own Quit button up here, and their own scoreboard
+            (golfPlaying || bowlsPlaying) && "hidden",
           )}
         >
           <IconBtn label="Controls" tint="text-accent-2" onClick={() => setControls(true)}>
@@ -980,15 +1018,15 @@ function HUD() {
         <div
           className={cn(
             "mt-[3.75rem] flex w-[min(21rem,calc(100vw-9.75rem))] flex-col items-start gap-2 sm:mt-0 sm:w-[min(24rem,calc(100vw-21rem))] 2xl:w-[30rem] 2xl:gap-3",
-            // clear of the putting scoreboard, which sits in this corner
-            golfPlaying && "mt-[8.5rem] sm:mt-[7.5rem] 2xl:mt-[9rem]",
+            // clear of the putting and bowling scoreboards, which sit in this corner
+            (golfPlaying || bowlsPlaying) && "mt-[8.5rem] sm:mt-[7.5rem] 2xl:mt-[9rem]",
           )}
         >
           {/* the treasure card: how many dumplings, how close, and what she has */}
           <div
             className={cn(
               "ui-glass animate-ui-rise pointer-events-auto w-full px-2.5 py-2 sm:px-3 sm:py-2.5 2xl:px-4 2xl:py-3",
-              golfPlaying && "hidden",
+              (golfPlaying || bowlsPlaying) && "hidden",
             )}
           >
             <div className="flex items-center gap-2.5 2xl:gap-4">
@@ -1004,18 +1042,22 @@ function HUD() {
                 </span>
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="min-w-0 flex-1 truncate font-display text-xs font-semibold uppercase tracking-wider text-ink-soft sm:text-sm 2xl:text-lg">
-                    {level.name}
-                  </p>
-                  {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} />}
-                </div>
+                {hudFull && (
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate font-display text-xs font-semibold uppercase tracking-wider text-ink-soft sm:text-sm 2xl:text-lg">
+                      {level.name}
+                    </p>
+                    {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} />}
+                  </div>
+                )}
                 {/* one diamond per dumpling: two rows on a phone, one on a TV */}
-                <div className="mt-1 grid gap-x-1 gap-y-1 [grid-template-columns:repeat(8,minmax(0,1fr))] sm:gap-x-[3px] sm:[grid-template-columns:repeat(16,minmax(0,1fr))] 2xl:gap-x-1.5">
-                  {level.dumplings.map((_, i) => (
-                    <span key={i} className="ui-pip" data-on={i < found ? "" : undefined} />
-                  ))}
-                </div>
+                {hudFull && (
+                  <div className="mt-1 grid gap-x-1 gap-y-1 [grid-template-columns:repeat(8,minmax(0,1fr))] sm:gap-x-[3px] sm:[grid-template-columns:repeat(16,minmax(0,1fr))] 2xl:gap-x-1.5">
+                    {level.dumplings.map((_, i) => (
+                      <span key={i} className="ui-pip" data-on={i < found ? "" : undefined} />
+                    ))}
+                  </div>
+                )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:gap-1.5 2xl:mt-2.5 2xl:gap-2">
                   <span
                     className={cn(
@@ -1026,12 +1068,12 @@ function HUD() {
                     <Thermometer className="size-3.5 sm:size-4 2xl:size-5" strokeWidth={2.6} />
                     {TEMP_LABEL[temp]}
                   </span>
-                  {tickets > 0 && (
+                  {tickets > 0 && (hudFull || tickets !== hudWas.current.tickets) && (
                     <span className="ui-chip gloss gap-1 bg-sun px-1.5 text-[0.78rem] tabular-nums text-ink sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
                       <Ticket className="size-3.5 sm:size-4 2xl:size-5" /> {tickets}
                     </span>
                   )}
-                  {runActive && (
+                  {hudFull && runActive && (
                     <span className="ui-chip gap-1 bg-surface px-1.5 text-[0.78rem] tabular-nums text-ink sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
                       <Timer className="size-3.5 text-accent-2 sm:size-4 2xl:size-5" />
                       {clock(runSeconds)}
@@ -1042,8 +1084,8 @@ function HUD() {
             </div>
           </div>
 
-          {/* while she is putting, only her own golf messages belong on screen */}
-          {(golfPlaying ? !!emmettNotice : emmettNotice || fleeNotice || nearCollect || boardReady || rideNear || close) && (
+          {/* while she is putting or bowling, only that game's messages belong on screen */}
+          {(golfPlaying || bowlsPlaying ? !!emmettNotice : emmettNotice || fleeNotice || nearCollect || boardReady || rideNear || close) && (
             <div className="ui-glass animate-ui-rise pointer-events-auto flex max-w-full items-center gap-2.5 py-1.5 pl-1.5 pr-3 2xl:gap-3 2xl:py-2 2xl:pl-2">
               <span className="ui-gem size-9 shrink-0 2xl:size-11" style={{ ["--gem" as string]: toast.gem }}>
                 <toast.Icon className="size-5 2xl:size-6" strokeWidth={2.4} />
@@ -1083,9 +1125,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !golfPlaying && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !golfPlaying && !bowlsPlaying && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1103,19 +1145,21 @@ function HUD() {
               ? `Grab the ${carouselRing} ring!`
               : golfNear != null
                 ? `Putt hole ${golfNear + 1}!`
+              : bowlsNear != null
+                ? "Play lawn bowls!"
               : carnivalNear
                 ? CARNIVAL_LABEL[carnivalNear]
                 : boardReady
                   ? "Ride the ferris wheel!"
                   : `Grab ${nearestName ?? "it"}!`
           }
-          icon={homeNear ? "home" : emmettTalkNear ? "truck" : golfNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
+          icon={homeNear ? "home" : emmettTalkNear ? "truck" : golfNear != null || bowlsNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
           gold={carouselRing === "gold"}
           onPress={requestInteract}
         />
       )}
 
-      {phase === "playing" && !golfPlaying && (
+      {phase === "playing" && !golfPlaying && !bowlsPlaying && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:pl-[max(1.5rem,env(safe-area-inset-left))]">
           <Joystick />
           <div className="pointer-events-auto flex flex-col items-end gap-3 md:items-start [@media(max-height:520px)]:flex-row [@media(max-height:520px)]:items-end">
@@ -2158,6 +2202,7 @@ export function Overlays() {
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {phase === "playing" && <CarnivalPanel />}
       {phase === "playing" && <GolfOverlay />}
+      {phase === "playing" && <BowlsOverlay />}
       {phase === "playing" && <QuestPanel />}
       {phase === "playing" && <HomePanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}
