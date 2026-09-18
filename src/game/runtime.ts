@@ -533,7 +533,9 @@ export class GameRuntime {
             this.syncCamera(true);
           })
         : null;
-    // floor is lava: its own platforms, ferries and colliders, like the house
+    // floor is lava: its own platforms, rafts and colliders, like the house.
+    // A fall puts her straight back on the start deck, and the camera comes
+    // round with her so she is looking down the course, ready to go again.
     this.lavaWorld?.dispose();
     this.lavaWorld =
       this.level.id === "picnic" && this.world
@@ -542,7 +544,9 @@ export class GameRuntime {
             this.cap.y = y;
             this.cap.z = z;
             this.velY = 0;
+            this.speed = 0;
             this.yaw = yaw;
+            this.cameraYaw = yaw;
             this.syncCamera(true);
           })
         : null;

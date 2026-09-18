@@ -119,11 +119,26 @@ export type Prop =
 export type PetKindId = "puppy" | "kitten" | "bunny";
 export type PetSave = { kind: PetKindId; coat: string; name: string };
 /**
- * Lost pet quest: talk to the farmer, collect the treats (needs the backpack),
- * follow the paw prints to the pet hiding in the cave, walk it home, pick it.
+ * Farmer Joe's three rescues, one chapter each, all three ending with a pet.
+ *
+ *   chapter 0  the treat hunt: 5 treats, the paw prints, the mountain cave
+ *   chapter 1  the feather trail from the farm to the heart of the hedge maze
+ *   chapter 2  hide and seek: three hiding places on the farm
+ *
+ * `stage` is where she is inside the chapter she is on. "treats" is the
+ * gather step of chapter 0 and "seek" the one of chapter 2; both fill
+ * `treats` with the indices found. Every chapter ends at Farmer Joe himself.
  */
-export type QuestStage = "none" | "treats" | "trail" | "escort" | "choose" | "done";
-export type QuestSave = { stage: QuestStage; treats: number[] };
+export type QuestStage = "none" | "treats" | "trail" | "seek" | "escort" | "choose" | "done";
+export type QuestSave = {
+  stage: QuestStage;
+  /** indices found in this chapter's gather step (treats, or hiding places) */
+  treats: number[];
+  /** which rescue she is on: 0, 1, 2, and 3 once all three are hers */
+  chapter: number;
+  /** the pet this chapter is about, once it is known */
+  seek: PetKindId | null;
+};
 
 export type WaterZone = {
   kind: "water";
