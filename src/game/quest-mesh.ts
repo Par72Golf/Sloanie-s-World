@@ -20,7 +20,7 @@ function part(geo: THREE.BufferGeometry, color: string, s: [number, number, numb
   return m;
 }
 
-export type FarmerRig = { group: THREE.Group; head: THREE.Group; arm: THREE.Group };
+export type FarmerRig = { group: THREE.Group; head: THREE.Group; arm: THREE.Group; bubble: THREE.Mesh | null };
 
 /** A friendly farmer in overalls and a straw hat, facing +z, feet at y 0. */
 export function makeFarmer(): FarmerRig {
@@ -59,11 +59,69 @@ export function makeFarmer(): FarmerRig {
   head.add(part(cyl, "#e8c46a", [0.24, 0.2, 0.24], [0, 0.32, 0]));
   head.add(part(cyl, "#c9442f", [0.245, 0.05, 0.245], [0, 0.26, 0], false));
   g.add(head);
-  return { group: g, head, arm };
+  // "Can you help?" over his head, so she knows he wants something from across
+  // the farm rather than having to walk into him to find out
+  const bubble = makeBubble(["Can you help?"]);
+  bubble.position.set(0, 2.75, 0);
+  g.add(bubble);
+  return { group: g, head, arm, bubble };
+}
+
+/**
+ * A speech bubble on a plane, drawn on canvas: a rounded white bubble with a
+ * tail, big friendly text, and the game's plum outline. It turns to face her
+ * (yaw only, so it never lies on its side) and hides once she has helped him.
+ */
+export function makeBubble(lines: string[]): THREE.Mesh {
+  const W = 512;
+  const H = 256;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d")!;
+  const body = { x: 12, y: 10, w: W - 24, h: H - 70, r: 42 };
+  g.fillStyle = "#ffffff";
+  g.strokeStyle = "#2e1856";
+  g.lineWidth = 10;
+  g.beginPath();
+  g.moveTo(body.x + body.r, body.y);
+  g.arcTo(body.x + body.w, body.y, body.x + body.w, body.y + body.h, body.r);
+  g.arcTo(body.x + body.w, body.y + body.h, body.x, body.y + body.h, body.r);
+  g.arcTo(body.x, body.y + body.h, body.x, body.y, body.r);
+  g.arcTo(body.x, body.y, body.x + body.w, body.y, body.r);
+  g.closePath();
+  // the tail, drawn as part of the same outline so there is no seam
+  g.moveTo(W / 2 - 42, body.y + body.h - 4);
+  g.lineTo(W / 2 - 6, H - 12);
+  g.lineTo(W / 2 + 46, body.y + body.h - 4);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.fillStyle = "#2e1856";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const size = lines.length > 1 ? 54 : 64;
+  g.font = `700 ${size}px system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`;
+  const top = body.y + body.h / 2 - ((lines.length - 1) * size * 0.62) / 2;
+  lines.forEach((line, i) => g.fillText(line, W / 2, top + i * size * 1.24));
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.9, 0.95),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
+  );
+  m.renderOrder = 2;
+  return m;
 }
 
 /** Farmer idle: breathing, looking toward her, waving when she is close. */
 export function animateFarmer(rig: FarmerRig, t: number, lookYaw: number, wave: boolean) {
+  if (rig.bubble) {
+    // bobs gently, turns to her, and only shows while he still needs help
+    rig.bubble.position.y = 2.75 + Math.sin(t * 1.6) * 0.04;
+    rig.bubble.rotation.y = lookYaw;
+  }
   rig.head.rotation.y = THREE.MathUtils.clamp(lookYaw, -0.9, 0.9);
   rig.head.position.y = 1.72 + Math.sin(t * 2) * 0.01;
   rig.arm.rotation.z = wave ? 2.4 + Math.sin(t * 9) * 0.35 : 0.1;

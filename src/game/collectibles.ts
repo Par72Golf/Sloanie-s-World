@@ -190,7 +190,7 @@ export const STICKER_SPOTS: StickerSpot[] = [
   },
   {
     id: "golfflag",
-    pos: [24, 1.03, -138.2],
+    pos: [20, 1.03, -138.2],
     area: "the mini golf",
     hint: "At mini golf, far to the north, look by the blue flag.",
   },
@@ -233,7 +233,9 @@ export const PET_QUEST: {
   home: [number, number, number];
 } = {
   // on the farm lawn by the barn's east wall, looking at the paddock
-  farmer: [-69.8, 0.03, -138.5],
+  // beside his tractor at (-54, -121), where the path into the farm arrives,
+  // rather than tucked in the far corner of the field
+  farmer: [-54, 0.03, -123],
   treats: [
     {
       // in the sandpit at Sandcastle Corner, right where the slide lands.

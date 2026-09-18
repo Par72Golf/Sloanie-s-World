@@ -186,6 +186,11 @@ export class QuestWorld {
       const d = Math.hypot(her.x - fx, her.z - fz);
       const yaw = Math.atan2(her.x - fx, her.z - fz);
       animateFarmer(this.farmer, t, d < 14 ? yaw : 0, d < 10 && (stage === "none" || stage === "choose"));
+      if (this.farmer.bubble) {
+        // he asks for help until she takes the job on, and thanks her at the end
+        const ask = stage === "none" || stage === "choose";
+        this.farmer.bubble.visible = ask && d < 34;
+      }
     }
 
     // treats

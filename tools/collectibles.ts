@@ -37,6 +37,7 @@ import { CAVE, CAVE_MAP, CAVE_SPOTS, caveEntrance, isOpen } from "../src/game/ca
 import { splashJets } from "../src/game/splash";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate } from "../src/game/carnival";
 import { PET_QUEST, STICKER_BOOK, STICKER_SPOTS } from "../src/game/collectibles";
+import { GOLF } from "../src/game/park";
 
 type V3 = [number, number, number];
 const level = LEVELS[0]!;
@@ -396,7 +397,8 @@ const AREA: Record<string, (x: number, z: number) => boolean> = {
   tennisball: (x, z) => inRect(x, z, 79.25, 110.75, 10.5, 41.5),
   basketball: (x, z) => inRect(x, z, 86.5, 103.5, -48, -20),
   soccerball: (x, z) => inRect(x, z, 110, 150, -73, -47),
-  golfflag: (x, z) => [8, 16, 24, 32].some((hx) => near(x, z, hx, -139, 1.5)),
+  // by a flag on any of the mini golf greens, wherever park.ts puts them
+  golfflag: (x, z) => GOLF.laneDx.some((dx) => near(x, z, GOLF.x + dx, GOLF.z + GOLF.cupDz, 1.5)),
   beachball: (x, z) => inRect(x, z, -57, -23, 125, 147),
   rainbow: (x, z) => level.splash != null && near(x, z, level.splash.x, level.splash.z, 13),
   sneaker: (x, z) => inRect(x, z, -5, 21, 127, 145),
@@ -773,12 +775,16 @@ let farmLen = NaN;
   const [hx, , hz] = PET_QUEST.home;
   const fd = barnBox ? rectDist(fx, fz, barnBox.minX, barnBox.maxX, barnBox.minZ, barnBox.maxZ) : Infinity;
   const hd = barnBox ? rectDist(hx, hz, barnBox.minX, barnBox.maxX, barnBox.minZ, barnBox.maxZ) : Infinity;
+  // he stands by his tractor now, where the path into the farm arrives, so
+  // she meets him on the way in rather than hunting the field for him
+  const tractor = level.props.find((p) => p.kind === "tractor") as { x: number; z: number } | undefined;
+  const td = tractor ? Math.hypot(fx - tractor.x, fz - tractor.z) : Infinity;
   const r = checkSpot({
     name: "pet farmer",
-    area: "beside the barn",
+    area: "beside his tractor",
     pos: PET_QUEST.farmer,
     pickup: false,
-    inArea: fd <= 3,
+    inArea: td <= 4,
     spaced: false,
     extra: [[pickups.every((p) => Math.hypot(p.x - fx, p.z - fz) >= 3), "within 3m of a pickup"]],
   });
