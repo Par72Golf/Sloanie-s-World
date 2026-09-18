@@ -190,10 +190,12 @@ export const STICKER_SPOTS: StickerSpot[] = [
     hint: "The soccer ball is right on the centre spot of the soccer pitch, far to the east.",
   },
   {
+    // just off the end of the middle green, behind the blue flag: it used to
+    // sit at (20, -138.2), on the putting surface of The Dogleg itself
     id: "golfflag",
-    pos: [20, 1.03, -138.2],
+    pos: [20, 0.95, -143],
     area: "the mini golf",
-    hint: "At mini golf, far to the north, look by the blue flag.",
+    hint: "At mini golf, far to the north, look on the grass right behind the blue flag.",
   },
   {
     id: "beachball",

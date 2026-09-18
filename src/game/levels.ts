@@ -268,11 +268,13 @@ const picnicDumplings: DumplingDef[] = [
     finish: "plain",
     hide: "easy",
     region: "where you start",
-    hint: "Right by where you start, on the grass.",
+    // it rests on the arrival plaza's paving, not on grass (check-layout says
+    // which prop every dumpling sits on), so the hint says stones
+    hint: "Right by where you start, on the plaza stones.",
 
     alts: [
       { pos: [-3.5, 0.62, 15], region: "where you start", hint: "Right by where you start, a few steps the other way." },
-      { pos: [8, 0.62, -3.6], region: "the picnic blanket", hint: "Somebody left one on the picnic blanket near the gazebo." },
+      { pos: [8, 0.62, -3.6], region: "the gazebo", hint: "Somebody left one on the pale stone floor of the gazebo, straight north of where you start." },
     ],
   },
   {
@@ -304,7 +306,9 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-9.5, 0.62, -46.5], region: "the big pond", hint: "On the far side of the pond from the little dock, near the water." },
-      { pos: [3, 0.62, -32], region: "the pond lawn", hint: "On the grass just south of the big pond." },
+      // was (3, -32), which the walkways put in the middle of the path out to
+      // the dock; the duck pond's far bank is 20m away and is somewhere to go
+      { pos: [22, 0.62, -15], region: "the duck pond", hint: "At the little duck pond north-east of the gazebo, on the far bank where the ducks swim." },
     ],
   },
   {
@@ -379,7 +383,7 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-15.5, 0.62, 112.5], region: "the houses on the south street", hint: "In a back yard on the south street, behind a hedge." },
-      { pos: [56.5, 0.62, 112.5], region: "the houses on the south street", hint: "In the back yard of the house at the far end of the street." },
+      { pos: [-16, 0.62, 21.4], region: "the kite field", hint: "Out on the kite field west of the plaza, by the rack of spare kites." },
     ],
   },
   {
@@ -428,7 +432,9 @@ const picnicDumplings: DumplingDef[] = [
  
     alts: [
       { pos: [-102, 0.62, 25.8], region: "the splash pad", hint: "Right under the big tipping bucket at the splash pad." },
-      { pos: [-85.2, 0.62, 34.2], region: "the splash pad", hint: "Beside one of the flower sprinklers at the splash pad." },
+      // the splash pad already holds blush's home, its other alternate, the
+      // sunglasses, the rainbow sticker and Emmett's rehide spot
+      { pos: [17.1, 1.12, 34.7], region: "the flower garden", hint: "In the walled flower garden south of the plaza, sitting on a flower bed." },
     ],
   },
   {
@@ -970,24 +976,41 @@ function picnicPark(): LevelDef {
     ...cloudField(-150, 150, -150, 150, 48, 20260928),
   ];
 
-  // Juice boxes: spread along the routes she will actually walk, a couple
-  // tucked in the far zones so the boost is worth a detour.
+  /**
+   * Juice boxes: a speed boost, so the rule is one within reach wherever she
+   * is and never two together. `tools/spread.ts` proves it: no two closer than
+   * 18m, none in water, on a walkway or inside a game's playing area, and it
+   * reports how far the nearest one is from every named place in the park
+   * (and over every walkable cell, as a map with `spread.ts map`).
+   *
+   * Nineteen, up from fourteen. Three of the old ones had been overtaken by
+   * new content: (-4, -46) was inside the big pond, and (0, 88) and (88, 4)
+   * were laid on walkways once the network went in. (0, -88) sat 1.2m from the
+   * dumpling on the pitcher's mound. The five new ones fill the outer band,
+   * which had nothing north of the ring road at all.
+   */
   const juice: [number, number][] = [
-    [6, 34],
-    [-22, -12],
-    [34, 18],
-    [-4, -46],
-    [0, 88],
-    [0, -88],
-    [88, 4],
-    [-88, -4],
-    [-95, -44],
-    [95, 52],
-    [46, -62],
-    [-52, 66],
-    // the outer band
-    [-124, 1],
-    [124, 116],
+    // the middle of the park, beside the routes she actually runs
+    [6, 34], // in the flower garden, inside the west opening
+    [34, 18], // the lawn east of Sandcastle Corner
+    [-22, -12], // the lawn between the kite field and the story circle
+    [94, -12], // between the tennis courts and the basketball court
+    [-88, -4], // the playground road
+    [-11, -55], // the lawn west of the big pond (the old spot was in the water)
+    [29, -85], // the lawn east of the ball field
+    [100, -62], // the lawn north of the soccer pitch
+    [-98, -70], // the west lawn, north of the playground
+    [95, 52], // the east lawn
+    [-52, 66], // west of the carnival midway
+    [-7, 86], // beside the midway down to the houses
+    // the outer band, which had nothing north of the ring road at all
+    [-124, 1], // the woods trail
+    [124, 116], // the campground
+    [-42, -117], // the farm lawn, the 12m tools/zoo.ts wants clear of the zoo
+    [42, -126], // beside the mini golf course
+    [31, -104], // the road out to the cave and the golf, clear of the lava site
+    [-75, 112], // between the swimming pool and the ring road
+    [18, 124], // on the way to the ninja course, clear of the lava site
   ];
 
   // The hedge maze is 11 cells of 2.4m and the secret garden is walled, so a
@@ -1024,14 +1047,23 @@ function picnicPark(): LevelDef {
     { id: "partyhat", pos: [88.75, 0, 25], region: "the tennis courts" },
     { id: "bow", pos: [-82, 0, -14], region: "the playground sandbox" },
     { id: "backpack", pos: [4, 0, -84], region: "the ball field" },
-    { id: "flowercrown", pos: [138, 0, 130], region: "the campground hammock" },
+    { id: "flowercrown", pos: [-40, 0, 56.5], region: "the fairground green" },
   ];
 
+  /**
+   * Where Emmett hides a dumpling he wins. The runtime nudges the spot by up
+   * to 1.75m in each direction, so each one needs about 2m of clear ground
+   * round it as well as its own landmark, and it must not land on top of
+   * something else that is hidden: (-95, 28) was the sunglasses' exact spot,
+   * home plate was 1.0m from honey's alternate and the barbecue 2.0m from
+   * sesame's. Three of the six were also in the same corner of the park.
+   * tools/spread.ts checks the spacing; tools/collectibles.ts walks to them.
+   */
   const rehideSpots = [
-    { name: "the gazebo", say: "I put it by the gazebo!", pos: [8, 0.62, -6] as [number, number, number] },
-    { name: "the splash pad", say: "It's at the splash pad!", pos: [-95, 0.62, 28] as [number, number, number] },
-    { name: "home plate", say: "Check home plate!", pos: [0, 0.62, -95] as [number, number, number] },
-    { name: "the barbecue", say: "It's by the barbecue!", pos: [100, 0.62, 76] as [number, number, number] },
+    { name: "the gazebo", say: "I put it by the gazebo!", pos: [12, 0.62, -6] as [number, number, number] },
+    { name: "the story circle", say: "It's at the story circle!", pos: [-8.5, 0.62, -21] as [number, number, number] },
+    { name: "the splash pad", say: "It's at the splash pad!", pos: [-103.5, 0.62, 36.5] as [number, number, number] },
+    { name: "the ball field", say: "I left it out at the ball field!", pos: [14, 0.62, -93] as [number, number, number] },
     { name: "the campfire", say: "I took it to the campfire!", pos: [124, 0.62, 128] as [number, number, number] },
     { name: "the pavilion", say: "It's under the pavilion roof!", pos: [132, 0.62, 64] as [number, number, number] },
   ];

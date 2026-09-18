@@ -398,7 +398,15 @@ const AREA: Record<string, (x: number, z: number) => boolean> = {
   basketball: (x, z) => inRect(x, z, 86.5, 103.5, -48, -20),
   soccerball: (x, z) => inRect(x, z, 110, 150, -73, -47),
   // by a flag on any of the mini golf greens, wherever park.ts puts them
-  golfflag: (x, z) => GOLF.laneDx.some((dx) => near(x, z, GOLF.x + dx, GOLF.z + GOLF.cupDz, 1.5)),
+  // by a cup, but never on a green: the greens are a playing surface and a
+  // sticker sitting on one is in the way of the hole (tools/spread.ts)
+  golfflag: (x, z) =>
+    GOLF.laneDx.some((dx) => near(x, z, GOLF.x + dx, GOLF.z + GOLF.cupDz, 4.5)) &&
+    !GOLF.laneDx.some(
+      (dx) =>
+        Math.abs(x - (GOLF.x + dx)) <= GOLF.halfW + GOLF.wallT &&
+        Math.abs(z - GOLF.z) <= GOLF.halfD + GOLF.wallT,
+    ),
   beachball: (x, z) => inRect(x, z, -57, -23, 125, 147),
   rainbow: (x, z) => level.splash != null && near(x, z, level.splash.x, level.splash.z, 13),
   sneaker: (x, z) => inRect(x, z, -5, 21, 127, 145),
@@ -731,14 +739,16 @@ for (const s of STICKER_SPOTS) {
 {
   const [x, , z] = STICKER_BOOK.pos;
   const byGazebo = near(x, z, 8, -6, 6);
-  const byBlankets = inRect(x, z, -26, -6, 3, 17);
+  // the v1 picnic blankets west of the plaza are gone (places.ts); the kite
+  // field is that lawn now, and it is still a fine place for the book
+  const byKiteField = inRect(x, z, -34, -12, 9, 25);
   const dSpawn = Math.hypot(x - spawn[0], z - spawn[2]);
   checkSpot({
     name: "sticker book",
-    area: "the gazebo or the picnic blankets",
+    area: "the gazebo or the kite field",
     pos: STICKER_BOOK.pos,
     pickup: true,
-    inArea: byGazebo || byBlankets,
+    inArea: byGazebo || byKiteField,
     spaced: true,
     extra: [[dSpawn >= 12 && dSpawn <= 40, `${dSpawn.toFixed(1)}m from spawn (want 12..40: early, not instant)`]],
   });

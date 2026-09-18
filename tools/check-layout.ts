@@ -489,7 +489,19 @@ for (const [x, z] of level.juice ?? []) {
   const inside = boxes.find(
     (b) => x > b.minX - 0.5 && x < b.maxX + 0.5 && z > b.minZ - 0.5 && z < b.maxZ + 0.5 && b.maxY > 0.4,
   );
+  // she runs into a juice box to drink it, so it has to be on ground the
+  // flood fill reaches, not only clear of solids. tools/spread.ts checks the
+  // rest: spacing, water, walkways and the playing areas.
+  const i = reach.startBlocked ? -1 : reach.idx!(x, z);
+  const walkable = i >= 0 && reach.seen[i] === 1;
+  const wet = (level.water ?? []).find((w) => Math.hypot(x - w.x, z - w.z) < w.r);
   console.log(
-    inside ? `  BLOCKED (${x}, ${z}) inside [${inside.index}] ${inside.label}` : `  ok      (${x}, ${z})`,
+    inside
+      ? `  BLOCKED (${x}, ${z}) inside [${inside.index}] ${inside.label}`
+      : wet
+        ? `  IN WATER (${x}, ${z}) inside the water at (${wet.x}, ${wet.z}) r${wet.r}`
+        : walkable
+          ? `  ok      (${x}, ${z})`
+          : `  UNREACHABLE (${x}, ${z})`,
   );
 }
