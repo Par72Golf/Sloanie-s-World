@@ -123,6 +123,20 @@ export type GameStore = {
   setGolfCard: (c: GolfCard | null) => void;
   golfBest: number | null;
   setGolfBest: (total: number) => void;
+  /** Lawn bowls: the mat she is on, whether she is bowling, the finished card, and her best game. */
+  bowlsNear: number | null;
+  setBowlsNear: (v: number | null) => void;
+  bowlsPlaying: boolean;
+  setBowlsPlaying: (v: boolean) => void;
+  bowlsCard: BowlsCard | null;
+  setBowlsCard: (c: BowlsCard | null) => void;
+  bowlsBest: number | null;
+  setBowlsBest: (score: number) => void;
+  /** Floor is Lava: seconds so far on the course (whole seconds only), and her best crossing. */
+  lavaTime: number | null;
+  setLavaTime: (v: number | null) => void;
+  lavaBest: number | null;
+  setLavaBest: (seconds: number) => void;
   /** Carnival tickets (saved). spendTickets returns false if she can't afford it. */
   tickets: number;
   addTickets: (n: number) => void;
@@ -249,6 +263,20 @@ export type GolfCard = {
   line: string;
 };
 
+/** The lawn bowls game she just finished, shown on the scorecard panel. */
+export type BowlsCard = {
+  /** pins knocked down in each turn, in order */
+  turns: number[];
+  score: number;
+  max: number;
+  tickets: number;
+  /** her best before this game, if she had one */
+  best: number | null;
+  isBest: boolean;
+  perfect: boolean;
+  line: string;
+};
+
 function persistSlice(s: GameStore) {
   persistSave({
     version: 1,
@@ -269,6 +297,8 @@ function persistSlice(s: GameStore) {
     graphics: s.graphics,
     tickets: s.tickets,
     golfBest: s.golfBest,
+    bowlsBest: s.bowlsBest,
+    lavaBest: s.lavaBest,
     stickerBook: s.stickerBook,
     stickers: s.stickers,
     quest: s.quest,
@@ -369,6 +399,28 @@ export const useGame = create<GameStore>((set, get) => ({
   golfBest: saved.golfBest,
   setGolfBest: (total) => {
     set({ golfBest: total });
+    persistSlice(get());
+  },
+  bowlsNear: null,
+  setBowlsNear: (bowlsNear) => {
+    if (get().bowlsNear !== bowlsNear) set({ bowlsNear });
+  },
+  bowlsPlaying: false,
+  setBowlsPlaying: (bowlsPlaying) => set({ bowlsPlaying, bowlsNear: null }),
+  bowlsCard: null,
+  setBowlsCard: (bowlsCard) => set({ bowlsCard }),
+  bowlsBest: saved.bowlsBest,
+  setBowlsBest: (score) => {
+    set({ bowlsBest: score });
+    persistSlice(get());
+  },
+  lavaTime: null,
+  setLavaTime: (lavaTime) => {
+    if (get().lavaTime !== lavaTime) set({ lavaTime });
+  },
+  lavaBest: saved.lavaBest,
+  setLavaBest: (seconds) => {
+    set({ lavaBest: seconds });
     persistSlice(get());
   },
   tickets: saved.tickets,
@@ -552,6 +604,9 @@ export const useGame = create<GameStore>((set, get) => ({
       golfCard: null,
       golfPlaying: false,
       golfNear: null,
+      bowlsCard: null,
+      bowlsPlaying: false,
+      bowlsNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -715,6 +770,9 @@ export const useGame = create<GameStore>((set, get) => ({
       golfCard: null,
       golfPlaying: false,
       golfNear: null,
+      bowlsCard: null,
+      bowlsPlaying: false,
+      bowlsNear: null,
       questPanel: null,
       journalOpen: false,
       mapOpen: false,
@@ -742,6 +800,9 @@ export const useGame = create<GameStore>((set, get) => ({
       golfCard: null,
       golfPlaying: false,
       golfNear: null,
+      bowlsCard: null,
+      bowlsPlaying: false,
+      bowlsNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -771,6 +832,9 @@ export const useGame = create<GameStore>((set, get) => ({
       golfCard: null,
       golfPlaying: false,
       golfNear: null,
+      bowlsCard: null,
+      bowlsPlaying: false,
+      bowlsNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -804,6 +868,9 @@ export const useGame = create<GameStore>((set, get) => ({
       golfCard: null,
       golfPlaying: false,
       golfNear: null,
+      bowlsCard: null,
+      bowlsPlaying: false,
+      bowlsNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,
@@ -813,6 +880,9 @@ export const useGame = create<GameStore>((set, get) => ({
       wornGen: get().wornGen + 1,
       tickets: 0,
       golfBest: null,
+      bowlsBest: null,
+      lavaBest: null,
+      lavaTime: null,
       stickerBook: false,
       stickers: [],
       quest: { stage: "none", treats: [] },
@@ -837,6 +907,9 @@ export const useGame = create<GameStore>((set, get) => ({
       golfCard: null,
       golfPlaying: false,
       golfNear: null,
+      bowlsCard: null,
+      bowlsPlaying: false,
+      bowlsNear: null,
       questPanel: null,
       boostLeft: 0,
       emmettNotice: null,

@@ -27,6 +27,7 @@ import {
   ChevronRight,
   ChevronUp,
   Eye,
+  Flame,
   Footprints,
   Hand,
   Lightbulb,
@@ -886,6 +887,7 @@ function HUD() {
   const golfPlaying = useGame((s) => s.golfPlaying);
   const bowlsNear = useGame((s) => s.bowlsNear);
   const bowlsPlaying = useGame((s) => s.bowlsPlaying);
+  const lavaTime = useGame((s) => s.lavaTime);
   const carouselRing = useGame((s) => s.carouselRing);
   const carnivalOpen = useGame((s) => s.carnival);
   const questNear = useGame((s) => s.questNear);
@@ -1077,6 +1079,13 @@ function HUD() {
                     <span className="ui-chip gap-1 bg-surface px-1.5 text-[0.78rem] tabular-nums text-ink sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
                       <Timer className="size-3.5 text-accent-2 sm:size-4 2xl:size-5" />
                       {clock(runSeconds)}
+                    </span>
+                  )}
+                  {/* how long she has been out on the Floor is Lava course */}
+                  {lavaTime != null && (
+                    <span className="ui-chip gloss gap-1 bg-[#ff7a1a] px-1.5 text-[0.78rem] tabular-nums text-white sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
+                      <Flame className="size-3.5 sm:size-4 2xl:size-5" strokeWidth={2.6} />
+                      {clock(lavaTime)}
                     </span>
                   )}
                 </div>

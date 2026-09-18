@@ -63,10 +63,11 @@ export const STICKER_SPOTS: StickerSpot[] = [
   },
   {
     id: "ladybug",
-    // the flower bed moved off the midway when the walkways went in
-    pos: [10, 1.07, 30],
+    // the loose "flower bed" here became the walled flower garden (places.ts);
+    // the ladybug sits on its north-west bed, whose top is 0.5
+    pos: [10, 1.4, 27.4],
     area: "the flower bed",
-    hint: "A ladybug is crawling in the flower bed beside the path south of the plaza. Turn around!",
+    hint: "A ladybug is crawling in a flower bed inside the walled garden, off the path south of the plaza. Turn around!",
   },
   {
     id: "bee",

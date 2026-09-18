@@ -62,6 +62,9 @@ export const NODES: Record<string, NodeDef> = {
   PLZ: { x: 0, z: 22.5, pad: false },
 
   // ---- west road, out of the west gate -----------------------------------
+  /** the kite field's own turning off the west road (places.ts) */
+  KITEJ: { x: -23, z: 3.5, pad: 4.2 },
+  KITE: { x: -23, z: 8.4, pad: false },
   MAZEJ: { x: -42, z: 3.5, pad: 4.2 },
   MAZE: { x: -42, z: 1.0, pad: false },
   PW: { x: -91, z: 3.5, pad: 5.0 },
@@ -87,6 +90,9 @@ export const NODES: Record<string, NodeDef> = {
   CAMP: { x: 114, z: 116, pad: false },
 
   // ---- north road, round the pond and out of the north gate --------------
+  /** the duck pond's jetty, off the north road (places.ts) */
+  DUCKJ: { x: 0, z: -15, pad: 4.2 },
+  DUCK: { x: 6.2, z: -15, pad: false },
   POND: { x: 0, z: -26, pad: 5.2 },
   DOCK: { x: 2.4, z: -32.3, pad: false },
   PWEST: { x: -16, z: -26, pad: 4.8 },
@@ -108,10 +114,16 @@ export const NODES: Record<string, NodeDef> = {
   CAVE: { x: 71.5, z: -112.6, pad: false },
 
   // ---- the carnival midway, south from the plaza -------------------------
+  /** the flower garden's arch, off the midway (places.ts) */
+  GARDJ: { x: 0, z: 31, pad: 4.0 },
+  GARD: { x: 4.6, z: 31, pad: false },
   J1: { x: 0, z: 40, pad: 5.6 },
   CARN: { x: -16, z: 40, pad: 5.0 },
   CGATE: { x: -16, z: 46, pad: false },
   CWJ: { x: -26.5, z: 40, pad: 4.2 },
+  /** the fairground green, across the walkway from the carousel (places.ts) */
+  FGJ: { x: -26.5, z: 51, pad: 3.6 },
+  FG: { x: -31.4, z: 51, pad: false },
   // the strip in front of the booth counters: it has to thread between the
   // carousel fence (z 59.47) and the counters (z 63.0)
   BOOTHW: { x: -26.5, z: 61.3, pad: 3.2 },
@@ -135,7 +147,9 @@ const SPUR = 2.6;
 
 export const EDGES: EdgeDef[] = [
   // west road
-  { a: "J0", b: "MAZEJ", w: MAIN },
+  { a: "J0", b: "KITEJ", w: MAIN },
+  { a: "KITEJ", b: "KITE", w: SPUR },
+  { a: "KITEJ", b: "MAZEJ", w: MAIN },
   { a: "MAZEJ", b: "MAZE", w: SPUR },
   { a: "MAZEJ", b: "PW", w: MAIN },
   { a: "PW", b: "TH", w: ROAD },
@@ -158,7 +172,9 @@ export const EDGES: EdgeDef[] = [
   { a: "PICJ", b: "PIC", w: SPUR },
   { a: "PICJ", b: "CAMP", w: MAIN },
   // north road
-  { a: "J0", b: "POND", w: MAIN },
+  { a: "J0", b: "DUCKJ", w: MAIN },
+  { a: "DUCKJ", b: "DUCK", w: SPUR },
+  { a: "DUCKJ", b: "POND", w: MAIN },
   { a: "POND", b: "DOCK", w: SPUR },
   { a: "POND", b: "PWEST", w: ROAD },
   { a: "PWEST", b: "PNW", w: ROAD },
@@ -176,11 +192,15 @@ export const EDGES: EdgeDef[] = [
   { a: "NE2", b: "CAVEJ", w: ROAD },
   { a: "CAVEJ", b: "CAVE", w: SPUR },
   // the midway
-  { a: "PLZ", b: "J1", w: MIDWAY },
+  { a: "PLZ", b: "GARDJ", w: MIDWAY },
+  { a: "GARDJ", b: "GARD", w: SPUR },
+  { a: "GARDJ", b: "J1", w: MIDWAY },
   { a: "J1", b: "CARN", w: MAIN },
   { a: "CARN", b: "CGATE", w: ROAD },
   { a: "CARN", b: "CWJ", w: SPUR },
-  { a: "CWJ", b: "BOOTHW", w: SPUR },
+  { a: "CWJ", b: "FGJ", w: SPUR },
+  { a: "FGJ", b: "FG", w: SPUR },
+  { a: "FGJ", b: "BOOTHW", w: SPUR },
   { a: "BOOTHW", b: "BOOTHE", w: 2.4 },
   { a: "J1", b: "FWJ", w: MAIN },
   { a: "FWJ", b: "FW2", w: ROAD },

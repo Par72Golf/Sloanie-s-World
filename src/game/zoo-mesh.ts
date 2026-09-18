@@ -624,9 +624,17 @@ function compactAnimal(a: AnimalRig, geometries: THREE.BufferGeometry[]) {
           if (name === "position" || name === "normal" || name === "uv") continue;
           g.deleteAttribute(name);
         }
+        // fill the gaps and match index-ness, or one odd member kills the batch
+        if (!g.attributes.normal) g.computeVertexNormals();
+        if (!g.attributes.uv) {
+          const n = g.attributes.position!.count;
+          g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+        }
         parts.push(g);
       }
-      const merged = mergeGeometries(parts, false);
+      const mixed = parts.some((p) => p.index) && parts.some((p) => !p.index);
+      const ready = mixed ? parts.map((p) => (p.index ? p.toNonIndexed() : p)) : parts;
+      const merged = mergeGeometries(ready, false);
       for (const g of parts) g.dispose();
       if (!merged) continue;
       geometries.push(merged);

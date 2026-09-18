@@ -3,6 +3,7 @@ import type { BoxProp, DumplingDef, LevelDef, Prop } from "./types";
 import { CAVE_SPOTS, caveFootprint, mountainCave } from "./cave";
 import { carnivalProps } from "./carnival";
 import { cloudField, findClear, gatedRing, hits, occupancy, pathOccupancy, rectAt } from "./placement";
+import { DUCK_POND, FAIR_GREEN, FLOWER_GARDEN, KITE_FIELD, NO_PLACES, STORY_CIRCLE, placeProps } from "./places";
 import { plazaProps } from "./plaza";
 import { PARK_DIRECTORIES, PARK_NAME_SIGNS, signProps } from "./signs";
 import { walkwayProps, walkwayRects } from "./walkways";
@@ -591,17 +592,9 @@ function picnicPark(): LevelDef {
   const core: Prop[] = prune([
     ...gatedRing(-70, 70, -70, 70, "#c4b48a"),
 
-    box(-14, 0.4, 10, 2.8, 0.8, 1.4, "#c48a5a"),
-    box(-14, 0.85, 10, 2.6, 0.1, 1.2, "#e8d2b0"),
-    box(-15.1, 0.55, 10.8, 0.18, 1.1, 0.18, "#c48a5a"),
-    box(-12.9, 0.55, 9.2, 0.18, 1.1, 0.18, "#c48a5a"),
-    box(-10.2, 0.22, 8.4, 1.8, 0.08, 1.8, "#d45a4a", false),
-    box(-18.2, 0.4, 12.5, 2.4, 0.8, 1.3, "#b87a4a"),
-    box(-18.2, 0.85, 12.5, 2.2, 0.1, 1.1, "#e8d2b0"),
-    box(-22.4, 0.4, 8.6, 2.6, 0.8, 1.4, "#c48a5a"),
-    box(-22.4, 0.85, 8.6, 2.4, 0.1, 1.2, "#e8d2b0"),
-    box(-16, 0.08, 6.5, 2.2, 0.08, 2.2, "#4f93c4", false),
-    box(-12.4, 0.08, 13.8, 2.4, 0.08, 2.4, "#d47a8a", false),
+    // (three v1 picnic tables and three coloured mats stood loose on this lawn,
+    // x -10..-22, z 6..14. Nothing tied them together and nothing named them.
+    // The kite field in places.ts is here now.)
 
     { kind: "cyl", pos: [0, -0.15, -42], r: 11, h: 0.5, color: "#5aa8c8", collide: false },
     { kind: "cyl", pos: [0, 0.08, -42], r: 9.8, h: 0.18, color: "#6cb8d4", collide: false },
@@ -627,20 +620,20 @@ function picnicPark(): LevelDef {
     ...playCorner(),
 
     box(8, 0.08, -6, 5.2, 0.12, 5.2, "#efe4d0", false),
-    box(4.4, 0.35, -2.2, 1.4, 0.55, 1.4, "#c48a5a"),
-    box(11.6, 0.35, -2.4, 1.4, 0.55, 1.4, "#c48a5a"),
+    // two 1.4m blocks used to stand here with nothing on them. Benches facing
+    // the gazebo instead, which is also where the sticker book sits.
+    box(4.6, 0.45, -2.4, 0.8, 0.2, 3.0, "#c49a62"),
+    box(4.28, 0.85, -2.4, 0.16, 0.7, 3.0, "#c49a62", false),
+    box(11.4, 0.45, -2.4, 0.8, 0.2, 3.0, "#c49a62"),
+    box(11.72, 0.85, -2.4, 0.16, 0.7, 3.0, "#c49a62", false),
 
 
     // stairs stop at the treehouse deck; the structure itself is a mesh now
     ...climbStairs(54.2, -40.6, 0, -1, 9, 0.4, 1.25, 3.6, "#c4a06a"),
 
-    box(18.6, 0.12, -12, 1.8, 0.18, 1.8, "#6aa8c4", false),
-    box(18.6, 0.12, -18.4, 1.6, 0.18, 1.6, "#6aa8c4", false),
-    box(14.8, 0.12, -24.2, 1.5, 0.18, 1.5, "#6aa8c4", false),
-    box(10.2, 0.12, -30.4, 1.6, 0.18, 1.6, "#6aa8c4", false),
-    box(16.4, 0.02, -16, 1.2, 0.08, 20, "#5aa0bc", false),
-    box(16.8, 0.55, -15.2, 3.4, 0.22, 1.2, "#a09080"),
-    box(16.8, 0.9, -15.2, 0.28, 0.7, 1.4, "#a09080"),
+    // (a 1.2m x 20m blue stripe with a grey plank laid across it and four loose
+    // blue pads beside it stood here: from above it read as a blue cross and
+    // from the ground as nothing at all. The duck pond is here now.)
 
     box(-62, 0.85, 26, 1.2, 1.7, 16, "#5aaa62"),
     box(-56, 0.85, 36, 12, 1.7, 1.2, "#5aaa62"),
@@ -650,11 +643,8 @@ function picnicPark(): LevelDef {
     box(-57.6, 0.35, 34.4, 0.7, 0.6, 0.7, "#4f93c4", false),
     box(-58.8, 0.45, 30.2, 0.9, 0.8, 0.9, "#e8c46a", false),
 
-    box(28.2, 0.15, 36.2, 6.4, 0.22, 5.2, "#8a5a32"),
-    box(26.4, 0.45, 35.2, 0.7, 0.5, 0.7, "#d45a4a", false),
-    box(29.4, 0.4, 37.4, 0.55, 0.4, 0.55, "#4f93c4", false),
-    box(30.6, 0.5, 35.2, 0.6, 0.6, 0.6, "#3f9a6b", false),
-    box(27.2, 0.35, 38.0, 0.5, 0.3, 0.5, "#d4894a", false),
+    // (a brown mat with four coloured cubes on it stood on this lawn too; it
+    // was the same unreadable thing as the "flower bed" and is gone.)
     { kind: "house", x: 56, z: 40, body: "#c48a5a", roof: "#a05040", w: 8, d: 6 },
     box(50.4, 0.45, 38.2, 1.4, 0.9, 1.4, "#d4a04a"),
     box(49.2, 0.7, 40.6, 1.1, 1.4, 1.1, "#d4a04a"),
@@ -663,36 +653,26 @@ function picnicPark(): LevelDef {
     box(54.8, 0.4, 34.2, 0.8, 0.8, 0.8, "#e07040", false),
     box(56.6, 0.32, 33.6, 0.7, 0.6, 0.7, "#d4894a", false),
 
-    box(-46, 0.12, 52, 8, 0.16, 8, "#8a6a48", false),
-    box(-46, 0.35, 52, 1.2, 0.5, 1.2, "#c45a2a"),
-    box(-46, 0.7, 52, 0.7, 0.4, 0.7, "#f0c44a"),
-    box(-48.6, 0.4, 50.2, 1.8, 0.45, 0.7, "#6a4a32"),
-    box(-43.4, 0.4, 53.6, 1.8, 0.45, 0.7, "#6a4a32"),
-    box(-49.4, 1.1, 54.4, 2.4, 1.8, 0.18, "#4f93c4"),
-    box(-49.4, 1.1, 51.6, 0.18, 1.8, 2.6, "#4f93c4"),
-    box(-47.2, 1.1, 51.6, 0.18, 1.8, 2.6, "#4f93c4"),
-    box(-48.3, 2.05, 53, 2.6, 0.16, 3.0, "#c45a4a"),
+    // (a kiosk stood alone in the middle of this lawn, the one you look at
+    // from the carousel. The fairground green in places.ts is here now.)
 
-    // flower bed, moved off the new midway to the lawn beside it
-    box(10, 0.12, 30, 10, 0.1, 10, "#7bbb6a", false),
-    box(8.2, 0.35, 28.4, 0.7, 0.6, 0.7, "#d47a8a", false),
-    box(12.4, 0.4, 31.6, 0.8, 0.7, 0.8, "#4f93c4", false),
-    box(10.6, 0.32, 33.2, 0.6, 0.5, 0.6, "#e8c46a", false),
-    box(7.4, 0.38, 32.0, 0.7, 0.65, 0.7, "#d45a4a", false),
-    box(13.2, 0.3, 28.8, 0.55, 0.5, 0.55, "#3f9a6b", false),
+    // (the "flower bed" here was a 10m green mat with five coloured cubes on
+    // it. The walled flower garden in places.ts replaces it, and the ladybug
+    // sticker at (10, 30) now sits on its north-west bed.)
 
     // (the old hanging sign tower at (0, 66) stood in the middle of what is
     // now the midway to the south gate; the gate has a proper sign now)
 
-    box(-28, 0.35, 8, 1.6, 0.7, 0.7, "#6a8aaa"),
-    box(-26.4, 1.1, 8, 0.2, 1.6, 0.2, "#6a8aaa"),
-    box(-26.4, 2.0, 8, 0.7, 0.5, 0.4, "#d45a4a"),
+    // (a grey block with a red box on a post stood at (-28, 8) with nothing
+    // around it; it is inside the kite field now, so it went with the rest.)
 
-    { kind: "tree", x: -24, z: 10, variant: 0, scale: 1.1 },
-    { kind: "tree", x: -20, z: 18, variant: 1, scale: 0.95 },
+    // moved off the kite field, the flower garden and the duck pond; a kite
+    // field with a tree in the middle of it is a tree, not a kite field
+    { kind: "tree", x: -36, z: 9, variant: 0, scale: 1.1 },
+    { kind: "tree", x: -35, z: 24, variant: 1, scale: 0.95 },
     { kind: "tree", x: 15, z: 21, variant: 0, scale: 1 },
-    { kind: "tree", x: 18, z: 34, variant: 2, scale: 1.2 },
-    { kind: "tree", x: -14, z: 25, variant: 1, scale: 0.9 },
+    { kind: "tree", x: 23, z: 34, variant: 2, scale: 1.2 },
+    { kind: "tree", x: -13.5, z: 27.5, variant: 1, scale: 0.9 },
     { kind: "tree", x: 30, z: 16, variant: 0, scale: 1 },
     { kind: "tree", x: -16, z: -16, variant: 2, scale: 1.15 },
     { kind: "tree", x: 16, z: -54, variant: 1, scale: 1 },
@@ -711,6 +691,9 @@ function picnicPark(): LevelDef {
     { kind: "cloud", pos: [48, 16, -20], scale: 1.3 },
     { kind: "cloud", pos: [-50, 15, 40], scale: 1.1 },
     { kind: "cloud", pos: [10, 17, 60], scale: 1.2 },
+
+    // the five places that fill the lawns inside the ring (places.ts)
+    ...(NO_PLACES ? [] : placeProps()),
 
     ...maze.props,
     ...mazeGates,
@@ -888,6 +871,15 @@ function picnicPark(): LevelDef {
     // Sandcastle Corner and the lawn round it, so no berm or tree line lands
     // on the one place near the spawn that is meant to read as tidy
     rectAt(23.0, 12.7, 19, 18),
+    // the five places inside the ring (places.ts) and the ways in to them:
+    // a kite field wants open sky over it, so its rect is the widest
+    rectAt(KITE_FIELD.x, KITE_FIELD.z, KITE_FIELD.w + 6, KITE_FIELD.d + 6),
+    // the pond plus its jetty and the walk round it, stopping at x 22: any
+    // wider and the berm east of it has nowhere left to stand and is dropped
+    rectAt(13.2, DUCK_POND.z, 17.6, 16.8),
+    rectAt(FLOWER_GARDEN.x, FLOWER_GARDEN.z, FLOWER_GARDEN.w + 5, FLOWER_GARDEN.d + 5),
+    rectAt(STORY_CIRCLE.x, STORY_CIRCLE.z, STORY_CIRCLE.r * 2 + 6, STORY_CIRCLE.r * 2 + 6),
+    rectAt(FAIR_GREEN.x, FAIR_GREEN.z, FAIR_GREEN.w + 5, FAIR_GREEN.d + 5),
     rectAt(-40, 115, 8, 24),
     rectAt(8, 115, 8, 24),
     rectAt(-60, -110, 8, 14),
@@ -1074,6 +1066,7 @@ function picnicPark(): LevelDef {
     water: [
       { kind: "water", x: 0, z: -42, r: 9.4 },
       { kind: "water", x: -48, z: -48, r: 5.4 },
+      ...(NO_PLACES ? [] : [{ kind: "water" as const, x: DUCK_POND.x, z: DUCK_POND.z, r: DUCK_POND.r }]),
       // the pool, as two circles under its 20x10 rectangle
       { kind: "water", x: POOL.x - 5, z: POOL.z, r: 5, pool: true },
       { kind: "water", x: POOL.x + 5, z: POOL.z, r: 5, pool: true },

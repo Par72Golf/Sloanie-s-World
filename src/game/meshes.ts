@@ -1094,22 +1094,43 @@ export function makeHouse(body: string, roof: string, w = 6, d = 5) {
   return g;
 }
 
+/**
+ * One cloud: six puffs baked into a single geometry, built once and shared by
+ * every cloud in the park (the size difference is the group's scale).
+ *
+ * They used to be six separate meshes each. Clouds are transparent and carry
+ * `cloudDrift`, so the static merge leaves them alone by design, and the park
+ * has fifty-five of them: three hundred and thirty draw calls of sky, over a
+ * hundred of them in the view from the spawn. Merging the puffs changes
+ * nothing about how they look and costs one call per cloud.
+ */
+let cloudGeo: THREE.BufferGeometry | null = null;
+function cloudGeometry() {
+  if (cloudGeo) return cloudGeo;
+  const puffs: [number, number, number, number][] = [
+    [0, 0, 0, 1.5],
+    [1.4, 0.12, 0.2, 1.15],
+    [-1.3, 0.08, -0.18, 1.05],
+    [0.25, 0.55, -0.35, 0.95],
+    [-0.5, 0.35, 0.45, 0.8],
+    [0.9, 0.28, -0.7, 0.7],
+  ];
+  const parts = puffs.map(([x, y, z, s]) => {
+    const g = sphereGeo.clone();
+    g.scale(s, s * 0.72, s * 0.9);
+    g.translate(x, y, z);
+    return g;
+  });
+  cloudGeo = mergeGeometries(parts, false);
+  for (const p of parts) p.dispose();
+  return cloudGeo!;
+}
+
 export function makeCloud(scale = 1) {
   const g = new THREE.Group();
-  const c = lam("#f7fbff", { roughness: 0.92, opacity: 0.94, transparent: true });
-  const add = (x: number, y: number, z: number, s: number) => {
-    const m = new THREE.Mesh(sphereGeo, c);
-    m.scale.set(s, s * 0.72, s * 0.9);
-    m.position.set(x, y, z);
-    m.castShadow = false;
-    g.add(m);
-  };
-  add(0, 0, 0, 1.5);
-  add(1.4, 0.12, 0.2, 1.15);
-  add(-1.3, 0.08, -0.18, 1.05);
-  add(0.25, 0.55, -0.35, 0.95);
-  add(-0.5, 0.35, 0.45, 0.8);
-  add(0.9, 0.28, -0.7, 0.7);
+  const m = new THREE.Mesh(cloudGeometry(), lam("#f7fbff", { roughness: 0.92, opacity: 0.94, transparent: true }));
+  m.castShadow = false;
+  g.add(m);
   g.scale.setScalar(scale);
   g.userData.cloudDrift = true;
   return g;
@@ -1218,9 +1239,12 @@ export function makePondEdge(r: number) {
     g.add(rock);
   }
 
-  // cattails in clumps on one side
-  for (let i = 0; i < 18; i++) {
-    const a = Math.PI * 0.15 + (i / 18) * Math.PI * 0.8;
+  // cattails in clumps on one side. The count follows the radius: a fixed
+  // eighteen looked right round the 11m pond and like a stockade round the 6m
+  // duck pond.
+  const cattails = Math.max(8, Math.round(r * 1.7));
+  for (let i = 0; i < cattails; i++) {
+    const a = Math.PI * 0.15 + (i / cattails) * Math.PI * 0.8;
     const rr = r - 0.4 + ((i * 29) % 4) * 0.3;
     const x = Math.cos(a) * rr;
     const z = Math.sin(a) * rr;

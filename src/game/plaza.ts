@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { boxGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 import { bannerTexture } from "./signs";
 import type { Prop } from "./types";
@@ -59,14 +60,13 @@ const PLANTERS: [number, number][] = [
 /**
  * Lamp posts down the midway behind her, with bunting strung across it, so
  * the way to the carnival reads as a midway from the moment she lands.
- * They stand 1.1m clear of the path's edging on both sides.
+ * They stand 1.1m clear of the path's edging on both sides, and clear in z of
+ * the flower garden's spur, which leaves the midway between them at z 31.
  */
-const MIDWAY_LAMPS: [number, number][] = [
-  [-3.6, 29.5],
-  [3.6, 29.5],
-  [-3.6, 35.5],
-  [3.6, 35.5],
-];
+const MIDWAY_LAMP_Z = [28.6, 34.6];
+const MIDWAY_LAMPS: [number, number][] = MIDWAY_LAMP_Z.flatMap(
+  (z) => [[-3.6, z], [3.6, z]] as [number, number][],
+);
 
 const POPCORN: [number, number] = [-6.4, 17.6];
 const BALLOONS: [number, number] = [6.4, 17.6];
@@ -199,20 +199,36 @@ function pavingTexture() {
   return t;
 }
 
+/**
+ * One globe material and one striped-pole material for the whole plaza.
+ * Building them inside the loop gave every lamp a material of its own, and a
+ * material of its own is a draw call of its own: ten lamps, the pole and the
+ * two arch legs were thirteen calls in the view she spends the most time in.
+ */
+let globeMat: THREE.MeshStandardMaterial | null = null;
+function lampGlobeMaterial() {
+  if (!globeMat) {
+    globeMat = new THREE.MeshStandardMaterial({
+      color: "#fff3c4",
+      emissive: new THREE.Color("#ffe9a8"),
+      emissiveIntensity: 0.85,
+      roughness: 0.3,
+    });
+  }
+  return globeMat;
+}
+let stripeMat: THREE.MeshStandardMaterial | null = null;
+function stripedMaterial() {
+  if (!stripeMat) stripeMat = new THREE.MeshStandardMaterial({ map: poleStripes(), roughness: 0.4 });
+  return stripeMat;
+}
+
 function lamp(x: number, z: number, g: THREE.Group) {
   g.add(mesh(cylGeo, LAMP_C, 0.34, 0.22, 0.34, x, 0.11, z, false));
   g.add(mesh(boxGeo, LAMP_C, 0.24, LAMP_H, 0.24, x, LAMP_H / 2, z));
   // lantern: a glass globe on a little collar, under a cap
   g.add(mesh(cylGeo, "#ffc53d", 0.22, 0.12, 0.22, x, LAMP_H + 0.05, z, false));
-  const globe = new THREE.Mesh(
-    sphereGeo,
-    new THREE.MeshStandardMaterial({
-      color: "#fff3c4",
-      emissive: new THREE.Color("#ffe9a8"),
-      emissiveIntensity: 0.85,
-      roughness: 0.3,
-    }),
-  );
+  const globe = new THREE.Mesh(sphereGeo, lampGlobeMaterial());
   globe.scale.setScalar(0.3);
   globe.position.set(x, LAMP_H + 0.34, z);
   g.add(globe);
@@ -332,10 +348,7 @@ export function makeArrivalPlaza() {
 
   // middle: planter, striped pole, welcome boards, star
   planter(g, PLAZA.x, PLAZA.z, 2.2);
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.26, 0.3, POLE_H - 0.6, 16),
-    new THREE.MeshStandardMaterial({ map: poleStripes(), roughness: 0.4 }),
-  );
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, POLE_H - 0.6, 16), stripedMaterial());
   pole.position.set(PLAZA.x, 0.6 + (POLE_H - 0.6) / 2, PLAZA.z);
   pole.castShadow = true;
   g.add(pole);
@@ -364,10 +377,7 @@ export function makeArrivalPlaza() {
   for (const s of [-1, 1]) {
     const x = s * ARCH.halfW;
     g.add(mesh(cylGeo, "#c9825a", 0.42, 0.24, 0.42, x, 0.12, ARCH.z, false));
-    const leg = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.21, 0.24, ARCH.h, 14),
-      new THREE.MeshStandardMaterial({ map: poleStripes(), roughness: 0.4 }),
-    );
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.24, ARCH.h, 14), stripedMaterial());
     leg.position.set(x, ARCH.h / 2, ARCH.z);
     leg.castShadow = true;
     g.add(leg);
@@ -394,11 +404,11 @@ export function makeArrivalPlaza() {
   // and across the arch
   bunting([-ARCH.halfW, ARCH.h - 0.2, ARCH.z], [ARCH.halfW, ARCH.h - 0.2, ARCH.z], flagCols, strings);
   // down the midway: across between each facing pair, and along each side
-  for (const z of [29.5, 35.5]) {
+  for (const z of MIDWAY_LAMP_Z) {
     bunting([-3.6, LAMP_H + 0.45, z], [3.6, LAMP_H + 0.45, z], flagCols, strings);
   }
   for (const x of [-3.6, 3.6]) {
-    bunting([x, LAMP_H + 0.45, 29.5], [x, LAMP_H + 0.45, 35.5], flagCols, strings);
+    bunting([x, LAMP_H + 0.45, MIDWAY_LAMP_Z[0]!], [x, LAMP_H + 0.45, MIDWAY_LAMP_Z[1]!], flagCols, strings);
   }
   for (const [color, geos] of strings) {
     const merged = mergeAll(geos);
@@ -420,17 +430,24 @@ export function makeArrivalPlaza() {
 function painted(w: number, h: number, body: string, front: string, bg: string, back?: string, depth = 0.16) {
   const g = new THREE.Group();
   g.add(mesh(boxGeo, body, w, h, depth, 0, 0, 0));
-  const face = (text: string, z: number, turn: boolean) => {
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w - 0.05, h - 0.05),
-      new THREE.MeshStandardMaterial({ map: bannerTexture(text, w, h, bg), roughness: 0.6 }),
-    );
-    m.position.z = z;
-    if (turn) m.rotation.y = Math.PI;
-    g.add(m);
+  const quad = (z: number, turn: boolean) => {
+    const geo = new THREE.PlaneGeometry(w - 0.05, h - 0.05);
+    if (turn) geo.rotateY(Math.PI);
+    geo.translate(0, 0, z);
+    return geo;
   };
-  face(front, depth / 2 + 0.01, false);
-  if (back) face(back, -(depth / 2 + 0.01), true);
+  const paint = (text: string, geos: THREE.BufferGeometry[]) => {
+    const geo = geos.length > 1 ? mergeGeometries(geos, false)! : geos[0]!;
+    if (geos.length > 1) for (const gg of geos) gg.dispose();
+    g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: bannerTexture(text, w, h, bg), roughness: 0.6 })));
+  };
+  const zf = depth / 2 + 0.01;
+  // the same words on both sides is one texture and one draw call, not two
+  if (back === front) paint(front, [quad(zf, false), quad(-zf, true)]);
+  else {
+    paint(front, [quad(zf, false)]);
+    if (back) paint(back, [quad(-zf, true)]);
+  }
   return g;
 }
 

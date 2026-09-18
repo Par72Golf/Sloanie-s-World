@@ -1,6 +1,7 @@
 import { EMMETT_BASE } from "./emmett-base";
 import { makeMonsterTruck, makeTruckYard, type TruckRig } from "./monster-truck";
 import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
+import { makePlaces } from "./places";
 import { makeArrivalPlaza } from "./plaza";
 import { PARK_DIRECTORIES, PARK_NAME_SIGNS, makeSigns } from "./signs";
 import * as THREE from "three";
@@ -62,6 +63,11 @@ export type BuiltWorld = {
   water: WaterZone[];
   ground: THREE.Mesh;
   textures: THREE.Texture[];
+  /**
+   * Every material the runtime ticks a `uTime` uniform on each frame: the
+   * ponds' water, and the vertex-shader materials places.ts uses for the
+   * ducks and the kites. Anything in here needs `uniforms.uTime`.
+   */
   waterMats: THREE.ShaderMaterial[];
   grassField: GrassField | null;
   /** Geometries created by the static merge, owned by this world. */
@@ -249,6 +255,9 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     group.add(campfire.group);
   }
 
+  // meshes that must stay out of the static merge but have no rig of their own
+  const placeLive: THREE.Object3D[] = [];
+
   let ride: FerrisWheel | null = null;
   if (level.ride) {
     ride = makeFerrisWheel();
@@ -279,6 +288,15 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       edge.position.set(w.x, 0, w.z);
       group.add(edge);
     }
+
+    // the kite field, the duck pond, the flower garden, the story circle and
+    // the fairground green: decoration over the props levels.ts places, plus
+    // the two animated flocks, which stay out of the merge and are ticked
+    // through waterMats
+    const built = makePlaces();
+    group.add(built.group);
+    for (const o of built.live) placeLive.push(o);
+    for (const m of built.mats) waterMats.push(m as unknown as THREE.ShaderMaterial);
 
     // the arrival plaza round the spawn and every sign in the park; both are
     // static decoration over the props levels.ts places, and add no colliders
@@ -448,6 +466,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     live.add(carnival.ring);
   }
   if (campfire) live.add(campfire.group);
+  for (const o of placeLive) live.add(o);
   if (truck) live.add(truck.group);
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.

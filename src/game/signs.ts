@@ -1,5 +1,7 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { boxGeo, lam, mesh } from "./meshes";
+import { NO_PLACES } from "./places";
 import type { Prop } from "./types";
 
 /**
@@ -249,18 +251,28 @@ function boardMesh(w: number, h: number, front: THREE.Texture, back?: THREE.Text
   const g = new THREE.Group();
   const body = mesh(boxGeo, "#8a5a32", w, h, 0.14, 0, 0, 0);
   g.add(body);
-  const paint = (tex: THREE.Texture, z: number, turn: boolean) => {
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w - 0.06, h - 0.06),
-      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }),
-    );
-    m.position.z = z;
-    if (turn) m.rotation.y = Math.PI;
+  const face = (z: number, turn: boolean) => {
+    const geo = new THREE.PlaneGeometry(w - 0.06, h - 0.06);
+    if (turn) geo.rotateY(Math.PI);
+    geo.translate(0, 0, z);
+    return geo;
+  };
+  const paint = (tex: THREE.Texture, geos: THREE.BufferGeometry[]) => {
+    const geo = geos.length > 1 ? mergeGeometries(geos, false) : geos[0]!;
+    if (geos.length > 1) for (const gg of geos) gg.dispose();
+    const m = new THREE.Mesh(geo ?? geos[0]!, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }));
     m.receiveShadow = true;
     g.add(m);
   };
-  paint(front, 0.081, false);
-  if (back) paint(back, -0.081, true);
+  // A board with the same art on both sides is one mesh with two quads in it,
+  // not two meshes: painted faces carry a unique texture each, so they are
+  // never merged with anything, and every one of them is a draw call. The
+  // park has twenty-five name boards.
+  if (back && back === front) paint(front, [face(0.081, false), face(-0.081, true)]);
+  else {
+    paint(front, [face(0.081, false)]);
+    if (back) paint(back, [face(-0.081, true)]);
+  }
   return g;
 }
 
@@ -329,7 +341,10 @@ export function makeSigns(directories: Directory[], names: NameSign[]) {
     const h = n.sub ? 1.15 : 0.95;
     const y = 1.85;
     const tint = "#e8455f";
-    const b = boardMesh(w, h, nameCanvas(n.name, n.sub, w, h, tint), nameCanvas(n.name, n.sub, w, h, tint));
+    // one canvas, shown on both faces: two of them was two textures and two
+    // draw calls for the same picture
+    const tex = nameCanvas(n.name, n.sub, w, h, tint);
+    const b = boardMesh(w, h, tex, tex);
     b.position.set(n.x, y, n.z);
     b.rotation.y = yawFor(n.face);
     g.add(b);
@@ -371,8 +386,8 @@ export const PARK_DIRECTORIES: Directory[] = [
     z: 6.4,
     faces: ["S", "N"],
     exits: [
-      { dir: "N", label: "Pond · Ball Field" },
-      { dir: "W", label: "Maze · Splash Pad" },
+      { dir: "N", label: "Duck Pond · Big Pond" },
+      { dir: "W", label: "Kite Field · Maze" },
       { dir: "E", label: "Sandpit · Tennis" },
       { dir: "S", label: "Carnival · Rides" },
     ],
@@ -383,8 +398,8 @@ export const PARK_DIRECTORIES: Directory[] = [
     z: 36.4,
     faces: ["N", "S"],
     exits: [
-      { dir: "N", label: "Plaza" },
-      { dir: "W", label: "Carnival" },
+      { dir: "N", label: "Flower Garden · Plaza" },
+      { dir: "W", label: "Carnival · Fairground Green" },
       { dir: "E", label: "Ferris Wheel" },
       { dir: "S", label: "Houses · Pool · Gym" },
     ],
@@ -472,6 +487,15 @@ export const PARK_DIRECTORIES: Directory[] = [
 /** A painted name board at the entrance to every area. */
 export const PARK_NAME_SIGNS: NameSign[] = [
   { x: -46.0, z: 0.8, face: "S", name: "Hedge Maze", sub: "in at the blue posts" },
+  // the four places inside the ring that have their own spur (places.ts)
+  ...(NO_PLACES
+    ? []
+    : ([
+        { x: -19.4, z: 7.0, face: "N", name: "Kite Field" },
+        { x: 4.6, z: -11.4, face: "N", name: "Duck Pond", sub: "ducklings!" },
+        { x: 4.4, z: 27.0, face: "W", name: "Flower Garden" },
+        { x: -30.4, z: 47.4, face: "N", name: "Fairground Green" },
+      ] as NameSign[])),
   { x: -87.4, z: 16.6, face: "N", name: "Splash Pad" },
   { x: -87.4, z: -16.4, face: "S", name: "Playground" },
   { x: -101.5, z: -2.2, face: "E", name: "Woods Trail" },

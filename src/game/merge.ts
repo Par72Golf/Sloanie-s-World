@@ -141,10 +141,31 @@ export function mergeStatic(
         g.deleteAttribute(name);
       }
       g.morphAttributes = {};
+      /*
+       * A bucket fails as a whole if one member is missing an attribute the
+       * others have, so fill the gaps rather than losing the batch: a new prop
+       * built from a helper without uvs used to knock its whole cell out of
+       * the merge (and print a three.js error on every load).
+       */
+      if (!g.attributes.normal) g.computeVertexNormals();
+      // mergeGeometries also refuses a mix of indexed and non-indexed members
+      if (!g.attributes.uv) {
+        const n = g.attributes.position!.count;
+        g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+      }
       parts.push(g);
       report.trianglesIn += triangleCount(g);
     }
-    const mergedGeo = mergeGeometries(parts, false);
+    const anyIndexed = parts.some((p) => p.index);
+    const ready = anyIndexed && parts.some((p) => !p.index) ? parts.map((p) => (p.index ? p.toNonIndexed() : p)) : parts;
+    const mergedGeo = mergeGeometries(ready, false);
+    if (!mergedGeo) {
+      console.warn(
+        "[merge] bucket failed:",
+        ready.map((p) => `${Object.keys(p.attributes).sort().join("+")}${p.index ? "/idx" : ""}`).join(" | "),
+        b.meshes.slice(0, 3).map((m) => m.name || m.type).join(","),
+      );
+    }
     for (const p of parts) p.dispose();
     if (!mergedGeo) {
       // attribute mismatch inside a bucket; leave these meshes as they were

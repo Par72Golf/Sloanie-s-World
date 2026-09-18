@@ -40,6 +40,10 @@ export type SaveData = {
   tickets: number;
   /** Best mini golf round for the five-hole course, in strokes. */
   golfBest: number | null;
+  /** Best lawn bowls game, in pins knocked down out of 27. */
+  bowlsBest: number | null;
+  /** Fastest crossing of the Floor is Lava course, in seconds to one decimal. */
+  lavaBest: number | null;
   /** Whether she has found the sticker book (stickers need it), and her stickers. */
   stickerBook: boolean;
   stickers: string[];
@@ -72,6 +76,8 @@ const DEFAULT: SaveData = {
   graphics: "sharp",
   tickets: 0,
   golfBest: null,
+  bowlsBest: null,
+  lavaBest: null,
   stickerBook: false,
   stickers: [],
   quest: { stage: "none", treats: [] },
@@ -121,6 +127,8 @@ function migrate(raw: SaveData): SaveData {
   s.tickets = Number.isFinite(s.tickets) && s.tickets > 0 ? Math.floor(s.tickets) : 0;
   s.stickerBook = s.stickerBook === true;
   s.golfBest = Number.isFinite(s.golfBest) && (s.golfBest as number) > 0 ? Math.floor(s.golfBest as number) : null;
+  s.bowlsBest = Number.isFinite(s.bowlsBest) && (s.bowlsBest as number) > 0 ? Math.floor(s.bowlsBest as number) : null;
+  s.lavaBest = Number.isFinite(s.lavaBest) && (s.lavaBest as number) > 0 ? Math.round((s.lavaBest as number) * 10) / 10 : null;
   s.stickers = Array.isArray(s.stickers) ? s.stickers.filter((x) => typeof x === "string") : [];
   const stages = ["none", "treats", "trail", "escort", "choose", "done"];
   s.quest =

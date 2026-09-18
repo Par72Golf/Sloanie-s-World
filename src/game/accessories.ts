@@ -33,6 +33,8 @@ export type AccessoryId =
   | "tiara"
   | "cape"
   | "bunnyears"
+  // the floor is lava course
+  | "dragontail"
   // held in her right hand
   | "wand"
   | "lollipop"
@@ -69,6 +71,8 @@ export const ACCESSORIES: AccessoryDef[] = [
   { id: "tiara", name: "Sparkly tiara", slot: "head", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
   { id: "cape", name: "Hero cape", slot: "back", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
   { id: "bunnyears", name: "Bunny ears", slot: "head", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
+  // won by crossing the Floor is Lava course, out past the mountain road
+  { id: "dragontail", name: "Dragon tail", slot: "back", hint: "Cross the Floor is Lava course and reach the podium.", reward: "the Floor is Lava course" },
   { id: "wand", name: "Star wand", slot: "hand", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
   { id: "lollipop", name: "Giant lollipop", slot: "hand", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
   { id: "cottoncandy", name: "Cotton candy", slot: "hand", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
@@ -616,6 +620,44 @@ export function makeAccessory(id: AccessoryId): { mesh: THREE.Group; attach: "he
         strap.position.set(s * 0.14, 0.49, -0.015);
         g.add(strap);
         g.add(ball("#ffc53d", 0.03, s * 0.14, 0.47, 0.14, 0.03, 0.015));
+      }
+      return { mesh: g, attach: "torso" };
+    }
+    case "dragontail": {
+      // a tail that arcs up off her lower back and tapers away, with a ridge
+      // of gold spikes down it and a flame at the tip: the prize for crossing
+      // the lava. Built along a path so the segments never pull apart; it does
+      // not animate, like the cape and the wings.
+      const scale = "#e0542c";
+      const belly = "#ffb347";
+      const SEG = 10;
+      for (let i = 0; i <= SEG; i++) {
+        const t = i / SEG;
+        const z = -0.2 - t * 0.72;
+        const y = 0.1 + Math.sin(t * 2.2) * 0.26 - t * 0.12;
+        const r = 0.115 * (1 - t * 0.82);
+        g.add(ball(scale, r, 0, y, z));
+        // pale belly stripe along the underside
+        if (i % 2 === 0 && t < 0.9) g.add(ball(belly, r * 0.62, 0, y - r * 0.6, z, r * 0.3, r * 0.62));
+        // gold spikes along the top, every other segment
+        if (i % 2 === 1 && t < 0.95) {
+          const spike = new THREE.Mesh(coneGeo, flat("#ffd23a", 0.35));
+          spike.scale.set(r * 0.5, r * 1.5, r * 0.5);
+          spike.position.set(0, y + r * 1.1, z);
+          spike.rotation.x = -0.5;
+          spike.castShadow = true;
+          g.add(spike);
+        }
+      }
+      // the flame on the tip
+      const tipZ = -0.2 - 0.72;
+      const tipY = 0.1 + Math.sin(2.2) * 0.26 - 0.12;
+      for (const [c, s, dy] of [["#ff7a1a", 0.075, 0.055], ["#ffd23a", 0.045, 0.1]] as [string, number, number][]) {
+        const flame = new THREE.Mesh(coneGeo, flat(c, 0.3));
+        flame.scale.set(s, s * 2.1, s);
+        flame.position.set(0, tipY + dy, tipZ - 0.05);
+        flame.rotation.x = -0.9;
+        g.add(flame);
       }
       return { mesh: g, attach: "torso" };
     }
