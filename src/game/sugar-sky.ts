@@ -39,25 +39,29 @@ import type { Prop } from "./types";
  *  - ambient and exposure give back a little of the brightness the sun gave
  *    away, but only a little: ambient is what flattens a shadow, so it is the
  *    last thing raised and the first thing questioned
- *  - the environment light is the only number that goes *down*. It is a white
- *    reflection on every surface at once, and it is what was turning the
- *    marshmallow fields and the ice cream into a sheet.
+ *  - the environment light is the only number that goes *down*, 0.42 to 0.30.
+ *    It is a white reflection on every surface at once and it answers to
+ *    nothing, which is what was turning the marshmallow fields into a sheet:
+ *    park 1's numbers put a bloom halo round every marshmallow out there.
  *
  * The ratio of sun to everything else is what keeps a shadow readable: 2.0 to
- * 1.71 in park 1, 1.82 to 1.80 here. Softer, still a shadow.
+ * 1.71 in park 1, 1.82 to 1.82 here. Softer, still a shadow — a warmer set
+ * with the sun down at 1.72 was prettier in a still and lost the shadow the
+ * candy-cane arches cast across the sugar path, which is the thing that tells
+ * her the arch is in front of the path and not painted on it.
  */
 export const SKY_LIGHTING = {
-  hemiSky: "#ffdcef",
-  hemiGround: "#e8c79a",
-  hemiIntensity: 1.1,
+  hemiSky: "#ffd8ec",
+  hemiGround: "#eec99a",
+  hemiIntensity: 1.12,
   sunColor: "#ffeccb",
   sunIntensity: 1.82,
   fillColor: "#ffc9de",
   fillIntensity: 0.33,
   ambientColor: "#fff2e6",
   ambientIntensity: 0.37,
-  exposure: 1.04,
-  envIntensity: 0.34,
+  exposure: 1.05,
+  envIntensity: 0.3,
 };
 
 /* ----------------------------------------------------------------- clouds */
@@ -74,14 +78,21 @@ function rng(seed: number) {
 }
 
 /**
- * The sky shader paints its own sun glow at this direction (meshes.ts,
- * `makeSky`). It is not a prop, so nothing stops a cloud being drawn across the
- * middle of it — and a cloud through the bright spot looks like a mistake
- * rather than like weather. The scatter keeps a cone clear of it.
+ * world-build.ts hangs a real sun in every park: a 4.2m disc with a 7.2m halo
+ * at (70, 62, -48). It is an object in the world, not a mark on the dome, so a
+ * cloud can be inside it. The scatter keeps a ball clear around it.
  */
-const SUN_DIR = new THREE.Vector3(0.35, 0.62, -0.4).normalize();
-/** cos of the half-angle kept clear, ~17 degrees */
-const SUN_KEEP = Math.cos((17 * Math.PI) / 180);
+const SUN = { x: 70, y: 62, z: -48, keep: 30 };
+
+/**
+ * The lowest a cloud's belly may hang. The gumdrop wheel's top car is at 17m
+ * and Ice Cream Mountain's deck at 12; 20 is clear of both with room for the
+ * wheel to turn, and low enough that a cloud still sits near the horizon from
+ * across the park.
+ */
+const MIN_BELLY = 20;
+/** how far below its centre the fattest puff of a unit cloud reaches */
+const BELLY = 1.08;
 
 /**
  * How far out clouds go. The fog ends at 185m and everything past it is flat
@@ -90,40 +101,52 @@ const SUN_KEEP = Math.cos((17 * Math.PI) / 180);
  * it, so the scatter covers the park and a little beyond and lets the fog do
  * the fading, exactly as park 1 does.
  */
-const SPREAD = 172;
+const SPREAD = 178;
 
 /**
  * Three decks.
  *
- * The low one is the one that does the work. Its clouds are held out past 64m
- * from the middle, which means that from anywhere she stands there is always a
- * low cloud at a hundred-odd metres sitting at eight or ten degrees above the
- * horizon — under the tops of the factory and Ice Cream Mountain when either is
- * in front of it. That is what gives the park a middle distance instead of a
- * gradient behind a cutout.
+ * The low one is the one that does the work, and it is low: 23 to 31m. From
+ * eye level a cloud only sits near the horizon if it is low and far, and the
+ * band just above the horizon is where a sky is read from. At 27m and 140m out
+ * a puff sits at eleven degrees — under the top of the factory or Ice Cream
+ * Mountain when either is between her and it, which is what gives the park a
+ * middle distance instead of a gradient behind a cutout.
  *
- * Holding it out of the centre does a second job: a fat cloud parked over the
- * plaza is a ceiling on her arrival, and from the fly camera it looks like the
- * park is being rained on.
+ * The high deck pulls its scatter in to three quarters of the spread. Spread
+ * evenly it was almost all near the fence, where at 60m up it is still only
+ * twenty degrees above the horizon and reads as more middle distance; over the
+ * park it is the part of the sky she sees when the camera tilts up.
  *
- * Nothing she can climb reaches 20m (Ice Cream Mountain's deck is 12), and the
- * fattest low cloud hangs its belly at about 23m, so none of it is in her way.
+ * Counts are high for the same reason park 1 runs forty-eight: a handful of
+ * big clouds reads as a handful of big clouds, and what makes a toy sky is a
+ * scatter. They are fatter than park 1's because this is spun sugar, but they
+ * are still small enough that a dozen are in frame at once.
+ *
+ * MIN_BELLY is what actually keeps the low deck out of her way, so these
+ * numbers can be tuned for how the sky looks without anyone having to redo
+ * the arithmetic. The plaza keeps a clear circle as well: a fat cloud parked
+ * over the arrival is a ceiling on it, and from the fly camera it looks like
+ * the park is being rained on.
  */
 const DECKS = [
-  { count: 15, minY: 27, maxY: 34, minS: 2.6, maxS: 3.8, spacing: 44, clearOfPark: 64 },
-  { count: 16, minY: 40, maxY: 53, minS: 3.4, maxS: 5.2, spacing: 46, clearOfPark: 0 },
-  { count: 12, minY: 58, maxY: 74, minS: 4.4, maxS: 6.4, spacing: 52, clearOfPark: 0 },
+  { count: 22, minY: 23, maxY: 31, minS: 1.7, maxS: 2.8, spacing: 30, clearOfPark: 42, spread: 1, tints: [0, 2, 2, 3, 0, 2, 3, 1] },
+  { count: 20, minY: 33, maxY: 46, minS: 2.3, maxS: 3.6, spacing: 34, clearOfPark: 0, spread: 0.92, tints: [0, 1, 2, 3, 1, 2, 0, 3] },
+  { count: 17, minY: 52, maxY: 70, minS: 3.2, maxS: 4.8, spacing: 40, clearOfPark: 0, spread: 0.72, tints: [0, 1, 1, 3, 0, 1, 3, 1] },
 ];
 
 /**
- * 0 is the engine's own white cloud; 1-3 are built here. Barely tinted on
- * purpose: at full candy saturation a lilac cloud read as a grape gumdrop stuck
- * to the sky. These are white with a sweet in them, which is what spun sugar
- * actually looks like.
+ * 0 is the engine's own white cloud; 1-3 are built here. Pastel, but not so
+ * faint that they vanish: a barely-pink cloud on a pink sky is an empty sky,
+ * which is what the first pass of this was.
+ *
+ * Which tint goes where is the deck's business, because what a cloud is seen
+ * against changes down the dome. Low, against blossom and warm sugar, the blue
+ * and the lilac are what read; high, against the raspberry top, the pink and
+ * the white are. Putting pink low and blue high gave a sky of clouds you had
+ * to look for.
  */
-const TINTS = ["#f7fbff", "#ffd7e8", "#d2e9ff", "#e3d8fb"];
-/** how often the white one comes up; the rest split the remainder */
-const WHITE_SHARE = 0.34;
+const TINTS = ["#fbfdff", "#ffbfda", "#c6e4ff", "#dcccfb"];
 
 type Puff = { x: number; y: number; z: number; s: number; tint: number; shape: number };
 
@@ -131,18 +154,18 @@ type Puff = { x: number; y: number; z: number; s: number; tint: number; shape: n
 function scatter(): Puff[] {
   const rnd = rng(20260921);
   const out: Puff[] = [];
-  const dir = new THREE.Vector3();
   for (const d of DECKS) {
     let made = 0;
     let guard = 0;
     while (made < d.count && guard++ < d.count * 80) {
-      const x = (rnd() * 2 - 1) * SPREAD;
-      const z = (rnd() * 2 - 1) * SPREAD;
+      const x = (rnd() * 2 - 1) * SPREAD * d.spread;
+      const z = (rnd() * 2 - 1) * SPREAD * d.spread;
       const y = d.minY + rnd() * (d.maxY - d.minY);
       const s = d.minS + rnd() * (d.maxS - d.minS);
-      const tint = rnd() < WHITE_SHARE ? 0 : 1 + Math.floor(rnd() * 3);
+      const tint = d.tints[Math.floor(rnd() * d.tints.length)]!;
       const shape = Math.floor(rnd() * 3) % 3;
-      if (dir.set(x, y, z).normalize().dot(SUN_DIR) > SUN_KEEP) continue;
+      if (y - BELLY * s < MIN_BELLY) continue;
+      if (Math.hypot(x - SUN.x, y - SUN.y, z - SUN.z) < SUN.keep + s * 3) continue;
       if (Math.hypot(x, z) < d.clearOfPark) continue;
       // only clouds at roughly the same height crowd each other; two decks
       // apart they read as one in front of the other, which is the point
@@ -198,7 +221,7 @@ const SHAPES: [number, number, number, number][][] = [
 /**
  * The same sphere the engine's cloud is built from, at the same tessellation
  * and smooth-shaded. A faceted cloud beside a smooth one reads as a different
- * kind of object, and half this sky is the engine's own white clouds.
+ * kind of object, and a quarter of this sky is the engine's own white clouds.
  */
 const puffGeo = new THREE.SphereGeometry(1, 14, 12);
 
@@ -261,21 +284,27 @@ const STRIPES = ["#ff92a6", "#ffb875", "#ffe488", "#8fe7c3", "#9bcfff", "#cfaaf7
  * plaza-to-Ice-Cream-Mountain sightline along the band's own plane: from one of
  * the two places she looks at it from most, an edge-on rainbow is no rainbow.
  *
- * It is big and far. A rainbow that fits inside the park is a hoop someone put
- * up; one whose feet are past the fence and below the treeline is weather.
+ * Far, and only as big as fits. A rainbow whose feet are inside the park is a
+ * hoop someone put up, so the feet are past the fence and below the horizon —
+ * but the first version had a 168m radius at 190m out, which put the whole
+ * band outside a forward view: standing in the plaza there was nothing to see
+ * but a colour wash along the very top of the frame. At a 106m radius and 192m
+ * out the apex sits 22 degrees up and the feet 28 degrees to either side, so
+ * the whole arc is in the picture from the plaza, from the village, from the
+ * meadow and from the fairground.
  */
 const RAINBOW = {
-  cx: -30,
-  cy: -26,
+  cx: -20,
+  cy: -30,
   cz: -172,
-  inner: 132,
-  outer: 168,
+  inner: 82,
+  outer: 106,
   /** a bit more than half a circle, so the feet are already below the horizon */
-  span: (206 * Math.PI) / 180,
+  span: (208 * Math.PI) / 180,
   segs: 60,
   rows: 26,
   /** peak alpha: any more and it stops being light and starts being paint */
-  peak: 0.42,
+  peak: 0.5,
 };
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -373,9 +402,13 @@ registerModel("candy-rainbow", [], () => {
  * The white clouds are the engine's own `cloud` prop, so they are the same
  * object park 1 hangs in its sky; the pink, blue and lilac ones are the
  * `candy-cloud` model registered above. Both drift, neither casts a shadow,
- * neither has a collider, and the lowest belly in the sky is about 23m up —
- * well over the 12m top deck of Ice Cream Mountain, the highest thing she can
- * get to.
+ * neither has a collider, and the lowest belly in the sky measures 20.7m —
+ * over the gumdrop wheel's top car at 17.2m and well over the 12m deck of Ice
+ * Cream Mountain, which is the highest she can get by climbing.
+ *
+ * Fifty-nine clouds and the rainbow: sixty draw calls, against park 1's
+ * forty-eight clouds. They stay out of the static merge the way park 1's do,
+ * because the merge would take the drift with it.
  */
 export function skyProps(): Prop[] {
   const out: Prop[] = scatter().map((p) =>

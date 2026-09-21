@@ -95,6 +95,7 @@ export class GameRuntime {
   hemi: THREE.HemisphereLight;
   sun: THREE.DirectionalLight;
   fill: THREE.DirectionalLight;
+  ambient!: THREE.AmbientLight;
   sky: THREE.Mesh;
   blob: THREE.Mesh;
   girl: THREE.Group;
@@ -244,7 +245,8 @@ export class GameRuntime {
     this.fill = new THREE.DirectionalLight("#b7d8ff", 0.32);
     this.fill.position.set(-18, 18, -12);
     this.scene.add(this.fill);
-    this.scene.add(new THREE.AmbientLight("#fff4e8", 0.34));
+    this.ambient = new THREE.AmbientLight("#fff4e8", 0.34);
+    this.scene.add(this.ambient);
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     const envScene = new THREE.Scene();
@@ -285,6 +287,26 @@ export class GameRuntime {
     // sets the pixel ratio, composer samples, bloom and shadow map from the
     // saved setting, then sizes everything (it ends in resize())
     this.applyGraphics(st.graphics);
+  }
+
+  /**
+   * Light this park the way it asks to be lit, falling back to park 1's
+   * daylight. The numbers are the level's because the same sun that flatters a
+   * lawn blows out a field of marshmallows.
+   */
+  applyLighting() {
+    const l = this.level.lighting;
+    this.hemi.color.set(l?.hemiSky ?? "#dff1ff");
+    this.hemi.groundColor.set(l?.hemiGround ?? "#86b860");
+    this.hemi.intensity = l?.hemiIntensity ?? 1.05;
+    this.sun.color.set(l?.sunColor ?? "#fff1c8");
+    this.sun.intensity = l?.sunIntensity ?? 2.0;
+    this.fill.color.set(l?.fillColor ?? "#b7d8ff");
+    this.fill.intensity = l?.fillIntensity ?? 0.32;
+    this.ambient.color.set(l?.ambientColor ?? "#fff4e8");
+    this.ambient.intensity = l?.ambientIntensity ?? 0.34;
+    this.renderer.toneMappingExposure = l?.exposure ?? 1.0;
+    this.scene.environmentIntensity = l?.envIntensity ?? 0.42;
   }
 
   /** The graphics setting currently applied; null until the first apply. */
@@ -504,6 +526,7 @@ export class GameRuntime {
     this.applyGrassDensity();
     noOutline(this.world.ground);
     this.scene.fog = new THREE.Fog(this.level.fogColor ?? "#c5e0f2", 48, this.level.fogFar);
+    this.applyLighting();
     // the dome is built once, so a park with its own sky repaints it on load
     const skyMat = this.sky.material as THREE.ShaderMaterial;
     const sky = this.level.skyColors ?? DEFAULT_SKY;

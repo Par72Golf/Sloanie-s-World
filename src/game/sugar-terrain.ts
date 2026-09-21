@@ -7,9 +7,9 @@ import type { BoxProp, Prop } from "./types";
  *
  * The park was a 320m table with things standing on it. This gives it relief in
  * the only way the engine has — stacked slabs — and the whole module is written
- * round one number: her step-up is 0.62m (collision.ts), so every riser here is
- * 0.55m or less and she never has to jump. A wide flat slab is solid whatever
- * its `collide` flag says (colliders.ts), which is exactly what makes a stack of
+ * round one number: her step-up is 0.62m (collision.ts), so no riser here is
+ * over 0.46m and she never has to jump. A wide flat slab is solid whatever its
+ * `collide` flag says (colliders.ts), which is exactly what makes a stack of
  * them a staircase rather than a painting of one.
  *
  * Two things live here:
@@ -17,13 +17,19 @@ import type { BoxProp, Prop } from "./types";
  *   gumdropHills()  Gumdrop Meadow, rebuilt. It was 70 gumdrops scattered at
  *                   random over a flat field — sprinkled everywhere with no
  *                   thought or flow. Now it is three terraced hills she can run
- *                   up, and the gumdrops sit on and between them.
+ *                   up, and every gumdrop stands on a rim, a corner or a summit.
  *   sugarBerms()    long low mounds elsewhere, beside the loop and the river,
  *                   so the rest of the park stops reading as a table.
  *
- * Nothing here is placed by eye: every footprint is checked against
- * `clearGround`, which knows where the paths, the river, the plaza and the
- * hidden candies are.
+ * The ground under all of it is smooth spearmint with no blades of grass
+ * (sugar-level.ts: `grass: "#8fe0cf"`, `grassDensity: 0`), so a hill here is a
+ * mint sweet, not a grassy knoll: it starts in the ground's own mint at the
+ * foot and lightens layer by layer to an iced summit, the way a cake does.
+ * Green would look like a fete on a village green, which is what the first
+ * version of this file was still painted as.
+ *
+ * Nothing is placed by eye: every footprint is checked against `clearGround`,
+ * which knows where the paths, the river, the plaza and the hidden candies are.
  */
 
 /* ------------------------------------------------------------- vocabulary */
@@ -47,6 +53,9 @@ const rectOf = (x: number, z: number, w: number, d: number): Rect => ({
   z1: z + d / 2,
 });
 
+const midX = (r: Rect) => (r.x0 + r.x1) / 2;
+const midZ = (r: Rect) => (r.z0 + r.z1) / 2;
+
 /** Which way the way up faces: +x east, -x west, +z south, -z north. */
 type Face = [number, number];
 
@@ -63,26 +72,52 @@ function terrace(r: Rect, top: number, rise: number, color: string): BoxProp {
   const h = rise + 0.01;
   return {
     kind: "box",
-    pos: [(r.x0 + r.x1) / 2, top - h / 2, (r.z0 + r.z1) / 2],
+    pos: [midX(r), top - h / 2, midZ(r)],
     size: [r.x1 - r.x0, h, r.z1 - r.z0],
     color,
   };
 }
 
+/**
+ * The bottom step of everything here is 0.28m, never more.
+ *
+ * Not for her legs — she could take 0.46 — but for the rest of the park. The
+ * bottom slab is the only one that sits down on the ground where the frosting
+ * patches, the lawn aprons and the planted roundels already are, and at 0.29m
+ * thick it is under both of the thresholds that matter: `frostingProps` counts
+ * anything 0.3m or thinner as a flat surface and keeps its patches clear of it,
+ * and tools/check-layout.ts calls it thin and stops reporting it as a prop
+ * inside a prop. A 0.5m apron is neither, and a hill built that way has a
+ * frosting patch buried under every skirt.
+ *
+ * That only works if the level hands the hills to `frostingProps` — they have
+ * to be in the `already` list, which is why the frosting goes on last.
+ *
+ * Above the ground nothing else is flat, so the risers up there are free to be
+ * the comfortable 0.46.
+ */
+const APRON_RISE = 0.28;
+const STEP_RISE = 0.46;
+
 const KERB_W = 0.28;
+/** The opening left in the rim: the way up, seen from the bottom of the hill. */
+const KERB_GAP = 5.4;
 
 /**
- * The icing edge round a terrace. Thin and `collide: false`, so the engine
- * builds no collider for it at all — she walks through it, which is what a
- * 28cm lip on the lip of a step has to do or it is a trip hazard she cannot
- * see. The runs stop short of each other rather than crossing at the corners:
- * two flat tops at one height, overlapping, is the flicker.
+ * The piped icing edge round a terrace. Thin and `collide: false`, so the
+ * engine builds no collider for it at all — she walks through it, which is what
+ * a 28cm lip on the lip of a step has to do or it is a trip hazard she cannot
+ * see.
+ *
+ * `stair` is where the way up crosses this rim: the runs stop short of it, and
+ * that gap is what tells her from the bottom of the hill which side to climb.
+ * The north and south runs own the corners, so the east and west ones are short
+ * by a kerb's width at each end — two flat tops at one height, overlapping, is
+ * the flicker the checker fails on.
  */
-function kerbs(r: Rect, top: number, face: Face, color: string): Prop[] {
+function kerbs(r: Rect, top: number, face: Face, stair: number, color: string): Prop[] {
   const out: Prop[] = [];
   const y = top + 0.12;
-  const w = r.x1 - r.x0;
-  const d = r.z1 - r.z0;
   const strip = (x: number, z: number, sx: number, sz: number): BoxProp => ({
     kind: "box",
     pos: [x, y - 0.06, z],
@@ -90,32 +125,32 @@ function kerbs(r: Rect, top: number, face: Face, color: string): Prop[] {
     color,
     collide: false,
   });
-  /** The face side is open in the middle: that gap is the way up, from afar. */
-  const GAP = 5.2;
-  /**
-   * One side. `open` leaves the middle out; the north and south runs own the
-   * corners, so the east and west ones are short by a kerb's width at each end
-   * and no two of them ever lie over each other.
-   */
-  const run = (along: "x" | "z", at: number, span: number, mid: number, open: boolean) => {
-    for (const s of open ? [-1, 1] : [0]) {
-      const len = open ? (span - GAP) / 2 : span;
-      if (len < 0.8) continue;
-      const c = open ? mid + s * (GAP / 2 + len / 2) : mid;
-      out.push(along === "x" ? strip(c, at, len, KERB_W) : strip(at, c, KERB_W, len));
-    }
+  /** One side, minus the opening if the way up comes through it. */
+  const runs = (a: number, b: number, open: boolean): [number, number][] => {
+    if (!open) return b - a > 0.6 ? [[a, b]] : [];
+    const out: [number, number][] = [];
+    if (stair - KERB_GAP / 2 - a > 0.8) out.push([a, stair - KERB_GAP / 2]);
+    if (b - (stair + KERB_GAP / 2) > 0.8) out.push([stair + KERB_GAP / 2, b]);
+    return out;
   };
-  const midX = (r.x0 + r.x1) / 2;
-  const midZ = (r.z0 + r.z1) / 2;
-  run("x", r.z0 + KERB_W / 2, w, midX, face[1] < 0);
-  run("x", r.z1 - KERB_W / 2, w, midX, face[1] > 0);
-  run("z", r.x0 + KERB_W / 2, d - KERB_W * 2, midZ, face[0] < 0);
-  run("z", r.x1 - KERB_W / 2, d - KERB_W * 2, midZ, face[0] > 0);
+  for (const [z, open] of [
+    [r.z0 + KERB_W / 2, face[1] < 0],
+    [r.z1 - KERB_W / 2, face[1] > 0],
+  ] as [number, boolean][]) {
+    for (const [a, b] of runs(r.x0, r.x1, open)) out.push(strip((a + b) / 2, z, b - a, KERB_W));
+  }
+  for (const [x, open] of [
+    [r.x0 + KERB_W / 2, face[0] < 0],
+    [r.x1 - KERB_W / 2, face[0] > 0],
+  ] as [number, boolean][]) {
+    for (const [a, b] of runs(r.z0 + KERB_W, r.z1 - KERB_W, open)) out.push(strip(x, (a + b) / 2, KERB_W, b - a));
+  }
   return out;
 }
 
 /**
- * Two sugar stripes up the face of the hill, one tread at a time.
+ * Two sugar stripes up the face of the hill, one tread at a time, all of them
+ * on the same line so they read as one staircase from the foot.
  *
  * They are 30cm wide and non-colliding, so they are paint and nothing else.
  * The obvious thing — a wide sugar landing on each tread — is a trap: a wide
@@ -123,18 +158,11 @@ function kerbs(r: Rect, top: number, face: Face, color: string): Prop[] {
  * edge she is stepping onto fails the step-up's headroom test and turns the
  * way up into a wall.
  */
-function stairStripes(outer: Rect, inner: Rect | null, top: number, face: Face, color: string): Prop[] {
+function stairStripes(outer: Rect, inner: Rect | null, top: number, face: Face, stair: number, color: string): Prop[] {
   const out: Prop[] = [];
-  const y = top + 0.1;
   const alongX = face[0] !== 0;
-  const from = alongX
-    ? face[0] > 0
-      ? outer.x1
-      : outer.x0
-    : face[1] > 0
-      ? outer.z1
-      : outer.z0;
-  const toEdge = inner
+  const from = alongX ? (face[0] > 0 ? outer.x1 : outer.x0) : face[1] > 0 ? outer.z1 : outer.z0;
+  const to = inner
     ? alongX
       ? face[0] > 0
         ? inner.x1
@@ -143,14 +171,13 @@ function stairStripes(outer: Rect, inner: Rect | null, top: number, face: Face, 
         ? inner.z1
         : inner.z0
     : from - (alongX ? face[0] : face[1]) * 2.4;
-  const len = Math.abs(from - toEdge);
+  const len = Math.abs(from - to);
   if (len < 0.6) return out;
-  const mid = (from + toEdge) / 2;
-  const cross = alongX ? (outer.z0 + outer.z1) / 2 : (outer.x0 + outer.x1) / 2;
+  const mid = (from + to) / 2;
   for (const s of [-1, 1]) {
     out.push({
       kind: "box",
-      pos: alongX ? [mid, y - 0.05, cross + s * 1.8] : [cross + s * 1.8, y - 0.05, mid],
+      pos: alongX ? [mid, top + 0.05, stair + s * 1.7] : [stair + s * 1.7, top + 0.05, mid],
       size: alongX ? [len, 0.1, 0.3] : [0.3, 0.1, len],
       color,
       collide: false,
@@ -159,85 +186,97 @@ function stairStripes(outer: Rect, inner: Rect | null, top: number, face: Face, 
   return out;
 }
 
-/* ----------------------------------------------------------- the hills */
+/* ------------------------------------------------------------- the hills */
 
-type Level = { w: number; d: number; dx: number; dz: number };
+type Level = { w: number; d: number; dx: number; dz: number; rise: number };
 
 type Hill = {
+  name: string;
   /** offset from the meadow's centre, so moving the region moves the hills */
   dx: number;
   dz: number;
-  /** rise per terrace. Under 0.62 with a margin, or she has to jump. */
-  rise: number;
+  /** which side the way up is on: the treads are widest there */
   face: Face;
   levels: Level[];
   seed: number;
 };
 
 /**
- * The strata. One ramp shared by all three hills, so they read as one place cut
- * from the same cake rather than three unrelated lumps: meadow green at the
- * bottom, then sponge, then blossom, then mint at the top. Pastels, because a
- * whole hillside of a saturated candy colour is what made the first fairground
- * look like a warning sign; the saturated colours arrive as gumdrops.
+ * The strata, bottom to top. One ramp shared by all three hills, so they read
+ * as one place cut from the same cake rather than three unrelated lumps: the
+ * ground's own mint at the foot, a paler mint above it, sponge, blossom, and
+ * every summit iced.
+ *
+ * Pastels, because a whole hillside of a saturated candy colour is what made
+ * the first fairground look like a warning sign. The saturated colours arrive
+ * as gumdrops, which is the point of the meadow.
  */
-const STRATA = ["#7ccb74", "#f2e3c0", "#ffc9de", "#bdf0e2"];
+const STRATA = [CANDY.lawn, "#a9e7d6", CANDY.cream, "#ffc7e0"];
+/** The iced top. #f6f1e8 is the white that does not bloom in sunlight. */
+const SUMMIT = CANDY.icing;
 
 /**
  * Three hills, fitted to the ground that is actually free.
  *
  * The meadow looks like an open field on the map, but the chocolate river cuts
- * off its west corner, the loop path takes the east edge and two hidden candies
- * hold 4m circles at (66, 62) and (94, 84). What is left is an L of open ground,
- * and the three hills stand in it as a triangle — the big one east where the
- * path brings her in, the little one back to the west, the middle one south —
- * so she walks *between* them rather than past a row.
+ * diagonally across its west half, the candy-cane loop takes the east edge, the
+ * planted roundel at (92, 92) holds a 7m circle and two hidden candies hold 4m
+ * circles at (66, 62) and (94, 84). What is left is a band of open ground
+ * running south-west to north-east between the river and the path, so that is
+ * how the hills are arranged: a chain along the river's own line, big one in
+ * the middle, a smaller one at each end, with a walkable saddle between each
+ * pair. Planting follows lines that already exist here too.
  *
- * Every hill's treads are wider on one side than the other. The wide side is
- * the way up and it faces somewhere she comes from; the narrow side is the
- * shoulder you look down. Each faces a different way, so whichever way she runs
- * into the meadow one of them is offering her a staircase.
+ * Each hill's summit is offset from its base, which is what gives it a gentle
+ * side and a steep one: the treads are three metres deep where the summit has
+ * moved away and under a metre where it has moved toward. The wide side is the
+ * way up and it faces where she comes from — the loop path for the big hill,
+ * the saddle for the other two — and the narrow side is the shoulder you stand
+ * on and look down.
  */
 const HILLS: Hill[] = [
   {
-    // the big one: four terraces to 2.08m, the high ground of the meadow,
-    // climbed from the east where the candy-cane loop passes
-    dx: 10,
-    dz: -23,
-    rise: 0.52,
+    // the big one, at (85, 58): five terraces to 2.12m, the high ground of the
+    // meadow, climbed from the east where the candy-cane loop brings her in
+    name: "sugarloaf",
+    dx: 11,
+    dz: -20,
     face: [1, 0],
     levels: [
-      { w: 24, d: 21, dx: 0, dz: 0 },
-      { w: 18.5, d: 16, dx: -1, dz: 0 },
-      { w: 13.5, d: 11.5, dx: -2, dz: 0 },
-      { w: 8, d: 7, dx: -2.5, dz: 0 },
+      { w: 24, d: 19, dx: 0, dz: 0, rise: APRON_RISE },
+      { w: 19, d: 15, dx: -1.2, dz: -0.6, rise: STEP_RISE },
+      { w: 14.5, d: 11.5, dx: -2.4, dz: -1.2, rise: STEP_RISE },
+      { w: 10.5, d: 8.5, dx: -3.4, dz: -1.8, rise: STEP_RISE },
+      { w: 7.5, d: 6.5, dx: -4.2, dz: -2.2, rise: STEP_RISE },
     ],
     seed: 71041,
   },
   {
-    // the middle one, south, climbed from the west: the saddle between it and
-    // the big hill is the way through the meadow, so the way up opens onto it
+    // the north one, at (79, 80.5): three terraces to 1.18m, climbed from the
+    // saddle it shares with the big hill, so crossing from one to the other is
+    // a walk down and straight back up
+    name: "north knoll",
     dx: 5,
-    dz: -1,
-    rise: 0.48,
-    face: [-1, 0],
+    dz: 2.5,
+    face: [0, 1],
     levels: [
-      { w: 16, d: 14, dx: 0, dz: 0 },
-      { w: 11, d: 9.5, dx: 0.8, dz: 0.5 },
-      { w: 6, d: 5.5, dx: 1.5, dz: 1 },
+      { w: 15, d: 13, dx: 0, dz: 0, rise: APRON_RISE },
+      { w: 11, d: 9.5, dx: 0, dz: -0.9, rise: 0.45 },
+      { w: 7.5, d: 6.5, dx: 0, dz: -1.8, rise: 0.45 },
     ],
     seed: 71043,
   },
   {
-    // the little one: two steps and a top barely over a metre, for the days
-    // when a seven-year-old wants to be on top of something immediately
-    dx: -11.5,
-    dz: -27,
-    rise: 0.55,
-    face: [0, -1],
+    // the little one, at (61, 45.5): two steps and a top at 0.59m, for the days
+    // when a seven-year-old wants to be on top of something immediately. Under
+    // 0.75m it is not even a wall to the layout checker's flood fill.
+    name: "sugar button",
+    dx: -13,
+    dz: -32.5,
+    face: [1, 0],
     levels: [
-      { w: 11, d: 10, dx: 0, dz: 0 },
-      { w: 6, d: 5.5, dx: 0, dz: -0.5 },
+      { w: 13, d: 11, dx: 0, dz: 0, rise: APRON_RISE },
+      { w: 7.5, d: 6.5, dx: -1.4, dz: 0, rise: 0.31 },
     ],
     seed: 71047,
   },
@@ -249,73 +288,102 @@ const rectFor = (h: Hill, i: number): Rect => {
 };
 
 /** The top of terrace `i`, counting the ground as 0. */
-const topOf = (h: Hill, i: number) => (i + 1) * h.rise;
+const topOf = (h: Hill, i: number) => h.levels.slice(0, i + 1).reduce((y, l) => y + l.rise, 0);
+
+/** Where the way up crosses each rim: the summit's own line, so it runs straight. */
+const stairLine = (h: Hill) => {
+  const top = rectFor(h, h.levels.length - 1);
+  return h.face[0] !== 0 ? midZ(top) : midX(top);
+};
 
 /**
- * Where a candy could sit on a summit: the clear half of each flat top, with
- * the crowning gumdrop behind it.
+ * Where a candy could sit on a summit: the front half of each flat top, with
+ * the crowning gumdrop behind it and the way up arriving beside it.
  *
  * Fair warning for whoever places one: tools/check-layout.ts floods a flat grid
- * and treats anything over 0.75m as a wall, so a candy up here reports as
- * UNREACHABLE even though she can walk to it. That is the checker being 2D, not
- * the hill being wrong — walk it and see.
+ * and treats anything over 0.75m as a wall, so a candy on the big hill or the
+ * north knoll reports as UNREACHABLE even though she can walk to it. That is
+ * the checker being 2D, not the hill being wrong — walk it and see. The little
+ * hill's top is under that line, so a candy there passes the checker as well.
+ * A candy rests 0.55m over what holds it, so the y to use is `y + 0.55`.
  */
 export const HILL_TOPS: { x: number; z: number; y: number }[] = HILLS.map((h) => {
   const top = rectFor(h, h.levels.length - 1);
   return {
-    x: (top.x0 + top.x1) / 2 + h.face[0] * 1.3,
-    z: (top.z0 + top.z1) / 2 + h.face[1] * 1.3,
+    x: midX(top) + h.face[0] * 1.4,
+    z: midZ(top) + h.face[1] * 1.4,
     y: topOf(h, h.levels.length - 1),
   };
 });
 
+/* ----------------------------------------------------------- the planting */
+
+type Spot = { x: number; z: number; room: number };
+
 /**
- * Points spaced round the middle of a terrace's tread.
+ * Where a gumdrop may stand on a terrace: the corners of the tread, and points
+ * spaced evenly along each side of it.
  *
- * A gumdrop goes at each one, sized to the tread it is standing on — the inner
- * edge of the tread is the wall of the next terrace up, and a gumdrop wide
- * enough to touch it would be a prop inside another prop and an invisible
- * shoulder she bumps into on the way past. The tread does the sizing, so the
- * wide side of the hill gets the big ones and the narrow side gets buttons.
+ * Corners first, because a corner is the one place on a stepped hill that is
+ * obviously deliberate — it is where two rims meet — and because the corner
+ * pocket is the widest bit of tread there is, so that is where the big ones go.
+ * Each spot carries the room it has: the tread it stands on is what sizes the
+ * gumdrop, since the inner edge of a tread is the wall of the next terrace up
+ * and anything wide enough to touch it would be a prop inside another prop and
+ * an invisible shoulder she bumps into on the way past.
+ *
+ * The way up is left alone: nothing within 3.4m of the stair line on the face
+ * side, so the staircase is never something to squeeze past.
  */
-function treadSpots(outer: Rect, inner: Rect, face: Face, spacing: number) {
-  const out: { x: number; z: number; room: number }[] = [];
-  const edges: [Face, number, number, number, number, number][] = [
-    // face, fixed axis is z: north edge, then south, then west, then east
-    [[0, -1], (outer.z0 + inner.z0) / 2, inner.z0 - outer.z0, outer.x0, outer.x1, 0],
-    [[0, 1], (outer.z1 + inner.z1) / 2, outer.z1 - inner.z1, outer.x0, outer.x1, 0],
-    [[-1, 0], (outer.x0 + inner.x0) / 2, inner.x0 - outer.x0, inner.z0, inner.z1, 1],
-    [[1, 0], (outer.x1 + inner.x1) / 2, outer.x1 - inner.x1, inner.z0, inner.z1, 1],
-  ];
-  for (const [ef, at, tread, from, to, axis] of edges) {
-    if (tread < 1.2) continue;
-    const span = to - from;
-    const n = Math.max(1, Math.floor(span / spacing));
-    for (let i = 0; i < n; i++) {
-      const c = from + (span * (i + 0.5)) / n;
-      const x = axis === 0 ? c : at;
-      const z = axis === 0 ? at : c;
-      // the way up stays clear: nothing to squeeze past on the stairs
-      if (ef[0] === face[0] && ef[1] === face[1]) {
-        const off = axis === 0 ? Math.abs(x - (outer.x0 + outer.x1) / 2) : Math.abs(z - (outer.z0 + outer.z1) / 2);
-        if (off < 3.2) continue;
-      }
-      out.push({ x, z, room: tread / 2 - 0.45 });
+function rimSpots(outer: Rect, inner: Rect, face: Face, stair: number, spacing: number): Spot[] {
+  const out: Spot[] = [];
+  const tread = {
+    north: inner.z0 - outer.z0,
+    south: outer.z1 - inner.z1,
+    west: inner.x0 - outer.x0,
+    east: outer.x1 - inner.x1,
+  };
+
+  // the four corner pockets
+  for (const sx of [-1, 1] as const) {
+    for (const sz of [-1, 1] as const) {
+      const tx = sx < 0 ? tread.west : tread.east;
+      const tz = sz < 0 ? tread.north : tread.south;
+      const room = Math.min(tx, tz) / 2 - 0.35;
+      if (room < 0.4) continue;
+      out.push({
+        x: sx < 0 ? (outer.x0 + inner.x0) / 2 : (outer.x1 + inner.x1) / 2,
+        z: sz < 0 ? (outer.z0 + inner.z0) / 2 : (outer.z1 + inner.z1) / 2,
+        room,
+      });
     }
   }
-  return out;
-}
 
-/** How far a point is outside every hill's foot. Negative means it is on one. */
-function offHill(x: number, z: number) {
-  let worst = Infinity;
-  for (const h of HILLS) {
-    const r = rectFor(h, 0);
-    const dx = Math.max(r.x0 - x, x - r.x1);
-    const dz = Math.max(r.z0 - z, z - r.z1);
-    worst = Math.min(worst, dx > 0 && dz > 0 ? Math.hypot(dx, dz) : Math.max(dx, dz));
+  // then along each side, between the corners
+  const sides: [number, number, 0 | 1, number, number][] = [
+    // middle of the tread, its width, the axis it runs along, and from..to
+    [(outer.z0 + inner.z0) / 2, tread.north, 0, inner.x0, inner.x1],
+    [(outer.z1 + inner.z1) / 2, tread.south, 0, inner.x0, inner.x1],
+    [(outer.x0 + inner.x0) / 2, tread.west, 1, inner.z0, inner.z1],
+    [(outer.x1 + inner.x1) / 2, tread.east, 1, inner.z0, inner.z1],
+  ];
+  for (const [at, width, axis, from, to] of sides) {
+    const room = width / 2 - 0.35;
+    if (room < 0.4 || to - from < spacing) continue;
+    const n = Math.max(1, Math.round((to - from) / spacing));
+    for (let i = 0; i < n; i++) {
+      const c = from + ((to - from) * (i + 0.5)) / n;
+      out.push({ x: axis === 0 ? c : at, z: axis === 0 ? at : c, room });
+    }
   }
-  return worst;
+
+  // and never on the stairs
+  return out.filter((s) => {
+    const onFace =
+      face[0] > 0 ? s.x > inner.x1 : face[0] < 0 ? s.x < inner.x0 : face[1] > 0 ? s.z > inner.z1 : s.z < inner.z0;
+    const perp = face[0] !== 0 ? s.z : s.x;
+    return !(onFace && Math.abs(perp - stair) < 3.4);
+  });
 }
 
 /** Plants one gumdrop, sized to the room it has; see `planter`. */
@@ -335,13 +403,17 @@ function planter(out: Prop[], seed: number): Plant {
   const rand = rng(seed);
   const taken: { x: number; z: number; y: number; r: number; top: number }[] = [];
   return (x, z, y, room) => {
-    let r = Math.min(room, 0.48 * (0.9 + rand() * 2.4));
+    let r = Math.min(room, 0.48 * (1.1 + rand() * 1.6));
     const variant = Math.floor(rand() * 6);
     const ry = rand() * Math.PI * 2;
     for (const t of taken) {
       // one on a terrace and one on the grass below pass each other happily
       if (y >= t.top || t.y >= y + r * 1.96) continue;
-      r = Math.min(r, Math.hypot(x - t.x, z - t.z) - t.r - 0.3);
+      // square, not round: a model's collider is an axis-aligned box, so two
+      // gumdrops 2m apart on the diagonal are only 1.4m apart as far as the
+      // engine and the checker are concerned. Measuring the way they do is
+      // what stopped the summit crown growing through the pair beside it.
+      r = Math.min(r, Math.max(Math.abs(x - t.x), Math.abs(z - t.z)) - t.r - 0.3);
     }
     if (r < 0.38) return;
     const scale = r / 0.48;
@@ -350,36 +422,55 @@ function planter(out: Prop[], seed: number): Plant {
   };
 }
 
-/** One hill: its terraces, its icing edges, its way up, and its planting. */
+/** How far a point is outside every hill's foot. Negative means it is on one. */
+function offHill(x: number, z: number) {
+  let worst = Infinity;
+  for (const h of HILLS) {
+    const r = rectFor(h, 0);
+    const dx = Math.max(r.x0 - x, x - r.x1);
+    const dz = Math.max(r.z0 - z, z - r.z1);
+    worst = Math.min(worst, dx > 0 && dz > 0 ? Math.hypot(dx, dz) : Math.max(dx, dz));
+  }
+  return worst;
+}
+
+/** One hill: its terraces, its icing rims, its way up, and its planting. */
 function hillProps(h: Hill, out: Prop[], plant: Plant, keepOut: [number, number][]) {
   const n = h.levels.length;
+  const stair = stairLine(h);
 
   for (let i = 0; i < n; i++) {
     const r = rectFor(h, i);
     const top = topOf(h, i);
-    out.push(terrace(r, top, h.rise, STRATA[i % STRATA.length]!));
-    out.push(...kerbs(r, top, h.face, CANDY.icing));
-    out.push(...stairStripes(r, i + 1 < n ? rectFor(h, i + 1) : null, top, h.face, CANDY.sugar));
+    const last = i + 1 === n;
+    out.push(terrace(r, top, h.levels[i]!.rise, last ? SUMMIT : STRATA[i % STRATA.length]!));
+    // blossom piping on the iced top, icing piping on everything below it
+    out.push(...kerbs(r, top, h.face, stair, last ? CANDY.blush : CANDY.icing));
+    out.push(...stairStripes(r, last ? null : rectFor(h, i + 1), top, h.face, stair, CANDY.sugar));
 
-    if (i + 1 < n) {
-      for (const s of treadSpots(r, rectFor(h, i + 1), h.face, 5.2)) plant(s.x, s.z, top, s.room);
+    if (!last) {
+      for (const s of rimSpots(r, rectFor(h, i + 1), h.face, stair, 7)) plant(s.x, s.z, top, Math.min(s.room, 1.15));
     } else {
       /*
        * The summit. One big gumdrop at the back, where it crowns the hill from
-       * every direction, with two small ones beside it and the front left
-       * clear: the whole point of a flat top is that she can stand on it.
+       * every direction, with a smaller one either side of it on the same line
+       * and the whole front half left clear: the point of a flat top is that
+       * she can stand on it, and that a candy can be hidden on it (HILL_TOPS).
        */
-      const cx = (r.x0 + r.x1) / 2;
-      const cz = (r.z0 + r.z1) / 2;
-      const w = Math.min(r.x1 - r.x0, r.z1 - r.z0);
-      const back = w / 2 - 1.9;
-      plant(cx - h.face[0] * back, cz - h.face[1] * back, top, Math.min(1.4, w / 2 - 0.5));
+      const halfW = (r.x1 - r.x0) / 2;
+      const halfD = (r.z1 - r.z0) / 2;
+      const back = Math.min(halfW, halfD) - 1.5;
+      const bx = midX(r) - h.face[0] * back;
+      const bz = midZ(r) - h.face[1] * back;
+      plant(bx, bz, top, Math.min(1.35, Math.min(halfW, halfD) - 0.5));
+      // out to the shoulders of the top, across the way up rather than along it
+      const across = (h.face[0] !== 0 ? halfD : halfW) - 0.97;
       for (const s of [-1, 1]) {
         plant(
-          cx + (h.face[0] === 0 ? s * (w / 2 - 0.9) : -h.face[0] * (w / 2 - 0.9)),
-          cz + (h.face[1] === 0 ? s * (w / 2 - 0.9) : -h.face[1] * (w / 2 - 0.9)),
+          h.face[0] !== 0 ? bx : bx + s * across,
+          h.face[0] !== 0 ? bz + s * across : bz,
           top,
-          0.55,
+          0.62,
         );
       }
     }
@@ -388,60 +479,72 @@ function hillProps(h: Hill, out: Prop[], plant: Plant, keepOut: [number, number]
   /*
    * The skirt: gumdrops standing on the grass round the foot, clear of the
    * bottom step by their own width so neither ever grows through the other.
-   * They are the biggest ones on the hill, which is what makes the terraces
-   * behind them read as ground rather than furniture.
+   * These are the giants — nothing up on the terraces is allowed past 1.15m
+   * across — and they are what make the terraces behind them read as ground
+   * rather than as furniture.
    */
   const foot = rectFor(h, 0);
-  const skirt = { x0: foot.x0 - 3.4, x1: foot.x1 + 3.4, z0: foot.z0 - 3.4, z1: foot.z1 + 3.4 };
-  for (const s of treadSpots(skirt, foot, h.face, 7.5)) {
+  const skirt = { x0: foot.x0 - 4.2, x1: foot.x1 + 4.2, z0: foot.z0 - 4.2, z1: foot.z1 + 4.2 };
+  for (const s of rimSpots(skirt, foot, h.face, stair, 9)) {
     if (!clearGround(s.x, s.z, 2, keepOut)) continue;
-    plant(s.x, s.z, 0, Math.min(s.room, offHill(s.x, s.z) - 0.3, 1.9));
+    plant(s.x, s.z, 0, Math.min(s.room, offHill(s.x, s.z) - 0.4, 1.35));
   }
 }
+
+/**
+ * The candies this region hides, from sugar-level.ts: the sour worm out in the
+ * meadow and the cotton candy on its far side. The hills are fitted round them
+ * — neither is under one — but the planting still asks, because a gumdrop
+ * standing on a hidden sweet is a sweet she never finds.
+ */
+const MEADOW_CANDIES: [number, number][] = [
+  [66, 62],
+  [94, 84],
+];
 
 /**
  * Gumdrop Meadow: three terraced hills and everything planted on them.
  *
  * Replaces `meadowProps`. The old meadow put 70 gumdrops down at random and
  * called it a region; the ground itself never changed, so there was nothing to
- * walk up and nothing to look at from anywhere in particular.
+ * walk up and nothing to look at from anywhere in particular, and she said so
+ * twice.
  */
-export function gumdropHills(): Prop[] {
+export function gumdropHills(keepOut: [number, number][] = MEADOW_CANDIES): Prop[] {
   const out: Prop[] = [];
-  for (const h of HILLS) out.push(...hillProps(h));
+  const plant = planter(out, 71059);
+  for (const h of HILLS) hillProps(h, out, plant, keepOut);
 
   /*
    * The saddles: the gaps you walk through between one hill and the next.
    *
-   * Gumdrops are stepped down the line joining each pair of hills, and anything
-   * that lands on a hill or too close to one to stand clear of it is dropped
-   * rather than nudged — the hills are built to fit the ground the river and
-   * the hidden candies leave, so the gaps between them are narrow, and a
-   * gumdrop wedged into one would be a gate she has to squeeze past. What
-   * survives marks the way through; the open lawn beyond stays open, because a
-   * park needs somewhere to run.
+   * Gumdrops are stepped down the line joining each pair of hills, standing
+   * back from it on both sides so the line itself stays clear — she runs
+   * through the gate, she does not squeeze past it. Anything that lands on a
+   * hill, or too close to one to stand clear of it, is dropped rather than
+   * nudged. The open lawn beyond stays open, because a park needs somewhere to
+   * run.
    */
-  const rand = rng(71059);
+  const rand = rng(71071);
   const centre = (h: Hill) => [SUGAR.meadow.x + h.dx, SUGAR.meadow.z + h.dz] as [number, number];
   for (const [a, b] of [
     [HILLS[0]!, HILLS[1]!],
     [HILLS[0]!, HILLS[2]!],
-    [HILLS[1]!, HILLS[2]!],
   ] as [Hill, Hill][]) {
     const [ax, az] = centre(a);
     const [bx, bz] = centre(b);
     const len = Math.hypot(bx - ax, bz - az) || 1;
     const nx = -(bz - az) / len;
     const nz = (bx - ax) / len;
-    for (let t = 0.3; t <= 0.71; t += 0.2) {
+    for (let t = 0.32; t <= 0.7; t += 0.18) {
       for (const s of [-1, 1]) {
-        const x = ax + (bx - ax) * t + nx * s * 6;
-        const z = az + (bz - az) * t + nz * s * 6;
-        const room = Math.min(1.7, offHill(x, z) - 1.2);
-        if (room < 0.5 || !clearGround(x, z, 3, [])) continue;
-        out.push(...gumdrop(x, z, 0, room, rand));
-        if (rand() < 0.4 && offHill(x + 2.6, z + 1.8) > 1.5) {
-          out.push(model("cotton-candy", x + 2.6, z + 1.8, { scale: 1 + rand() * 0.5 }));
+        const x = ax + (bx - ax) * t + nx * s * 6.5;
+        const z = az + (bz - az) * t + nz * s * 6.5;
+        const room = Math.min(1.5, offHill(x, z) - 1.2);
+        if (room < 0.5 || !clearGround(x, z, 3, keepOut)) continue;
+        plant(x, z, 0, room);
+        if (rand() < 0.45 && offHill(x + 2.8, z + 1.9) > 1.6) {
+          out.push(model("cotton-candy", x + 2.8, z + 1.9, { scale: 1 + rand() * 0.5 }));
         }
       }
     }
@@ -454,12 +557,13 @@ export function gumdropHills(): Prop[] {
    */
   const big = HILLS[0]!;
   const bigFoot = rectFor(big, 0);
+  const bigStair = stairLine(big);
   for (let i = 0; i < 2; i++) {
-    const x = bigFoot.x1 + 2.6 + i * 3.4;
+    const x = bigFoot.x1 + 5.6 + i * 3.6;
     for (const s of [-1, 1]) {
-      const z = (bigFoot.z0 + bigFoot.z1) / 2 + s * (4 + i * 0.8);
-      if (!clearGround(x, z, 2, [])) continue;
-      out.push(...gumdrop(x, z, 0, 1.5 - i * 0.3, rand));
+      const z = bigStair + s * (4.2 + i * 0.9);
+      if (!clearGround(x, z, 2, keepOut)) continue;
+      plant(x, z, 0, 1.5 - i * 0.35);
     }
   }
   return out;
@@ -468,37 +572,62 @@ export function gumdropHills(): Prop[] {
 /* ------------------------------------------------------------- the berms */
 
 /**
- * A long low mound. Two steps and a top at 0.72m, and the height is the point:
- * the layout checker's reachability flood-fill walks over anything under 0.75m,
- * so a berm can never be the thing that cuts a candy off, however long it is.
- * Anything taller belongs in the meadow with the hills.
+ * A long low mound: two steps, a crest at 0.58m, and the height is the point.
+ * The layout checker's reachability flood-fill walks over anything under 0.75m,
+ * so a berm can never be the thing that cuts a candy off, however long it is,
+ * and she runs over it without even slowing down. Anything taller belongs in
+ * the meadow with the hills.
+ *
+ * Both slabs are thin enough (0.29m and 0.31m) to lap over whatever flat thing
+ * they land on, and the bottom one is thin enough that the frosting keeps off
+ * it altogether, for the reason APRON_RISE explains.
  */
-const BERM_RISE = 0.36;
-const BERM_GREENS = ["#6ac96e", "#7ad47a"];
+const BERM_STEPS: [number, number][] = [
+  // rise, how far this step stands back from the one below
+  [APRON_RISE, 0],
+  [0.3, 2.6],
+];
+
+/** The crest: what the planting down the ridge stands on. */
+const BERM_TOP = BERM_STEPS.reduce((y, [rise]) => y + rise, 0);
 
 function bermProps(x: number, z: number, w: number, d: number, seed: number): Prop[] {
   const out: Prop[] = [];
   const rand = rng(seed);
   const alongX = w > d;
-  for (let i = 0; i < 2; i++) {
-    const back = i * 2.4;
-    const r = rectOf(x, z, w - back * (alongX ? 3 : 2), d - back * (alongX ? 2 : 3));
-    out.push(terrace(r, (i + 1) * BERM_RISE, BERM_RISE, BERM_GREENS[i]!));
-  }
-  // a thin line of gumdrops down the ridge: the berm's own crest is a line that
-  // already exists, and planting follows lines here, it never scatters
-  const ridge = alongX ? w - 9.6 : d - 9.6;
-  const n = Math.max(2, Math.round(ridge / 5));
-  for (let i = 0; i < n; i++) {
-    const t = -ridge / 2 + (ridge * (i + 0.5)) / n;
+  let top = 0;
+  BERM_STEPS.forEach(([rise, back], step) => {
+    top += rise;
+    // the ends pull in further than the sides, so it tapers away rather than
+    // stopping dead: a mound with square ends reads as a wall
     out.push(
-      model("gumdrop", alongX ? x + t : x, alongX ? z : z + t, {
-        y: BERM_RISE * 2,
-        scale: 0.8 + rand() * 0.6,
-        variant: Math.floor(rand() * 6),
-        ry: rand() * Math.PI * 2,
-      }),
+      terrace(
+        rectOf(x, z, w - back * (alongX ? 3 : 2), d - back * (alongX ? 2 : 3)),
+        top,
+        rise,
+        STRATA[step]!,
+      ),
     );
+  });
+  /*
+   * A thin line of sweets down the crest. The berm's own ridge is a line that
+   * already exists, and planting in this park follows lines, it never scatters:
+   * gumdrops at a steady spacing with a swirl mint between each pair, like
+   * bulbs down a verge. The spacing matters as well as the look — a gumdrop is
+   * over the flood fill's 0.75m, so a tight row of them would be a hedge.
+   */
+  // the crest itself, less a metre of shoulder at each end: measuring the top
+  // slab rather than the berm means a short berm gets one sweet in the middle
+  // instead of two standing in each other
+  const crest = (alongX ? w : d) - BERM_STEPS[1]![1] * 3 - 2.4;
+  const at = (t: number, id: string, extra: Record<string, number>) =>
+    out.push(model(id, alongX ? x + t : x, alongX ? z : z + t, { y: BERM_TOP, ...extra }));
+  if (crest < 2) return out;
+  const n = Math.max(1, Math.round(crest / 6));
+  for (let i = 0; i < n; i++) {
+    const t = -crest / 2 + (crest * (i + 0.5)) / n;
+    at(t, "gumdrop", { scale: 0.85 + rand() * 0.5, variant: Math.floor(rand() * 6), ry: rand() * Math.PI * 2 });
+    if (i + 1 < n) at(t + crest / (2 * n), "swirl-mint", { scale: 0.9 + rand() * 0.4 });
   }
   return out;
 }
@@ -507,10 +636,10 @@ function bermProps(x: number, z: number, w: number, d: number, seed: number): Pr
  * Where the berms go.
  *
  * Every one of them lies along a line the park already has — the four runs of
- * the candy-cane loop, and the straight reaches of the chocolate river — and
- * every one is axis-aligned, because the engine gives a rotated box an
- * axis-aligned collider and a 45-degree mound along the river would be solid
- * several metres from where it is drawn.
+ * the candy-cane loop, the two spokes into the plaza, and the straight reaches
+ * of the chocolate river — and every one is axis-aligned, because the engine
+ * gives a rotated box an axis-aligned collider and a 45-degree mound along the
+ * river would be solid several metres from where it is drawn.
  *
  * They stand back far enough to leave a walkable verge between the path edge
  * and the foot of the mound, and they sit outside the avenue of lollipop trees
@@ -519,14 +648,19 @@ function bermProps(x: number, z: number, w: number, d: number, seed: number): Pr
  */
 const BERM_SITES: [number, number, number, number][] = [
   // beside the loop, inside it: x, z, w, d
-  [-40, -94, 30, 9],
   [20, -94, 26, 8],
+  [-36, -92, 26, 9],
   [30, 94, 30, 9],
   [-94, -60, 9, 32],
-  [94, -40, 9, 30],
-  // along the river's straight north-south reach, one bank each
-  [17, 2, 7, 20],
-  [52, 34, 7, 16],
+  [-94, 40, 9, 26],
+  [94, -42, 9, 28],
+  // along the spokes into the plaza, back from the tree avenue
+  [-32, 32, 22, 8],
+  [76, 30, 18, 8],
+  // and the river's straight reach south of the plaza: a pair facing each
+  // other across the water, which is how this park plants a river bank
+  [8, -36, 7, 20],
+  [36, -40, 7, 18],
 ];
 
 /**

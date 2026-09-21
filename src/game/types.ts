@@ -211,6 +211,24 @@ export type LevelDef = {
    */
   skyColors?: { top: string; mid: string; horizon: string };
   fogColor?: string;
+/**
+   * How this park is lit. Left out, it is lit the way park 1 is: a cool sky, a
+   * warm sun and a blue fill, which is daylight over a lawn and wrong over a
+   * park made of sweets.
+   */
+  lighting?: {
+    hemiSky: string;
+    hemiGround: string;
+    hemiIntensity: number;
+    sunColor: string;
+    sunIntensity: number;
+    fillColor: string;
+    fillIntensity: number;
+    ambientColor: string;
+    ambientIntensity: number;
+    exposure: number;
+    envIntensity: number;
+  };
   /** Specks in the ground texture: daisies in a park, sprinkles in a candy one. */
   groundSpecks?: string[];
   /**

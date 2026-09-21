@@ -1,4 +1,5 @@
 import { CANDIES } from "./candies";
+import { SKY_LIGHTING, skyProps } from "./sugar-sky";
 import type { DumplingDef, Hide, LevelDef } from "./types";
 import {
   CANDY,
@@ -200,6 +201,7 @@ export function sugarRushPark(): LevelDef {
     ...gardenProps(),
     ...plantingProps(spots),
     ...boundaryProps(),
+    ...skyProps(),
   ];
   props.unshift(...frostingProps(spots, props));
 
@@ -215,6 +217,7 @@ export function sugarRushPark(): LevelDef {
      */
     skyColors: { top: "#f3a8d8", mid: "#ffd3ea", horizon: "#fff0d8" },
     fogColor: "#ffdfee",
+    lighting: SKY_LIGHTING,
     fogFar: 185,
     grass: CANDY.grass,
     // sprinkles in the turf instead of park 1's daisies
