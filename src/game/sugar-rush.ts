@@ -1,4 +1,5 @@
-import type { BoxProp, CylinderProp, Prop, WaterZone } from "./types";
+import type { BoxProp, CylinderProp, ModelProp, Prop, WaterZone } from "./types";
+import { TREE_IDS, bridgeFor, model } from "./sugar-models";
 
 /**
  * Sugar Rush Park: the ground plan.
@@ -257,49 +258,45 @@ export function loopRects() {
 }
 
 /**
- * How much path is taken out at a crossing, and handed to a bridge. The river
- * crosses the loop at an angle, so its footprint along the path is wider than
- * the river itself: this is sized for the shallowest crossing.
+ * Where a bridge stands, and how long it has to be. The river crosses the loop
+ * at an angle, so the water under a path is wider than the river itself: a run
+ * meeting it at 40 degrees needs half again the span.
  */
-export const BRIDGE_LEN = 24;
-
-/** Where a bridge stands: the point, and whether it runs along x or z. */
-export function bridgeSites(): { x: number; z: number; along: "x" | "z" }[] {
-  const out: { x: number; z: number; along: "x" | "z" }[] = [];
+export function bridgeSites(): { x: number; z: number; along: "x" | "z"; span: number }[] {
+  const out: { x: number; z: number; along: "x" | "z"; span: number }[] = [];
+  const runs = segments(RIVER);
   for (const r of loopRects()) {
     const alongX = r.maxX - r.minX > r.maxZ - r.minZ;
     const at = alongX ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
     for (const [cx, cz] of riverCrossings(alongX ? "z" : "x", at)) {
       const inside = alongX ? cx > r.minX && cx < r.maxX : cz > r.minZ && cz < r.maxZ;
-      if (inside) out.push({ x: cx, z: cz, along: alongX ? "x" : "z" });
+      if (!inside) continue;
+      let best = runs[0]!;
+      let bestD = Infinity;
+      for (const run of runs) {
+        const d = Math.hypot(run.x - cx, run.z - cz);
+        if (d < bestD) {
+          bestD = d;
+          best = run;
+        }
+      }
+      // the water lying along the path: the river's width over the sine of the
+      // angle between them, floored so a square crossing still gets a bridge
+      const sin = Math.abs(alongX ? best.dz : best.dx);
+      const water = RIVER_W / Math.max(0.35, sin);
+      out.push({ x: cx, z: cz, along: alongX ? "x" : "z", span: bridgeFor(water + 6).span });
     }
   }
   return out;
 }
 
-/**
- * The bridge deck sits a step above the path so it is never coplanar with the
- * water it spans, which is what z-fights.
- */
+/** The candy-cane bridges themselves, turned to lie along their path. */
 function bridgeProps(): Prop[] {
-  const out: Prop[] = [];
-  for (const b of bridgeSites()) {
-    const w = b.along === "x" ? BRIDGE_LEN : PATH_W;
-    const d = b.along === "x" ? PATH_W : BRIDGE_LEN;
-    out.push(surf(b.x, TOP.inner, b.z, w, d, CANDY.icing, 0.16));
-    // candy-cane rails: short posts, so she can see the edge without them
-    // blocking the view of the chocolate underneath
-    const n = 5;
-    for (let i = 0; i <= n; i++) {
-      const t = -BRIDGE_LEN / 2 + (i * BRIDGE_LEN) / n;
-      for (const side of [-1, 1]) {
-        const px = b.along === "x" ? b.x + t : b.x + side * (PATH_W / 2 - 0.3);
-        const pz = b.along === "x" ? b.z + side * (PATH_W / 2 - 0.3) : b.z + t;
-        out.push(cyl(px, 0.6, pz, 0.16, 1.2, i % 2 ? CANDY.icing : CANDY.cane, false));
-      }
-    }
-  }
-  return out;
+  return bridgeSites().map((b) =>
+    // the model is built along +z, so a run along x is a quarter turn: one of
+    // the angles that keeps a model's colliders exact
+    model(bridgeFor(b.span).id, b.x, b.z, { ry: b.along === "x" ? Math.PI / 2 : 0 }),
+  );
 }
 
 /** Path slabs, split wherever the river runs under them. */
@@ -309,15 +306,16 @@ function runProps(r: { minX: number; maxX: number; minZ: number; maxZ: number })
   const at = alongX ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
   const from = alongX ? r.minX : r.minZ;
   const to = alongX ? r.maxX : r.maxZ;
-  const cuts = riverCrossings(alongX ? "z" : "x", at)
-    .map(([cx, cz]) => (alongX ? cx : cz))
-    .filter((c) => c > from && c < to)
-    .sort((a, b) => a - b);
+  const cuts = bridgeSites()
+    .filter((b) => (alongX ? Math.abs(b.z - at) < 0.1 : Math.abs(b.x - at) < 0.1))
+    .map((b) => ({ at: alongX ? b.x : b.z, span: b.span }))
+    .filter((c) => c.at > from && c.at < to)
+    .sort((a, b) => a.at - b.at);
   let start = from;
   const pieces: [number, number][] = [];
   for (const c of cuts) {
-    if (c - BRIDGE_LEN / 2 > start) pieces.push([start, c - BRIDGE_LEN / 2]);
-    start = c + BRIDGE_LEN / 2;
+    if (c.at - c.span / 2 > start) pieces.push([start, c.at - c.span / 2]);
+    start = c.at + c.span / 2;
   }
   if (to > start) pieces.push([start, to]);
   for (const [a, b] of pieces) {
@@ -345,9 +343,9 @@ export function pathProps(): Prop[] {
     const at = alongX ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
     const from = alongX ? r.minX : r.minZ;
     const to = alongX ? r.maxX : r.maxZ;
-    const cuts = riverCrossings(alongX ? "z" : "x", at).map(([cx, cz]) => (alongX ? cx : cz));
+    const cuts = bridgeSites().filter((b) => (alongX ? Math.abs(b.z - at) < 0.1 : Math.abs(b.x - at) < 0.1));
     for (let c = from + 2; c < to - 1; c += 4) {
-      if (cuts.some((cut) => Math.abs(c - cut) < BRIDGE_LEN / 2 + 1)) continue;
+      if (cuts.some((cut) => Math.abs(c - (alongX ? cut.x : cut.z)) < cut.span / 2 + 1)) continue;
       out.push(
         alongX
           ? surf(c, TOP.court, at, 1.2, PATH_W, CANDY.cane, 0.08)
@@ -411,4 +409,227 @@ export function boundaryProps(): Prop[] {
     for (const x of [-FENCE_AT, FENCE_AT]) out.push(cyl(x, h + 1.1, at, 0.35, 2.2, CANDY.cane, false));
   }
   return out;
+}
+
+/* ------------------------------------------------------------- scatter */
+
+/** Deterministic: the park has to be the same park every time she loads it. */
+function rng(seed: number) {
+  let s = seed >>> 0 || 1;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+const dist2 = (x: number, z: number, px: number, pz: number) => (x - px) ** 2 + (z - pz) ** 2;
+
+/** Distance from a point to the middle of the river, along its whole length. */
+export function riverDistance(x: number, z: number) {
+  let best = Infinity;
+  for (const s of segments(RIVER)) {
+    const ax = s.x - (s.dx * s.len) / 2;
+    const az = s.z - (s.dz * s.len) / 2;
+    const t = Math.max(0, Math.min(s.len, (x - ax) * s.dx + (z - az) * s.dz));
+    best = Math.min(best, Math.hypot(x - (ax + s.dx * t), z - (az + s.dz * t)));
+  }
+  return Math.min(best, Math.hypot(x - SUGAR.lake.x, z - SUGAR.lake.z) - SUGAR.lake.r);
+}
+
+/**
+ * Ground nothing may be planted on: the paths, the river and its banks, the
+ * plaza, and a clear circle round every hidden candy so a lollipop tree never
+ * grows through one.
+ */
+export function clearGround(x: number, z: number, pad: number, keepOut: [number, number][] = []) {
+  for (const r of loopRects()) {
+    if (x > r.minX - pad && x < r.maxX + pad && z > r.minZ - pad && z < r.maxZ + pad) return false;
+  }
+  if (riverDistance(x, z) < RIVER_W / 2 + BANK_W + pad) return false;
+  if (dist2(x, z, SUGAR.plaza.x, SUGAR.plaza.z) < (SUGAR.plaza.r + 4 + pad) ** 2) return false;
+  for (const [kx, kz] of keepOut) if (dist2(x, z, kx, kz) < (4 + pad) ** 2) return false;
+  const edge = 152;
+  return Math.abs(x) < edge && Math.abs(z) < edge;
+}
+
+/**
+ * Scatter `count` things over a rectangle, skipping anything that lands on the
+ * paths, the river or a candy. Rejection sampling rather than a grid, because a
+ * grid of lollipops reads as an orchard, and this is meant to be a wood.
+ */
+function scatter(
+  seed: number,
+  area: { x: number; z: number; w: number; d: number },
+  count: number,
+  pad: number,
+  keepOut: [number, number][],
+  place: (x: number, z: number, rand: () => number) => Prop[],
+) {
+  const rand = rng(seed);
+  const out: Prop[] = [];
+  const taken: [number, number][] = [];
+  for (let tries = 0; tries < count * 24 && out.length < count * 4; tries++) {
+    const x = area.x + (rand() - 0.5) * area.w;
+    const z = area.z + (rand() - 0.5) * area.d;
+    if (!clearGround(x, z, pad, keepOut)) continue;
+    if (taken.some(([tx, tz]) => dist2(x, z, tx, tz) < (pad * 2) ** 2)) continue;
+    taken.push([x, z]);
+    out.push(...place(x, z, rand));
+    if (taken.length >= count) break;
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------- regions */
+
+/** The Lollipop Forest: this park's woods, and the princess's clearing. */
+export function forestProps(keepOut: [number, number][]): Prop[] {
+  const clearing: [number, number] = [SUGAR.forest.x, SUGAR.forest.z];
+  return scatter(
+    1207,
+    { x: SUGAR.forest.x, z: SUGAR.forest.z, w: 80, d: 96 },
+    170,
+    2.4,
+    [...keepOut, clearing],
+    (x, z, rand) => {
+      // the clearing itself stays open, so the princess has somewhere to be
+      if (dist2(x, z, clearing[0], clearing[1]) < 16 ** 2) return [];
+      const v = Math.floor(rand() * TREE_IDS.length);
+      const props: Prop[] = [model(TREE_IDS[v]!, x, z, { scale: 1.1 + rand() * 0.8, ry: rand() * Math.PI * 2 })];
+      // sweets in the grass under the trees, for somewhere for the eye to land
+      if (rand() < 0.3) props.push(model("swirl-mint", x + 1.6, z + 1.2, { scale: 0.6 + rand() * 0.4 }));
+      if (rand() < 0.2) props.push(model("rock-candy", x - 1.4, z + 1.6, { scale: 0.8 + rand() * 0.6 }));
+      return props;
+    },
+  );
+}
+
+/** Gumdrop Meadow: open ground with gumdrop hills of every size. */
+export function meadowProps(keepOut: [number, number][]): Prop[] {
+  return scatter(
+    4411,
+    { x: SUGAR.meadow.x, z: SUGAR.meadow.z, w: 72, d: 66 },
+    70,
+    3,
+    keepOut,
+    (x, z, rand) => {
+      const big = rand();
+      const scale = big < 0.2 ? 3 + rand() * 2 : big < 0.6 ? 1.4 + rand() * 1.2 : 0.7 + rand() * 0.5;
+      const props: Prop[] = [
+        model("gumdrop", x, z, { scale, ry: rand() * Math.PI * 2, variant: Math.floor(rand() * 6) }),
+      ];
+      if (rand() < 0.25) props.push(model("candy-corn", x + 2.4, z - 1.8, { scale: 0.7 + rand() * 0.6 }));
+      if (rand() < 0.3) props.push(model("cotton-candy", x - 2.2, z + 2.2, { scale: 0.8 + rand() * 0.6 }));
+      return props;
+    },
+  );
+}
+
+/** Marshmallow Fields: soft ground, and something to bounce on. */
+export function marshmallowProps(keepOut: [number, number][]): Prop[] {
+  const out: Prop[] = scatter(
+    9021,
+    { x: SUGAR.marshmallow.x, z: SUGAR.marshmallow.z, w: 64, d: 48 },
+    46,
+    3.2,
+    keepOut,
+    (x, z, rand) => [model("marshmallow", x, z, { scale: 0.7 + rand() * 1.1, ry: rand() * Math.PI * 2 })],
+  );
+  // two real trampolines, because a field that looks bouncy and is not is a lie
+  for (const [tx, tz] of [
+    [SUGAR.marshmallow.x - 10, SUGAR.marshmallow.z - 6],
+    [SUGAR.marshmallow.x + 11, SUGAR.marshmallow.z + 5],
+  ] as [number, number][]) {
+    out.push({ kind: "trampoline", x: tx, z: tz, w: 6, d: 6 });
+  }
+  return out;
+}
+
+/**
+ * The Licorice Maze: a grid maze of hedge walls. Corridors are 4m so a trike
+ * could follow her in, and the whole thing is small enough to solve by looking,
+ * because this is a seven-year-old's maze and the one in park 1 is the hard one.
+ */
+export const MAZE = { cell: 8, n: 7 };
+
+/** The middle of maze cell (i, j), which is where a candy can safely hide. */
+export function mazeCell(i: number, j: number): [number, number] {
+  const { cell, n } = MAZE;
+  return [SUGAR.maze.x - (n * cell) / 2 + i * cell + cell / 2, SUGAR.maze.z - (n * cell) / 2 + j * cell + cell / 2];
+}
+
+export function mazeProps(): Prop[] {
+  const { cell: CELL, n: N } = MAZE;
+  const ox = SUGAR.maze.x - (N * CELL) / 2;
+  const oz = SUGAR.maze.z - (N * CELL) / 2;
+  const rand = rng(777);
+
+  /*
+   * A carved maze, not a random sprinkle of walls. Randomly walling half the
+   * edges sealed cells off, and the candy inside the maze was unreachable — the
+   * reachability check caught it. This digs from one cell to the next until
+   * every cell has been visited, so every cell is connected by construction,
+   * then knocks a few more walls out so there is more than one way through and
+   * fewer dead ends to trap a small child in.
+   */
+  const right = Array.from({ length: N }, () => new Array<boolean>(N).fill(true));
+  const down = Array.from({ length: N }, () => new Array<boolean>(N).fill(true));
+  const seen = Array.from({ length: N }, () => new Array<boolean>(N).fill(false));
+  const stack: [number, number][] = [[0, 0]];
+  seen[0]![0] = true;
+  while (stack.length) {
+    const [i, j] = stack[stack.length - 1]!;
+    const options: [number, number][] = [];
+    if (i + 1 < N && !seen[i + 1]![j]) options.push([i + 1, j]);
+    if (i - 1 >= 0 && !seen[i - 1]![j]) options.push([i - 1, j]);
+    if (j + 1 < N && !seen[i]![j + 1]) options.push([i, j + 1]);
+    if (j - 1 >= 0 && !seen[i]![j - 1]) options.push([i, j - 1]);
+    if (!options.length) {
+      stack.pop();
+      continue;
+    }
+    const [ni, nj] = options[Math.floor(rand() * options.length)]!;
+    if (ni > i) right[i]![j] = false;
+    else if (ni < i) right[ni]![j] = false;
+    else if (nj > j) down[i]![j] = false;
+    else down[i]![nj] = false;
+    seen[ni]![nj] = true;
+    stack.push([ni, nj]);
+  }
+  for (let k = 0; k < 10; k++) {
+    const i = Math.floor(rand() * N);
+    const j = Math.floor(rand() * N);
+    if (rand() < 0.5) right[i]![j] = false;
+    else down[i]![j] = false;
+  }
+
+  const out: Prop[] = [];
+  const wall = (x: number, z: number, len: number, along: "x" | "z") =>
+    out.push(model(`licorice-hedge${len}`, x, z, { ry: along === "x" ? 0 : Math.PI / 2 }));
+  // the way in from the west, where the path comes from, and out to the south
+  for (let i = 0; i < N; i++) {
+    if (i !== 5) wall(ox + i * CELL + CELL / 2, oz, CELL, "x");
+    if (i !== 1) wall(ox + i * CELL + CELL / 2, oz + N * CELL, CELL, "x");
+    if (i !== 3) wall(ox, oz + i * CELL + CELL / 2, CELL, "z");
+    wall(ox + N * CELL, oz + i * CELL + CELL / 2, CELL, "z");
+  }
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      if (i + 1 < N && right[i]![j]) wall(ox + (i + 1) * CELL, oz + j * CELL + CELL / 2, CELL, "z");
+      if (j + 1 < N && down[i]![j]) wall(ox + i * CELL + CELL / 2, oz + (j + 1) * CELL, CELL, "x");
+    }
+  }
+  return out;
+}
+
+/** Candy-cane arches where the paths reach the plaza, so it feels like arriving. */
+export function plazaArches(): Prop[] {
+  const { x, z, r } = SUGAR.plaza;
+  const at = r + 3;
+  return [
+    model("cane-arch", x, z - at, { scale: 1.6 }),
+    model("cane-arch", x, z + at, { scale: 1.6 }),
+    model("cane-arch", x + at, z, { ry: Math.PI / 2, scale: 1.6 }),
+    model("cane-arch", x - at, z, { ry: Math.PI / 2, scale: 1.6 }),
+  ];
 }

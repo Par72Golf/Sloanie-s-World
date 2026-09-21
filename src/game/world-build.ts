@@ -1,4 +1,5 @@
 import { EMMETT_BASE } from "./emmett-base";
+import { makeCandy, type CandyKind } from "./candies";
 import { makeMonsterTruck, makeTruckYard, type TruckRig } from "./monster-truck";
 import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
 import { makePlaces } from "./places";
@@ -337,7 +338,9 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       ...src,
       pos: [src.pos[0], src.pos[1], src.pos[2]] as [number, number, number],
     };
-    const g = makeDumpling(live.color, live.accent);
+    const g = live.candy
+      ? makeCandy(live.candy as CandyKind, live.color, live.accent)
+      : makeDumpling(live.color, live.accent);
     const finish = applyFinish(g, live.finish ?? "plain", live.color, live.accent);
     g.position.set(live.pos[0], live.pos[1], live.pos[2]);
     g.name = live.id;

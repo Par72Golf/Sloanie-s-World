@@ -188,6 +188,11 @@ export type DumplingDef = {
   alts?: { pos: Vec3; region: string; hint: string }[];
   /** Visual treatment. Rarer finishes belong on the harder hiding spots. */
   finish?: Finish;
+  /**
+   * Which sweet this is, in a park where the hidden things are candy rather
+   * than dumplings (candies.ts). Absent means a dumpling.
+   */
+  candy?: string;
 };
 
 export type LevelDef = {

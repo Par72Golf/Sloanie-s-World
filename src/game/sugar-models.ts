@@ -1,0 +1,130 @@
+import {
+  CANDY,
+  makeCandyCaneArch,
+  makeCandyCaneBridge,
+  makeCandyCanePost,
+  makeCandyCornSpike,
+  makeChocolateFountain,
+  makeCottonCandyPuff,
+  makeGumdrop,
+  makeLicoriceHedge,
+  makeLollipopTree,
+  makeMarshmallow,
+  makeRockCandyCluster,
+  makeSodaCan,
+  makeSwirlMint,
+} from "./candy-scenery";
+import { registerModel, type ModelBox } from "./models";
+import type { ModelProp } from "./types";
+
+/**
+ * Sugar Rush Park's models, registered so the level can place them as props and
+ * the collider builder can ask what they are solid at without building them.
+ *
+ * The boxes here are the ones the factories actually produce — read out of the
+ * built groups in the running game and written down, because the factories need
+ * a browser (they draw their textures on a canvas) and the collider side runs in
+ * node. If a model's shape changes, these have to change with it.
+ */
+
+const box = (minX: number, maxX: number, minY: number, maxY: number, minZ: number, maxZ: number): ModelBox => ({
+  minX,
+  maxX,
+  minY,
+  maxY,
+  minZ,
+  maxZ,
+});
+
+/* --------------------------------------------------------------- trees */
+
+/**
+ * One id per variant rather than one id with four variants: the trunks are
+ * different heights, and a single box would leave an invisible pole standing
+ * over the short ones.
+ */
+const TREE_TRUNK: [number, number][] = [
+  [0.173, 3.05],
+  [0.143, 2.35],
+  [0.225, 4.1],
+  [0.12, 1.8],
+];
+TREE_TRUNK.forEach(([r, h], v) => {
+  registerModel(`candy-tree${v}`, [box(-r, r, 0, h, -r, r)], (_variant, scale) => makeLollipopTree(v, scale));
+});
+
+export const TREE_IDS = TREE_TRUNK.map((_, v) => `candy-tree${v}`);
+
+/* ------------------------------------------------------------- bridges */
+
+/**
+ * Bridge decks are the one thing in this park she walks *over* the river on, so
+ * the boxes have to be right: a flat deck at 0.9m with a pair of 0.3m steps at
+ * each end (half a step-up), and a rail down each side.
+ */
+export const BRIDGE_DECK_Y = 0.9;
+
+function bridgeBoxes(span: number): ModelBox[] {
+  const half = span / 2;
+  const deck = half - 2.4;
+  const out = [box(-1.2, 1.2, 0, 0.9, -deck, deck)];
+  for (const s of [1, -1]) {
+    out.push(box(-1.2, 1.2, 0, 0.6, Math.min(s * deck, s * (deck + 0.7)), Math.max(s * deck, s * (deck + 0.7))));
+    out.push(box(-1.2, 1.2, 0, 0.3, Math.min(s * (deck + 0.7), s * half), Math.max(s * (deck + 0.7), s * half)));
+  }
+  out.push(box(-1.22, -0.98, 0.9, 1.85, -(deck + 0.1), deck + 0.1));
+  out.push(box(0.98, 1.22, 0.9, 1.85, -(deck + 0.1), deck + 0.1));
+  return out;
+}
+
+/** The spans the park uses. A bridge is placed by id, so each span is its own. */
+export const BRIDGE_SPANS = [12, 18, 26] as const;
+for (const span of BRIDGE_SPANS) {
+  registerModel(`cane-bridge${span}`, bridgeBoxes(span), () => makeCandyCaneBridge(span));
+}
+
+/** The shortest bridge that covers `len` metres of water. */
+export function bridgeFor(len: number) {
+  const span = BRIDGE_SPANS.find((s) => s >= len) ?? BRIDGE_SPANS[BRIDGE_SPANS.length - 1]!;
+  return { id: `cane-bridge${span}`, span };
+}
+
+/* -------------------------------------------------------------- hedges */
+
+/** Maze walls come in whole metres; the boxes are the slab, stripes overhang. */
+export const HEDGE_LENGTHS = [4, 6, 8, 12] as const;
+for (const len of HEDGE_LENGTHS) {
+  registerModel(
+    `licorice-hedge${len}`,
+    [box(-len / 2, len / 2, 0, 1.8, -0.31, 0.31)],
+    () => makeLicoriceHedge(len, 1.8),
+  );
+}
+
+/* ------------------------------------------------------- everything else */
+
+/** Gumdrops come in the whole jar: the variant picks the colour. */
+export const GUMDROP_COLOURS = [CANDY.red, CANDY.pink, CANDY.yellow, CANDY.mint, CANDY.lilac, CANDY.orange];
+registerModel("gumdrop", [box(-0.48, 0.48, 0, 0.94, -0.48, 0.48)], (variant, scale) =>
+  makeGumdrop(GUMDROP_COLOURS[variant % GUMDROP_COLOURS.length]!, scale),
+);
+registerModel("cane-post", [box(-0.13, 0.13, 0, 2.2, -0.13, 0.13)], () => makeCandyCanePost(2.2));
+registerModel(
+  "cane-arch",
+  [box(-2, -1.74, 0, 1.73, -0.13, 0.13), box(1.74, 2, 0, 1.73, -0.13, 0.13)],
+  () => makeCandyCaneArch(4, 3.6),
+);
+registerModel("marshmallow", [box(-0.78, 1.28, 0, 1.72, -0.68, 0.68)], (_v, scale) => makeMarshmallow(scale));
+registerModel("candy-corn", [box(-0.44, 0.44, 0, 1.5, -0.44, 0.44)], (_v, scale) => makeCandyCornSpike(scale));
+registerModel("choc-fountain", [box(-1.2, 1.2, 0, 0.42, -1.2, 1.2)], () => makeChocolateFountain());
+// nothing to bump into on these: they are dressing, and a collider on a sweet
+// lying in the grass is just something to trip over
+registerModel("swirl-mint", [], (_v, scale) => makeSwirlMint(scale));
+registerModel("rock-candy", [], (_v, scale) => makeRockCandyCluster(scale));
+registerModel("cotton-candy", [], (_v, scale) => makeCottonCandyPuff(scale));
+registerModel("soda-can", [], () => makeSodaCan());
+
+/** Shorthand for a model prop, since a park places hundreds of them. */
+export function model(id: string, x: number, z: number, extra?: Partial<ModelProp>): ModelProp {
+  return { kind: "model", id, x, z, ...extra };
+}

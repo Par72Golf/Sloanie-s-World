@@ -1,10 +1,16 @@
-import type { DumplingDef, LevelDef } from "./types";
+import { CANDIES } from "./candies";
+import type { DumplingDef, Hide, LevelDef } from "./types";
 import {
   CANDY,
   SUGAR,
   SUGAR_BOUNDS,
   boundaryProps,
+  forestProps,
+  marshmallowProps,
+  mazeProps,
+  meadowProps,
   pathProps,
+  plazaArches,
   plazaProps,
   riverProps,
   riverWater,
@@ -26,174 +32,153 @@ import {
  * this park: a dumpling that runs off is remembered in one flat record keyed by
  * id, so a clash would move park 1's collectible when this one moved.
  */
-const sugarCandies: DumplingDef[] = [
-  {
+/**
+ * Where each sweet hides, in the order candies.ts lists them. The name and the
+ * colours come from there so there is one description of a sweet in the game;
+ * this table is only about where it is and how to find it.
+ */
+const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: Hide; region: string; hint: string }> = {
+  "chocolate drop": {
     id: "chocdrop",
-    name: "Choco Drop",
-    color: "#6b4226",
-    accent: "#a9743f",
     pos: [-20, 0.55, -50],
     hide: "easy",
     region: "the candy factory",
     hint: "By the factory doors, where the chocolate comes out.",
   },
-  {
+  "candy cane": {
     id: "canetwist",
-    name: "Cane Twist",
-    color: "#e8384f",
-    accent: "#fbf7f2",
-    pos: [10, 0.55, 8],
+    pos: [18, 0.55, 32],
     hide: "easy",
     region: "Peppermint Plaza",
-    hint: "On the plaza, near the peppermint swirl.",
+    hint: "Just off the plaza, where the path runs east.",
   },
-  {
+  "sour worm": {
     id: "sourwiggle",
-    name: "Sour Wiggle",
-    color: "#a8e84a",
-    accent: "#ffe45a",
-    pos: [70, 0.55, 70],
+    pos: [60, 0.55, 76],
     hide: "medium",
     region: "Gumdrop Meadow",
     hint: "Out in the meadow with the gumdrop hills.",
   },
-  {
+  "gummy bear": {
     id: "gummybear",
-    name: "Gummy Bear",
-    color: "#ff8a3a",
-    accent: "#ffc83a",
-    pos: [-100, 0.55, 20],
+    pos: [-100, 0.55, 30],
     hide: "easy",
     region: "the Lollipop Forest",
     hint: "In the clearing in the lollipop woods.",
   },
-  {
+  jellybean: {
     id: "jellybean",
-    name: "Jelly Bean",
-    color: "#b06aff",
-    accent: "#ff93c4",
-    pos: [112, 0.55, 4],
+    pos: [122, 0.55, -4],
     hide: "medium",
     region: "Gingerbread Village",
     hint: "Among the gingerbread houses.",
   },
-  {
+  lollipop: {
     id: "lollyswirl",
-    name: "Lolly Swirl",
-    color: "#ff6aa8",
-    accent: "#6fe3c4",
     pos: [-120, 0.55, -20],
     hide: "medium",
     region: "the Lollipop Forest",
     hint: "North end of the lollipop woods.",
   },
-  {
+  marshmallow: {
     id: "marshpillow",
-    name: "Marsh Pillow",
-    color: "#fbf7f2",
-    accent: "#ff93c4",
-    pos: [-30, 0.55, 112],
+    pos: [-30, 0.55, 124],
     hide: "easy",
     region: "Marshmallow Fields",
     hint: "Out on the soft white fields.",
   },
-  {
+  bubblegum: {
     id: "bubblegum",
-    name: "Bubble Gum",
-    color: "#ff93c4",
-    accent: "#ffffff",
     pos: [-100, 0.55, 96],
     hide: "medium",
     region: "the fairground",
     hint: "Near the rides.",
   },
-  {
+  "licorice twist": {
     id: "licoricetwist",
-    name: "Licorice Twist",
-    color: "#2a2430",
-    accent: "#e8384f",
-    pos: [88, 0.55, -90],
+    pos: [90, 0.55, -92],
     hide: "hard",
     region: "the Licorice Maze",
-    hint: "Somewhere in the black and red hedges.",
+    hint: "Right in the middle of the black and red hedges.",
   },
-  {
+  peppermint: {
     id: "peppermint",
-    name: "Pepper Mint",
-    color: "#fbf7f2",
-    accent: "#e8384f",
-    pos: [8, 0.55, -34],
+    pos: [16, 0.55, -42],
     hide: "easy",
     region: "the north path",
-    hint: "Beside the path north out of the plaza.",
+    hint: "Near the river, north of the plaza.",
   },
-  {
+  toffee: {
     id: "toffeechew",
-    name: "Toffee Chew",
-    color: "#c98a3a",
-    accent: "#6b4226",
-    pos: [110, 0.55, 118],
+    pos: [118, 0.55, 100],
     hide: "medium",
     region: "the chocolate lake",
     hint: "On the shore where the river ends.",
   },
-  {
+  "rock candy": {
     id: "rockcandy",
-    name: "Rock Candy",
-    color: "#6fe3c4",
-    accent: "#ffffff",
-    pos: [-96, 0.55, -104],
+    pos: [-92, 0.55, -96],
     hide: "hard",
     region: "Ice Cream Mountain",
     hint: "At the foot of the mountain of scoops.",
   },
-  {
+  "cotton candy": {
     id: "cottonpuff",
-    name: "Cotton Puff",
-    color: "#ffb8e0",
-    accent: "#9fd8ff",
-    pos: [86, 0.55, 92],
+    pos: [94, 0.55, 84],
     hide: "medium",
     region: "Gumdrop Meadow",
     hint: "On the far side of the meadow.",
   },
-  {
+  caramel: {
     id: "caramelcube",
-    name: "Caramel Cube",
-    color: "#d89a4a",
-    accent: "#8a5a34",
     pos: [124, 0.55, 22],
     hide: "medium",
     region: "Gingerbread Village",
     hint: "By the village square.",
   },
-  {
+  fudge: {
     id: "fudgeblock",
-    name: "Fudge Block",
-    color: "#8a5a34",
-    accent: "#f7ead3",
     pos: [118, 0.55, 52],
     hide: "hard",
     region: "Emmett's den",
     hint: "Over where Emmett hangs out.",
   },
-  {
+  jawbreaker: {
     id: "jawbreaker",
-    name: "Jawbreaker",
-    color: "#ff5a7a",
-    accent: "#9fd8ff",
-    pos: [34, 0.55, -2],
+    pos: [42, 0.55, -8],
     hide: "hard",
     region: "the chocolate river",
     hint: "Beside the river, east of the plaza.",
   },
-];
+};
+
+const sugarCandies: DumplingDef[] = CANDIES.map((c) => {
+  const spot = SPOTS[c.kind]!;
+  return {
+    id: spot.id,
+    name: c.name,
+    color: c.color,
+    accent: c.accent,
+    pos: spot.pos,
+    hide: spot.hide,
+    region: spot.region,
+    hint: spot.hint,
+    candy: c.kind,
+  };
+});
 
 export function sugarRushPark(): LevelDef {
+  // every candy keeps a clear circle round it, so nothing is ever planted on top
+  const spots = sugarCandies.map((d) => [d.pos[0], d.pos[2]] as [number, number]);
   const props = [
     ...riverProps(),
     ...pathProps(),
     ...plazaProps(),
+    ...plazaArches(),
+    ...forestProps(spots),
+    ...meadowProps(spots),
+    ...marshmallowProps(spots),
+    ...mazeProps(),
     ...boundaryProps(),
   ];
 
