@@ -1,4 +1,5 @@
 import { PARK_DIRECTORIES, PARK_NAME_SIGNS, type Directory, type NameSign } from "./signs";
+import { loopRects } from "./sugar-rush";
 import { walkwayRects } from "./walkways";
 import type { NavRect } from "./navgrid";
 import type { LevelDef, ModelProp } from "./types";
@@ -54,6 +55,11 @@ export type LevelFeatures = {
    */
   prefer?: readonly NavRect[];
   /**
+   * Which ferris wheel `level.ride` builds. Sugar Rush's is a gumdrop wheel,
+   * the same rig in a different sweet, so the riding code is unchanged.
+   */
+  wheel?: "park" | "gumdrop";
+  /**
    * Composite models the builder places on top of the park's props. These are
    * `model` props in everything but where they are written down; they live
    * here because levels.ts describes the park and this describes the fittings.
@@ -101,11 +107,31 @@ const FEATURES: Record<string, LevelFeatures> = {
     places: true,
     plaza: true,
   },
+  /**
+   * Sugar Rush Park. Its landmarks are ordinary props in the level itself, so
+   * all it declares here is what the engine has to know: which wheel to build,
+   * and the paths Emmett should prefer. Built once, because navgrid caches on
+   * the identity of this array.
+   */
   village: {
     landmarks: [{ kind: "model", id: "fountain", x: 0, z: 0 }],
   },
 };
 
+/**
+ * Sugar Rush, built on first ask rather than at import.
+ *
+ * Its paths come from the park's own module, which imports its models, which
+ * import the scenery, which imports this file: asking for them while this
+ * module is still initialising reads a half-built park. Built once and kept,
+ * because navgrid caches on the identity of the array.
+ */
+let sugar: LevelFeatures | null = null;
+function sugarFeatures(): LevelFeatures {
+  return (sugar ??= { wheel: "gumdrop", prefer: loopRects() });
+}
+
 export function featuresFor(level: LevelDef): LevelFeatures {
+  if (level.id === "sugar") return sugarFeatures();
   return FEATURES[level.id] ?? NONE;
 }

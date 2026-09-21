@@ -1,4 +1,5 @@
 import { EMMETT_BASE } from "./emmett-base";
+import { makeGumdropWheelRig } from "./candy-builds";
 import { makeCandy, type CandyKind } from "./candies";
 import { makeMonsterTruck, makeTruckYard, type TruckRig } from "./monster-truck";
 import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
@@ -274,7 +275,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
 
   let ride: FerrisWheel | null = null;
   if (level.ride) {
-    ride = makeFerrisWheel();
+    ride = feat.wheel === "gumdrop" ? makeGumdropWheelRig() : makeFerrisWheel();
     ride.group.position.set(level.ride.x, 0, level.ride.z);
     ride.origin.set(level.ride.x, 0, level.ride.z);
     group.add(ride.group);

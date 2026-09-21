@@ -103,7 +103,7 @@ export const SUGAR = {
   factory: { x: -8, z: -58 },
   mountain: { x: -105, z: -120 },
   forest: { x: -105, z: 15 },
-  village: { x: 118, z: 10 },
+  village: { x: 124, z: 10 },
   maze: { x: 90, z: -92 },
   meadow: { x: 74, z: 78 },
   marshmallow: { x: -30, z: 116 },
@@ -121,16 +121,25 @@ export const SUGAR = {
  * all, so a diagonal costs nothing here.
  */
 export const RIVER: [number, number][] = [
-  [-120, -140],
-  [-60, -90],
-  [-8, -58],
-  [25, -10],
+  [-116, -134],
+  [-64, -92],
+  [-30, -58],
+  [14, -58],
+  [26, -16],
   [40, 40],
-  [80, 85],
+  [70, 100],
   [SUGAR.lake.x, SUGAR.lake.z],
 ];
 
 export const RIVER_W = 9;
+/**
+ * The reach through the factory is narrower, because the factory's channel is
+ * 5m wide: a river runs into a mill race, it does not knock the wall out. The
+ * index is the run, counted from the mountain.
+ */
+const FACTORY_RUN = 2;
+const NARROW_W = 4.6;
+const widthOf = (i: number) => (i === FACTORY_RUN ? NARROW_W : RIVER_W);
 /** Sugar banks sit a little proud of the water so the edge reads from a distance. */
 const BANK_W = 1.6;
 
@@ -175,8 +184,9 @@ export function riverProps(): Prop[] {
      * she cannot walk on anyway, and the flicker is gone.
      */
     const lift = i % 2 ? 0.02 : 0;
-    out.push(surf(x, TOP.apron + lift, z, RIVER_W + BANK_W * 2, len, CANDY.sugar, 0.14, { ry: s.ry }));
-    out.push(surf(x, TOP.path + lift, z, RIVER_W, len, CANDY.chocRiver, 0.1, { ry: s.ry }));
+    const w = widthOf(i);
+    out.push(surf(x, TOP.apron + lift, z, w + BANK_W * 2, len, CANDY.sugar, 0.14, { ry: s.ry }));
+    out.push(surf(x, TOP.path + lift, z, w, len, CANDY.chocRiver, 0.1, { ry: s.ry }));
   });
   // No discs at the elbows: a disc at the same height as the run it joins is
   // exactly the coplanar overlap that z-fights. Each run is overlength instead,
@@ -193,8 +203,8 @@ export function riverProps(): Prop[] {
  */
 export function riverWater(): WaterZone[] {
   const out: WaterZone[] = [];
-  const r = RIVER_W / 2;
-  for (const s of segments(RIVER)) {
+  segments(RIVER).forEach((s, i) => {
+    const r = widthOf(i) / 2;
     const steps = Math.max(1, Math.round(s.len / r));
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -206,7 +216,7 @@ export function riverWater(): WaterZone[] {
         pool: true,
       });
     }
-  }
+  });
   out.push({ kind: "water", x: SUGAR.lake.x, z: SUGAR.lake.z, r: SUGAR.lake.r, pool: true });
   return out;
 }
@@ -284,7 +294,7 @@ export function bridgeSites(): { x: number; z: number; along: "x" | "z"; span: n
       // angle between them, floored so a square crossing still gets a bridge
       const sin = Math.abs(alongX ? best.dz : best.dx);
       const water = RIVER_W / Math.max(0.35, sin);
-      out.push({ x: cx, z: cz, along: alongX ? "x" : "z", span: bridgeFor(water + 6).span });
+      out.push({ x: cx, z: cz, along: alongX ? "x" : "z", span: bridgeFor(water + 9).span });
     }
   }
   return out;
@@ -632,4 +642,170 @@ export function plazaArches(): Prop[] {
     model("cane-arch", x + at, z, { ry: Math.PI / 2, scale: 1.6 }),
     model("cane-arch", x - at, z, { ry: Math.PI / 2, scale: 1.6 }),
   ];
+}
+
+/* ----------------------------------------------------- the landmarks */
+
+/**
+ * The candy factory, straddling the river.
+ *
+ * It is turned a quarter so its channel runs along the river's straight reach:
+ * a quarter turn keeps a model's colliders exact, and the reach was made
+ * straight for exactly this reason. The river narrows to fit the channel.
+ */
+export function factoryProps(): Prop[] {
+  const { x, z } = SUGAR.factory;
+  return [
+    model("candy-factory", x, z, { ry: Math.PI / 2 }),
+    model("choc-fountain", x - 16, z + 11),
+    model("gumball-machine", x + 15, z + 12, { scale: 1.4 }),
+  ];
+}
+
+/**
+ * Ice Cream Mountain. The way up starts on its +z side and climbs anticlockwise
+ * to a deck at 8.4m, which is the highest ground in the park and the place to
+ * send anyone who wants to see all of it.
+ */
+export function mountainProps(): Prop[] {
+  const { x, z } = SUGAR.mountain;
+  return [
+    model("ice-cream-mountain", x, z),
+    // sweets at the foot, so the walk up starts somewhere rather than nowhere
+    model("cotton-candy", x + 12, z + 6, { scale: 1.3 }),
+    model("rock-candy", x - 13, z + 3, { scale: 1.4 }),
+    model("cane-post", x + 9, z + 13),
+    model("cane-post", x - 9, z + 13),
+  ];
+}
+
+/** Where the mountain's deck is, for anything that wants to stand on top. */
+export const MOUNTAIN_DECK = { x: SUGAR.mountain.x, z: SUGAR.mountain.z, y: 8.4 };
+
+/**
+ * Gingerbread Village: houses round a square, with the shop on it. Her own
+ * gingerbread house takes the plot on the square's north side later.
+ */
+export function villageProps(): Prop[] {
+  const { x, z } = SUGAR.village;
+  const out: Prop[] = [];
+  // a square of icing paving, so the village has a middle
+  out.push(surf(x, TOP.path, z, 22, 22, CANDY.cream));
+  out.push(disc(x, TOP.court, z, 4.5, CANDY.blush, 0.08));
+  const houses: [number, number, number, number][] = [
+    // x, z, turn, which house
+    [x - 14, z - 10, 0, 0],
+    [x + 14, z - 10, 0, 1],
+    [x - 14, z + 10, Math.PI, 2],
+    [x + 14, z + 10, Math.PI, 0],
+    [x + 1, z - 17, 0, 2],
+  ];
+  for (const [hx, hz, ry, v] of houses) out.push(model(`gingerbread${v}`, hx, hz, { ry }));
+  out.push(model("candy-stall", x - 7, z + 4, { variant: 0 }));
+  out.push(model("candy-stall", x + 7, z + 4, { variant: 1, ry: Math.PI }));
+  out.push(model("gumball-machine", x, z - 6, { scale: 1.2 }));
+  out.push(model("cane-post", x - 10, z - 1));
+  out.push(model("cane-post", x + 10, z - 1));
+  return out;
+}
+
+/**
+ * The fairground. The gumdrop wheel is the level's `ride`, so it is built by
+ * the world rather than here; this is everything standing round it.
+ */
+export function fairProps(): Prop[] {
+  const { x, z } = SUGAR.fair;
+  const out: Prop[] = [];
+  out.push(surf(x, TOP.apron, z, 56, 44, CANDY.cream, 0.1));
+  // a lilac ring under the wheel, kept clear of the loop: two flat surfaces at
+  // the same height are the one thing that flickers
+  out.push(disc(x + 6, TOP.path, z - 10, 6.5, CANDY.lilac, 0.08));
+  for (let i = 0; i < 4; i++) {
+    out.push(model("candy-stall", x - 18 + i * 12, z + 16, { variant: i }));
+  }
+  out.push(model("cane-arch", x, z + 22, { scale: 2 }));
+  out.push(model("gumball-machine", x - 24, z + 6, { scale: 1.6 }));
+  return out;
+}
+
+/** Where the gumdrop wheel stands. The level hands this to `ride`. */
+export const WHEEL = { x: SUGAR.fair.x + 6, z: SUGAR.fair.z - 10 };
+
+/* -------------------------------------------------------- dressing */
+
+/**
+ * What goes between the landmarks.
+ *
+ * A 320m park with only its big pieces in it is mostly walking, so this lines
+ * the loop with candy canes and scatters sweets across the ground between the
+ * regions. Everything here is decoration: it never blocks a route, and it keeps
+ * off the paths, the river and every hidden candy.
+ */
+export function dressingProps(keepOut: [number, number][]): Prop[] {
+  const out: Prop[] = [];
+
+  // candy canes down both sides of the loop, so the path reads as a route from
+  // a distance and there is something to follow when she is lost
+  for (const r of loopRects()) {
+    const alongX = r.maxX - r.minX > r.maxZ - r.minZ;
+    const at = alongX ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
+    const from = alongX ? r.minX : r.minZ;
+    const to = alongX ? r.maxX : r.maxZ;
+    const cuts = bridgeSites().filter((b) => (alongX ? Math.abs(b.z - at) < 0.1 : Math.abs(b.x - at) < 0.1));
+    for (let c = from + 12; c < to - 6; c += 24) {
+      if (cuts.some((cut) => Math.abs(c - (alongX ? cut.x : cut.z)) < cut.span / 2 + 3)) continue;
+      for (const side of [-1, 1]) {
+        const px = alongX ? c : at + side * (PATH_W / 2 + 1.4);
+        const pz = alongX ? at + side * (PATH_W / 2 + 1.4) : c;
+        if (!clearGround(px, pz, 0.5, keepOut)) continue;
+        out.push(model("cane-post", px, pz));
+      }
+    }
+  }
+
+  // sweets dropped across the open ground, thinning out where a region already
+  // has its own planting
+  const busy: [number, number, number][] = [
+    [SUGAR.forest.x, SUGAR.forest.z, 52],
+    [SUGAR.meadow.x, SUGAR.meadow.z, 42],
+    [SUGAR.marshmallow.x, SUGAR.marshmallow.z, 36],
+    [SUGAR.maze.x, SUGAR.maze.z, 36],
+    [SUGAR.village.x, SUGAR.village.z, 26],
+    [SUGAR.fair.x, SUGAR.fair.z, 34],
+    [SUGAR.mountain.x, SUGAR.mountain.z, 22],
+    [SUGAR.factory.x, SUGAR.factory.z, 22],
+  ];
+  const rand = rng(31337);
+  const taken: [number, number][] = [];
+  for (let tries = 0; tries < 4000 && taken.length < 240; tries++) {
+    const x = (rand() - 0.5) * 300;
+    const z = (rand() - 0.5) * 300;
+    if (!clearGround(x, z, 2, keepOut)) continue;
+    if (busy.some(([bx, bz, r]) => dist2(x, z, bx, bz) < r * r)) continue;
+    if (taken.some(([tx, tz]) => dist2(x, z, tx, tz) < 12 * 12)) continue;
+    taken.push([x, z]);
+    const pick = rand();
+    if (pick < 0.3) {
+      out.push(model(TREE_IDS[Math.floor(rand() * TREE_IDS.length)]!, x, z, { scale: 0.9 + rand() * 0.7 }));
+    } else if (pick < 0.55) {
+      const n = 2 + Math.floor(rand() * 3);
+      for (let k = 0; k < n; k++) {
+        out.push(
+          model("gumdrop", x + (rand() - 0.5) * 7, z + (rand() - 0.5) * 7, {
+            scale: 0.8 + rand() * 1.4,
+            variant: Math.floor(rand() * 6),
+          }),
+        );
+      }
+    } else if (pick < 0.72) {
+      out.push(model("candy-corn", x, z, { scale: 0.8 + rand() * 0.8 }));
+      out.push(model("swirl-mint", x + 2.5, z - 1.5, { scale: 0.7 + rand() * 0.5 }));
+    } else if (pick < 0.86) {
+      out.push(model("cotton-candy", x, z, { scale: 0.9 + rand() * 0.7 }));
+      out.push(model("rock-candy", x - 2, z + 2, { scale: 0.9 + rand() * 0.6 }));
+    } else {
+      out.push(model("marshmallow", x, z, { scale: 0.8 + rand() * 0.6, ry: rand() * Math.PI * 2 }));
+    }
+  }
+  return out;
 }

@@ -14,6 +14,25 @@ import {
   makeSodaCan,
   makeSwirlMint,
 } from "./candy-scenery";
+import {
+  makeCandyFactory,
+  makeCandyShopStall,
+  makeChocolateBoat,
+  makeGingerbreadHouse,
+  makeGumballMachine,
+  makeIceCreamMountain,
+} from "./candy-builds";
+import {
+  BOAT,
+  FACTORY,
+  GINGERBREAD_0,
+  GINGERBREAD_1,
+  GINGERBREAD_2,
+  GUMBALL,
+  MOUNTAIN,
+  STALL,
+  type Row,
+} from "./sugar-model-boxes";
 import { registerModel, type ModelBox } from "./models";
 import type { ModelProp } from "./types";
 
@@ -78,7 +97,7 @@ function bridgeBoxes(span: number): ModelBox[] {
 }
 
 /** The spans the park uses. A bridge is placed by id, so each span is its own. */
-export const BRIDGE_SPANS = [12, 18, 26] as const;
+export const BRIDGE_SPANS = [12, 18, 26, 32] as const;
 for (const span of BRIDGE_SPANS) {
   registerModel(`cane-bridge${span}`, bridgeBoxes(span), () => makeCandyCaneBridge(span));
 }
@@ -128,3 +147,28 @@ registerModel("soda-can", [], () => makeSodaCan());
 export function model(id: string, x: number, z: number, extra?: Partial<ModelProp>): ModelProp {
   return { kind: "model", id, x, z, ...extra };
 }
+
+/* ------------------------------------------------- the big landmarks */
+
+/**
+ * The buildings. Their boxes live in sugar-model-boxes.ts, read out of the real
+ * meshes: to refresh them, open the park in a browser and dump
+ * `makeX().userData.boxes` the way that file's comment describes.
+ */
+const rows = (list: Row[]): ModelBox[] =>
+  list.map(([minX, maxX, minY, maxY, minZ, maxZ]) => box(minX, maxX, minY, maxY, minZ, maxZ));
+
+registerModel("gingerbread0", rows(GINGERBREAD_0), (_v, scale) => makeGingerbreadHouse(5.5, 5, 0, 20260921 + scale * 7));
+registerModel("gingerbread1", rows(GINGERBREAD_1), () => makeGingerbreadHouse(5.5, 5, 1));
+registerModel("gingerbread2", rows(GINGERBREAD_2), () => makeGingerbreadHouse(5.5, 5, 2));
+export const GINGERBREAD_IDS = ["gingerbread0", "gingerbread1", "gingerbread2"];
+
+registerModel("candy-factory", rows(FACTORY), () => makeCandyFactory());
+registerModel("ice-cream-mountain", rows(MOUNTAIN), () => makeIceCreamMountain());
+registerModel("choc-boat", rows(BOAT), () => makeChocolateBoat());
+registerModel("gumball-machine", rows(GUMBALL), (_v, scale) => makeGumballMachine(scale));
+registerModel("candy-stall", rows(STALL), (variant) => makeCandyShopStall(STALL_AWNINGS[variant % STALL_AWNINGS.length]!));
+const STALL_AWNINGS = [CANDY.pink, CANDY.mint, CANDY.yellow, CANDY.lilac];
+
+/** The mountain's own numbers, for placing a candy on its deck or its ring. */
+export { ICE_CREAM_MOUNTAIN, FACTORY_CHANNEL } from "./candy-builds";

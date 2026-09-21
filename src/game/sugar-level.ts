@@ -4,13 +4,19 @@ import {
   CANDY,
   SUGAR,
   SUGAR_BOUNDS,
+  WHEEL,
   boundaryProps,
+  dressingProps,
+  factoryProps,
+  fairProps,
   forestProps,
   marshmallowProps,
   mazeProps,
   meadowProps,
   pathProps,
+  mountainProps,
   plazaArches,
+  villageProps,
   plazaProps,
   riverProps,
   riverWater,
@@ -54,7 +60,7 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   "sour worm": {
     id: "sourwiggle",
-    pos: [60, 0.55, 76],
+    pos: [66, 0.55, 62],
     hide: "medium",
     region: "Gumdrop Meadow",
     hint: "Out in the meadow with the gumdrop hills.",
@@ -68,10 +74,10 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   jellybean: {
     id: "jellybean",
-    pos: [122, 0.55, -4],
+    pos: [134, 0.55, 2],
     hide: "medium",
     region: "Gingerbread Village",
-    hint: "Among the gingerbread houses.",
+    hint: "Among the gingerbread houses, by the village square.",
   },
   lollipop: {
     id: "lollyswirl",
@@ -103,7 +109,7 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   peppermint: {
     id: "peppermint",
-    pos: [16, 0.55, -42],
+    pos: [6, 0.55, -30],
     hide: "easy",
     region: "the north path",
     hint: "Near the river, north of the plaza.",
@@ -131,7 +137,7 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   caramel: {
     id: "caramelcube",
-    pos: [124, 0.55, 22],
+    pos: [116, 0.55, 26],
     hide: "medium",
     region: "Gingerbread Village",
     hint: "By the village square.",
@@ -179,6 +185,11 @@ export function sugarRushPark(): LevelDef {
     ...meadowProps(spots),
     ...marshmallowProps(spots),
     ...mazeProps(),
+    ...factoryProps(),
+    ...mountainProps(),
+    ...villageProps(),
+    ...fairProps(),
+    ...dressingProps(spots),
     ...boundaryProps(),
   ];
 
@@ -197,5 +208,6 @@ export function sugarRushPark(): LevelDef {
     props,
     dumplings: sugarCandies,
     water: riverWater(),
+    ride: WHEEL,
   };
 }
