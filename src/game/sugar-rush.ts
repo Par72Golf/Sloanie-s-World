@@ -55,8 +55,22 @@ export const CANDY = {
   orange: "#ff8a3a",
   /** the paths: park 1's path colour, warmed up. Anything brighter blooms. */
   sugar: "#e9d7b6",
+  /**
+   * The stripe across a path. Blossom rather than pillar-box: at this scale the
+   * saturated red read as hazard tape from the air, and the park is meant to
+   * look sweet, not urgent. The plaza keeps the strong red, where it is an
+   * accent rather than a hundred metres of it.
+   */
+  stripe: "#ff9ec8",
   licorice: "#2a2430",
-  grass: "#63c46a",
+  /**
+   * Spearmint, not lawn. A candy park with an ordinary green field in it reads
+   * as a fete on a village green; mint keeps the ground sweet and still lets
+   * the gingerbread and the pink paths sit on top of it.
+   */
+  grass: "#8fe0cf",
+  /** the deeper mint of a mown lawn, for the lawns inside the park */
+  lawn: "#6fd4be",
 } as const;
 
 function box(
@@ -317,8 +331,8 @@ export function pathProps(): Prop[] {
       if (cuts.some((cut) => Math.abs(c - (alongX ? cut.x : cut.z)) < cut.span / 2 + 1)) continue;
       out.push(
         alongX
-          ? surf(c, TOP.court, at, 1.2, PATH_W, CANDY.cane, 0.08)
-          : surf(at, TOP.court, c, PATH_W, 1.2, CANDY.cane, 0.08),
+          ? surf(c, TOP.court, at, 1.2, PATH_W, CANDY.stripe, 0.08)
+          : surf(at, TOP.court, c, PATH_W, 1.2, CANDY.stripe, 0.08),
       );
     }
   }
@@ -360,22 +374,34 @@ export function plazaProps(): Prop[] {
  */
 export function boundaryProps(): Prop[] {
   const out: Prop[] = [];
-  const h = 6;
+  const h = 5.4;
   const t = 1.5;
   const span = FENCE_AT * 2;
+  /*
+   * Cream rather than chocolate. A six-metre chocolate wall ringed the park in
+   * a dark band on every horizon, which is the first thing the eye found in a
+   * park made of sweets; a pale wall with candy piers lets the sky meet the
+   * ground instead.
+   */
   for (const z of [-FENCE_AT, FENCE_AT]) {
-    out.push(box(0, h / 2, z, span + t * 2, h, t, CANDY.chocLight));
-    out.push(box(0, h + 0.2, z, span + t * 2, 0.4, t + 0.5, CANDY.icing, false));
+    out.push(box(0, h / 2, z, span + t * 2, h, t, CANDY.cream));
+    out.push(box(0, h + 0.25, z, span + t * 2, 0.5, t + 0.6, CANDY.blush, false));
   }
   for (const x of [-FENCE_AT, FENCE_AT]) {
-    out.push(box(x, h / 2, 0, t, h, span + t * 2, CANDY.chocLight));
-    out.push(box(x, h + 0.2, 0, t + 0.5, 0.4, span + t * 2, CANDY.icing, false));
+    out.push(box(x, h / 2, 0, t, h, span + t * 2, CANDY.cream));
+    out.push(box(x, h + 0.25, 0, t + 0.6, 0.5, span + t * 2, CANDY.blush, false));
   }
-  // candy canes along the top, purely so the wall reads as candy from inside
+  // piers of stacked mints, and a gumdrop on each, so the wall has a rhythm
   for (let i = -15; i <= 15; i++) {
     const at = i * 10;
-    for (const z of [-FENCE_AT, FENCE_AT]) out.push(cyl(at, h + 1.1, z, 0.35, 2.2, CANDY.cane, false));
-    for (const x of [-FENCE_AT, FENCE_AT]) out.push(cyl(x, h + 1.1, at, 0.35, 2.2, CANDY.cane, false));
+    for (const z of [-FENCE_AT, FENCE_AT]) {
+      out.push(cyl(at, h * 0.5, z + (z < 0 ? 1.1 : -1.1), 0.7, h, CANDY.icing, false));
+      out.push(cyl(at, h + 0.7, z + (z < 0 ? 1.1 : -1.1), 0.75, 0.5, CANDY.stripe, false));
+    }
+    for (const x of [-FENCE_AT, FENCE_AT]) {
+      out.push(cyl(x + (x < 0 ? 1.1 : -1.1), h * 0.5, at, 0.7, h, CANDY.icing, false));
+      out.push(cyl(x + (x < 0 ? 1.1 : -1.1), h + 0.7, at, 0.75, 0.5, CANDY.stripe, false));
+    }
   }
   return out;
 }
@@ -455,25 +481,152 @@ function scatter(
 /* ------------------------------------------------------------- regions */
 
 /** The Lollipop Forest: this park's woods, and the princess's clearing. */
+/**
+ * The Lollipop Forest.
+ *
+ * A wood is not trees at even spacing and it is not trees at random: it is
+ * copses with glades between them, thickest in the middle and thinning to an
+ * edge you can see from outside, with a way through it. Scattering 170 trees
+ * over the region gave a solid mat of lollipops with no way in and nothing to
+ * look at, which is what "sprinkled everywhere" meant.
+ *
+ * So: a trail from the park's west path to the princess's clearing, copses set
+ * either side of it, the biggest trees in the middle of each copse and the
+ * smallest at the rim, an understorey only where a copse is, and glades left
+ * genuinely empty. The clearing at the heart of it stays open for the quest.
+ */
+/** The wood's paths, in world coordinates: one in from the east, one north. */
+export const FOREST_TRAIL: [number, number][] = [
+  [SUGAR.forest.x + 38, SUGAR.forest.z + 4],
+  [SUGAR.forest.x + 20, SUGAR.forest.z - 2],
+  [SUGAR.forest.x + 6, SUGAR.forest.z + 6],
+  [SUGAR.forest.x, SUGAR.forest.z],
+];
+export const FOREST_SPUR: [number, number][] = [
+  [SUGAR.forest.x + 6, SUGAR.forest.z + 6],
+  [SUGAR.forest.x + 3, SUGAR.forest.z - 12],
+  [SUGAR.forest.x + 2, SUGAR.forest.z - 30],
+];
+
 export function forestProps(keepOut: [number, number][]): Prop[] {
-  const clearing: [number, number] = [SUGAR.forest.x, SUGAR.forest.z];
-  return scatter(
-    1207,
-    { x: SUGAR.forest.x, z: SUGAR.forest.z, w: 80, d: 96 },
-    170,
-    2.4,
-    [...keepOut, clearing],
-    (x, z, rand) => {
-      // the clearing itself stays open, so the princess has somewhere to be
-      if (dist2(x, z, clearing[0], clearing[1]) < 16 ** 2) return [];
+  const out: Prop[] = [];
+  const cx = SUGAR.forest.x;
+  const cz = SUGAR.forest.z;
+  const rand = rng(1207);
+
+  // the trail in from the west path and the spur north, each one mesh
+  const trail = FOREST_TRAIL;
+  out.push(model("forest-trail", 0, 0));
+  out.push(model("forest-spur", 0, 0));
+
+  /**
+   * Copse centres, laid out by hand rather than sampled: this is a small
+   * enough number to decide, and deciding is the difference between a wood and
+   * a scatter. Each is [x, z, radius, how many trees].
+   */
+  const copses: [number, number, number, number][] = [
+    [cx - 24, cz - 34, 9, 9],
+    [cx - 4, cz - 36, 7, 7],
+    [cx + 16, cz - 26, 6, 6],
+    [cx - 28, cz - 12, 8, 8],
+    [cx - 12, cz - 16, 6, 6],
+    [cx - 30, cz + 12, 9, 9],
+    [cx - 10, cz + 18, 7, 7],
+    [cx + 12, cz + 16, 6, 6],
+    [cx - 24, cz + 34, 8, 8],
+    [cx - 2, cz + 38, 7, 7],
+    [cx + 16, cz + 34, 6, 5],
+    [cx + 26, cz + 12, 5, 5],
+  ];
+
+  for (const [copseX, copseZ, r, n] of copses) {
+    for (let i = 0; i < n; i++) {
+      // biggest at the middle, smallest at the rim: a copse has a crown
+      const t = i / Math.max(1, n - 1);
+      const a = rand() * Math.PI * 2;
+      const d = r * Math.sqrt(t) * (0.55 + rand() * 0.45);
+      const x = copseX + Math.cos(a) * d;
+      const z = copseZ + Math.sin(a) * d;
+      if (!clearGround(x, z, 2, keepOut)) continue;
+      if (onTrail(trail, x, z, 4) || onTrail(FOREST_SPUR, x, z, 4)) continue;
+      /*
+       * Size comes from where the tree stands in the copse, colour does not:
+       * tying the two together made every big tree the same variety and the
+       * wood came out in stripes of one colour.
+       */
+      const big = 1 - t;
       const v = Math.floor(rand() * TREE_IDS.length);
-      const props: Prop[] = [model(TREE_IDS[v]!, x, z, { scale: 1.1 + rand() * 0.8, ry: rand() * Math.PI * 2 })];
-      // sweets in the grass under the trees, for somewhere for the eye to land
-      if (rand() < 0.3) props.push(model("swirl-mint", x + 1.6, z + 1.2, { scale: 0.6 + rand() * 0.4 }));
-      if (rand() < 0.2) props.push(model("rock-candy", x - 1.4, z + 1.6, { scale: 0.8 + rand() * 0.6 }));
-      return props;
-    },
-  );
+      out.push(model(TREE_IDS[v]!, x, z, { scale: (0.9 + big * 0.9) * (v === 3 ? 1.5 : 1), ry: rand() * Math.PI * 2 }));
+    }
+    // understorey, at the foot of the copse and nowhere else
+    for (let i = 0; i < 2; i++) {
+      const a = rand() * Math.PI * 2;
+      const x = copseX + Math.cos(a) * r * 0.8;
+      const z = copseZ + Math.sin(a) * r * 0.8;
+      if (!clearGround(x, z, 1.5, keepOut) || onTrail(trail, x, z, 3)) continue;
+      out.push(model(rand() < 0.5 ? "cotton-candy" : "rock-candy", x, z, { scale: 0.9 + rand() * 0.5 }));
+      out.push(model("swirl-mint", x + 1.8, z + 1.2, { scale: 0.7 }));
+    }
+  }
+
+  // sweets along the trail edge, at the bends where the eye goes anyway
+  for (const [tx, tz] of [FOREST_TRAIL[1]!, FOREST_TRAIL[2]!, FOREST_SPUR[1]!]) {
+    for (const side of [-1, 1]) {
+      const x = tx + side * 3.4;
+      const z = tz + side * 1.6;
+      if (!clearGround(x, z, 1.2, keepOut)) continue;
+      out.push(model("gumdrop", x, z, { scale: 1.2, variant: side > 0 ? 1 : 4 }));
+      out.push(model("swirl-mint", x + side * 1.6, z - 1.4, { scale: 0.8 }));
+    }
+  }
+
+  /** The clearing: a ring of the tallest trees, and a mint floor to mark it. */
+  out.push(disc(cx, TOP.lawn, cz, 11, CANDY.lawn, 0.1));
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const x = cx + Math.sin(a) * 13.5;
+    const z = cz + Math.cos(a) * 13.5;
+    if (!clearGround(x, z, 1.5, keepOut) || onTrail(trail, x, z, 3)) continue;
+    out.push(model(TREE_IDS[2]!, x, z, { scale: 1.9 }));
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    out.push(model("swirl-mint", cx + Math.sin(a) * 7, cz + Math.cos(a) * 7, { scale: 0.9 }));
+  }
+
+  /**
+   * The wood's edge: smaller trees and gumdrop shrubs round the outside, so
+   * from the path it reads as a wood with an edge rather than trees petering
+   * out into the lawn.
+   */
+  for (let i = 0; i < 46; i++) {
+    const a = (i / 46) * Math.PI * 2;
+    // the edge wanders in and out, because a wood that ends on a circle reads
+    // as a hedge round a field
+    const wobble = Math.sin(a * 3.1) * 5 + Math.sin(a * 1.7 + 2) * 4;
+    const rx = 38 + wobble + rand() * 3;
+    const rz = 46 + wobble + rand() * 3;
+    const x = cx + Math.sin(a) * rx;
+    const z = cz + Math.cos(a) * rz;
+    if (!clearGround(x, z, 2, keepOut) || onTrail(trail, x, z, 4)) continue;
+    if (rand() < 0.55) out.push(model(TREE_IDS[3]!, x, z, { scale: 0.8 + rand() * 0.4 }));
+    else out.push(model("gumdrop", x, z, { scale: 1.1 + rand() * 0.8, variant: Math.floor(rand() * 6) }));
+  }
+  return out;
+}
+
+/** Within `pad` of any run of a trail. */
+function onTrail(trail: [number, number][], x: number, z: number, pad: number) {
+  for (let i = 0; i + 1 < trail.length; i++) {
+    const [ax, az] = trail[i]!;
+    const [bx, bz] = trail[i + 1]!;
+    const dx = bx - ax;
+    const dz = bz - az;
+    const len2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
+    if (Math.hypot(x - (ax + dx * t), z - (az + dz * t)) < pad) return true;
+  }
+  return false;
 }
 
 /** Gumdrop Meadow: open ground with gumdrop hills of every size. */
@@ -868,12 +1021,13 @@ export function gardenProps(): Prop[] {
 const SODA = "#7fd0f0";
 
 /** A narrow path between two points. Straight runs only, like the main loop. */
-function lane(x0: number, z0: number, x1: number, z1: number, w = 3): Prop[] {
+function lane(x0: number, z0: number, x1: number, z1: number, w = 3, lift = 0): Prop[] {
   const len = Math.hypot(x1 - x0, z1 - z0);
   const ry = Math.atan2(x1 - x0, z1 - z0);
-  // a hair under the street and the main paths, because a lane always ends by
-  // running into one of them and two surfaces at one height flicker
-  return [surf((x0 + x1) / 2, TOP.drive - 0.015, (z0 + z1) / 2, w, len, CANDY.sugar, 0.1, { ry })];
+  // A hair under the street and the main paths, because a lane always ends by
+  // running into one of them and two surfaces at one height flicker. `lift`
+  // staggers the runs of a winding trail, which lap over each other at bends.
+  return [surf((x0 + x1) / 2, TOP.drive - 0.015 + lift, (z0 + z1) / 2, w, len, CANDY.sugar, 0.1, { ry })];
 }
 
 /** A bench made of a marshmallow slab on candy cane legs. */
@@ -1005,7 +1159,7 @@ export function startDistrictProps(keepOut: [number, number][]): Prop[] {
 
   // ---- the green at the west end of the street, with the bandstand on it
   const band = { x: px - 60, z: streetZ + 2 };
-  out.push(surf(band.x, TOP.lawn, band.z, 30, 30, "#7ad06a", 0.1));
+  out.push(surf(band.x, TOP.lawn, band.z, 30, 30, CANDY.lawn, 0.1));
   out.push(...bandstand(band.x, band.z));
   out.push(...lane(px - 52, streetZ, band.x + 6, band.z));
   out.push(...bench(band.x - 9, band.z, Math.PI / 2));
@@ -1028,7 +1182,7 @@ export function startDistrictProps(keepOut: [number, number][]): Prop[] {
 
   // ---- the picnic lawn, east, on the plaza's other side
   const lawn = { x: px + 52, z: pz + 4 };
-  out.push(surf(lawn.x, TOP.lawn, lawn.z, 26, 22, "#7ad06a", 0.1));
+  out.push(surf(lawn.x, TOP.lawn, lawn.z, 26, 22, CANDY.lawn, 0.1));
   for (const [ox, oz] of [[-7, -5], [6, -6], [0, 5], [8, 6]] as [number, number][]) {
     out.push(cyl(lawn.x + ox, 0.6, lawn.z + oz, 1.5, 0.3, CANDY.cream));
     out.push(cyl(lawn.x + ox, 0.3, lawn.z + oz, 0.5, 0.6, CANDY.chocLight));

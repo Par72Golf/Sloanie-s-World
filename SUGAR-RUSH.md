@@ -42,6 +42,30 @@ wherever the candy-cane loop crosses it.
 **The candy-cane loop** is a rounded rectangle through roughly (±110, ±110), 6m
 wide, with spokes into the plaza — the job the walkway network does in park 1.
 
+## Art direction
+
+The park has to read as a candy world at a glance and still be legible to a
+seven-year-old playing it on a TV from the sofa.
+
+- **Sky**: raspberry at the top, blossom in the middle, warm sugar at the
+  horizon, and the fog is the horizon colour so distance fades into the sky
+  rather than greying out against it.
+- **Palette**: pastels hold the large areas (sugar paths, cream aprons, blossom
+  pink), and saturated candy colours are used as accents only — a whole hillside
+  of pillar-box red is what made the first fairground look like a warning sign.
+- **No confetti.** Anything placed follows a line that already exists: an avenue
+  along a path, pairs across a river, rows in a bed, a ring round a roundel.
+  Open lawns stay open.
+- **Every region reads as its own place** from a distance: its own ground
+  colour, its own planting, an entrance you can see you are going through.
+- **Relief**: the ground is not a table. Gentle mounds and terraces give the eye
+  something to travel over and give her something to climb.
+- **Nothing pure white in a big area.** It blooms into a glowing sheet in
+  sunlight; #f6f1e8 is the white that behaves.
+- **Legibility first**: a path must read as a path, a hidden candy must not be
+  lost in the planting, and a landmark must be recognisable from the far side of
+  the park.
+
 ## What has to be freed up first
 
 Park 1's features are wired to fixed coordinates, so a second park cannot simply

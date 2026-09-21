@@ -139,7 +139,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   const bouncers: BuiltWorld["bouncers"] = [];
   const textures: THREE.Texture[] = [];
   const waterMats: THREE.ShaderMaterial[] = [];
-  const grass = grassTexture();
+  const grass = grassTexture(level.grass, level.groundSpecks);
   const path = pathTexture();
   textures.push(grass, path);
 

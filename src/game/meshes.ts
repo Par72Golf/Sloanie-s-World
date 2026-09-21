@@ -1519,22 +1519,45 @@ export function makeSlide() {
   return g;
 }
 
-export function grassTexture() {
+/**
+ * The ground.
+ *
+ * The blades of grass take their colour from the level, but the ground under
+ * them is this texture, and it used to paint its own greens — so a park that
+ * asked for mint got picnic-park green anyway. The shades are mixed from the
+ * base colour now, and the specks in it (daisies in park 1, sprinkles in the
+ * candy park) come from the level too.
+ */
+export function grassTexture(base = "#4fa056", specks = ["#e8c46a", "#d45a4a"]) {
   const c = document.createElement("canvas");
   c.width = 256;
   c.height = 256;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#4fa056";
+  const mix = (hex: string, to: string, t: number) =>
+    "#" +
+    [0, 1, 2]
+      .map((i) => {
+        const a = Number.parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+        const b = Number.parseInt(to.slice(1 + i * 2, 3 + i * 2), 16);
+        return Math.round(a + (b - a) * t)
+          .toString(16)
+          .padStart(2, "0");
+      })
+      .join("");
+  const light = mix(base, "#ffffff", 0.22);
+  const mid = mix(base, "#000000", 0.08);
+  const dark = mix(base, "#000000", 0.2);
+  g.fillStyle = base;
   g.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 2200; i++) {
     const shade = Math.random();
-    g.fillStyle = shade > 0.66 ? "#6fbf62" : shade > 0.33 ? "#4e9a4e" : "#3f8a44";
+    g.fillStyle = shade > 0.66 ? light : shade > 0.33 ? mid : dark;
     const x = Math.random() * 256;
     const y = Math.random() * 256;
     g.fillRect(x, y, 1 + Math.random() * 2, 3 + Math.random() * 5);
   }
   for (let i = 0; i < 40; i++) {
-    g.fillStyle = Math.random() > 0.5 ? "#e8c46a" : "#d45a4a";
+    g.fillStyle = specks[(Math.random() * specks.length) | 0]!;
     g.beginPath();
     g.arc(Math.random() * 256, Math.random() * 256, 1.2, 0, Math.PI * 2);
     g.fill();
@@ -1584,15 +1607,19 @@ export function pathTexture() {
   return t;
 }
 
-export function makeSky() {
+/** The three bands of the sky, bottom to top. Park 1's, unless a park says otherwise. */
+export type SkyColors = { top: string; mid: string; horizon: string };
+export const DEFAULT_SKY: SkyColors = { top: "#6eb6e8", mid: "#b7dcfa", horizon: "#f3e2c4" };
+
+export function makeSky(colors: SkyColors = DEFAULT_SKY) {
   const geo = new THREE.SphereGeometry(340, 32, 20);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      uTop: { value: new THREE.Color("#6eb6e8") },
-      uMid: { value: new THREE.Color("#b7dcfa") },
-      uHorizon: { value: new THREE.Color("#f3e2c4") },
+      uTop: { value: new THREE.Color(colors.top) },
+      uMid: { value: new THREE.Color(colors.mid) },
+      uHorizon: { value: new THREE.Color(colors.horizon) },
     },
     vertexShader: `
       varying vec3 vDir;

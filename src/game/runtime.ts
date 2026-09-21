@@ -20,7 +20,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { animateGirl, disposeHands, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
+import { DEFAULT_SKY, animateGirl, disposeHands, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import { featuresFor } from "./features";
 import { applyLevelOrigins } from "./level-origins";
@@ -201,7 +201,7 @@ export class GameRuntime {
     this.scene.fog = new THREE.Fog("#c5e0f2", 48, this.level.fogFar);
 
     this.camera = new THREE.PerspectiveCamera(58, 1, 0.1, 620);
-    this.sky = makeSky();
+    this.sky = makeSky(this.level.skyColors);
     noOutline(this.sky);
     this.scene.add(this.sky);
 
@@ -503,7 +503,13 @@ export class GameRuntime {
     this.scene.add(this.world.group);
     this.applyGrassDensity();
     noOutline(this.world.ground);
-    this.scene.fog = new THREE.Fog("#c5e0f2", 48, this.level.fogFar);
+    this.scene.fog = new THREE.Fog(this.level.fogColor ?? "#c5e0f2", 48, this.level.fogFar);
+    // the dome is built once, so a park with its own sky repaints it on load
+    const skyMat = this.sky.material as THREE.ShaderMaterial;
+    const sky = this.level.skyColors ?? DEFAULT_SKY;
+    skyMat.uniforms.uTop!.value.set(sky.top);
+    skyMat.uniforms.uMid!.value.set(sky.mid);
+    skyMat.uniforms.uHorizon!.value.set(sky.horizon);
     this.cap.x = this.level.spawn[0];
     this.cap.y = this.level.spawn[1];
     this.cap.z = this.level.spawn[2];

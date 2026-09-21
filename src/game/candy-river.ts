@@ -109,6 +109,22 @@ function edgeStrip(path: RiverPoint[], y: number, side: 1 | -1, from: (p: RiverP
 }
 
 /**
+ * A winding path as one mesh.
+ *
+ * Trails made of straight slabs have the same trouble the river had: the runs
+ * lap over each other at every bend, and two flat surfaces at one height
+ * flicker. A ribbon through a spline has no seams to fight.
+ */
+export function makeRibbonPath(points: [number, number][], width: number, color: string, y = 0.08): THREE.Group {
+  const g = new THREE.Group();
+  const path = riverPath(points, points.map(() => width), 2);
+  const mesh = new THREE.Mesh(ribbon(path, y, (p) => p.w / 2), lam(color, { roughness: 0.8 }));
+  mesh.receiveShadow = true;
+  g.add(mesh);
+  return g;
+}
+
+/**
  * The whole river: bank, chocolate, froth along both edges, and swirls dragged
  * down the middle. Everything is flat and at its own height, so nothing fights.
  */

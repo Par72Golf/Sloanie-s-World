@@ -200,6 +200,15 @@ export type LevelDef = {
   name: string;
   tagline: string;
   sky: string;
+  /**
+   * The sky dome's three bands and the fog that meets it. A park that leaves
+   * them out gets park 1's blue, which is what every park had when there was
+   * only one way for a sky to look.
+   */
+  skyColors?: { top: string; mid: string; horizon: string };
+  fogColor?: string;
+  /** Specks in the ground texture: daisies in a park, sprinkles in a candy one. */
+  groundSpecks?: string[];
   fogFar: number;
   grass: string;
   path: string;

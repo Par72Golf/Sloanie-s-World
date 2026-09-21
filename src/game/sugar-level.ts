@@ -203,8 +203,17 @@ export function sugarRushPark(): LevelDef {
     name: "Sugar Rush Park",
     tagline: "A candy world: a chocolate river, a lollipop forest and a mountain of ice cream.",
     sky: "#ffd6ef",
-    fogFar: 165,
+    /*
+     * A candy sky: raspberry at the top, through blossom, to a warm sugar
+     * horizon. The fog is the horizon colour, so distance fades into the sky
+     * instead of greying out against it.
+     */
+    skyColors: { top: "#f3a8d8", mid: "#ffd3ea", horizon: "#fff0d8" },
+    fogColor: "#ffdfee",
+    fogFar: 185,
     grass: CANDY.grass,
+    // sprinkles in the turf instead of park 1's daisies
+    groundSpecks: ["#ff9ec8", "#ffffff", "#9fd8ff", "#ffe08a"],
     path: CANDY.sugar,
     spawn: SUGAR.spawn,
     spawnYaw: 0,

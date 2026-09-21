@@ -33,8 +33,8 @@ import {
   STALL,
   type Row,
 } from "./sugar-model-boxes";
-import { makeChocolateRiver } from "./candy-river";
-import { RIVER_PATH, SUGAR } from "./sugar-rush";
+import { makeChocolateRiver, makeRibbonPath } from "./candy-river";
+import { FOREST_SPUR, FOREST_TRAIL, RIVER_PATH, SUGAR } from "./sugar-rush";
 import { registerModel, type ModelBox } from "./models";
 import type { ModelProp } from "./types";
 
@@ -177,6 +177,9 @@ const STALL_AWNINGS = [CANDY.pink, CANDY.mint, CANDY.yellow, CANDY.lilac];
  * at the origin rather than at a point: the geometry already knows where it is.
  */
 registerModel("choc-river", [], () => makeChocolateRiver(RIVER_PATH, SUGAR.lake));
+// the wood's trails: ribbons, for the same reason the river is one
+registerModel("forest-trail", [], () => makeRibbonPath(FOREST_TRAIL, 3.4, "#e9d7b6", 0.075));
+registerModel("forest-spur", [], () => makeRibbonPath(FOREST_SPUR, 3, "#e9d7b6", 0.075));
 
 /** The mountain's own numbers, for placing a candy on its deck or its ring. */
 export { ICE_CREAM_MOUNTAIN, FACTORY_CHANNEL } from "./candy-builds";
