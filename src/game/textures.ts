@@ -332,6 +332,7 @@ put("fabric", "#e8384f", "#ff93c4", "#ff6aa8");
 put("bark", "#6b4226", "#8a5a34");
 put("rubber", "#2a2430");
 put("hedge", "#63c46a");
+put("plaster", "#f0e2c8");
 
 export function texKindFor(color: string): TexKind | null {
   return TABLE[color.toLowerCase()] ?? null;

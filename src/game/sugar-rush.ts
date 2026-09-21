@@ -1,4 +1,5 @@
 import type { BoxProp, CylinderProp, ModelProp, Prop, WaterZone } from "./types";
+import { riverPath } from "./candy-river";
 import { TREE_IDS, bridgeFor, model } from "./sugar-models";
 
 /**
@@ -134,89 +135,38 @@ export const RIVER: [number, number][] = [
 export const RIVER_W = 9;
 /**
  * The reach through the factory is narrower, because the factory's channel is
- * 5m wide: a river runs into a mill race, it does not knock the wall out. The
- * index is the run, counted from the mountain.
+ * 5m wide: a river runs into a mill race, it does not knock the wall out. One
+ * width per control point, so the narrowing eases in rather than stepping.
  */
-const FACTORY_RUN = 2;
-const NARROW_W = 4.6;
-const widthOf = (i: number) => (i === FACTORY_RUN ? NARROW_W : RIVER_W);
+export const RIVER_WIDTHS = [RIVER_W, RIVER_W, 4.6, 4.6, RIVER_W, RIVER_W, RIVER_W, RIVER_W];
 /** Sugar banks sit a little proud of the water so the edge reads from a distance. */
 const BANK_W = 1.6;
 
-function segments(points: [number, number][]) {
-  const out: { x: number; z: number; len: number; ry: number; dx: number; dz: number }[] = [];
-  for (let i = 0; i + 1 < points.length; i++) {
-    const [x0, z0] = points[i]!;
-    const [x1, z1] = points[i + 1]!;
-    const dx = x1 - x0;
-    const dz = z1 - z0;
-    const len = Math.hypot(dx, dz);
-    out.push({
-      x: (x0 + x1) / 2,
-      z: (z0 + z1) / 2,
-      len,
-      // a slab is built along z, so the angle is measured from north
-      ry: Math.atan2(dx, dz),
-      dx: dx / len,
-      dz: dz / len,
-    });
-  }
-  return out;
-}
+/**
+ * The river as the game actually uses it: a curve through the control points,
+ * sampled every couple of metres. Everything asks this rather than the control
+ * points — where the water is, where a path has to be bridged, how far a
+ * lollipop is from the bank — so the drawn river and the rules about it can
+ * never disagree.
+ */
+export const RIVER_PATH = riverPath(RIVER, RIVER_WIDTHS);
 
+/** The river is one mesh, not a chain of slabs. Slabs notched at every bend. */
 export function riverProps(): Prop[] {
-  const out: Prop[] = [];
-  // The bank is one wide slab *under* a narrower water slab rather than two
-  // strips beside it: strips met at every elbow and overlapped each other, and
-  // stacking is how this game keeps flat surfaces from z-fighting anyway.
-  const runs = segments(RIVER);
-  runs.forEach((s, i) => {
-    // the last run stops at the lake's edge rather than lying across it
-    const last = i === runs.length - 1;
-    const len = s.len + RIVER_W - (last ? SUGAR.lake.r * 2 : 0);
-    const back = last ? SUGAR.lake.r : 0;
-    const x = s.x - s.dx * back;
-    const z = s.z - s.dz * back;
-    /*
-     * Runs are overlength so the bends have no notch, which means consecutive
-     * runs lie over each other at every elbow. Two surfaces at the same height
-     * z-fight, so alternate runs sit 2cm higher: invisible underfoot on a river
-     * she cannot walk on anyway, and the flicker is gone.
-     */
-    const lift = i % 2 ? 0.02 : 0;
-    const w = widthOf(i);
-    out.push(surf(x, TOP.apron + lift, z, w + BANK_W * 2, len, CANDY.sugar, 0.14, { ry: s.ry }));
-    out.push(surf(x, TOP.path + lift, z, w, len, CANDY.chocRiver, 0.1, { ry: s.ry }));
-  });
-  // No discs at the elbows: a disc at the same height as the run it joins is
-  // exactly the coplanar overlap that z-fights. Each run is overlength instead,
-  // which covers the notch at these shallow bends.
-  out.push(disc(SUGAR.lake.x, TOP.apron, SUGAR.lake.z, SUGAR.lake.r + BANK_W, CANDY.sugar, 0.14));
-  out.push(disc(SUGAR.lake.x, TOP.path, SUGAR.lake.z, SUGAR.lake.r, CANDY.chocRiver, 0.1));
-  return out;
+  return [model("choc-river", 0, 0)];
 }
 
 /**
- * Swimming zones for the river: circles down the middle of every run, because
- * that is the only shape the water rule understands. `pool` keeps the pond
- * dressing (rocks, cattails, lily pads) off a river made of chocolate.
+ * Swimming zones down the river: circles along the curve, because that is the
+ * only shape the water rule understands. `pool` keeps the pond dressing (rocks,
+ * cattails, lily pads) off a river made of chocolate.
  */
 export function riverWater(): WaterZone[] {
   const out: WaterZone[] = [];
-  segments(RIVER).forEach((s, i) => {
-    const r = widthOf(i) / 2;
-    const steps = Math.max(1, Math.round(s.len / r));
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      out.push({
-        kind: "water",
-        x: s.x - (s.dx * s.len) / 2 + s.dx * s.len * t,
-        z: s.z - (s.dz * s.len) / 2 + s.dz * s.len * t,
-        r,
-        pool: true,
-      });
-    }
-  });
+  for (let i = 0; i < RIVER_PATH.length; i += 2) {
+    const p = RIVER_PATH[i]!;
+    out.push({ kind: "water", x: p.x, z: p.z, r: p.w / 2, pool: true });
+  }
   out.push({ kind: "water", x: SUGAR.lake.x, z: SUGAR.lake.z, r: SUGAR.lake.r, pool: true });
   return out;
 }
@@ -224,16 +174,34 @@ export function riverWater(): WaterZone[] {
 /** Every point where the river crosses a line of constant x (or constant z). */
 export function riverCrossings(along: "x" | "z", at: number): [number, number][] {
   const out: [number, number][] = [];
-  for (const [i, p] of RIVER.entries()) {
-    const q = RIVER[i + 1];
-    if (!q) break;
-    const a = along === "x" ? p[0] : p[1];
-    const b = along === "x" ? q[0] : q[1];
+  for (let i = 0; i + 1 < RIVER_PATH.length; i++) {
+    const p = RIVER_PATH[i]!;
+    const q = RIVER_PATH[i + 1]!;
+    const a = along === "x" ? p.x : p.z;
+    const b = along === "x" ? q.x : q.z;
     if ((at - a) * (at - b) > 0) continue;
     const t = b === a ? 0 : (at - a) / (b - a);
-    out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+    out.push([p.x + (q.x - p.x) * t, p.z + (q.z - p.z) * t]);
   }
   return out;
+}
+
+/** The river's direction and width at the sample nearest a point. */
+export function riverAt(x: number, z: number) {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < RIVER_PATH.length; i++) {
+    const p = RIVER_PATH[i]!;
+    const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  const p = RIVER_PATH[Math.max(1, best)]!;
+  const q = RIVER_PATH[Math.max(1, best) - 1]!;
+  const len = Math.hypot(p.x - q.x, p.z - q.z) || 1;
+  return { w: p.w, dx: (p.x - q.x) / len, dz: (p.z - q.z) / len };
 }
 
 /* ------------------------------------------------------- the path loop */
@@ -274,26 +242,17 @@ export function loopRects() {
  */
 export function bridgeSites(): { x: number; z: number; along: "x" | "z"; span: number }[] {
   const out: { x: number; z: number; along: "x" | "z"; span: number }[] = [];
-  const runs = segments(RIVER);
   for (const r of loopRects()) {
     const alongX = r.maxX - r.minX > r.maxZ - r.minZ;
     const at = alongX ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
     for (const [cx, cz] of riverCrossings(alongX ? "z" : "x", at)) {
       const inside = alongX ? cx > r.minX && cx < r.maxX : cz > r.minZ && cz < r.maxZ;
       if (!inside) continue;
-      let best = runs[0]!;
-      let bestD = Infinity;
-      for (const run of runs) {
-        const d = Math.hypot(run.x - cx, run.z - cz);
-        if (d < bestD) {
-          bestD = d;
-          best = run;
-        }
-      }
+      const here = riverAt(cx, cz);
       // the water lying along the path: the river's width over the sine of the
       // angle between them, floored so a square crossing still gets a bridge
-      const sin = Math.abs(alongX ? best.dz : best.dx);
-      const water = RIVER_W / Math.max(0.35, sin);
+      const sin = Math.abs(alongX ? here.dz : here.dx);
+      const water = here.w / Math.max(0.35, sin);
       out.push({ x: cx, z: cz, along: alongX ? "x" : "z", span: bridgeFor(water + 9).span });
     }
   }
@@ -437,11 +396,14 @@ const dist2 = (x: number, z: number, px: number, pz: number) => (x - px) ** 2 + 
 /** Distance from a point to the middle of the river, along its whole length. */
 export function riverDistance(x: number, z: number) {
   let best = Infinity;
-  for (const s of segments(RIVER)) {
-    const ax = s.x - (s.dx * s.len) / 2;
-    const az = s.z - (s.dz * s.len) / 2;
-    const t = Math.max(0, Math.min(s.len, (x - ax) * s.dx + (z - az) * s.dz));
-    best = Math.min(best, Math.hypot(x - (ax + s.dx * t), z - (az + s.dz * t)));
+  for (let i = 0; i + 1 < RIVER_PATH.length; i++) {
+    const p = RIVER_PATH[i]!;
+    const q = RIVER_PATH[i + 1]!;
+    const dx = q.x - p.x;
+    const dz = q.z - p.z;
+    const len2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - p.x) * dx + (z - p.z) * dz) / len2));
+    best = Math.min(best, Math.hypot(x - (p.x + dx * t), z - (p.z + dz * t)));
   }
   return Math.min(best, Math.hypot(x - SUGAR.lake.x, z - SUGAR.lake.z) - SUGAR.lake.r);
 }
@@ -808,4 +770,240 @@ export function dressingProps(keepOut: [number, number][]): Prop[] {
     }
   }
   return out;
+}
+
+/* -------------------------------------------------- the start district */
+
+/**
+ * The first hundred metres.
+ *
+ * Everything else in this park is a long walk from the plaza, which left the
+ * place she arrives in as the emptiest part of it. This fills the ring round
+ * the plaza with small places to find within a few steps of each other: a
+ * bandstand, a sweet shop row, a soda pond, a picnic lawn and a signpost, all
+ * joined by narrow paths off the main spokes.
+ *
+ * The little paths sit 2cm below the main ones so the two never flicker where
+ * they meet, and the soda is a liquid, so she wades rather than walks on it.
+ */
+
+const SODA = "#7fd0f0";
+
+/** A narrow path between two points. Straight runs only, like the main loop. */
+function lane(x0: number, z0: number, x1: number, z1: number, w = 3): Prop[] {
+  const len = Math.hypot(x1 - x0, z1 - z0);
+  const ry = Math.atan2(x1 - x0, z1 - z0);
+  // a hair under the street and the main paths, because a lane always ends by
+  // running into one of them and two surfaces at one height flicker
+  return [surf((x0 + x1) / 2, TOP.drive - 0.015, (z0 + z1) / 2, w, len, CANDY.sugar, 0.1, { ry })];
+}
+
+/** A bench made of a marshmallow slab on candy cane legs. */
+function bench(x: number, z: number, ry = 0): Prop[] {
+  const dx = Math.cos(ry);
+  const dz = -Math.sin(ry);
+  return [
+    box(x, 0.45, z, 2.4, 0.18, 0.7, CANDY.icing, true, { ry }),
+    cyl(x - dx * 0.9, 0.22, z - dz * 0.9, 0.16, 0.45, CANDY.cane),
+    cyl(x + dx * 0.9, 0.22, z + dz * 0.9, 0.16, 0.45, CANDY.cane),
+    box(x - Math.sin(ry) * 0.3, 0.85, z - Math.cos(ry) * 0.3, 2.4, 0.6, 0.16, CANDY.blush, true, { ry }),
+  ];
+}
+
+/** A wafer-roofed bandstand: somewhere to stand, and something to see from afar. */
+function bandstand(x: number, z: number): Prop[] {
+  const out: Prop[] = [];
+  out.push(disc(x, TOP.inner, z, 5.2, CANDY.cream, 0.3));
+  out.push(disc(x, TOP.line, z, 4.6, CANDY.blush, 0.08));
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    out.push(cyl(x + Math.sin(a) * 4.2, 1.6, z + Math.cos(a) * 4.2, 0.22, 3.2, CANDY.cane));
+  }
+  // the roof: three stacked discs, so it reads as a swirl of icing
+  out.push(disc(x, 3.6, z, 5.4, CANDY.icing, 0.3));
+  out.push(disc(x, 4.1, z, 4.2, CANDY.blush, 0.3));
+  out.push(disc(x, 4.6, z, 2.6, CANDY.icing, 0.3));
+  out.push(cyl(x, 5.1, z, 0.5, 0.8, CANDY.cane));
+  return out;
+}
+
+/** A signpost at the plaza with an arm for each way out. */
+function signpost(x: number, z: number): Prop[] {
+  const out: Prop[] = [cyl(x, 2.2, z, 0.26, 4.4, CANDY.icing)];
+  const arms: [number, number, string][] = [
+    [0, 3.6, CANDY.cane],
+    [Math.PI / 2, 3.0, CANDY.mint],
+    [Math.PI, 2.4, CANDY.sun],
+    [-Math.PI / 2, 1.8, CANDY.lilac],
+  ];
+  for (const [ry, y, color] of arms) {
+    out.push(box(x + Math.sin(ry) * 1.3, y, z + Math.cos(ry) * 1.3, 2.6, 0.5, 0.14, color, false, { ry: ry + Math.PI / 2 }));
+  }
+  return out;
+}
+
+/** A lamp post: a candy cane with a gumdrop light on top. */
+function lamp(x: number, z: number): Prop[] {
+  return [
+    cyl(x, 1.6, z, 0.14, 3.2, CANDY.icing),
+    cyl(x, 3.3, z, 0.36, 0.3, CANDY.cane, false),
+    cyl(x, 3.6, z, 0.3, 0.4, CANDY.sun, false),
+  ];
+}
+
+/** A low icing fence, for a front garden. */
+function fence(x: number, z: number, len: number, ry = 0): Prop[] {
+  const out: Prop[] = [];
+  const n = Math.max(2, Math.round(len / 1.2));
+  for (let i = 0; i <= n; i++) {
+    const t = -len / 2 + (i * len) / n;
+    out.push(cyl(x + Math.cos(ry) * t, 0.35, z - Math.sin(ry) * t, 0.11, 0.7, i % 2 ? CANDY.cane : CANDY.icing));
+  }
+  out.push(box(x, 0.72, z, len, 0.1, 0.14, CANDY.icing, false, { ry: ry + Math.PI / 2 }));
+  return out;
+}
+
+/**
+ * The village round the plaza.
+ *
+ * She arrives here, so it is the part of the park that has to feel like a
+ * place rather than a lawn: a street of gingerbread cottages and sweet shops
+ * with front gardens and lamp posts, a green with a bandstand at one end, a
+ * soda pond, and a picnic lawn out east. Everything sits within a minute's walk
+ * of where she lands.
+ */
+export function startDistrictProps(keepOut: [number, number][]): Prop[] {
+  const out: Prop[] = [];
+  const { x: px, z: pz, r: pr } = SUGAR.plaza;
+
+  // ---- the street: east-west, south of the plaza, crossing the south spoke
+  const streetZ = pz + 20;
+  out.push(surf(px - 18, TOP.drive, streetZ, 76, 7, CANDY.sugar, 0.1));
+  for (let c = px - 52; c < px + 16; c += 5) {
+    // between the path's own height and the main paths' stripes, so the street
+    // crossing the spoke does not set up a flicker
+    out.push(surf(c, 0.115, streetZ, 1.1, 7, CANDY.blush, 0.06));
+  }
+
+  // cottages down both sides, doors onto the street
+  const north: [number, number][] = [
+    [px - 48, 0],
+    [px - 36, 1],
+    [px - 24, 2],
+    [px - 12, 0],
+    [px + 4, 1],
+  ];
+  for (const [hx, v] of north) {
+    out.push(model(`gingerbread${v}`, hx, streetZ - 9, { scale: 0.95 }));
+    out.push(...fence(hx, streetZ - 5.2, 5.4));
+    out.push(model(TREE_IDS[v % TREE_IDS.length]!, hx + 4.2, streetZ - 7, { scale: 0.8 }));
+  }
+  const south: [number, number][] = [
+    [px - 44, 2],
+    [px - 32, 0],
+    [px - 8, 1],
+    [px + 8, 2],
+  ];
+  for (const [hx, v] of south) {
+    out.push(model(`gingerbread${v}`, hx, streetZ + 9, { scale: 0.95, ry: Math.PI }));
+    out.push(...fence(hx, streetZ + 5.2, 5.4));
+    out.push(model(TREE_IDS[(v + 1) % TREE_IDS.length]!, hx - 4.2, streetZ + 7, { scale: 0.8 }));
+  }
+  // shops on the corner nearest the plaza, where she will walk first
+  out.push(model("candy-stall", px - 18, streetZ - 6, { variant: 0 }));
+  out.push(model("candy-stall", px - 26, streetZ + 6, { variant: 1, ry: Math.PI }));
+  out.push(model("gumball-machine", px - 3, streetZ - 5.5, { scale: 1.1 }));
+  for (let c = px - 50; c <= px + 12; c += 12) {
+    out.push(...lamp(c, streetZ - 4.4));
+    out.push(...lamp(c + 6, streetZ + 4.4));
+  }
+  for (const [bx, bz] of [
+    [px - 40, streetZ - 4.2],
+    [px - 20, streetZ + 4.2],
+    [px - 2, streetZ + 4.2],
+  ] as [number, number][]) {
+    out.push(...bench(bx, bz, bz < streetZ ? 0 : Math.PI));
+  }
+
+  // ---- the green at the west end of the street, with the bandstand on it
+  const band = { x: px - 60, z: streetZ + 2 };
+  out.push(surf(band.x, TOP.lawn, band.z, 30, 30, "#7ad06a", 0.1));
+  out.push(...bandstand(band.x, band.z));
+  out.push(...lane(px - 52, streetZ, band.x + 6, band.z));
+  out.push(...bench(band.x - 9, band.z, Math.PI / 2));
+  out.push(...bench(band.x + 9, band.z, -Math.PI / 2));
+  for (const [ox, oz] of [[-11, -11], [11, -11], [-11, 11], [11, 11]] as [number, number][]) {
+    out.push(model(TREE_IDS[(Math.abs(ox) + Math.abs(oz)) % TREE_IDS.length]!, band.x + ox, band.z + oz, { scale: 1.2 }));
+  }
+
+  // ---- the village pond, south of the street
+  const pond = { x: px - 18, z: pz + 44, r: 7.5 };
+  out.push(disc(pond.x, TOP.apron, pond.z, pond.r + 2.2, CANDY.sugar, 0.14));
+  out.push(disc(pond.x, TOP.path, pond.z, pond.r, SODA, 0.1));
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    out.push(cyl(pond.x + Math.sin(a) * (pond.r + 1.4), 0.3, pond.z + Math.cos(a) * (pond.r + 1.4), 0.45, 0.6, CANDY.icing));
+  }
+  out.push(model("choc-fountain", pond.x + pond.r + 6, pond.z));
+  out.push(...bench(pond.x - 2, pond.z - pond.r - 3.4));
+  out.push(...lane(pond.x, streetZ + 4, pond.x, pond.z - pond.r - 2));
+
+  // ---- the picnic lawn, east, on the plaza's other side
+  const lawn = { x: px + 52, z: pz + 4 };
+  out.push(surf(lawn.x, TOP.lawn, lawn.z, 26, 22, "#7ad06a", 0.1));
+  for (const [ox, oz] of [[-7, -5], [6, -6], [0, 5], [8, 6]] as [number, number][]) {
+    out.push(cyl(lawn.x + ox, 0.6, lawn.z + oz, 1.5, 0.3, CANDY.cream));
+    out.push(cyl(lawn.x + ox, 0.3, lawn.z + oz, 0.5, 0.6, CANDY.chocLight));
+    out.push(model("marshmallow", lawn.x + ox + 2.4, lawn.z + oz + 1.4, { scale: 0.6 }));
+  }
+  out.push(...lane(px + pr + 1, pz + 2, lawn.x - 13, lawn.z));
+  out.push(...lamp(lawn.x - 10, lawn.z - 8));
+  out.push(...lamp(lawn.x + 10, lawn.z + 8));
+
+  // ---- the signpost where she arrives
+  out.push(...signpost(px + 6, pz + pr + 3));
+  out.push(...lamp(px - 6, pz + pr + 3));
+
+  // ---- planters and sweets filling what is left round the plaza
+  const rand = rng(5150);
+  const places: [number, number, number][] = [
+    [band.x, band.z, 18],
+    [pond.x, pond.z, 14],
+    [lawn.x, lawn.z, 16],
+  ];
+  for (let i = 0; i < 60; i++) {
+    const a = rand() * Math.PI * 2;
+    const r = pr + 6 + rand() * 46;
+    const x = px + Math.sin(a) * r;
+    const z = pz + Math.cos(a) * r;
+    if (!clearGround(x, z, 2, keepOut)) continue;
+    if (Math.abs(z - streetZ) < 14 && x > px - 56 && x < px + 16) continue;
+    if (places.some(([bx, bz, rr]) => dist2(x, z, bx, bz) < rr * rr)) continue;
+    const pick = rand();
+    if (pick < 0.35) {
+      out.push(cyl(x, 0.45, z, 1.1, 0.9, CANDY.blush));
+      out.push(model(TREE_IDS[Math.floor(rand() * TREE_IDS.length)]!, x, z, { y: 0.9, scale: 0.7 + rand() * 0.3 }));
+    } else if (pick < 0.55) {
+      out.push(...bench(x, z, rand() * Math.PI));
+    } else if (pick < 0.8) {
+      const n = 2 + Math.floor(rand() * 3);
+      for (let k = 0; k < n; k++) {
+        out.push(
+          model("gumdrop", x + (rand() - 0.5) * 5, z + (rand() - 0.5) * 5, {
+            scale: 0.7 + rand(),
+            variant: Math.floor(rand() * 6),
+          }),
+        );
+      }
+    } else {
+      out.push(model("cotton-candy", x, z, { scale: 1 + rand() * 0.5 }));
+      out.push(model("swirl-mint", x + 2, z + 1.5, { scale: 0.6 }));
+    }
+  }
+  return out;
+}
+
+/** The soda pond she can paddle in, for the level's water list. */
+export function startWater(): WaterZone[] {
+  return [{ kind: "water", x: SUGAR.plaza.x - 18, z: SUGAR.plaza.z + 44, r: 7.5, pool: true }];
 }

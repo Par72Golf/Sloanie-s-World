@@ -1630,6 +1630,8 @@ export function makeSky() {
 const SHALLOW: Record<string, [string, string]> = {
   // river colour: [what it lerps its depth toward, the colour at the edge]
   "#6e3f1e": ["#4a2a16", "#c98a4a"],
+  // fizzy soda: pale and bright at the edge, like a glass held up to the light
+  "#7fd0f0": ["#3aa8d8", "#eafaff"],
 };
 
 export function makeWaterMaterial(hex: string) {

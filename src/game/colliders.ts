@@ -27,7 +27,7 @@ const SPRAY = new Set(["#cdeefb", "#e8f8ff", "#d6f2ff", "#f7f3e4"]);
  * Actual liquid surfaces, listed explicitly. This used to be a colour-channel
  * heuristic and it turned every hedge into a walk-through wall. Keep the list.
  */
-const LIQUID = new Set(["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de", "#6e3f1e"]);
+const LIQUID = new Set(["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de", "#6e3f1e", "#7fd0f0"]);
 
 export function isWaterColor(color: string) {
   return LIQUID.has(color.toLowerCase());

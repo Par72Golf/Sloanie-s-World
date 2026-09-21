@@ -33,6 +33,8 @@ import {
   STALL,
   type Row,
 } from "./sugar-model-boxes";
+import { makeChocolateRiver } from "./candy-river";
+import { RIVER_PATH, SUGAR } from "./sugar-rush";
 import { registerModel, type ModelBox } from "./models";
 import type { ModelProp } from "./types";
 
@@ -169,6 +171,12 @@ registerModel("choc-boat", rows(BOAT), () => makeChocolateBoat());
 registerModel("gumball-machine", rows(GUMBALL), (_v, scale) => makeGumballMachine(scale));
 registerModel("candy-stall", rows(STALL), (variant) => makeCandyShopStall(STALL_AWNINGS[variant % STALL_AWNINGS.length]!));
 const STALL_AWNINGS = [CANDY.pink, CANDY.mint, CANDY.yellow, CANDY.lilac];
+
+/**
+ * The river is a single mesh built from the park's own curve, so it is placed
+ * at the origin rather than at a point: the geometry already knows where it is.
+ */
+registerModel("choc-river", [], () => makeChocolateRiver(RIVER_PATH, SUGAR.lake));
 
 /** The mountain's own numbers, for placing a candy on its deck or its ring. */
 export { ICE_CREAM_MOUNTAIN, FACTORY_CHANNEL } from "./candy-builds";

@@ -20,6 +20,8 @@ import {
   plazaProps,
   riverProps,
   riverWater,
+  startDistrictProps,
+  startWater,
 } from "./sugar-rush";
 
 /**
@@ -189,6 +191,7 @@ export function sugarRushPark(): LevelDef {
     ...mountainProps(),
     ...villageProps(),
     ...fairProps(),
+    ...startDistrictProps(spots),
     ...dressingProps(spots),
     ...boundaryProps(),
   ];
@@ -207,7 +210,7 @@ export function sugarRushPark(): LevelDef {
     groundY: 0,
     props,
     dumplings: sugarCandies,
-    water: riverWater(),
+    water: [...riverWater(), ...startWater()],
     ride: WHEEL,
   };
 }
