@@ -1,9 +1,34 @@
 import { useEffect, useRef } from "react";
 import { Overlays } from "./overlays";
 import { resumeAudio, startMusic, suspendAudio, unlockAudio } from "./audio";
+import { useGame } from "./store";
 
 export function GameApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  /*
+   * ?preview unlocks every park for a look round, without touching her save:
+   * it is how a half-built park gets tested before it is finished. The unlock
+   * is only in memory — the store writes her real save on its own schedule, so
+   * this flag never makes it to disk unless she plays and saves anyway.
+   */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const building = q.has("preview") || q.has("fly");
+    if (!building) return;
+    if (useGame.getState().unlocked < 2) useGame.setState({ unlocked: 2 });
+    if (q.has("fly")) useGame.setState({ fly: true });
+    // F flies and lands. Only while building, so a stray F in the park does
+    // nothing, and never while she is typing her name into the explorer card.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "KeyF" || e.repeat) return;
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+      useGame.getState().setFly(!useGame.getState().fly);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

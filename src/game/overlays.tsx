@@ -899,6 +899,7 @@ function HUD() {
   const riding = useGame((s) => s.riding);
   const rps = useGame((s) => s.rps);
   const setControls = useGame((s) => s.setControls);
+  const fly = useGame((s) => s.fly);
   const level = LEVELS[levelIndex]!;
   const found = collected[levelIndex]?.length ?? 0;
 
@@ -1171,6 +1172,9 @@ function HUD() {
       {phase === "playing" && !golfPlaying && !bowlsPlaying && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:pl-[max(1.5rem,env(safe-area-inset-left))]">
           <Joystick />
+          {fly ? (
+            <FlyDeck />
+          ) : (
           <div className="pointer-events-auto flex flex-col items-end gap-3 md:items-start [@media(max-height:520px)]:flex-row [@media(max-height:520px)]:items-end">
             {nearCollect && !riding && (
               <Btn onClick={requestInteract} className="ui-shimmer animate-ui-pop min-h-14 min-w-40 gap-2.5 text-xl 2xl:min-h-16 2xl:text-2xl">
@@ -1208,6 +1212,7 @@ function HUD() {
               </span>
             </button>
           </div>
+          )}
         </div>
       )}
 
@@ -1240,6 +1245,55 @@ function IconBtn({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * The flight controls. This is a building tool, not part of her game: it only
+ * appears once the camera is flying, and it is the only way to fly on a phone
+ * or a TV, where there is no F key.
+ */
+function FlyDeck() {
+  const speed = useGame((s) => s.flySpeed);
+  const setFlySpeed = useGame((s) => s.setFlySpeed);
+  const setFly = useGame((s) => s.setFly);
+  const setFlyLift = useGame((s) => s.setFlyLift);
+  // held, not tapped: the camera rises for as long as the button is down
+  const hold = (lift: number) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      setFlyLift(lift);
+    },
+    onPointerUp: () => setFlyLift(0),
+    onPointerLeave: () => setFlyLift(0),
+    onPointerCancel: () => setFlyLift(0),
+  });
+  const btn =
+    "press chunk-sm gloss grid size-14 place-items-center rounded-full bg-surface text-ink font-display text-xl font-semibold";
+  return (
+    <div className="pointer-events-auto flex flex-col items-end gap-2">
+      <div className="ui-glass flex items-center gap-2 px-3 py-1.5 text-base font-bold text-ink">
+        <Eye className="size-5 text-accent-2" />
+        Fly {Math.round(speed)}m/s
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" aria-label="Slower" onClick={() => setFlySpeed(speed / 1.5)} className={btn}>
+          −
+        </button>
+        <button type="button" aria-label="Faster" onClick={() => setFlySpeed(speed * 1.5)} className={btn}>
+          +
+        </button>
+        <button type="button" aria-label="Down" {...hold(-1)} className={btn}>
+          <ChevronDown className="size-7" strokeWidth={2.6} />
+        </button>
+        <button type="button" aria-label="Up" {...hold(1)} className={btn}>
+          <ChevronUp className="size-7" strokeWidth={2.6} />
+        </button>
+        <Btn variant="secondary" onClick={() => setFly(false)} className="min-h-14 px-4">
+          Land
+        </Btn>
+      </div>
+    </div>
   );
 }
 

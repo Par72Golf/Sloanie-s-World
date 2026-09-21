@@ -348,7 +348,7 @@ function gumdropSugarGeometry() {
  * userData.boxes: one box inset from the true width, so she can stand close
  * to the side of it without an invisible corner pushing her away.
  */
-export function makeGumdrop(color = CANDY.red, scale = 1) {
+export function makeGumdrop(color: string = CANDY.red, scale = 1) {
   const g = new THREE.Group();
 
   const dome = new THREE.Mesh(gumdropGeometry(), glossy(color, 0.12));
@@ -854,7 +854,7 @@ export function makeCottonCandyPuff(scale = 1) {
  *
  * No boxes: it is a pickup, she walks into it.
  */
-export function makeSodaCan(flavour = CANDY.red) {
+export function makeSodaCan(flavour: string = CANDY.red) {
   const g = new THREE.Group();
   const silver = "#d9dde2";
   g.add(mesh(cylGeo, flavour, 0.135, 0.36, 0.135, 0, 0.19, 0));

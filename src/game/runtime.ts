@@ -25,6 +25,7 @@ import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "
 import { featuresFor } from "./features";
 import { applyLevelOrigins } from "./level-origins";
 import {
+  activePad,
   bindInput,
   clearInjectedKeys,
   camLeftHeld,
@@ -145,6 +146,14 @@ export class GameRuntime {
   highlightUntil = 0;
   highlighted: DumplingHandle | null = null;
   camPos = new THREE.Vector3();
+  /**
+   * Free-fly camera, for building a park rather than playing one: the camera
+   * comes off her and flies, and she stands still while it does.
+   */
+  flyPos = new THREE.Vector3();
+  flyYaw = 0;
+  flyPitch = -0.5;
+  private flyWas = false;
   composer!: EffectComposer;
   bloom!: UnrealBloomPass;
   /** game-clock time of the last catch, for the hitch log */
@@ -1656,6 +1665,16 @@ export class GameRuntime {
   camOverride: { pos: THREE.Vector3; target: THREE.Vector3 } | null = null;
 
   syncCamera(snap = false) {
+    if (useGame.getState().fly) {
+      this.camera.position.copy(this.flyPos);
+      this.lookAt.set(
+        this.flyPos.x - Math.sin(this.flyYaw) * Math.cos(this.flyPitch),
+        this.flyPos.y + Math.sin(this.flyPitch),
+        this.flyPos.z - Math.cos(this.flyYaw) * Math.cos(this.flyPitch),
+      );
+      this.camera.lookAt(this.lookAt);
+      return;
+    }
     if (this.camOverride) {
       this.camera.position.copy(this.camOverride.pos);
       this.camera.lookAt(this.camOverride.target);
@@ -1943,6 +1962,57 @@ export class GameRuntime {
     this.syncCamera(false);
     this.sun.position.set(this.cap.x + 28, 42, this.cap.z + 16);
     this.sun.target.position.set(this.cap.x, 0, this.cap.z);
+    this.sun.target.updateMatrixWorld();
+  }
+
+  /**
+   * Fly the camera. Movement is camera-relative like a map editor: the stick
+   * or WASD flies where you are looking, and the lift is separate so she can
+   * rise straight up over the park without pointing the camera at the sky.
+   */
+  updateFly(dt: number) {
+    const st = useGame.getState();
+    if (!this.flyWas) {
+      // start from where the camera already is, so switching does not jump
+      this.flyPos.copy(this.camera.position);
+      this.flyYaw = this.cameraYaw;
+      this.flyPitch = Math.asin(THREE.MathUtils.clamp((this.lookAt.y - this.camera.position.y) / Math.max(0.001, this.camera.position.distanceTo(this.lookAt)), -1, 1));
+    }
+    const look = consumeLook();
+    this.flyYaw -= look.dx * 0.0055;
+    this.flyPitch = THREE.MathUtils.clamp(this.flyPitch - look.dy * 0.0045, -1.45, 1.45);
+    if (camLeftHeld()) this.flyYaw += dt * 1.6;
+    if (camRightHeld()) this.flyYaw -= dt * 1.6;
+
+    const axes = getMoveAxes();
+    pollGamepad(axes);
+    const speed = st.flySpeed * (isDown("ShiftLeft") || isDown("ShiftRight") ? 3 : 1);
+    const cy = Math.cos(this.flyPitch);
+    const fwd = new THREE.Vector3(-Math.sin(this.flyYaw) * cy, Math.sin(this.flyPitch), -Math.cos(this.flyYaw) * cy);
+    const right = new THREE.Vector3(Math.cos(this.flyYaw), 0, -Math.sin(this.flyYaw));
+    this.flyPos.addScaledVector(fwd, axes.z * speed * dt);
+    this.flyPos.addScaledVector(right, axes.x * speed * dt);
+
+    // up and down: space and ctrl on a keyboard, the buttons on a phone, the
+    // shoulder buttons on a controller
+    let lift = st.flyLift;
+    if (isDown("Space")) lift += 1;
+    if (isDown("ControlLeft") || isDown("ControlRight")) lift -= 1;
+    const pad = activePad();
+    if (pad) {
+      if (pad.buttons[5]?.pressed) lift += 1;
+      if (pad.buttons[4]?.pressed) lift -= 1;
+    }
+    this.flyPos.y = Math.max(1, this.flyPos.y + THREE.MathUtils.clamp(lift, -1, 1) * speed * dt);
+
+    // keep it over the park, so it cannot be lost in the fog somewhere
+    const b = this.level.bounds;
+    this.flyPos.x = THREE.MathUtils.clamp(this.flyPos.x, b.minX - 40, b.maxX + 40);
+    this.flyPos.z = THREE.MathUtils.clamp(this.flyPos.z, b.minZ - 40, b.maxZ + 40);
+    this.flyPos.y = Math.min(this.flyPos.y, 400);
+    this.syncCamera(true);
+    this.sun.position.set(this.flyPos.x + 28, 42, this.flyPos.z + 16);
+    this.sun.target.position.set(this.flyPos.x, 0, this.flyPos.z);
     this.sun.target.updateMatrixWorld();
   }
 
@@ -2294,13 +2364,24 @@ export class GameRuntime {
       }
     }
 
-    this.acc += raw;
-    let steps = 0;
-    while (this.acc >= FIXED && steps < 5) {
-      this.physics(FIXED);
-      this.acc -= FIXED;
-      steps++;
+    if (st.fly) {
+      this.updateFly(raw);
+      this.acc = 0;
+    } else {
+      if (this.flyWas) {
+        // back to her, from wherever the camera drifted off to
+        this.cameraYaw = this.flyYaw;
+        this.syncCamera(true);
+      }
+      this.acc += raw;
+      let steps = 0;
+      while (this.acc >= FIXED && steps < 5) {
+        this.physics(FIXED);
+        this.acc -= FIXED;
+        steps++;
+      }
     }
+    this.flyWas = st.fly;
     this.animateWorld(raw);
     this.hud(raw);
     const carried = this.ride || this.carouselRide;

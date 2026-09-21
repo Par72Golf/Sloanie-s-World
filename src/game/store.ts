@@ -223,6 +223,17 @@ export type GameStore = {
   toTitle: () => void;
   /** Wipe all progress. Best times are kept unless asked; settings always are. */
   resetAll: (opts?: { bestTimes?: boolean }) => void;
+  /**
+   * Free-fly camera: a building tool, not part of the game. It unhooks the
+   * camera from her so a park under construction can be looked at from above.
+   */
+  fly: boolean;
+  setFly: (v: boolean) => void;
+  /** Vertical nudge from the touch buttons while flying: -1, 0 or 1. */
+  flyLift: number;
+  setFlyLift: (v: number) => void;
+  flySpeed: number;
+  setFlySpeed: (v: number) => void;
   setHud: (p: {
     temp: TempBand;
     nearestName: string | null;
@@ -935,6 +946,12 @@ export const useGame = create<GameStore>((set, get) => ({
       emmettNotice: null,
       celebrate: null,
     }),
+  fly: false,
+  setFly: (fly) => set({ fly, flyLift: 0 }),
+  flyLift: 0,
+  setFlyLift: (flyLift) => set({ flyLift }),
+  flySpeed: 26,
+  setFlySpeed: (flySpeed) => set({ flySpeed: Math.max(4, Math.min(120, flySpeed)) }),
   setHud: ({ temp, nearestName, nearestDist, nearCollect }) =>
     set({ temp, nearestName, nearestDist, nearCollect }),
   setHint: (hintText, highlightedId) => set({ hintText, highlightedId }),
