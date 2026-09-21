@@ -10,6 +10,7 @@ import {
   factoryProps,
   fairProps,
   forestProps,
+  frostingProps,
   marshmallowProps,
   mazeProps,
   meadowProps,
@@ -179,6 +180,7 @@ const sugarCandies: DumplingDef[] = CANDIES.map((c) => {
 export function sugarRushPark(): LevelDef {
   // every candy keeps a clear circle round it, so nothing is ever planted on top
   const spots = sugarCandies.map((d) => [d.pos[0], d.pos[2]] as [number, number]);
+  // the frosting goes on last, because it has to see what is already down
   const props = [
     ...riverProps(),
     ...pathProps(),
@@ -197,6 +199,7 @@ export function sugarRushPark(): LevelDef {
     ...plantingProps(spots),
     ...boundaryProps(),
   ];
+  props.unshift(...frostingProps(spots, props));
 
   return {
     id: "sugar",
@@ -214,6 +217,13 @@ export function sugarRushPark(): LevelDef {
     grass: CANDY.grass,
     // sprinkles in the turf instead of park 1's daisies
     groundSpecks: ["#ff9ec8", "#ffffff", "#9fd8ff", "#ffe08a"],
+    /*
+     * No blades of grass here. Park 1's waving grass is what makes a lawn look
+     * alive, but at candy colours a field of pale spikes reads as fur, and this
+     * ground is meant to be a smooth mint sweet. The frosting patches in
+     * sugar-rush.ts give the surface its variation instead.
+     */
+    grassDensity: 0,
     path: CANDY.sugar,
     spawn: SUGAR.spawn,
     spawnYaw: 0,

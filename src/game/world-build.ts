@@ -438,10 +438,15 @@ export function buildWorld(level: LevelDef): BuiltWorld {
 
   mark("props");
   let grassField: GrassField | null = null;
-  if (!level.islands) {
+  const grassScale = level.grassDensity ?? 1;
+  if (!level.islands && grassScale > 0) {
     const mask = scatterMask(level, colliders, level.water ?? []);
     mark("scatter mask");
-    grassField = makeGrassField(level, mask);
+    const area = (level.bounds.maxX - level.bounds.minX) * (level.bounds.maxZ - level.bounds.minZ);
+    grassField = makeGrassField(level, mask, {
+      blades: Math.round(THREE.MathUtils.clamp(area * 2.0, 30000, 150000) * grassScale),
+      flowers: Math.round(THREE.MathUtils.clamp(area * 0.08, 900, 5000) * grassScale),
+    });
     group.add(grassField.group);
     mark("grass");
   }

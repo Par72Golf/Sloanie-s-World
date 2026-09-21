@@ -846,6 +846,48 @@ export function fairProps(): Prop[] {
 /** Where the gumdrop wheel stands. The level hands this to `ride`. */
 export const WHEEL = { x: SUGAR.fair.x + 6, z: SUGAR.fair.z - 10 };
 
+/**
+ * Frosting: wide, soft patches of a slightly different mint, spaced so they
+ * never touch. Without the blades of grass the ground is one flat colour, and
+ * a park you cross in a minute needs the ground to change under you.
+ */
+export function frostingProps(keepOut: [number, number][], already: Prop[]): Prop[] {
+  /*
+   * Every other flat thing in the park — aprons, lawns, squares, the garden's
+   * beds — sits at the same height as these patches, and two flat surfaces at
+   * one height flicker. So a patch is only laid where the ground is genuinely
+   * bare: this walks what has already been placed and keeps clear of it.
+   */
+  const flats: { x: number; z: number; hw: number; hd: number }[] = [];
+  for (const p of already) {
+    if (p.kind === "box" && p.size[1] <= 0.3) {
+      const rot = (p.ry ?? 0) !== 0;
+      const w = rot ? Math.max(p.size[0], p.size[2]) : p.size[0];
+      const d = rot ? Math.max(p.size[0], p.size[2]) : p.size[2];
+      flats.push({ x: p.pos[0], z: p.pos[2], hw: w / 2, hd: d / 2 });
+    } else if (p.kind === "cyl" && p.h <= 0.3) {
+      flats.push({ x: p.pos[0], z: p.pos[2], hw: p.r, hd: p.r });
+    }
+  }
+
+  const out: Prop[] = [];
+  const rand = rng(8899);
+  const taken: [number, number, number][] = [];
+  // barely different from the ground: at full contrast they read as puddles
+  const shades = ["#95e3d5", "#89dcc9", "#9ae6d9"];
+  for (let tries = 0; tries < 2500 && taken.length < 40; tries++) {
+    const x = (rand() - 0.5) * 290;
+    const z = (rand() - 0.5) * 290;
+    const r = 6 + rand() * 11;
+    if (!clearGround(x, z, r + 2, keepOut)) continue;
+    if (taken.some(([tx, tz, tr]) => dist2(x, z, tx, tz) < (r + tr + 4) ** 2)) continue;
+    if (flats.some((f) => Math.abs(f.x - x) < f.hw + r + 1 && Math.abs(f.z - z) < f.hd + r + 1)) continue;
+    taken.push([x, z, r]);
+    out.push(disc(x, TOP.lawn, z, r, shades[Math.floor(rand() * shades.length)]!, 0.1));
+  }
+  return out;
+}
+
 /* -------------------------------------------------------- planting */
 
 /**

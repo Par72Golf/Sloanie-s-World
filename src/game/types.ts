@@ -209,6 +209,12 @@ export type LevelDef = {
   fogColor?: string;
   /** Specks in the ground texture: daisies in a park, sprinkles in a candy one. */
   groundSpecks?: string[];
+  /**
+   * Blades of grass, as a multiplier on the usual density. 0 leaves the ground
+   * smooth, which is what a park made of icing wants: a field of pale blades
+   * at candy colours reads as fur.
+   */
+  grassDensity?: number;
   fogFar: number;
   grass: string;
   path: string;

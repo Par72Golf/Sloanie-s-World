@@ -77,19 +77,27 @@ const SUN = { x: 70, y: 62, z: -48, keep: 30 };
 const SPREAD = 235;
 
 /**
- * Three decks. The low one is the one that does the work: at 27-34m it sits
- * behind the factory and the wheel instead of above everything, which is what
- * gives the park a middle distance. Nothing she can climb reaches 20m, and the
- * fattest low cloud hangs its belly at 22m, so none of it is ever in her way.
+ * Three decks. The low one is the one that does the work: at 30-38m it sits
+ * behind the factory and the mountain instead of above everything, which is
+ * what gives the park a middle distance. Nothing she can climb reaches 20m and
+ * the fattest low cloud hangs its belly at 25m, so none of it is in her way.
+ *
+ * `clearOfPark` holds the low deck out over the fields and the fence line. A
+ * fat cloud hanging straight over the plaza is a ceiling on her arrival, and
+ * from the fly camera it looks like the park is being rained on.
  */
 const DECKS = [
-  { count: 16, minY: 27, maxY: 34, minS: 3.0, maxS: 4.2, spacing: 44 },
-  { count: 17, minY: 40, maxY: 54, minS: 4.0, maxS: 6.0, spacing: 46 },
-  { count: 13, minY: 58, maxY: 78, minS: 5.0, maxS: 7.5, spacing: 50 },
+  { count: 16, minY: 30, maxY: 38, minS: 3.0, maxS: 4.2, spacing: 46, clearOfPark: 90 },
+  { count: 17, minY: 44, maxY: 58, minS: 4.0, maxS: 6.0, spacing: 46, clearOfPark: 0 },
+  { count: 13, minY: 62, maxY: 80, minS: 5.0, maxS: 7.5, spacing: 50, clearOfPark: 0 },
 ];
 
-/** 0 is white and goes through the engine; 1-3 are built here. */
-const TINTS = ["#f7fbff", "#ffc4dd", "#bfe0ff", "#d9c6f6"];
+/**
+ * 0 is white and goes through the engine; 1-3 are built here. Barely tinted on
+ * purpose: at full candy saturation a lilac cloud read as a grape gumdrop stuck
+ * to the sky. These are white with a sweet in them.
+ */
+const TINTS = ["#f7fbff", "#ffd7e8", "#d2e9ff", "#e3d8fb"];
 
 type Puff = { x: number; y: number; z: number; s: number; tint: number; shape: number };
 
@@ -112,6 +120,7 @@ function scatter(): Puff[] {
       const tint = rnd() < 0.44 ? 0 : 1 + Math.floor(rnd() * 3);
       const shape = Math.floor(rnd() * 3) % 3;
       if (Math.hypot(x - SUN.x, y - SUN.y, z - SUN.z) < SUN.keep + s * 3) continue;
+      if (Math.hypot(x, z) < d.clearOfPark) continue;
       // only clouds at roughly the same height crowd each other; two decks
       // apart they read as one in front of the other, which is the point
       let clear = true;
@@ -198,10 +207,16 @@ function cloudGeometry(shape: number, s: number) {
 const STRIPES = ["#ff92a6", "#ffb875", "#ffe488", "#8fe7c3", "#9bcfff", "#cfaaf7"];
 
 const RAINBOW = {
-  /** north-west, so it stands behind Ice Cream Mountain from most of the park */
-  cx: -98,
+  /**
+   * Due north and past the fence. She spawns at (0, 34) facing the plaza, which
+   * is facing north, so this is the first thing she sees. It was over the
+   * north-west corner first, which put the plaza-to-Ice-Cream-Mountain sightline
+   * exactly along the band's plane: from the one place she looks at it from
+   * most, an edge-on rainbow is no rainbow at all.
+   */
+  cx: -34,
   cy: -8,
-  cz: -98,
+  cz: -164,
   inner: 118,
   outer: 154,
   /** a bit more than half a circle, so the feet are already below the horizon */
