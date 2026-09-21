@@ -582,7 +582,7 @@ export function farm(cx: number, cz: number): Prop[] {
  * windmill, which is an open frame she can see straight through.
  */
 export const GOLF = {
-  /** where levels.ts puts the course */
+  /** where levels.ts puts the course; setGolfOrigin moves it for another park */
   x: 20,
   z: -132,
   holes: 5,
@@ -711,6 +711,20 @@ export const GOLF_BLOCKS: GolfBlock[][] = [
   // 5 · nothing standing still: the rolling log does all the work
   [],
 ];
+
+/** Where the course sits when a park does not say otherwise: park 1's. */
+const GOLF_HOME = { x: GOLF.x, z: GOLF.z };
+
+/**
+ * Move the course. The greens themselves are props, baked by miniGolf(cx, cz)
+ * when the park is authored; this is what minigolf.ts reads to put the ball,
+ * the flags and the camera on those same greens, so the two have to be given
+ * the same centre.
+ */
+export function setGolfOrigin(o: { x: number; z: number } = GOLF_HOME) {
+  GOLF.x = o.x;
+  GOLF.z = o.z;
+}
 
 /** Five mini-golf holes side by side, with low borders, obstacles and flags. */
 export function miniGolf(cx: number, cz: number): Prop[] {

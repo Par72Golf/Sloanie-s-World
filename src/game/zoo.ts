@@ -47,6 +47,29 @@ import type { BoxProp, CylinderProp, Prop } from "./types";
  */
 export const ZOO = { x: -15, z: -136, w: 28, d: 24, yaw: Math.PI };
 
+/** Where a park puts its zoo: the centre of the fence lines and the frame's turn. */
+export type ZooOrigin = { x: number; z: number; yaw: number };
+
+/** Where the zoo sits when a park does not say otherwise: park 1's. */
+const ZOO_HOME = { x: ZOO.x, z: ZOO.z, yaw: ZOO.yaw };
+
+/**
+ * Move the zoo. Only the frame moves: the enclosures, fences, plaques and
+ * animals are all authored in the zoo's own coordinates, so they come along.
+ * Keep the yaw a multiple of PI/2 or the fence colliders stop being
+ * axis-aligned and start reaching into the enclosures.
+ */
+export function setZooOrigin(o: ZooOrigin = ZOO_HOME) {
+  ZOO.x = o.x;
+  ZOO.z = o.z;
+  ZOO.yaw = o.yaw;
+}
+
+/** sin and cos of a frame's yaw, snapped to integers (it is a quarter turn). */
+function zooTrig(o: { yaw: number }): [number, number] {
+  return [Math.round(Math.sin(o.yaw)), Math.round(Math.cos(o.yaw))];
+}
+
 /** Fence height and collider thickness; the arch posts. */
 export const FENCE = { h: 1.1, t: 0.16 };
 export const ARCH = { postX: 3.3, post: 0.5, postH: 4.2, z: -(ZOO.d / 2 - FENCE.t / 2) };
@@ -152,14 +175,18 @@ export const SPOT_OUT = 1.3;
 /** Standing within this of a spot counts as at the plaque. */
 export const SPOT_R = 1.8;
 
-/** Zoo frame to world (the half turn: local +x and +z point at world -x and -z). */
-export function zooToWorld(lx: number, lz: number): [number, number] {
-  return [ZOO.x - lx, ZOO.z - lz];
+/** Zoo frame to world (at park 1's half turn: local +x and +z point at world -x and -z). */
+export function zooToWorld(lx: number, lz: number, o: ZooOrigin = ZOO): [number, number] {
+  const [s, c] = zooTrig(o);
+  return [o.x + lx * c + lz * s, o.z - lx * s + lz * c];
 }
 
 /** World to the zoo frame. */
-export function worldToZoo(x: number, z: number): [number, number] {
-  return [ZOO.x - x, ZOO.z - z];
+export function worldToZoo(x: number, z: number, o: ZooOrigin = ZOO): [number, number] {
+  const [s, c] = zooTrig(o);
+  const dx = x - o.x;
+  const dz = z - o.z;
+  return [dx * c - dz * s, dx * s + dz * c];
 }
 
 /** Where she stands to read an enclosure's plaque, zoo frame. */
@@ -168,9 +195,9 @@ export function plaqueSpotLocal(e: Enclosure): [number, number] {
 }
 
 /** Where she stands to read an enclosure's plaque, world. */
-export function plaqueSpot(e: Enclosure): [number, number] {
+export function plaqueSpot(e: Enclosure, o: ZooOrigin = ZOO): [number, number] {
   const [x, z] = plaqueSpotLocal(e);
-  return zooToWorld(x, z);
+  return zooToWorld(x, z, o);
 }
 
 /**
@@ -237,11 +264,15 @@ export function archBoxesLocal(): [number, number, number, number, number, numbe
  * coords, with a label each. For colliders.ts: the drawn fences and posts are
  * zoo-mesh.ts, so these are not props.
  */
-export function zooColliders(): (AABB & { label: string })[] {
+export function zooColliders(o: ZooOrigin = ZOO): (AABB & { label: string })[] {
   const out: (AABB & { label: string })[] = [];
+  // a quarter turn swaps the box's two horizontal sides; a half turn does not
+  const quarter = Math.abs(zooTrig(o)[0]) === 1;
   const add = ([cx, cy, cz, sx, sy, sz]: [number, number, number, number, number, number], label: string) => {
-    const [x, z] = zooToWorld(cx, cz);
-    out.push({ minX: x - sx / 2, maxX: x + sx / 2, minY: cy - sy / 2, maxY: cy + sy / 2, minZ: z - sz / 2, maxZ: z + sz / 2, label });
+    const [x, z] = zooToWorld(cx, cz, o);
+    const wx = quarter ? sz : sx;
+    const wz = quarter ? sx : sz;
+    out.push({ minX: x - wx / 2, maxX: x + wx / 2, minY: cy - sy / 2, maxY: cy + sy / 2, minZ: z - wz / 2, maxZ: z + wz / 2, label });
   };
   FENCE_LINES.forEach((f, i) => add(fenceBoxLocal(f), `zoo fence ${i}`));
   archBoxesLocal().forEach((b, i) => add(b, `zoo arch post ${i}`));
@@ -249,17 +280,18 @@ export function zooColliders(): (AABB & { label: string })[] {
 }
 
 /** The zoo's fence-line footprint in the world, grown by `pad`. */
-export function zooFootprint(pad = 0) {
-  return {
-    minX: ZOO.x - H - pad,
-    maxX: ZOO.x + H + pad,
-    minZ: ZOO.z - D - pad,
-    maxZ: ZOO.z + D + pad,
-  };
+export function zooFootprint(pad = 0, o: ZooOrigin = ZOO) {
+  const quarter = Math.abs(zooTrig(o)[0]) === 1;
+  const hx = (quarter ? D : H) + pad;
+  const hz = (quarter ? H : D) + pad;
+  return { minX: o.x - hx, maxX: o.x + hx, minZ: o.z - hz, maxZ: o.z + hz };
 }
 
 /**
- * No jumping in or near the zoo. A boosted running jump lands on a 1.1m top
+ * No jumping in or near the zoo, at park 1's zoo. A park that moves the zoo
+ * with setZooOrigin needs its own entry, from zooFootprint(10.5, itsOrigin).
+ *
+ * A boosted running jump lands on a 1.1m top
  * from 10.2m out (tuning.ts jumpReach at WALK x BOOST_MULTIPLIER), so the zone
  * is the fence line grown by 10.5m. Without it she would hop the fences, and
  * inside an enclosure she could not jump back out.
@@ -274,12 +306,13 @@ export const POOL = { x: 0.9, z: -3, r: 1.25 };
  * enclosure's floor, plus the penguin pool as a water cylinder. They mask the
  * grass, get merged with the park, and are all floor-height (tops under 0.1m).
  */
-export function zooProps(): Prop[] {
+export function zooProps(o: ZooOrigin = ZOO): Prop[] {
   const out: Prop[] = [];
+  const quarter = Math.abs(zooTrig(o)[0]) === 1;
   const slab = (x: number, z: number, sx: number, sz: number, top: number, color: string): BoxProp => {
     const h = 0.12;
-    const [wx, wz] = zooToWorld(x, z);
-    return { kind: "box", pos: [wx, top - h / 2, wz], size: [sx, h, sz], color, collide: false };
+    const [wx, wz] = zooToWorld(x, z, o);
+    return { kind: "box", pos: [wx, top - h / 2, wz], size: [quarter ? sz : sx, h, quarter ? sx : sz], color, collide: false };
   };
   out.push(slab(0, 0, ZOO.w + 0.6, ZOO.d + 0.6, GROUND.walkTop, GROUND.walk));
   for (const e of ENCLOSURES) {
@@ -287,7 +320,7 @@ export function zooProps(): Prop[] {
     const inset = FENCE.t / 2;
     out.push(slab((r.minX + r.maxX) / 2, (r.minZ + r.maxZ) / 2, r.maxX - r.minX - inset * 2, r.maxZ - r.minZ - inset * 2, GROUND.penTop, e.floor));
   }
-  const [px, pz] = zooToWorld(POOL.x, POOL.z);
+  const [px, pz] = zooToWorld(POOL.x, POOL.z, o);
   const pool: CylinderProp = { kind: "cyl", pos: [px, GROUND.penTop + 0.02, pz], r: POOL.r, h: 0.06, color: "#6cb8d4", collide: false };
   out.push(pool);
   return out;

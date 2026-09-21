@@ -1,5 +1,7 @@
 import { zooColliders } from "./zoo";
 import { truckColliders } from "./emmett-base";
+import { featuresFor } from "./features";
+import { modelColliders } from "./models";
 import { aabbFromCenter, type AABB } from "./collision";
 import { TRAMPOLINE_TOP } from "./tuning";
 import type { BoxProp, LevelDef, Prop } from "./types";
@@ -25,7 +27,7 @@ const SPRAY = new Set(["#cdeefb", "#e8f8ff", "#d6f2ff", "#f7f3e4"]);
  * Actual liquid surfaces, listed explicitly. This used to be a colour-channel
  * heuristic and it turned every hedge into a walk-through wall. Keep the list.
  */
-const LIQUID = new Set(["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de"]);
+const LIQUID = new Set(["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de", "#6e3f1e"]);
 
 export function isWaterColor(color: string) {
   return LIQUID.has(color.toLowerCase());
@@ -51,6 +53,7 @@ export type LabelledAABB = AABB & { label: string; index: number };
 /** Every collider for a level, in the order world-build adds them. */
 export function collidersFor(level: LevelDef): LabelledAABB[] {
   const out: LabelledAABB[] = [];
+  const feat = featuresFor(level);
   const push = (b: AABB, label: string, index: number) => out.push({ ...b, label, index });
 
   level.props.forEach((p: Prop, i: number) => {
@@ -80,6 +83,9 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
       // body and wheels as one block; the cab roof is out of reach anyway
       const turned = Math.abs(Math.abs(p.ry ?? 0) - Math.PI / 2) < 0.2;
       push(aabbFromCenter(p.x, 0.8, p.z, turned ? 2.5 : 3.9, 1.6, turned ? 3.9 : 2.5), "tractor", i);
+    } else if (p.kind === "model") {
+      // the model itself says what it is solid at (models.ts)
+      for (const b of modelColliders(p)) push(b, b.label, i);
     }
   });
 
@@ -105,18 +111,10 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
     push(aabbFromCenter(x, 0.15, z + 5.2, 3.2, 0.3, 0.8), "wheel step", -1);
   }
 
-  if (level.emmettBase) truckColliders().forEach((b, i) => push(b, "monster truck", -1 - i));
-  if (level.zoo) zooColliders().forEach((b, i) => push(b, b.label, -1 - i));
+  if (level.emmettBase) truckColliders(feat.emmettBase).forEach((b, i) => push(b, "monster truck", -1 - i));
+  if (level.zoo) zooColliders(feat.zoo).forEach((b, i) => push(b, b.label, -1 - i));
 
-  // composite meshes the builder places by hand
-  if (level.id === "picnic") {
-    push(aabbFromCenter(22, 1.3, 8, 2.2, 2.6, 2.2), "slide", -1);
-    push(aabbFromCenter(0, 0.4, -42, 6.6, 0.8, 6.6), "fountain", -1);
-    push(aabbFromCenter(54.2, 1.8, -53, 1.4, 3.6, 1.4), "treehouse trunk", -1);
-    push(aabbFromCenter(54.2, 3.55, -53, 5.2, 0.16, 5.2), "treehouse deck", -1);
-  }
-  if (level.id === "village") {
-    push(aabbFromCenter(0, 0.7, 0, 4.2, 1.4, 4.2), "fountain", -1);
-  }
+  // the park's composite landmarks (features.ts), solid where their model says
+  for (const m of feat.landmarks ?? []) for (const b of modelColliders(m)) push(b, b.label, -1);
   return out;
 }

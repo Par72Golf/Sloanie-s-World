@@ -189,7 +189,9 @@ function reachability(level: LevelDef, boxes: Box[], start: [number, number]) {
 }
 
 const LAYOUT = Number(process.env.LAYOUT ?? "0");
-const base = LEVELS[0]!;
+// LEVEL picks the park: 0 is Sunny Picnic Park, 1 Sugar Rush Park.
+const LEVEL = Number(process.env.LEVEL ?? "0");
+const base = LEVELS[LEVEL]!;
 const level: LevelDef = {
   ...base,
   dumplings: base.dumplings.map((d) => {
@@ -197,7 +199,7 @@ const level: LevelDef = {
     return alt ? { ...d, pos: alt.pos, region: alt.region, hint: alt.hint } : d;
   }),
 };
-console.log(`LAYOUT ${LAYOUT}`);
+console.log(`${base.name} — LAYOUT ${LAYOUT}`);
 // The solid list is the engine's own (colliders.ts), so this checker can no
 // longer drift from what the game builds. The visuals list is still local:
 // it deliberately includes non-solid props for the intersection check.
@@ -206,30 +208,86 @@ const visuals = collidersFor(level, true);
 
 /** Flat surfaces whose top faces sit within 1cm of each other will z-fight. */
 function zFights(level: LevelDef) {
-  type Surf = { x: number; z: number; w: number; d: number; top: number; i: number; label: string };
+  type Surf = { x: number; z: number; w: number; d: number; ry: number; top: number; i: number; label: string };
   const surfs: Surf[] = [];
   level.props.forEach((p, i) => {
     if (p.kind === "box" && p.size[1] <= 0.3) {
-      const rot = (p.ry ?? 0) !== 0;
-      const w = rot ? Math.max(p.size[0], p.size[2]) : p.size[0];
-      const d = rot ? Math.max(p.size[0], p.size[2]) : p.size[2];
-      surfs.push({ x: p.pos[0], z: p.pos[2], w, d, top: p.pos[1] + p.size[1] / 2, i, label: `box ${p.color}` });
+      surfs.push({
+        x: p.pos[0],
+        z: p.pos[2],
+        w: p.size[0],
+        d: p.size[2],
+        ry: p.ry ?? 0,
+        top: p.pos[1] + p.size[1] / 2,
+        i,
+        label: `box ${p.color}`,
+      });
     } else if (p.kind === "cyl" && p.h <= 0.3) {
-      surfs.push({ x: p.pos[0], z: p.pos[2], w: p.r * 2, d: p.r * 2, top: p.pos[1] + p.h / 2, i, label: `cyl ${p.color}` });
+      surfs.push({ x: p.pos[0], z: p.pos[2], w: p.r * 2, d: p.r * 2, ry: 0, top: p.pos[1] + p.h / 2, i, label: `cyl ${p.color}` });
     }
   });
+
+  /*
+   * A turned slab has to be tested as the rectangle it actually is. Comparing
+   * bounding boxes said every diagonal run of Sugar Rush's chocolate river
+   * overlapped the next one across tens of metres, when they only meet at the
+   * elbow. Separating axis test over the four corners of each rectangle.
+   */
+  const corners = (s: Surf) => {
+    const c = Math.cos(s.ry);
+    const sn = Math.sin(s.ry);
+    const hw = s.w / 2;
+    const hd = s.d / 2;
+    // the same turn three.js applies for rotation.y
+    return ([[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]] as [number, number][]).map(
+      ([lx, lz]) => [s.x + lx * c + lz * sn, s.z - lx * sn + lz * c] as [number, number],
+    );
+  };
+  /** Overlap of two rectangles along one axis, negative when they are apart. */
+  const gapAlong = (ax: number, az: number, A: [number, number][], B: [number, number][]) => {
+    let aMin = Infinity;
+    let aMax = -Infinity;
+    let bMin = Infinity;
+    let bMax = -Infinity;
+    for (const [x, z] of A) {
+      const t = x * ax + z * az;
+      aMin = Math.min(aMin, t);
+      aMax = Math.max(aMax, t);
+    }
+    for (const [x, z] of B) {
+      const t = x * ax + z * az;
+      bMin = Math.min(bMin, t);
+      bMax = Math.max(bMax, t);
+    }
+    return Math.min(aMax, bMax) - Math.max(aMin, bMin);
+  };
+  /** How much two flat rectangles really overlap, as the smallest axis overlap. */
+  const overlap = (A: Surf, B: Surf) => {
+    const ca = corners(A);
+    const cb = corners(B);
+    let worst = Infinity;
+    for (const s of [A, B]) {
+      for (const [ax, az] of [
+        [Math.cos(s.ry), -Math.sin(s.ry)],
+        [Math.sin(s.ry), Math.cos(s.ry)],
+      ] as [number, number][]) {
+        worst = Math.min(worst, gapAlong(ax, az, ca, cb));
+        if (worst <= 0) return 0;
+      }
+    }
+    return worst;
+  };
   const out: string[] = [];
   for (let a = 0; a < surfs.length; a++) {
     for (let b = a + 1; b < surfs.length; b++) {
       const A = surfs[a]!;
       const B = surfs[b]!;
       if (Math.abs(A.top - B.top) > 0.012) continue;
-      const ox = Math.min(A.x + A.w / 2, B.x + B.w / 2) - Math.max(A.x - A.w / 2, B.x - B.w / 2);
-      const oz = Math.min(A.z + A.d / 2, B.z + B.d / 2) - Math.max(A.z - A.d / 2, B.z - B.d / 2);
-      if (ox > 0.3 && oz > 0.3) {
+      const over = overlap(A, B);
+      if (over > 0.3) {
         out.push(
           `  top ${A.top.toFixed(3)}  [${A.i}] ${A.label} @ (${A.x.toFixed(1)}, ${A.z.toFixed(1)}) ` +
-            `overlaps [${B.i}] ${B.label} @ (${B.x.toFixed(1)}, ${B.z.toFixed(1)})  by ${ox.toFixed(1)}x${oz.toFixed(1)}m`,
+            `overlaps [${B.i}] ${B.label} @ (${B.x.toFixed(1)}, ${B.z.toFixed(1)})  by ${over.toFixed(1)}m`,
         );
       }
     }
@@ -269,6 +327,7 @@ const INTENTIONAL = [
   ["#7aaa62", "#6e9e58", "#649454", "#8aba6a"], // lookout hill
   ["#5aa8c8", "#6cb8d4", "#9fd4ea"], // water layers
   ["#6fa85e", "#68a058", "#5f9852", "#58904c"], // berm slabs
+  ["#8a5a34", "#fbf7f2"], // Sugar Rush: candy fence runs, caps and canes
 ];
 const sameStructure = (a: Box, b: Box) =>
   INTENTIONAL.some((set) => set.some((c) => a.label.includes(c)) && set.some((c) => b.label.includes(c)));

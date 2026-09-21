@@ -77,6 +77,18 @@ export const BOWLS = {
   rinkColor: "#4f9e57",
 };
 
+/** Where the green sits when a park does not say otherwise: park 1's. */
+const BOWLS_HOME = { x: BOWLS.x, z: BOWLS.z };
+
+/**
+ * Move the club. Everything else here is rink-local, so the green, the kerbs,
+ * the hedge, the clubhouse and the physics all follow the centre.
+ */
+export function setBowlsOrigin(o: { x: number; z: number } = BOWLS_HOME) {
+  BOWLS.x = o.x;
+  BOWLS.z = o.z;
+}
+
 export const MAX_SCORE = BOWLS.turns * BOWLS.pins;
 
 /** Radii and heights of the things that roll and fall. */

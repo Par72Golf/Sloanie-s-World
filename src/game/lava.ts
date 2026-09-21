@@ -130,7 +130,7 @@ export type Piece = {
   motion: Motion;
 };
 
-type Dir = "E" | "W" | "N" | "S";
+export type Dir = "E" | "W" | "N" | "S";
 const DX: Record<Dir, number> = { E: 1, W: -1, N: 0, S: 0 };
 const DZ: Record<Dir, number> = { E: 0, W: 0, N: -1, S: 1 };
 /** across the route, to the right of the way she is going */
@@ -164,7 +164,9 @@ type PlanStep = {
  * The difficulty curve is in the gaps and in the landing length: section 1 is
  * 2.2m gaps onto 5m pads; section 5 is 3.6m gaps onto 2.6m pads.
  */
-const START: { x: number; z: number; dir: Dir } = { x: 107.5, z: 124, dir: "W" };
+let START: { x: number; z: number; dir: Dir } = { x: 107.5, z: 124, dir: "W" };
+/** Where the course starts when a park does not say otherwise: park 1's. */
+const START_HOME: { x: number; z: number; dir: Dir } = { ...START };
 
 const PLAN: PlanStep[] = [
   // ---- the start deck, on the lawn at the east end ----------------------
@@ -235,9 +237,14 @@ const GIVE_ARM = 0.75;
 const GIVE_FALL = 6;
 const GIVE_BACK = 3.2;
 
-export const PIECES: Piece[] = (() => {
+/**
+ * Walk the plan from a start point into absolute pieces. Everything below
+ * hangs off the result, so moving the course is a matter of walking it again
+ * (setLavaStart), not of offsetting a hundred numbers at use.
+ */
+function buildPieces(start: { x: number; z: number; dir: Dir }): Piece[] {
   const out: Piece[] = [];
-  let { x, z, dir } = START;
+  let { x, z, dir } = start;
   let section = 0;
   PLAN.forEach((p, index) => {
     if (p.turn) {
@@ -284,18 +291,20 @@ export const PIECES: Piece[] = (() => {
     }
   });
   return out;
-})();
+}
+
+export let PIECES: Piece[] = buildPieces(START);
 
 export function piece(id: string): Piece {
   return PIECES.find((p) => p.id === id)!;
 }
 
-export const DECK = piece("deck");
-export const PODIUM = piece("podium");
-const BRIDGE = piece("bridge");
+export let DECK = piece("deck");
+export let PODIUM = piece("podium");
+let BRIDGE = piece("bridge");
 
 /** The lava lake: everything the route crosses, with a margin all round. */
-export const LAVA_POOL = (() => {
+function buildPool() {
   let minX = Infinity;
   let maxX = -Infinity;
   let minZ = Infinity;
@@ -313,7 +322,9 @@ export const LAVA_POOL = (() => {
   // a margin of lava all round the route, kept tight: the lawn this sits on
   // is 86m x 34m and the course uses nearly all of it
   return { minX: minX - 1.8, maxX: DECK.cx - DECK.w / 2, minZ: minZ - 1.8, maxZ: maxZ + 1.8 };
-})();
+}
+
+export let LAVA_POOL = buildPool();
 
 /** The whole site, for anything that wants to keep clear of it. */
 export function lavaFootprint(pad = 0) {
@@ -328,7 +339,7 @@ export function lavaFootprint(pad = 0) {
 }
 
 /** Where she walks in: the lawn at the foot of the steps up to the deck. */
-export const LAVA_START: [number, number] = [DECK.cx + DECK.w / 2 + 3.4, DECK.cz];
+export let LAVA_START: [number, number] = [DECK.cx + DECK.w / 2 + 3.4, DECK.cz];
 
 /* ------------------------------------------------------- where things are */
 
@@ -693,7 +704,24 @@ export function lavaColliders(s: LavaState): AABB[] {
   return out;
 }
 
-export const MOVING = PIECES.filter((p) => p.motion.kind !== "static");
+export let MOVING = PIECES.filter((p) => p.motion.kind !== "static");
+
+/**
+ * Put the course on another park's lawn. Everything the route knows is
+ * absolute, so the whole plan is walked again from the new start and each
+ * derived table replaced; importers see the new values because these are
+ * module bindings, not copies. Call it before anything builds the course.
+ */
+export function setLavaStart(s: { x: number; z: number; dir: Dir } = START_HOME) {
+  START = { ...s };
+  PIECES = buildPieces(START);
+  DECK = piece("deck");
+  PODIUM = piece("podium");
+  BRIDGE = piece("bridge");
+  LAVA_POOL = buildPool();
+  LAVA_START = [DECK.cx + DECK.w / 2 + 3.4, DECK.cz];
+  MOVING = PIECES.filter((p) => p.motion.kind !== "static");
+}
 
 /** Is (x, z) out over the lava? The kerb counts; the deck and podium do not. */
 export function overLava(x: number, z: number) {

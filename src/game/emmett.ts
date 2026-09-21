@@ -3,7 +3,6 @@ import type { AABB } from "./collision";
 import { setHumLevel, startHum, stopHum } from "./audio";
 import { animateEmmett, makeDumpling, makeEmmett, type EmmettMood, type EmmettRig } from "./meshes";
 import { navGridFor, type NavGrid, type NavRect } from "./navgrid";
-import { walkwayRects } from "./walkways";
 
 /**
  * Emmett.
@@ -95,15 +94,6 @@ const RIDE_HIGH = 1.6;
  */
 const NEAR_REFRESH = 2;
 const NEAR_CAP = 512;
-/**
- * The walkway network, as ground worth preferring. It is only a step cost, so
- * a shortcut across the grass still wins when it is a real shortcut, but where
- * the two are close he takes the path, which is what a kid on a trike would do
- * and reads much better than cutting through the flower garden. Built once at
- * load; the grid is cached on it, so it must be the same array every frame.
- */
-export const EMMETT_WALKWAYS: readonly NavRect[] = walkwayRects(0);
-
 /** Landmarks he rehides to. Known places, so a loss is an errand not a mystery. */
 export type RehideSpot = { name: string; say: string; pos: [number, number, number] };
 
@@ -185,6 +175,15 @@ export class Emmett {
     private bounds: { minX: number; maxX: number; minZ: number; maxZ: number },
     private keepOut: KeepOut[] = [],
     private home: EmmettHome | null = null,
+    /**
+     * Ground worth preferring, this park's path network (features.ts). It is
+     * only a step cost, so a shortcut across the grass still wins when it is a
+     * real shortcut, but where the two are close he takes the path, which is
+     * what a kid on a trike would do and reads much better than cutting
+     * through the flower garden. The grid is cached on this array's identity,
+     * so it has to be the park's one array, not a fresh copy.
+     */
+    private prefer: readonly NavRect[] = [],
   ) {
     this.rig = makeEmmett();
     this.group = this.rig.root;
@@ -339,7 +338,7 @@ export class Emmett {
    * the world is rebuilt.
    */
   private ensureNav(colliders: AABB[]) {
-    this.nav = navGridFor(this.bounds, colliders, this.keepOut, PLAN_R, EDGE_MARGIN, EMMETT_WALKWAYS);
+    this.nav = navGridFor(this.bounds, colliders, this.keepOut, PLAN_R, EDGE_MARGIN, this.prefer);
   }
 
   /**

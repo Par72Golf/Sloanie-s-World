@@ -29,15 +29,24 @@ export type Booth = {
   pitch: string;
 };
 
-const BACK_Z = 64.5;
+/**
+ * The carnival's origin: the carousel's centre, with the booth row 11.5m
+ * behind it. Everything below is written as an offset from here, so a second
+ * park gets the whole fairground by naming one point. Park 1's is the spot
+ * the lookout hill used to stand on, which is why the numbers are these.
+ */
+export const CARNIVAL = { x: -16, z: 53 };
+const CARNIVAL_HOME = { x: CARNIVAL.x, z: CARNIVAL.z };
+
+/** the booth row, as offsets from the origin */
+const BACK_DZ = 11.5;
 const DEPTH = 3;
 
-export const BOOTHS: Booth[] = [
+const BOOTH_ROW: (Omit<Booth, "x" | "z"> & { dx: number })[] = [
   {
     game: "rings",
     name: "Ring Toss",
-    x: -26,
-    z: BACK_Z,
+    dx: -10,
     w: 5.5,
     awning: ["#e8455f", "#fff4e8"],
     prize: "balloon",
@@ -46,8 +55,7 @@ export const BOOTHS: Booth[] = [
   {
     game: "ducks",
     name: "Duck Pond",
-    x: -19.5,
-    z: BACK_Z,
+    dx: -3.5,
     w: 5.5,
     awning: ["#4f93c4", "#fff4e8"],
     prize: "duckhat",
@@ -56,8 +64,7 @@ export const BOOTHS: Booth[] = [
   {
     game: "moles",
     name: "Whack-a-Mole",
-    x: -13,
-    z: BACK_Z,
+    dx: 3,
     w: 5.5,
     awning: ["#3fa35c", "#fff4e8"],
     prize: "starglasses",
@@ -66,8 +73,7 @@ export const BOOTHS: Booth[] = [
   {
     game: "prizes",
     name: "Prizes",
-    x: -6.5,
-    z: BACK_Z,
+    dx: 9.5,
     w: 5.5,
     awning: ["#b98ce0", "#fff4e8"],
     prize: "teddy",
@@ -97,14 +103,21 @@ export const SHOP: { id: AccessoryId; price: number }[] = [
   { id: "wings", price: 15 },
 ];
 
+/** The booth row placed round an origin. */
+export function boothsAt(o: { x: number; z: number } = CARNIVAL): Booth[] {
+  return BOOTH_ROW.map(({ dx, ...b }) => ({ ...b, x: o.x + dx, z: o.z + BACK_DZ }));
+}
+
+export const BOOTHS: Booth[] = boothsAt();
+
 /** Where she stands to play a booth: just in front of its counter. */
 export function boothStand(b: Booth): [number, number] {
   return [b.x, b.z - DEPTH / 2 - 1.2];
 }
 
 export const CAROUSEL = {
-  x: -16,
-  z: 53,
+  x: CARNIVAL.x,
+  z: CARNIVAL.z,
   /** turning platform */
   radius: 5,
   /** where the horses stand */
@@ -122,6 +135,23 @@ export const CAROUSEL = {
   /** half the arc, in radians, over which a passing ring can be grabbed */
   grabHalfAngle: 0.46,
 };
+
+/**
+ * Move the whole fairground. BOOTHS and CAROUSEL are the tables the booth
+ * panels, the carousel ride and the art all read, so they are written in
+ * place; carnivalProps takes an origin instead, because a park's props are
+ * baked when the park is authored, before any of this is installed.
+ */
+export function setCarnivalOrigin(o: { x: number; z: number } = CARNIVAL_HOME) {
+  CARNIVAL.x = o.x;
+  CARNIVAL.z = o.z;
+  CAROUSEL.x = o.x;
+  CAROUSEL.z = o.z;
+  boothsAt(o).forEach((b, i) => {
+    BOOTHS[i]!.x = b.x;
+    BOOTHS[i]!.z = b.z;
+  });
+}
 
 /** Standing here and pressing Collect boards the carousel. */
 export function carouselGate(): [number, number] {
@@ -194,9 +224,10 @@ function slab(x: number, y: number, z: number, sx: number, sy: number, sz: numbe
  * centre column, and its fence. Awnings, signs, the games on the counters,
  * the turning platform, horses and lights are the composite in meshes.ts.
  */
-export function carnivalProps(): Prop[] {
+export function carnivalProps(o: { x: number; z: number } = CARNIVAL): Prop[] {
   const p: Prop[] = [];
-  for (const b of BOOTHS) {
+  const carousel = { ...CAROUSEL, x: o.x, z: o.z };
+  for (const b of boothsAt(o)) {
     const front = b.z - DEPTH / 2;
     // back wall and sides
     p.push(slab(b.x, 1.4, b.z + DEPTH / 2 - 0.1, b.w, 2.8, 0.2, "#f3eadc"));
@@ -207,19 +238,19 @@ export function carnivalProps(): Prop[] {
     p.push(slab(b.x, 1.04, front + 0.3, b.w - 0.3, 0.08, 0.7, "#fff4e8", false));
   }
   // carousel: a low base she cannot step onto from the fence gap, and a column
-  p.push({ kind: "cyl", pos: [CAROUSEL.x, 0.2, CAROUSEL.z], r: CAROUSEL.radius + 0.2, h: 0.4, color: "#d8c49a", collide: true });
-  p.push({ kind: "cyl", pos: [CAROUSEL.x, 2.3, CAROUSEL.z], r: 0.7, h: 4.6, color: "#ffc53d", collide: true });
+  p.push({ kind: "cyl", pos: [carousel.x, 0.2, carousel.z], r: carousel.radius + 0.2, h: 0.4, color: "#d8c49a", collide: true });
+  p.push({ kind: "cyl", pos: [carousel.x, 2.3, carousel.z], r: 0.7, h: 4.6, color: "#ffc53d", collide: true });
   // fence: four sides of posts and rails, with the gate gap on the south side
-  const f = CAROUSEL.fence;
+  const f = carousel.fence;
   const fh = 0.9;
-  p.push(slab(CAROUSEL.x, fh / 2, CAROUSEL.z + f, f * 2, fh, 0.14, "#e8455f"));
-  p.push(slab(CAROUSEL.x - f, fh / 2, CAROUSEL.z, 0.14, fh, f * 2, "#e8455f"));
-  p.push(slab(CAROUSEL.x + f, fh / 2, CAROUSEL.z, 0.14, fh, f * 2, "#e8455f"));
-  p.push(slab(CAROUSEL.x - f / 2 - 0.9, fh / 2, CAROUSEL.z - f, f - 1.8, fh, 0.14, "#e8455f"));
-  p.push(slab(CAROUSEL.x + f / 2 + 0.9, fh / 2, CAROUSEL.z - f, f - 1.8, fh, 0.14, "#e8455f"));
+  p.push(slab(carousel.x, fh / 2, carousel.z + f, f * 2, fh, 0.14, "#e8455f"));
+  p.push(slab(carousel.x - f, fh / 2, carousel.z, 0.14, fh, f * 2, "#e8455f"));
+  p.push(slab(carousel.x + f, fh / 2, carousel.z, 0.14, fh, f * 2, "#e8455f"));
+  p.push(slab(carousel.x - f / 2 - 0.9, fh / 2, carousel.z - f, f - 1.8, fh, 0.14, "#e8455f"));
+  p.push(slab(carousel.x + f / 2 + 0.9, fh / 2, carousel.z - f, f - 1.8, fh, 0.14, "#e8455f"));
   // the gate, shut: she boards by pressing Collect at it, not by walking in
-  p.push(slab(CAROUSEL.x, fh / 2, CAROUSEL.z - f, 3.6, fh, 0.14, "#ffc53d"));
+  p.push(slab(carousel.x, fh / 2, carousel.z - f, 3.6, fh, 0.14, "#ffc53d"));
   // the brass-ring arm's post, outside the fence on the east
-  p.push(slab(CAROUSEL.x + f + 0.8, 1.4, CAROUSEL.z, 0.3, 2.8, 0.3, "#c8a040"));
+  p.push(slab(carousel.x + f + 0.8, 1.4, carousel.z, 0.3, 2.8, 0.3, "#c8a040"));
   return p;
 }

@@ -94,27 +94,41 @@ export const EMMETT_BASE = {
   loop: YARD.loop,
 };
 
-/** sin and cos of the yaw, snapped to exact integers (the yaw is a quarter turn). */
-function yawTrig(): [number, number] {
-  return [Math.round(Math.sin(EMMETT_BASE.yaw)), Math.round(Math.cos(EMMETT_BASE.yaw))];
+/** Where a park puts the yard: its centre and the truck's quarter turn. */
+export type BaseOrigin = { x: number; z: number; yaw: number };
+
+/** Where the yard sits when a park does not say otherwise: park 1's. */
+const BASE_HOME = { x: EMMETT_BASE.x, z: EMMETT_BASE.z, yaw: EMMETT_BASE.yaw };
+
+/** sin and cos of a frame's yaw, snapped to exact integers (the yaw is a quarter turn). */
+function yawTrig(o: { yaw: number }): [number, number] {
+  return [Math.round(Math.sin(o.yaw)), Math.round(Math.cos(o.yaw))];
 }
 
 /** A point in the yard's frame to world x, z (the same turn three.js applies for rotation.y = yaw). */
-export function baseToWorld(lx: number, lz: number): [number, number] {
-  const [s, c] = yawTrig();
-  return [EMMETT_BASE.x + lx * c + lz * s, EMMETT_BASE.z - lx * s + lz * c];
+export function baseToWorld(lx: number, lz: number, o: BaseOrigin = EMMETT_BASE): [number, number] {
+  const [s, c] = yawTrig(o);
+  return [o.x + lx * c + lz * s, o.z - lx * s + lz * c];
 }
 
 /** A box in the yard's frame (centre and size along local x and z) to a world rect. */
-function rectToWorld(cx: number, cz: number, sx: number, sz: number) {
-  const [x, z] = baseToWorld(cx, cz);
-  const quarter = Math.abs(yawTrig()[0]) === 1;
+function rectToWorld(cx: number, cz: number, sx: number, sz: number, o: BaseOrigin = EMMETT_BASE) {
+  const [x, z] = baseToWorld(cx, cz, o);
+  const quarter = Math.abs(yawTrig(o)[0]) === 1;
   const wx = quarter ? sz : sx;
   const wz = quarter ? sx : sz;
   return { minX: x - wx / 2, maxX: x + wx / 2, minZ: z - wz / 2, maxZ: z + wz / 2 };
 }
 
-{
+/**
+ * Move the yard. The three spots he uses are world coordinates he is steered
+ * to every frame, so they are recomputed here rather than at use; keep the yaw
+ * a multiple of PI/2 or the truck's colliders stop being axis-aligned.
+ */
+export function setEmmettBase(o: BaseOrigin = BASE_HOME) {
+  EMMETT_BASE.x = o.x;
+  EMMETT_BASE.z = o.z;
+  EMMETT_BASE.yaw = o.yaw;
   const [sx, sz] = baseToWorld(TRUCK.seat[0], TRUCK.seat[1]);
   EMMETT_BASE.roofSeat = [sx, TRUCK.roofTop, sz];
   // his trike beside the ladder's foot, behind the rear wheel on the ladder side
@@ -124,6 +138,8 @@ function rectToWorld(cx: number, cz: number, sx: number, sz: number) {
   const [tx, tz] = baseToWorld(0.4, 6.1);
   EMMETT_BASE.talkSpot = [tx, 0, tz];
 }
+
+setEmmettBase();
 
 /** Local-frame collider boxes for the truck: [cx, cy, cz, sx, sy, sz]. */
 function truckBoxesLocal(): [number, number, number, number, number, number][] {
@@ -141,9 +157,9 @@ function truckBoxesLocal(): [number, number, number, number, number, number][] {
 }
 
 /** Axis-aligned colliders for the truck (body block, cab, each wheel pair), world coords. */
-export function truckColliders(): AABB[] {
+export function truckColliders(o: BaseOrigin = EMMETT_BASE): AABB[] {
   return truckBoxesLocal().map(([cx, cy, cz, sx, sy, sz]) => {
-    const r = rectToWorld(cx, cz, sx, sz);
+    const r = rectToWorld(cx, cz, sx, sz, o);
     return { minX: r.minX, maxX: r.maxX, minY: cy - sy / 2, maxY: cy + sy / 2, minZ: r.minZ, maxZ: r.maxZ };
   });
 }
@@ -178,9 +194,9 @@ export function yardBoxesLocal(): { box: [number, number, number, number, number
  * The builder also draws a box for each; every one is sized to sit inside the
  * tyre stack, ramp or toy box that makeTruckYard draws over it.
  */
-export function yardProps(): Prop[] {
+export function yardProps(o: BaseOrigin = EMMETT_BASE): Prop[] {
   return yardBoxesLocal().map(({ box: [cx, cy, cz, sx, sy, sz], label }): BoxProp => {
-    const r = rectToWorld(cx, cz, sx, sz);
+    const r = rectToWorld(cx, cz, sx, sz, o);
     const color = label.startsWith("tyre") ? "#2a2724" : label.startsWith("ramp") ? "#b88a50" : "#d8453a";
     return {
       kind: "box",
@@ -193,6 +209,6 @@ export function yardProps(): Prop[] {
 }
 
 /** The 18m x 14m dirt yard as a world rect, for a keepClear entry in levels.ts. */
-export function yardFootprint() {
-  return rectToWorld(0, 0, YARD.length, YARD.width);
+export function yardFootprint(o: BaseOrigin = EMMETT_BASE) {
+  return rectToWorld(0, 0, YARD.length, YARD.width, o);
 }

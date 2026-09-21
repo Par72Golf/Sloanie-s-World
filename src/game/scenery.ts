@@ -1,5 +1,7 @@
 import { yardFootprint } from "./emmett-base";
 import { zooFootprint } from "./zoo";
+import { featuresFor } from "./features";
+import { modelColliders } from "./models";
 import * as THREE from "three";
 import type { AABB } from "./collision";
 import type { LevelDef, WaterZone } from "./types";
@@ -143,6 +145,11 @@ export function scatterMask(level: LevelDef, colliders: AABB[], water: WaterZone
       const hx = (p.w ?? 6) / 2 + pad;
       const hz = (p.d ?? 5) / 2 + pad;
       rects.push({ minX: p.x - hx, maxX: p.x + hx, minZ: p.z - hz, maxZ: p.z + hz });
+    } else if (p.kind === "model") {
+      // grass must not grow up through a model's floor, deck or base
+      for (const b of modelColliders(p)) {
+        rects.push({ minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad });
+      }
     }
   }
 
@@ -158,10 +165,11 @@ export function scatterMask(level: LevelDef, colliders: AABB[], water: WaterZone
   for (const w of water) {
     circles.push({ x: w.x, z: w.z, r: w.r + 0.6 });
   }
+  const feat = featuresFor(level);
   // no grass through Emmett's dirt yard
-  if (level.emmettBase) rects.push(yardFootprint());
+  if (level.emmettBase) rects.push(yardFootprint(feat.emmettBase));
   // nor through the zoo's paths and enclosures
-  if (level.zoo) rects.push(zooFootprint(0.4));
+  if (level.zoo) rects.push(zooFootprint(0.4, feat.zoo));
 
   return { rects, circles, grid: indexMask(rects, circles) };
 }

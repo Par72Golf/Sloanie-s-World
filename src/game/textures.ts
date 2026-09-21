@@ -324,6 +324,15 @@ put("planks", "#d4b07a", "#c48a5a", "#d4894a", "#e8c46a", "#b98d58");
 put("bark", "#5c3a22", "#7a4a2a");
 put("hedge", "#2f6e38", "#3d7a38", "#3f8a48", "#4e9448", "#4e9a46", "#6bb85a", "#7ec85a", "#8aaa5a", "#5aa85c", "#478a48", "#4f9a52", "#3f9a6b");
 
+// Sugar Rush Park. Anything left flat here blooms out white in sunlight: a
+// plain material has nothing to break up the highlight across a 6m slab.
+put("sand", "#e9d7b6");
+put("plaster", "#f6f1e8", "#f7ead3", "#f2e4d0");
+put("fabric", "#e8384f", "#ff93c4", "#ff6aa8");
+put("bark", "#6b4226", "#8a5a34");
+put("rubber", "#2a2430");
+put("hedge", "#63c46a");
+
 export function texKindFor(color: string): TexKind | null {
   return TABLE[color.toLowerCase()] ?? null;
 }

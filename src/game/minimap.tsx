@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Map as MapIcon, X } from "lucide-react";
 import { LEVELS } from "./levels";
+import { modelColliders } from "./models";
 import { worldPose } from "./pose";
 import { useGame } from "./store";
 import type { LevelDef, Prop } from "./types";
@@ -40,6 +41,8 @@ function categorise(p: Prop): { fill: string; layer: number } | null {
   if (p.kind === "trampoline") return { fill: "#2f6f8f", layer: 3 };
   if (p.kind === "tyre") return { fill: "#2a2724", layer: 3 };
   if (p.kind === "cloud" || p.kind === "lollipop") return null;
+  // a model is whatever it is; its footprint reads as an obstacle
+  if (p.kind === "model") return { fill: COL.solid, layer: 3 };
 
   const color = (p as { color?: string }).color?.toLowerCase() ?? "";
   const h = p.kind === "box" ? p.size[1] : p.kind === "cyl" ? p.h : 0;
@@ -112,6 +115,11 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
         g.beginPath();
         g.arc(wx(p.x), wz(p.z), Math.max(1, p.r * s), 0, Math.PI * 2);
         g.fill();
+      } else if (p.kind === "model") {
+        // the model's own boxes, already turned and scaled into the world
+        for (const b of modelColliders(p)) {
+          g.fillRect(wx(b.maxX), wz(b.maxZ), (b.maxX - b.minX) * s, (b.maxZ - b.minZ) * s);
+        }
       } else if (p.kind === "tractor") {
         const w = 3.6 * s;
         g.fillRect(wx(p.x) - w / 2, wz(p.z) - w / 2, w, w);

@@ -1622,9 +1622,20 @@ export function makeSky() {
   return mesh;
 }
 
+/**
+ * The pale edge colour of a liquid. Pond water fades to a washed-out blue; a
+ * chocolate river faded to the same blue came out grey, so a liquid that is not
+ * water says what it fades to.
+ */
+const SHALLOW: Record<string, [string, string]> = {
+  // river colour: [what it lerps its depth toward, the colour at the edge]
+  "#6e3f1e": ["#4a2a16", "#c98a4a"],
+};
+
 export function makeWaterMaterial(hex: string) {
-  const deep = new THREE.Color(hex).lerp(new THREE.Color("#7eb8d8"), 0.35);
-  const shallow = new THREE.Color("#dff4ff");
+  const own = SHALLOW[hex.toLowerCase()];
+  const deep = new THREE.Color(hex).lerp(new THREE.Color(own ? own[0] : "#7eb8d8"), 0.35);
+  const shallow = new THREE.Color(own ? own[1] : "#dff4ff");
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,

@@ -1,4 +1,5 @@
 import { EMMETT_BASE, yardProps } from "./emmett-base";
+import { sugarRushPark } from "./sugar-level";
 import type { BoxProp, DumplingDef, LevelDef, Prop } from "./types";
 import { CAVE_SPOTS, caveFootprint, mountainCave } from "./cave";
 import { carnivalProps } from "./carnival";
@@ -1550,7 +1551,7 @@ function cloudCastle(): LevelDef {
   };
 }
 
-export const LEVELS: LevelDef[] = [picnicPark(), candyVillage(), cloudCastle()];
+export const LEVELS: LevelDef[] = [picnicPark(), sugarRushPark(), cloudCastle()];
 
 export function levelByIndex(i: number) {
   return LEVELS[Math.max(0, Math.min(LEVELS.length - 1, i))]!;

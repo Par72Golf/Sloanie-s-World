@@ -22,6 +22,8 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { animateGirl, disposeHands, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
+import { featuresFor } from "./features";
+import { applyLevelOrigins } from "./level-origins";
 import {
   bindInput,
   clearInjectedKeys,
@@ -458,6 +460,7 @@ export class GameRuntime {
         return costs;
       },
       store: () => useGame,
+      runtime: () => this,
     };
   }
 
@@ -469,6 +472,10 @@ export class GameRuntime {
     this.level = levelByIndex(index);
     resetQuizBank();
     this.level = { ...this.level, layout: useGame.getState().layout };
+    // where this park keeps the features it shares with the other parks;
+    // world-build draws the carnival and the yard straight off these tables
+    applyLevelOrigins(this.level);
+    const feat = featuresFor(this.level);
     this.world = buildWorld(this.level);
     this.lastLayout = useGame.getState().layout;
     // dumplings that ran off or were stolen stay where they went, so the
@@ -517,11 +524,11 @@ export class GameRuntime {
     this.questWorld = this.level.id === "picnic" ? new QuestWorld(this.scene) : null;
     this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
     this.homeWorld?.dispose();
-    this.homeWorld = this.level.id === "picnic" && this.world ? new HomeWorld(this.scene, this.world.colliders) : null;
+    this.homeWorld = feat.home && this.world ? new HomeWorld(this.scene, this.world.colliders) : null;
     // mini golf: its own ball, sails and log, like the quest and the house
     this.golfWorld?.dispose();
     this.golfWorld =
-      this.level.id === "picnic"
+      feat.golf
         ? new GolfWorld(this.scene, (x, y, z, yaw) => {
             this.cap.x = x;
             this.cap.y = y;
@@ -538,7 +545,7 @@ export class GameRuntime {
     // round with her so she is looking down the course, ready to go again.
     this.lavaWorld?.dispose();
     this.lavaWorld =
-      this.level.id === "picnic" && this.world
+      feat.lava && this.world
         ? new LavaWorld(this.scene, this.world.colliders, (x, y, z, yaw) => {
             this.cap.x = x;
             this.cap.y = y;
@@ -553,7 +560,7 @@ export class GameRuntime {
     // lawn bowls: its own green, pins and colliders, built the same way
     this.bowlsWorld?.dispose();
     this.bowlsWorld =
-      this.level.id === "picnic" && this.world
+      feat.bowls && this.world
         ? new BowlsWorld(
             this.scene,
             this.world.colliders,
@@ -578,7 +585,7 @@ export class GameRuntime {
     const base = this.level.emmettBase
       ? { x: EMMETT_BASE.x, z: EMMETT_BASE.z, loop: EMMETT_BASE.loop, park: EMMETT_BASE.trikePark }
       : null;
-    this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? [], base);
+    this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? [], base, feat.prefer);
     this.boostLeft = 0;
     useGame.getState().setBoost(0);
     this.lastRpsKey = "";
@@ -2348,6 +2355,7 @@ declare global {
       setBloom: (on: boolean, strength?: number) => void;
       frames: (n: number, dtMs?: number) => number[];
       store: () => typeof useGame;
+      runtime: () => GameRuntime;
     };
   }
 }

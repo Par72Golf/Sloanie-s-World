@@ -3,7 +3,9 @@ import { makeMonsterTruck, makeTruckYard, type TruckRig } from "./monster-truck"
 import { makeCarnival, type CarnivalRig } from "./carnival-mesh";
 import { makePlaces } from "./places";
 import { makeArrivalPlaza } from "./plaza";
-import { PARK_DIRECTORIES, PARK_NAME_SIGNS, makeSigns } from "./signs";
+import { makeSigns } from "./signs";
+import { featuresFor } from "./features";
+import { makeModel } from "./models";
 import * as THREE from "three";
 import type { AABB } from "./collision";
 import { beveledBox } from "./beveled";
@@ -30,10 +32,7 @@ import {
   makeSprayArches,
   type SprayArches,
   makeMountainCave,
-  makeFountain,
-  makeGazebo,
   makePondEdge,
-  makeTreehouse,
   makeHouse,
   makeLollipop,
   makeSlide,
@@ -44,7 +43,7 @@ import {
   pathTexture,
   sphereGeo,
 } from "./meshes";
-import type { DumplingDef, LevelDef, WaterZone } from "./types";
+import type { DumplingDef, LevelDef, ModelProp, WaterZone } from "./types";
 
 export type DumplingHandle = {
   def: DumplingDef;
@@ -83,6 +82,15 @@ export type BuiltWorld = {
   campfire: Campfire | null;
 };
 
+/** A `model` prop as a placed group; models.ts owns the art and the boxes. */
+function placeModel(p: ModelProp) {
+  const g = makeModel(p.id, p.variant ?? 0, p.scale ?? 1);
+  g.position.set(p.x, p.y ?? 0, p.z);
+  g.rotation.y = p.ry ?? 0;
+  if (p.scale != null) g.scale.setScalar(p.scale);
+  return g;
+}
+
 function addBox(
   parent: THREE.Group,
   x: number,
@@ -116,6 +124,9 @@ function addBox(
 export { isSolidProp, isWaterColor } from "./colliders";
 
 export function buildWorld(level: LevelDef): BuiltWorld {
+  // Where this park puts the things every park can have. The origins the
+  // games read are installed by the runtime before it gets here.
+  const feat = featuresFor(level);
   const t0 = performance.now();
   const marks: [string, number][] = [];
   const mark = (name: string) => marks.push([name, Math.round(performance.now() - t0)]);
@@ -230,6 +241,8 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       t.position.set(p.x, 0, p.z);
       t.rotation.y = p.ry ?? 0;
       group.add(t);
+    } else if (p.kind === "model") {
+      group.add(placeModel(p));
     }
   }
 
@@ -266,51 +279,34 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     group.add(ride.group);
   }
 
-  // Composite meshes. Their colliders are listed in colliders.ts; keep the
-  // positions here in step with that file.
-  if (level.id === "picnic") {
-    const slide = makeSlide();
-    slide.position.set(22, 0, 8);
-    group.add(slide);
-    const gazebo = makeGazebo();
-    gazebo.position.set(8, 0, -6);
-    group.add(gazebo);
+  // The park's composite landmarks. Their colliders come from the same model
+  // entries (models.ts), so the two cannot drift the way the hand-written
+  // pairs in this file and colliders.ts used to.
+  for (const m of feat.landmarks ?? []) group.add(placeModel(m));
 
-    // fountain standing in the big pond
-    const fountain = makeFountain();
-    fountain.position.set(0, 0, -42);
-    group.add(fountain);
+  // banks, cattails and lily pads for every pond, in any park with one
+  for (const w of level.water ?? []) {
+    if (w.pool) continue;
+    const edge = makePondEdge(w.r);
+    edge.position.set(w.x, 0, w.z);
+    group.add(edge);
+  }
 
-    // banks, cattails and lily pads for both ponds
-    for (const w of level.water ?? []) {
-      if (w.pool) continue;
-      const edge = makePondEdge(w.r);
-      edge.position.set(w.x, 0, w.z);
-      group.add(edge);
-    }
-
-    // the kite field, the duck pond, the flower garden, the story circle and
-    // the fairground green: decoration over the props levels.ts places, plus
-    // the two animated flocks, which stay out of the merge and are ticked
-    // through waterMats
+  // the kite field, the duck pond, the flower garden, the story circle and
+  // the fairground green: decoration over the props levels.ts places, plus
+  // the two animated flocks, which stay out of the merge and are ticked
+  // through waterMats
+  if (feat.places) {
     const built = makePlaces();
     group.add(built.group);
     for (const o of built.live) placeLive.push(o);
     for (const m of built.mats) waterMats.push(m as unknown as THREE.ShaderMaterial);
-
-    // the arrival plaza round the spawn and every sign in the park; both are
-    // static decoration over the props levels.ts places, and add no colliders
-    group.add(makeArrivalPlaza());
-    group.add(makeSigns(PARK_DIRECTORIES, PARK_NAME_SIGNS));
-
-    // a treehouse that looks like one, at the top of the existing stairs
-    const th = makeTreehouse();
-    th.position.set(54.2, 0, -53);
-    // turned so the open front and the rope ladder face the stairs
-    th.rotation.y = Math.PI;
-    group.add(th);
-
   }
+
+  // the arrival plaza round the spawn and every sign in the park; both are
+  // static decoration over the props levels.ts places, and add no colliders
+  if (feat.plaza) group.add(makeArrivalPlaza());
+  if (feat.signs) group.add(makeSigns(feat.signs.directories, feat.signs.names));
   let carnival: CarnivalRig | null = null;
   if (level.carnival) {
     carnival = makeCarnival();
@@ -329,11 +325,6 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   if (level.caveZone) {
     // the mountain's boulders, entrance and everything inside the tunnels
     group.add(makeMountainCave());
-  }
-  if (level.id === "village") {
-    const f = makeFountain();
-    f.position.set(0, 0, 0);
-    group.add(f);
   }
 
   // Layout 0 is the authored spot; 1 and 2 come from each dumpling's alts.

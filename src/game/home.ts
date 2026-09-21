@@ -17,10 +17,26 @@ import { useGame } from "./store";
 
 /** The house on the street that is hers: its centre, and the door on its north face. */
 export const HOUSE = { x: -9, z: 110 };
+const HOUSE_HOME = { x: HOUSE.x, z: HOUSE.z };
 const DOOR_OUT: [number, number] = [HOUSE.x, HOUSE.z - 4.6];
 /** the room's origin in the world: straight above the house */
 const ROOM: [number, number, number] = [HOUSE.x, 150, HOUSE.z];
 const NEAR_SPOT = 1.7;
+
+/**
+ * Put her front door on another park's street. The doorstep and the room
+ * above it are written in place rather than recomputed at use, because
+ * HomeWorld reads them every frame and they are the same two points all the
+ * while she is in one park.
+ */
+export function setHouseOrigin(o: { x: number; z: number } = HOUSE_HOME) {
+  HOUSE.x = o.x;
+  HOUSE.z = o.z;
+  DOOR_OUT[0] = HOUSE.x;
+  DOOR_OUT[1] = HOUSE.z - 4.6;
+  ROOM[0] = HOUSE.x;
+  ROOM[2] = HOUSE.z;
+}
 
 export class HomeWorld {
   rig: HomeRig;

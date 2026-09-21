@@ -103,7 +103,27 @@ export type TyreProp = {
   r: number;
 };
 
+/**
+ * An arbitrary procedural model, placed by name. The factory and the model's
+ * own collider boxes live in models.ts, so a park can drop in a windmill or a
+ * gingerbread house without a new Prop kind and a new arm in every switch.
+ */
+export type ModelProp = {
+  kind: "model";
+  /** a name registered in models.ts */
+  id: string;
+  x: number;
+  z: number;
+  /** foot height; 0 is the ground */
+  y?: number;
+  /** 0 and ±PI/2 keep the colliders exact; other angles get a rotated bound */
+  ry?: number;
+  scale?: number;
+  variant?: number;
+};
+
 export type Prop =
+  | ModelProp
   | TrampolineProp
   | TyreProp
   | TractorProp
