@@ -230,7 +230,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
       t.position.set(p.x, 0, p.z);
       group.add(t);
     } else if (p.kind === "trampoline") {
-      const t = makeTrampoline(p.w, p.d);
+      const t = makeTrampoline(p.w, p.d, { pad: p.pad, mat: p.mat, leg: p.leg });
       t.position.set(p.x, 0, p.z);
       group.add(t);
       bouncers.push({ minX: p.x - p.w / 2, maxX: p.x + p.w / 2, minZ: p.z - p.d / 2, maxZ: p.z + p.d / 2 });

@@ -1943,7 +1943,14 @@ export function makeTractor() {
  * Rectangular backyard trampoline, mat at TRAMPOLINE_TOP: black mat, a ring
  * of springs, a padded blue border and short legs. Centred on its footprint.
  */
-export function makeTrampoline(w: number, d: number) {
+/**
+ * A trampoline. `pad` and `mat` let a park dress it: the candy park's fields
+ * are pale mint and blossom, and the default black mat sat in them as a hole.
+ */
+export function makeTrampoline(w: number, d: number, colors?: { pad?: string; mat?: string; leg?: string }) {
+  const padColor = colors?.pad ?? "#3a8fd0";
+  const matColor = colors?.mat ?? "#1e1f22";
+  const legColor = colors?.leg ?? "#5a6470";
   const g = new THREE.Group();
   const top = 0.55;
   const pad = 0.34;
@@ -1955,15 +1962,15 @@ export function makeTrampoline(w: number, d: number) {
     [-w / 2 + 0.15, d / 2 - 0.15],
     [w / 2 - 0.15, d / 2 - 0.15],
   ] as const) {
-    g.add(mesh(boxGeo, "#5a6470", 0.12, top - 0.1, 0.12, x, (top - 0.1) / 2, z, false));
+    g.add(mesh(boxGeo, legColor, 0.12, top - 0.1, 0.12, x, (top - 0.1) / 2, z, false));
   }
   // padded border, four pieces so the mat shows through the middle
-  g.add(mesh(boxGeo, "#3a8fd0", w, 0.12, pad, 0, top - 0.03, -d / 2 + pad / 2));
-  g.add(mesh(boxGeo, "#3a8fd0", w, 0.12, pad, 0, top - 0.03, d / 2 - pad / 2));
-  g.add(mesh(boxGeo, "#3a8fd0", pad, 0.12, d - pad * 2, -w / 2 + pad / 2, top - 0.03, 0));
-  g.add(mesh(boxGeo, "#3a8fd0", pad, 0.12, d - pad * 2, w / 2 - pad / 2, top - 0.03, 0));
+  g.add(mesh(boxGeo, padColor, w, 0.12, pad, 0, top - 0.03, -d / 2 + pad / 2));
+  g.add(mesh(boxGeo, padColor, w, 0.12, pad, 0, top - 0.03, d / 2 - pad / 2));
+  g.add(mesh(boxGeo, padColor, pad, 0.12, d - pad * 2, -w / 2 + pad / 2, top - 0.03, 0));
+  g.add(mesh(boxGeo, padColor, pad, 0.12, d - pad * 2, w / 2 - pad / 2, top - 0.03, 0));
   // mat, a touch lower than the pads
-  const mat = new THREE.Mesh(new THREE.BoxGeometry(w - pad * 2, 0.04, d - pad * 2), flat("#1e1f22", 0.8));
+  const mat = new THREE.Mesh(new THREE.BoxGeometry(w - pad * 2, 0.04, d - pad * 2), flat(matColor, 0.8));
   mat.position.y = top - 0.07;
   mat.receiveShadow = true;
   g.add(mat);

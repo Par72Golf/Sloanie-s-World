@@ -122,8 +122,8 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
     id: "toffeechew",
     pos: [118, 0.55, 100],
     hide: "medium",
-    region: "the chocolate lake",
-    hint: "On the shore where the river ends.",
+    region: "the chocolate river, near the lake",
+    hint: "On the bank where the river swings round toward the lake.",
   },
   "rock candy": {
     id: "rockcandy",
@@ -150,8 +150,10 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
     id: "fudgeblock",
     pos: [118, 0.55, 52],
     hide: "hard",
-    region: "Emmett's den",
-    hint: "Over where Emmett hangs out.",
+    // Emmett has no den in this park yet, and a hint that sends her somewhere
+    // that does not exist is worse than a vague one
+    region: "the east path",
+    hint: "Off the east path, south of the gingerbread houses.",
   },
   jawbreaker: {
     id: "jawbreaker",

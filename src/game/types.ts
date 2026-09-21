@@ -93,6 +93,10 @@ export type TrampolineProp = {
   z: number;
   w: number;
   d: number;
+  /** Park 1's blue and black by default; the candy park dresses its own. */
+  pad?: string;
+  mat?: string;
+  leg?: string;
 };
 
 /** A tyre lying flat, for tyre runs. */

@@ -665,7 +665,7 @@ export function marshmallowProps(keepOut: [number, number][]): Prop[] {
     [SUGAR.marshmallow.x - 10, SUGAR.marshmallow.z - 6],
     [SUGAR.marshmallow.x + 11, SUGAR.marshmallow.z + 5],
   ] as [number, number][]) {
-    out.push({ kind: "trampoline", x: tx, z: tz, w: 6, d: 6 });
+    out.push({ kind: "trampoline", x: tx, z: tz, w: 6, d: 6, pad: CANDY.stripe, mat: "#ffd9ea", leg: CANDY.icing });
   }
   return out;
 }
