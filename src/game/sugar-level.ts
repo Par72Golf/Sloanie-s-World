@@ -6,7 +6,7 @@ import {
   SUGAR_BOUNDS,
   WHEEL,
   boundaryProps,
-  dressingProps,
+  gardenProps,
   factoryProps,
   fairProps,
   forestProps,
@@ -14,6 +14,7 @@ import {
   mazeProps,
   meadowProps,
   pathProps,
+  plantingProps,
   mountainProps,
   plazaArches,
   villageProps,
@@ -192,7 +193,8 @@ export function sugarRushPark(): LevelDef {
     ...villageProps(),
     ...fairProps(),
     ...startDistrictProps(spots),
-    ...dressingProps(spots),
+    ...gardenProps(),
+    ...plantingProps(spots),
     ...boundaryProps(),
   ];
 

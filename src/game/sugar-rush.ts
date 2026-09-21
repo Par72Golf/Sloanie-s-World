@@ -693,80 +693,158 @@ export function fairProps(): Prop[] {
 /** Where the gumdrop wheel stands. The level hands this to `ride`. */
 export const WHEEL = { x: SUGAR.fair.x + 6, z: SUGAR.fair.z - 10 };
 
-/* -------------------------------------------------------- dressing */
+/* -------------------------------------------------------- planting */
 
 /**
  * What goes between the landmarks.
  *
- * A 320m park with only its big pieces in it is mostly walking, so this lines
- * the loop with candy canes and scatters sweets across the ground between the
- * regions. Everything here is decoration: it never blocks a route, and it keeps
- * off the paths, the river and every hidden candy.
+ * The first version scattered sweets at random over the whole park and it
+ * looked exactly like what it was: confetti. Nothing here is random any more.
+ * Sweets line the things that already have a shape — the loop, the river, the
+ * region edges — so they read as planting rather than litter, and the open
+ * lawns are left open on purpose, because a park needs somewhere to run.
  */
-export function dressingProps(keepOut: [number, number][]): Prop[] {
+export function plantingProps(keepOut: [number, number][]): Prop[] {
   const out: Prop[] = [];
 
-  // candy canes down both sides of the loop, so the path reads as a route from
-  // a distance and there is something to follow when she is lost
+  /** Lollipop trees down both sides of the loop, evenly spaced, like street trees. */
   for (const r of loopRects()) {
     const alongX = r.maxX - r.minX > r.maxZ - r.minZ;
     const at = alongX ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
     const from = alongX ? r.minX : r.minZ;
     const to = alongX ? r.maxX : r.maxZ;
     const cuts = bridgeSites().filter((b) => (alongX ? Math.abs(b.z - at) < 0.1 : Math.abs(b.x - at) < 0.1));
-    for (let c = from + 12; c < to - 6; c += 24) {
-      if (cuts.some((cut) => Math.abs(c - (alongX ? cut.x : cut.z)) < cut.span / 2 + 3)) continue;
+    let n = 0;
+    for (let c = from + 9; c < to - 9; c += 18) {
+      if (cuts.some((cut) => Math.abs(c - (alongX ? cut.x : cut.z)) < cut.span / 2 + 6)) continue;
+      // the same variant down a whole side, alternating side to side: an avenue
+      // reads as planted precisely because the trees match
       for (const side of [-1, 1]) {
-        const px = alongX ? c : at + side * (PATH_W / 2 + 1.4);
-        const pz = alongX ? at + side * (PATH_W / 2 + 1.4) : c;
-        if (!clearGround(px, pz, 0.5, keepOut)) continue;
-        out.push(model("cane-post", px, pz));
+        const px = alongX ? c : at + side * (PATH_W / 2 + 3.4);
+        const pz = alongX ? at + side * (PATH_W / 2 + 3.4) : c;
+        if (!clearGround(px, pz, 1, keepOut)) continue;
+        out.push(model(TREE_IDS[side > 0 ? 0 : 2]!, px, pz, { scale: 1.25 }));
+      }
+      n++;
+    }
+    void n;
+  }
+
+  /**
+   * The river bank: cotton candy and rushes of candy cane, in pairs facing each
+   * other across the water, thinning as the bank widens.
+   */
+  for (let i = 8; i < RIVER_PATH.length - 8; i += 9) {
+    const p = RIVER_PATH[i]!;
+    const q = RIVER_PATH[i - 1]!;
+    const len = Math.hypot(p.x - q.x, p.z - q.z) || 1;
+    const nx = -(p.z - q.z) / len;
+    const nz = (p.x - q.x) / len;
+    const off = p.w / 2 + 3.2;
+    for (const side of [-1, 1]) {
+      const x = p.x + nx * side * off;
+      const z = p.z + nz * side * off;
+      if (!clearGround(x, z, 1.5, keepOut)) continue;
+      if (i % 18 === 8) {
+        out.push(model("cotton-candy", x, z, { scale: 1.3 }));
+      } else {
+        out.push(model("cane-post", x, z));
+        out.push(model("rock-candy", x + nx * side * 1.8, z + nz * side * 1.8, { scale: 1.1 }));
       }
     }
   }
 
-  // sweets dropped across the open ground, thinning out where a region already
-  // has its own planting
-  const busy: [number, number, number][] = [
-    [SUGAR.forest.x, SUGAR.forest.z, 52],
-    [SUGAR.meadow.x, SUGAR.meadow.z, 42],
-    [SUGAR.marshmallow.x, SUGAR.marshmallow.z, 36],
-    [SUGAR.maze.x, SUGAR.maze.z, 36],
-    [SUGAR.village.x, SUGAR.village.z, 26],
-    [SUGAR.fair.x, SUGAR.fair.z, 34],
-    [SUGAR.mountain.x, SUGAR.mountain.z, 22],
-    [SUGAR.factory.x, SUGAR.factory.z, 22],
-  ];
-  const rand = rng(31337);
-  const taken: [number, number][] = [];
-  for (let tries = 0; tries < 4000 && taken.length < 240; tries++) {
-    const x = (rand() - 0.5) * 300;
-    const z = (rand() - 0.5) * 300;
-    if (!clearGround(x, z, 2, keepOut)) continue;
-    if (busy.some(([bx, bz, r]) => dist2(x, z, bx, bz) < r * r)) continue;
-    if (taken.some(([tx, tz]) => dist2(x, z, tx, tz) < 12 * 12)) continue;
-    taken.push([x, z]);
-    const pick = rand();
-    if (pick < 0.3) {
-      out.push(model(TREE_IDS[Math.floor(rand() * TREE_IDS.length)]!, x, z, { scale: 0.9 + rand() * 0.7 }));
-    } else if (pick < 0.55) {
-      const n = 2 + Math.floor(rand() * 3);
-      for (let k = 0; k < n; k++) {
-        out.push(
-          model("gumdrop", x + (rand() - 0.5) * 7, z + (rand() - 0.5) * 7, {
-            scale: 0.8 + rand() * 1.4,
-            variant: Math.floor(rand() * 6),
-          }),
-        );
+  /** A roundel of gumdrops at each corner of the loop, like a planted bed. */
+  for (const [cx, cz] of [
+    [-LOOP.x + 16, -LOOP.z + 16],
+    [LOOP.x - 16, -LOOP.z + 16],
+    [-LOOP.x + 16, LOOP.z - 16],
+    [LOOP.x - 16, LOOP.z - 16],
+  ] as [number, number][]) {
+    if (!clearGround(cx, cz, 8, keepOut)) continue;
+    out.push(disc(cx, TOP.apron, cz, 7, CANDY.cream, 0.1));
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      out.push(model("gumdrop", cx + Math.sin(a) * 5, cz + Math.cos(a) * 5, { scale: 1.4, variant: i % 6 }));
+    }
+    out.push(model("candy-corn", cx, cz, { scale: 2 }));
+  }
+
+  return out;
+}
+
+/**
+ * The Candy Garden: four formal beds round a fountain, in the open ground
+ * between the plaza and the woods.
+ *
+ * The park needed something in that field, and a garden is the one kind of
+ * planting that is meant to look planted: rows in beds, beds in quarters,
+ * quarters round a middle, hedges holding the whole thing square.
+ */
+export function gardenProps(): Prop[] {
+  const out: Prop[] = [];
+  const gx = -44;
+  const gz = -8;
+  const half = 22;
+  // a real hedge height, so the garden has walls rather than a painted outline
+  const hedge = (x: number, z: number, w: number, d: number) =>
+    out.push(box(x, 0.75, z, w, 1.5, d, "#3f8a48"));
+
+  // the border, with a gap in the middle of each side to walk in through
+  for (const side of [-1, 1]) {
+    hedge(gx + side * (half - 0.4), gz - half / 2 - 1, 0.8, half - 2);
+    hedge(gx + side * (half - 0.4), gz + half / 2 + 1, 0.8, half - 2);
+    hedge(gx - half / 2 - 1, gz + side * (half - 0.4), half - 2, 0.8);
+    hedge(gx + half / 2 + 1, gz + side * (half - 0.4), half - 2, 0.8);
+  }
+  out.push(model("cane-arch", gx, gz + half, { scale: 1.6 }));
+  out.push(model("cane-arch", gx, gz - half, { scale: 1.6 }));
+  out.push(model("cane-arch", gx + half, gz, { ry: Math.PI / 2, scale: 1.6 }));
+  out.push(model("cane-arch", gx - half, gz, { ry: Math.PI / 2, scale: 1.6 }));
+
+  // Four arms out from the middle rather than two crossing bars: two bars lie
+  // over each other where they meet, and that is the flicker.
+  const arm = (half + 7) / 2;
+  out.push(surf(gx, TOP.drive, gz - arm, 5, half - 7, CANDY.sugar, 0.1));
+  out.push(surf(gx, TOP.drive, gz + arm, 5, half - 7, CANDY.sugar, 0.1));
+  out.push(surf(gx - arm, TOP.drive, gz, half - 7, 5, CANDY.sugar, 0.1));
+  out.push(surf(gx + arm, TOP.drive, gz, half - 7, 5, CANDY.sugar, 0.1));
+  out.push(disc(gx, TOP.path, gz, 7, CANDY.cream, 0.1));
+  out.push(disc(gx, TOP.court, gz, 4.5, CANDY.blush, 0.08));
+  out.push(model("choc-fountain", gx, gz));
+  for (const [bx, bz, ry] of [
+    [gx, gz - 9, 0],
+    [gx, gz + 9, Math.PI],
+    [gx - 9, gz, Math.PI / 2],
+    [gx + 9, gz, -Math.PI / 2],
+  ] as [number, number, number][]) {
+    out.push(...bench(bx, bz, ry));
+  }
+
+  /*
+   * The four beds. Rows of small lollipops on a strawberry bed, each quarter
+   * turned a quarter, which is what makes a formal garden look formal: the
+   * same thing four times, square to the axes.
+   */
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const bx = gx + sx * 11.5;
+      const bz = gz + sz * 11.5;
+      // the cream kerb first and lower, then the strawberry soil on top of it:
+      // the wider surface has to be the lower one or it hides the bed
+      out.push(surf(bx, TOP.lawn, bz, 16.2, 16.2, CANDY.cream, 0.1));
+      out.push(surf(bx, TOP.apron, bz, 15, 15, "#e86a8a", 0.1));
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const lx = bx - 5.1 + i * 3.4;
+          const lz = bz - 5.1 + j * 3.4;
+          const v = (i + j) % 2 === 0 ? 3 : 1;
+          out.push(model(TREE_IDS[v]!, lx, lz, { scale: 0.9 }));
+        }
       }
-    } else if (pick < 0.72) {
-      out.push(model("candy-corn", x, z, { scale: 0.8 + rand() * 0.8 }));
-      out.push(model("swirl-mint", x + 2.5, z - 1.5, { scale: 0.7 + rand() * 0.5 }));
-    } else if (pick < 0.86) {
-      out.push(model("cotton-candy", x, z, { scale: 0.9 + rand() * 0.7 }));
-      out.push(model("rock-candy", x - 2, z + 2, { scale: 0.9 + rand() * 0.6 }));
-    } else {
-      out.push(model("marshmallow", x, z, { scale: 0.8 + rand() * 0.6, ry: rand() * Math.PI * 2 }));
+      for (const [ox, oz] of [[-6.2, -6.2], [6.2, -6.2], [-6.2, 6.2], [6.2, 6.2]] as [number, number][]) {
+        out.push(model("gumdrop", bx + ox, bz + oz, { scale: 1.1, variant: sx > 0 ? 3 : 5 }));
+      }
     }
   }
   return out;
