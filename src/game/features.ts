@@ -144,6 +144,8 @@ function sugarFeatures(): LevelFeatures {
     // her own gingerbread house, at the head of the village square
     home: { x: 130, z: -13 },
     house: "candy",
+    // his den: east of the loop's north-east corner, facing the path
+    emmettBase: { x: 120, z: 45, yaw: Math.PI },
   });
 }
 

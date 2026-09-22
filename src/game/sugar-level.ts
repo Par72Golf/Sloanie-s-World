@@ -153,12 +153,10 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   fudge: {
     id: "fudgeblock",
-    pos: [118, 0.55, 52],
+    pos: [120, 0.55, 56],
     hide: "hard",
-    // Emmett has no den in this park yet, and a hint that sends her somewhere
-    // that does not exist is worse than a vague one
-    region: "the east path",
-    hint: "Off the east path, south of the gingerbread houses.",
+    region: "Emmett's den",
+    hint: "Just outside Emmett's den, where he keeps his monster truck.",
   },
   jawbreaker: {
     id: "jawbreaker",
@@ -251,5 +249,7 @@ export function sugarRushPark(): LevelDef {
     accessories: candyAccessorySpots(),
     boost: "cotton",
     ride: WHEEL,
+    // Emmett's den, east of the loop and south of the village
+    emmettBase: true,
   };
 }
