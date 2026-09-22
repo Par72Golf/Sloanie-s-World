@@ -26,6 +26,7 @@ import {
   powerFor,
   powerToSpeed,
   rangeFor,
+  settleTime,
   throwOnce,
   tossColliders,
   tossTickets,
@@ -231,6 +232,40 @@ check(
 check(CATCH_R < TOSS.mouthR + 0.08, `the catch radius is the mouth of the mug, not more (${CATCH_R} against ${TOSS.mouthR})`);
 check(MAX_V > MIN_V, "the meter runs the right way round");
 check(powerToSpeed(0) === MIN_V && powerToSpeed(1) === MAX_V, "the meter covers exactly the speed range");
+
+/* ------------------------------------------------------- every throw ends */
+
+/*
+ * A throw that never settles is a game that never ends: no card, no tickets,
+ * and the marshmallow spent. The bounce off a mug used to do exactly that when
+ * the marshmallow clipped the wall near the rim — the ~0.6 m/s hop was not
+ * enough to clear the mug, so it landed on the same wall again, for ever. This
+ * sweeps the whole meter against fresh mugs and against mugs already filled
+ * (which change what it can collide with) and fails on anything still in the
+ * air after MAX_SETTLE.
+ */
+console.log("\nevery throw ends");
+const MAX_SETTLE = 4;
+let worst = { seconds: 0, ms: 0, kind: "", filled: "" };
+for (const [label, mugs] of [
+  ["fresh", () => freshMugs()],
+  ["first filled", () => freshMugs().map((m, i) => (i === 0 ? { ...m, filled: true } : m))],
+  ["first two filled", () => freshMugs().map((m, i) => (i < 2 ? { ...m, filled: true } : m))],
+  ["first knocked over", () => freshMugs().map((m, i) => (i === 0 ? { ...m, tip: 1 } : m))],
+] as [string, () => ReturnType<typeof freshMugs>][]) {
+  for (let ms = 0; ms <= CHARGE_TIME * 1000; ms += 2) {
+    const r = settleTime(ms / 1000 / CHARGE_TIME, mugs());
+    if (r.seconds > worst.seconds) worst = { seconds: r.seconds, ms, kind: r.kind, filled: label };
+    if (r.kind !== "in" && r.kind !== "ground") {
+      check(false, `${label}, held ${ms}ms: the marshmallow ${r.kind}`);
+      break;
+    }
+  }
+}
+check(
+  worst.seconds < MAX_SETTLE,
+  `the slowest throw settles in ${f2(worst.seconds)}s (${worst.filled}, held ${worst.ms}ms, ${worst.kind}) — must be under ${MAX_SETTLE}s`,
+);
 
 console.log(fails === 0 ? "\nall checks passed" : `\n${fails} FAILED`);
 if (fails) process.exitCode = 1;

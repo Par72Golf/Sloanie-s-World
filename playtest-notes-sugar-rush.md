@@ -4,13 +4,12 @@ Played end to end in the built snapshot, not the dev server, so what was tested
 is what deploys. Everything below was reproduced in the running game before it
 was changed.
 
-One caveat on method: the browser pane throttles `requestAnimationFrame` hard,
-so the game was driven a frame at a time through the test hooks rather than
-played at the keyboard. That covers everything that lives in the game loop. The
-one thing it cannot drive is the marshmallow toss's power meter, which is filled
-by the toss UI's own animation frame — the booth, the lock-in, the HUD, the quit
-and the ticket payout were all checked, and the throw itself is covered by
-`tools/toss.ts` instead.
+One note on method: the browser pane throttles `requestAnimationFrame` hard, so
+the game was driven a frame at a time through the test hooks rather than played
+at the keyboard. Golf, bowls and the toss take their one button through the
+panel's own animation frame, so at first none of them could be driven this way
+and the toss looked untestable. Putting those input records on `window.__gameTest`
+fixed that — and the first real throw it made found items 11 and 12 below.
 
 ## Found and fixed
 
@@ -103,6 +102,35 @@ accumulator is clamped at zero.
 ### 10. Two old notes from `playtest-notes-claude.md`
 Escape now closes the Controls panel when it is not waiting for a key, and
 "How to play" mentions the wardrobe, the ferris wheel and first person.
+
+### 11. A marshmallow could get stuck on a mug for ever
+Clip the side of a mug near the rim and the throw never ends. The bounce is
+about 0.6 m/s upward, which lifts the marshmallow a couple of centimetres, and
+nothing moved it out of the mug's width — so it landed on the same wall on the
+next step, and the next, hovering at the rim at about 1.42m with the horizontal
+speed shrinking 65% each time. The throw never finished: no card, no tickets,
+her marshmallow spent, and the only way out was Quit. A seven-year-old throwing
+slightly short hits this.
+
+The bounce now pushes the marshmallow clear of the mug and sends it *away* from
+the mug rather than always back toward her, so an overshoot carries on past
+instead of turning round into it. There is also a six-second watchdog, because a
+throw that never lands should never be able to hang the game whatever the shapes
+do later. `tools/toss.ts` sweeps the whole meter — against fresh mugs, mugs
+already filled, and a mug knocked over — and fails if any throw is still in the
+air after four seconds; the slowest real one settles in 2.58s. Reverting the
+bounce fix makes that check fail, which is how I know it is checking the thing.
+
+### 12. One throw could write several results on the card
+Once a marshmallow could travel on after clipping a mug, it reached the next one
+— and `landed` wrote a result every time it touched something, not once per
+throw. Three throws produced four entries, the card showed the first three, and
+her last throw going in was pushed off the end: the card said "Missed" under a
+throw that had just splashed. The mug count and the tickets were right, so only
+the list lied.
+
+Whatever a throw does first is now its result, except going in, which always
+wins; only the contact that decides it puts a line on the HUD.
 
 ## Checked and working
 

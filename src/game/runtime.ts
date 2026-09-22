@@ -8,7 +8,7 @@ import { useHome } from "./home-store";
 import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
 import { QuestWorld } from "./quest";
-import { GolfWorld } from "./minigolf";
+import { GolfWorld, golfInput, golfPose } from "./minigolf";
 import { LavaWorld } from "./lava";
 import { LookingGlass } from "./looking-glass";
 import { candyStickers } from "./candy-stickers";
@@ -23,8 +23,8 @@ import { WhackWorld, useWhack } from "./whack-a-gummy";
 import { SorterWorld, useSorter } from "./sweet-sorter";
 import { BoatRide } from "./boat-ride";
 import { CarouselRide } from "./carousel-ride";
-import { BowlsWorld } from "./bowls";
-import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
+import { BowlsWorld, bowlsInput, bowlsPose } from "./bowls";
+import { TossWorld, tossInput, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
 import * as THREE from "three";
@@ -509,6 +509,19 @@ export class GameRuntime {
       store: () => useGame,
       // her house keeps its own store, so a playtest can walk the upgrades
       home: () => useHome,
+      /*
+       * The records a HUD writes and the game loop reads. Golf, bowls and the
+       * toss all take their one button through the panel's own animation frame,
+       * so stepping the game loop by hand never sees a press: nothing fills the
+       * power meter and the game looks frozen when it is only unattended.
+       * A playtest holds and releases the button through these, and reads the
+       * pose to see what the panel would be showing.
+       */
+      input: () => ({
+        golf: { input: golfInput, pose: golfPose },
+        bowls: { input: bowlsInput, pose: bowlsPose },
+        toss: { input: tossInput, pose: tossPose },
+      }),
       runtime: () => this,
     };
   }
@@ -2767,6 +2780,11 @@ declare global {
       frames: (n: number, dtMs?: number) => number[];
       store: () => typeof useGame;
       home: () => typeof useHome;
+      input: () => {
+        golf: { input: typeof golfInput; pose: typeof golfPose };
+        bowls: { input: typeof bowlsInput; pose: typeof bowlsPose };
+        toss: { input: typeof tossInput; pose: typeof tossPose };
+      };
       runtime: () => GameRuntime;
     };
   }

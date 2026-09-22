@@ -465,10 +465,18 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `buttons.ts` | **Both parks.** There is one Collect key, and `tryCollect` reads every button — the booths, the golf tees, the bowls mats, both ferris wheels, the fair's three games, the boat jetty, the sweet shop, the princess, her truck, her front door, the telescope, the three stuck creatures — before it reads the sweet at her feet. This proves no sweet's collect circle can overlap a button's, so no sweet is one she presses Collect at and boards a ride instead. It knows a sweet above her head (the Sky Dumpling) is out of a ground button's reach. Found the Sugar Rush bubblegum. |
 | `gauntlet.ts` | Emmett's five challenges in Sugar Rush: the obstacle run and the big race routes walkable ring to ring, nothing solid in a gate, and the courses clear of his truck and the meadow terraces. |
 | `creatures.ts` | The princess's three predicaments: the lollipop climb's treads touch and never rise more than her step-up, the marshmallow bog's pads are within a jump and cannot be walked around, the toffee sits above its own surface, and all three stand on clear reachable ground away from everything else hidden. |
-| `toss.ts`, `toss-space.ts` | The marshmallow toss: the lob physics reach every mug inside the power range, the mouths are catchable, and the booth's footprint is clear of the bunting, the loop path and the stall row. |
+| `toss.ts`, `toss-space.ts` | The marshmallow toss: the lob physics reach every mug inside the power range, the mouths are catchable, the booth's footprint is clear of the bunting, the loop path and the stall row, and **every throw ends** — the whole meter swept against fresh, filled and knocked-over mugs, failing if a marshmallow is still in the air after four seconds. That last one is the check for the bounce that used to trap a marshmallow on a mug rim for ever. |
 | `diamond.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. (The old hill's `climb.ts`, `cavewalk.ts`, `los.ts`, `summit.ts` and `cave.ts` went with the hill.) |
 
 ### In-browser perf probes
+
+`__gameTest.input()` hands back the records the HUDs write and the game loop
+reads — golf's, bowls' and the toss's button and pose. Those panels poll their
+button in their own `requestAnimationFrame`, which a hidden or throttled tab does
+not run, so stepping the loop by hand otherwise never sees a press and the game
+looks frozen when it is only unattended. Hold `input().toss.input.charge`, step
+some frames, release it, and read `input().toss.pose` for what the panel would
+be showing. The first throw driven this way found the mug-rim trap.
 
 `window.__gameTest` (set up in `runtime.ts`) has probes that work even when the tab
 is hidden, which the animation loop does not: `renderOnce(sync)` renders one frame

@@ -215,7 +215,50 @@ export function stepMarsh(m: Marsh, mugs: MugState[], dt: number): TossHit | nul
 
 const SUB = 1 / 240;
 
-/** What one throw at this power does. Used by the tool and by the arc preview. */
+/** How long a throw may stay in the air before it is put down as a miss. */
+const MAX_FLIGHT = 6;
+
+/**
+ * A marshmallow that has hit a mug, bounced off and is on its way to the mat.
+ *
+ * The push clear is the part that matters. The bounce is only about 0.6 m/s
+ * upward, which lifts it a couple of centimetres, so without moving it out of
+ * the mug's width it lands back on the same wall on the next step, bounces
+ * again, and never reaches the mat. That hung the whole game: the throw never
+ * finished, so the card never came and the marshmallow was spent. It is pushed
+ * to just outside the widest collision `stepMarsh` tests, and bounced *away*
+ * from the mug rather than always back toward her, so an overshoot carries on
+ * past instead of turning round into it.
+ */
+export function bounceOffMug(m: Marsh, mug: MugState) {
+  const side = m.d < mug.d ? -1 : 1;
+  m.d = mug.d + side * (TOSS.mugR + MARSH_R + 0.03);
+  m.vd = side * Math.abs(m.vd) * 0.35;
+  m.vh = Math.abs(m.vh) * 0.25 + 0.6;
+}
+
+/**
+ * A whole throw, hit and bounce and all, in substeps: how long the marshmallow
+ * is in the air before it is on the mat or in a mug. A throw that never settles
+ * is a game that never ends, so the tool sweeps this over the whole meter.
+ */
+export function settleTime(power: number, mugs: MugState[]): { seconds: number; kind: string } {
+  const m = launch(power);
+  let t = 0;
+  let bounced = false;
+  for (let i = 0; i < 12000; i++) {
+    const hit = stepMarsh(m, mugs, SUB);
+    t += SUB;
+    if (!hit) continue;
+    if (hit.kind === "in" || hit.kind === "ground") return { seconds: t, kind: hit.kind };
+    // a mug: it bounces off once and then has to reach the mat
+    bounceOffMug(m, mugs[hit.mug]!);
+    bounced = true;
+  }
+  return { seconds: t, kind: bounced ? "stuck after a bounce" : "never landed" };
+}
+
+/** What one throw at this power does. Used by the tool and by the arc preview. *//** What one throw at this power does. Used by the tool and by the arc preview. */
 export function throwOnce(power: number, mugs: MugState[]) {
   const m = launch(power);
   const path: [number, number][] = [[m.d, m.h]];
@@ -479,6 +522,8 @@ export class TossWorld {
   private settle = 0;
   private squash = 0;
   private bounces = 0;
+  /** seconds this throw has been in the air, so nothing can fly for ever */
+  private flight = 0;
   private clock = 0;
   private lastNear = false;
   private m4 = new THREE.Matrix4();
@@ -725,10 +770,29 @@ export class TossWorld {
     this.marsh.scale.set(1, 1, 1);
     this.squash = 0;
     this.bounces = 0;
+    this.flight = 0;
     tossPose.state = "fly";
     const s = this.supply[tossPose.thrown];
     if (s) s.visible = false;
     sfx.jump();
+  }
+
+  /**
+   * One word per throw on the card, not one per thing it touches.
+   *
+   * A marshmallow can clip a mug, bounce off and go on to reach the next one,
+   * so `landed` runs more than once for a single throw. Whatever it does first
+   * is the throw's result — except going in, which always wins, because the
+   * mug count and the tickets already say it went in. Returns whether this is
+   * the contact that decided it, so only that one speaks.
+   */
+  private record(word: "in" | "miss" | "tip"): boolean {
+    if (tossPose.throws.length <= tossPose.thrown) {
+      tossPose.throws.push(word);
+      return true;
+    }
+    if (word === "in") tossPose.throws[tossPose.throws.length - 1] = "in";
+    return false;
   }
 
   private landed(hit: TossHit) {
@@ -738,7 +802,7 @@ export class TossWorld {
       mug.state.filled = true;
       mug.float.visible = true;
       tossPose.filled[hit.mug] = true;
-      tossPose.throws.push("in");
+      this.record("in");
       this.splash(mug.state.d);
       sfx.splash();
       sfx.correct();
@@ -750,25 +814,27 @@ export class TossWorld {
     }
     if (hit.kind === "hit") {
       const mug = this.mugs[hit.mug]!;
-      tossPose.throws.push(hit.tip ? "tip" : "miss");
+      // the mug goes over whichever contact knocked it, but only the contact
+      // that decides the throw gets a word on the card and a line on the HUD
+      const first = this.record(hit.tip ? "tip" : "miss");
       if (hit.tip) {
         mug.state.tip = 1;
         mug.tipT = 1.9;
         sfx.boing();
-        st.setEmmettNotice("Whoa, that knocked the mug over! A little softer.");
+        if (first) st.setEmmettNotice("Whoa, that knocked the mug over! A little softer.");
       } else {
         sfx.step();
-        st.setEmmettNotice(
-          !hit.low
-            ? "Off the rim! So close."
-            : this.m.d < mug.state.d
-              ? "Bonk! Just short of the mug — hold it a moment longer."
-              : "Bonk! A touch too far — let go a moment sooner.",
-        );
+        if (first) {
+          st.setEmmettNotice(
+            !hit.low
+              ? "Off the rim! So close."
+              : this.m.d < mug.state.d
+                ? "Bonk! Just short of the mug — hold it a moment longer."
+                : "Bonk! A touch too far — let go a moment sooner.",
+          );
+        }
       }
-      // it bounces off and drops to the mat
-      this.m.vd = -Math.abs(this.m.vd) * 0.35;
-      this.m.vh = Math.abs(this.m.vh) * 0.25 + 0.6;
+      bounceOffMug(this.m, mug.state);
       this.bounces = 2;
       return;
     }
@@ -781,8 +847,7 @@ export class TossWorld {
       sfx.step();
       return;
     }
-    if (tossPose.throws.length <= tossPose.thrown) {
-      tossPose.throws.push("miss");
+    if (this.record("miss")) {
       const d = this.m.d;
       const t = tossPose.target >= 0 ? this.mugs[tossPose.target]!.state.d : 0;
       st.setEmmettNotice(d < t ? "Just short! Hold it a moment longer." : "A bit far! Let go a moment sooner.");
@@ -852,6 +917,17 @@ export class TossWorld {
         const step = Math.min(SUB, left);
         left -= step;
         hit = stepMarsh(this.m, states, step);
+      }
+      /*
+       * A lob is over in about a second and a half. If one is still in the air
+       * after MAX_FLIGHT it is caught on something, and a throw that never ends
+       * is a game that never ends: put it on the mat and count it as a miss.
+       */
+      this.flight += dt;
+      if (!hit && this.flight > MAX_FLIGHT) {
+        this.m.h = TOSS.matTop + MARSH_R;
+        this.bounces = 2;
+        hit = { kind: "ground", speed: Math.hypot(this.m.vd, this.m.vh) };
       }
       if (hit) this.landed(hit);
       if (tossPose.state === "fly" && this.settle > 0) tossPose.state = "settle";
