@@ -13,7 +13,7 @@ import {
   Ticket,
   X,
 } from "lucide-react";
-import { SLOTS, accessory, allAccessories, type AccessoryId, type Slot } from "./accessories";
+import { SLOTS, accessory, allAccessories, bagFor, type AccessoryId, type Slot } from "./accessories";
 import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { STICKER_SPOTS } from "./collectibles";
@@ -55,7 +55,27 @@ const ALL_TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
  */
 function tabsFor(levelIndex: number) {
   const sugar = LEVELS[levelIndex]?.id === "sugar";
-  return ALL_TABS.filter((t) => t.id !== "quest" || sugar);
+  const w = words(levelIndex);
+  return ALL_TABS.filter((t) => t.id !== "quest" || sugar).map((t) =>
+    t.id === "dumplings" ? { ...t, label: w.tab } : t,
+  );
+}
+
+/**
+ * What a park calls the things she collects. Park 1 hides dumplings; Sugar Rush
+ * hides sweets, and a page that tells her she has found an "Unknown dumpling"
+ * in a candy world is a page written for the wrong park.
+ */
+function words(levelIndex: number) {
+  const bag = bagFor(LEVELS[levelIndex]?.id ?? "picnic");
+  const sugar = LEVELS[levelIndex]?.id === "sugar";
+  return {
+    bag,
+    tab: sugar ? "Sweets" : "Dumplings",
+    title: sugar ? "Sweet journal" : "Dumpling journal",
+    unknown: sugar ? "Unknown sweet" : "Unknown dumpling",
+    bagTitle: sugar ? "Candy satchel" : "Backpack",
+  };
 }
 
 /** Each page has its own colour: its tab, its header band and its badge match. */
@@ -121,6 +141,9 @@ export function Journal() {
   // a park without this page: fall back rather than render a blank header
   const current = tabs.find((t) => t.id === tab) ?? tabs[0]!;
   const look = TAB_LOOK[current.id];
+  const w = words(levelIndex);
+  // two pages are named after the park: the sweets she collects and her own bag
+  const title = current.id === "dumplings" ? w.title : current.id === "bag" ? w.bagTitle : look.title;
   const Icon = current.Icon;
   return (
     <div className="ui-backdrop animate-ui-fade pointer-events-auto absolute inset-0 z-30 flex items-center justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
@@ -167,7 +190,7 @@ export function Journal() {
             <span className={cn("chunk-sm grid size-11 shrink-0 place-items-center rounded-full bg-surface sm:size-12", look.text)}>
               <Icon className="size-6 sm:size-7" strokeWidth={2.5} />
             </span>
-            <h2 className="ui-title min-w-0 flex-1 truncate py-1 text-2xl leading-tight sm:text-3xl lg:text-4xl [@media(max-height:500px)]:text-2xl">{look.title}</h2>
+            <h2 className="ui-title min-w-0 flex-1 truncate py-1 text-2xl leading-tight sm:text-3xl lg:text-4xl [@media(max-height:500px)]:text-2xl">{title}</h2>
             <JournalCount tab={current.id} />
           </div>
           <div className="ui-dots min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 [@media(max-height:480px)]:py-3">
@@ -270,7 +293,7 @@ function DumplingsTab() {
               )}
               <span className="min-w-0">
                 <span className={cn("block font-display text-lg font-semibold leading-tight lg:text-xl", got ? "text-ink" : "text-ink-soft")}>
-                  {got ? d.name : "Unknown dumpling"}
+                  {got ? d.name : words(levelIndex).unknown}
                 </span>
                 <span className="block text-base font-semibold leading-snug text-ink-soft">
                   {got ? `Found near ${d.region}` : d.hide === "hard" ? "Well hidden" : "Still out there"}
@@ -685,18 +708,23 @@ function EquipGrid() {
 }
 
 function BagTab() {
-  const hasBag = useGame((s) => s.foundAccessories.includes("backpack"));
+  const levelIndex = useGame((s) => s.levelIndex);
+  const bag = words(levelIndex).bag;
+  const hasBag = useGame((s) => s.foundAccessories.includes(bag.id));
   const tickets = useGame((s) => s.tickets);
-  const hasBook = useGame((s) => s.stickerBook);
-  const stickers = useGame((s) => s.stickers.length);
+  // each park has its own book and its own set of stickers to count
+  const hunt = stickerHunt(levelIndex);
+  const hasBook = useGame((s) => s[hunt.book]);
+  const stickers = useGame((s) => s.stickers.filter((id) => hunt.art.some((a) => a.id === id)).length);
   const quest = useGame((s) => s.quest);
   const pets = useGame((s) => s.pets);
   const setTab = useGame((s) => s.setJournalTab);
+  const sugar = LEVELS[levelIndex]?.id === "sugar";
   if (!hasBag) {
     return (
-      <EmptyPage Icon={Backpack} tone="text-teal" title="No backpack yet">
+      <EmptyPage Icon={Backpack} tone="text-teal" title={`No ${bag.name} yet`}>
         <p className="max-w-md text-lg font-semibold text-ink-soft lg:text-xl">
-          Without a backpack you can't carry anything you find. There's one out on the ball field!
+          Without a {bag.name} you can't carry anything you find. There's one {bag.where}!
         </p>
         <p className="ui-chip mt-1 bg-sun px-4 py-1.5 text-lg text-ink">
           <Ticket className="size-5" strokeWidth={2.5} /> {tickets} tickets in your pocket
@@ -719,7 +747,9 @@ function BagTab() {
           </span>
           <span className="min-w-0 flex-1">
             <span className={title}>{tickets} tickets</span>
-            <span className={sub}>Win more at the carnival. Spend them at the prize booth.</span>
+            <span className={sub}>
+              {sugar ? "Win more at the fair. Spend them at the sweet shop." : "Win more at the carnival. Spend them at the prize booth."}
+            </span>
           </span>
         </div>
         <button type="button" className={cn(row, "press text-left")} onClick={() => setTab("stickers")}>
@@ -727,11 +757,20 @@ function BagTab() {
             <Sticker className="size-5" strokeWidth={2.5} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className={title}>{hasBook ? "Sticker book" : "Sticker book (not found)"}</span>
-            <span className={sub}>{hasBook ? `${stickers} stickers inside` : "Look near the start of the park."}</span>
+            <span className={title}>
+              {sugar
+                ? hasBook
+                  ? "Candy sticker book"
+                  : "Candy sticker book (not found)"
+                : hasBook
+                  ? "Sticker book"
+                  : "Sticker book (not found)"}
+            </span>
+            <span className={sub}>{hasBook ? `${stickers} sticker${stickers === 1 ? "" : "s"} inside` : "Look near the start of the park."}</span>
           </span>
         </button>
-        {quest.stage !== "none" && quest.stage !== "done" && (
+        {/* Farmer Joe's treats are park 1's errand; they mean nothing in a candy world */}
+        {!sugar && quest.stage !== "none" && quest.stage !== "done" && (
           <div className={row}>
             <span className={cn(badge, "bg-leaf font-display text-lg font-bold text-white")}>{quest.treats.length}</span>
             <span className="min-w-0 flex-1">

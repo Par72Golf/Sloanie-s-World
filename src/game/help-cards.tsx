@@ -3,6 +3,8 @@ import {
   Backpack,
   Check,
   Dog,
+  Crown,
+  Factory,
   Feather,
   FerrisWheel,
   Footprints,
@@ -30,7 +32,22 @@ import { cn } from "@/lib/utils";
  * While a card is open the game waits.
  */
 
-export type HelpId = "backpack" | "stickers" | "farmer" | "carnival";
+export type HelpId = "backpack" | "stickers" | "farmer" | "carnival" | "satchel" | "candystickers" | "factory";
+
+/**
+ * Which cards belong to which park. A card names real places — the ball field,
+ * the flower maze — so park 2 has its own backpack and sticker cards rather
+ * than sending her to park 1's farm to look for candy.
+ */
+const PARK_CARDS: HelpId[][] = [
+  ["backpack", "stickers", "farmer", "carnival"],
+  ["satchel", "candystickers", "factory"],
+];
+
+/** The help cards on offer in a park, for the pause menu's list. */
+export function helpIdsFor(levelIndex: number): HelpId[] {
+  return PARK_CARDS[levelIndex] ?? PARK_CARDS[0]!;
+}
 
 type Card = { title: string; color: string; Icon: LucideIcon; steps: { Icon: LucideIcon; text: string }[] };
 
@@ -70,6 +87,41 @@ export const HELP_CARDS: Record<HelpId, Card> = {
       { Icon: Feather, text: "Then he'll ask again: follow the white feathers to the flower maze." },
       { Icon: Search, text: "Last of all, play hide and seek on the farm to find the third one." },
       { Icon: Dog, text: "All three pets can be yours, and they all follow you at once!" },
+    ],
+  },
+  satchel: {
+    title: "Your candy satchel",
+    color: "#e0559b",
+    Icon: Backpack,
+    steps: [
+      { Icon: Backpack, text: "Now you can carry things you find!" },
+      { Icon: Gift, text: "Before the satchel, nothing could be picked up. Go back for things you saw." },
+      { Icon: Shirt, text: "Open your satchel to wear or hold your things. Press J, the Back button, or tap the book." },
+      { Icon: Ticket, text: "Your tickets live in your satchel too, for the sweet shop at the fair." },
+    ],
+  },
+  candystickers: {
+    title: "Candy sticker book",
+    color: "#7b5cf0",
+    Icon: Sticker,
+    steps: [
+      { Icon: Sticker, text: "There are 20 candy stickers hidden all over Sugar Rush Park." },
+      { Icon: Sparkles, text: "Walk into a floating sticker to put it in your book." },
+      { Icon: Mountain, text: "Look everywhere: the woods, the maze, the fair, the mountain and the river!" },
+      { Icon: Backpack, text: "See your stickers in your satchel, on the Stickers page." },
+    ],
+  },
+  factory: {
+    title: "The candy factory",
+    color: "#a05a2c",
+    Icon: Factory,
+    steps: [
+      { Icon: Crown, text: "The Candy Princess lives in the lollipop woods. Go and talk to her." },
+      { Icon: Factory, text: "The factory has stopped, so the chocolate river has run pale." },
+      { Icon: Search, text: "Three parts are lost: the big whisk, the syrup bucket and the cog." },
+      { Icon: Sparkles, text: "Take all three back inside the factory and pull the lever." },
+      { Icon: Dog, text: "Her three creatures are stuck out in the park. Free them and they follow you." },
+      { Icon: Backpack, text: "Your jobs are in your satchel, on the Jobs page." },
     ],
   },
   carnival: {

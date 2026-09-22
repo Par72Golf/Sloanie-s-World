@@ -555,7 +555,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (get().candyStickerBook) return;
     set({ candyStickerBook: true, emmettNotice: "You found a candy sticker book! Now you can collect candy stickers." });
     persistSlice(get());
-    get().showHelp("stickers");
+    get().showHelp("candystickers");
   },
   findSticker: (id, name) => {
     const st = get();

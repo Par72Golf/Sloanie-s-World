@@ -118,6 +118,10 @@ export function accessory(id: AccessoryId): AccessoryDef {
  */
 export type BagDef = {
   id: AccessoryId;
+  /** what she calls it, for the journal's own page */
+  name: string;
+  /** where it is, for the page she opens before she has found it */
+  where: string;
   /** said when she walks into something she cannot carry yet */
   blocked: string;
   /** said when she finds the bag itself */
@@ -127,11 +131,15 @@ export type BagDef = {
 const BAGS: Record<string, BagDef> = {
   picnic: {
     id: "backpack",
+    name: "backpack",
+    where: "out on the ball field",
     blocked: "You need a backpack to carry that! Look for it out on the ball field.",
     found: "You found the backpack! Now you can carry things.",
   },
   sugar: {
     id: "candypack",
+    name: "candy satchel",
+    where: "by the sweet shops behind the start",
     blocked: "You need a bag to carry that! There's a candy satchel by the sweet shops behind the start.",
     found: "You found the candy satchel! Now you can carry things.",
   },

@@ -75,9 +75,9 @@ export const FACTORY_PARTS: { id: PartId; name: string; pos: [number, number]; r
 ];
 
 /** Her clearing in the Lollipop Forest. */
-const PRINCESS = { x: SUGAR.forest.x + 3, z: SUGAR.forest.z + 4 };
+export const PRINCESS = { x: SUGAR.forest.x + 3, z: SUGAR.forest.z + 4 };
 /** how near she has to stand to be offered a word */
-const TALK_R = 2.8;
+export const TALK_R = 2.8;
 const PICK_R = 1.8;
 
 /* ------------------------------------------------------------- the pieces */
@@ -334,7 +334,17 @@ export class CandyQuest {
   tryInteract(x: number, y: number, z: number): boolean {
     if (this.near(x, y, z) !== "princess") return false;
     sfx.click();
-    this.speak();
+    /*
+     * The first time she meets the princess, the card that lays out the whole
+     * job: the factory, the three parts, the three creatures, the Jobs page.
+     * The card says everything the first spoken line would and the world waits
+     * behind it, so the line is saved for her next press rather than timing out
+     * unread underneath.
+     */
+    const st = useGame.getState();
+    const first = !st.seenHelp.includes("factory");
+    st.showHelp("factory");
+    if (!first) this.speak();
     this.lastTalk = 0;
     return true;
   }
