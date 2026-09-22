@@ -4,6 +4,7 @@ import { SPOTS } from "./furniture";
 import { HomePanel } from "./home-panel";
 import { HouseUpgradePanel } from "./house-upgrade";
 import { useChocFactory } from "./choc-factory-inside";
+import { TRUCK_STAGES } from "./truck-gauntlet";
 import { useHome } from "./home-store";
 import { CHANNELS } from "./music";
 import { HELP_CARDS, HelpCard, type HelpId } from "./help-cards";
@@ -898,6 +899,11 @@ function HUD() {
   const homeOpen = useHome((s) => s.panel);
   const houseBuilding = useHome((s) => s.upgrading);
   const factoryNear = useChocFactory((s) => s.near);
+  const truckNear = useGame((s) => s.truckNear);
+  const driving = useGame((s) => s.driving);
+  const truckWins = useGame((s) => s.truckWins);
+  const truckOwned = useGame((s) => s.truckOwned);
+  const truckRace = useGame((s) => s.truckRace);
   const questOpen = useGame((s) => s.questPanel);
   const tickets = useGame((s) => s.tickets);
   const riding = useGame((s) => s.riding);
@@ -1086,6 +1092,13 @@ function HUD() {
                       {clock(runSeconds)}
                     </span>
                   )}
+                  {/* the clock on one of Emmett's courses, and how many rings are left */}
+                  {truckRace != null && (
+                    <span className="ui-chip gloss gap-1 bg-[#8a4ad0] px-1.5 text-[0.78rem] tabular-nums text-white sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
+                      <Timer className="size-3.5 sm:size-4 2xl:size-5" strokeWidth={2.6} />
+                      {clock(truckRace.time)} / {clock(truckRace.target)} · {truckRace.gate}/{truckRace.gates}
+                    </span>
+                  )}
                   {/* how long she has been out on the Floor is Lava course */}
                   {lavaTime != null && (
                     <span className="ui-chip gloss gap-1 bg-[#ff7a1a] px-1.5 text-[0.78rem] tabular-nums text-white sm:gap-1.5 sm:px-2.5 sm:text-base 2xl:text-xl">
@@ -1139,9 +1152,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || factoryNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || factoryNear || truckNear || driving || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1157,8 +1170,14 @@ function HUD() {
                   : factoryNear === "exit"
                     ? "Go outside"
                     : "Pull the big lever!"
+              : driving
+                ? "Park the monster truck"
+              : truckNear
+                ? "Drive the monster truck!"
               : emmettTalkNear
-                ? "Play with Emmett"
+                ? !truckOwned && truckWins >= 3
+                  ? `${TRUCK_STAGES[truckWins]}!`
+                  : "Play with Emmett"
                 : questNear
               ? questNear === "farmer"
                 ? "Talk to Farmer Joe"
@@ -1175,7 +1194,7 @@ function HUD() {
                   ? "Ride the ferris wheel!"
                   : `Grab ${nearestName ?? "it"}!`
           }
-          icon={homeNear || factoryNear ? "home" : emmettTalkNear ? "truck" : golfNear != null || bowlsNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
+          icon={homeNear || factoryNear ? "home" : emmettTalkNear || truckNear || driving ? "truck" : golfNear != null || bowlsNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
           gold={carouselRing === "gold"}
           onPress={requestInteract}
         />

@@ -317,7 +317,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   let truck: TruckRig | null = null;
   if (level.emmettBase) {
     const yard = makeTruckYard();
-    truck = makeMonsterTruck();
+    truck = makeMonsterTruck(level.id === "sugar" ? "candy" : "park");
     for (const g of [yard, truck.group]) {
       g.position.set(EMMETT_BASE.x, 0, EMMETT_BASE.z);
       g.rotation.y = EMMETT_BASE.yaw;

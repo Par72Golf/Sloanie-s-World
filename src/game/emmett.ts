@@ -184,8 +184,10 @@ export class Emmett {
      * so it has to be the park's one array, not a fresh copy.
      */
     private prefer: readonly NavRect[] = [],
+    /** which Emmett: park 1's, or the one made of sweets in Sugar Rush */
+    look: "park" | "candy" = "park",
   ) {
-    this.rig = makeEmmett();
+    this.rig = makeEmmett(look);
     this.group = this.rig.root;
     // so a browser session can find him from __gameTest.scene() and watch a ride
     this.group.userData.emmett = this;

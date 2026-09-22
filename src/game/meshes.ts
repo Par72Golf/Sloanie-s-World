@@ -2798,21 +2798,52 @@ export function levelGondolas(wheel: FerrisWheel) {
   for (const g of wheel.gondolas) g.rotation.z = -wheel.hub.rotation.z;
 }
 
+/** Sugar Rush Park's candy gloss: wet-looking sweets instead of chalky plastic. */
+function candyMesh(
+  geo: THREE.BufferGeometry,
+  color: string,
+  sx: number,
+  sy: number,
+  sz: number,
+  x: number,
+  y: number,
+  z: number,
+  shadow = true,
+) {
+  const box = geo === boxGeo;
+  const o = new THREE.Mesh(box ? beveledBox(sx, sy, sz) : geo, lam(color, { flat: true, roughness: 0.16 }));
+  if (!box) o.scale.set(sx, sy, sz);
+  o.position.set(x, y, z);
+  o.castShadow = shadow;
+  o.receiveShadow = true;
+  return o;
+}
+
 /**
  * Emmett: a small boy on a tricycle, black cap, red sunglasses.
  * Returns the root plus the parts that need animating.
+ *
+ * `look`: "park" (default) is Emmett as he has always been. "candy" is Sugar
+ * Rush Park's sweets-only skin — a candy-cane shirt, liquorice trike frame,
+ * gumdrop wheels and a lollipop on the handlebars — built from the same rig,
+ * so `animateEmmett` (in pose.ts and dances.ts) keeps working unmodified.
  */
-export function makeEmmett() {
+export function makeEmmett(look: "park" | "candy" = "park") {
   const root = new THREE.Group();
+  const candy = look === "candy";
+  // face and hair stay put so Sloan still recognises him at a glance; only
+  // his clothes, trike and trim swap into the park's candy palette
   const skin = "#e5ab80";
   const hair = "#4a2f1e";
-  const shirt = "#4f93c4";
-  const shorts = "#33527a";
-  const frame = "#d43a3a";
-  const rubber = "#2a2a2e";
-  const chrome = "#c8ced4";
-  const cap = "#22242a";
-  const shades = "#d8322c";
+  const shirt = candy ? "#e8384f" : "#4f93c4"; // candy-cane red, striped with cream below
+  const shorts = candy ? "#6fe3c4" : "#33527a"; // mint
+  const frame = candy ? "#2a2430" : "#d43a3a"; // liquorice
+  const rubber = candy ? "#b06aff" : "#2a2a2e"; // lilac gumdrop
+  const chrome = candy ? "#f7ead3" : "#c8ced4"; // white-chocolate trim
+  const cap = candy ? "#2a2430" : "#22242a"; // liquorice
+  const shades = candy ? "#b06aff" : "#d8322c"; // lilac
+  // candy parts get the park's wet gumdrop gloss; skin, hair and face stay flat plastic
+  const M = candy ? candyMesh : mesh;
 
   // ---- tricycle
   const trike = new THREE.Group();
@@ -2820,15 +2851,15 @@ export function makeEmmett() {
 
   const frontWheel = new THREE.Group();
   frontWheel.position.set(0, 0.34, 0.52);
-  const fw = mesh(cylGeo, rubber, 0.34, 0.12, 0.34, 0, 0, 0);
+  const fw = M(cylGeo, rubber, 0.34, 0.12, 0.34, 0, 0, 0);
   fw.rotation.z = Math.PI / 2;
   frontWheel.add(fw);
-  const hubF = mesh(cylGeo, chrome, 0.12, 0.14, 0.12, 0, 0, 0);
+  const hubF = M(cylGeo, chrome, 0.12, 0.14, 0.12, 0, 0, 0);
   hubF.rotation.z = Math.PI / 2;
   frontWheel.add(hubF);
   // spokes so the spin reads
   for (let i = 0; i < 3; i++) {
-    const sp = mesh(boxGeo, chrome, 0.05, 0.6, 0.05, 0, 0, 0, false);
+    const sp = M(boxGeo, chrome, 0.05, 0.6, 0.05, 0, 0, 0, false);
     sp.rotation.x = (i / 3) * Math.PI;
     frontWheel.add(sp);
   }
@@ -2838,10 +2869,10 @@ export function makeEmmett() {
   for (const s of [-1, 1]) {
     const g = new THREE.Group();
     g.position.set(s * 0.34, 0.22, -0.34);
-    const w = mesh(cylGeo, rubber, 0.22, 0.1, 0.22, 0, 0, 0);
+    const w = M(cylGeo, rubber, 0.22, 0.1, 0.22, 0, 0, 0);
     w.rotation.z = Math.PI / 2;
     g.add(w);
-    const hub = mesh(cylGeo, chrome, 0.08, 0.12, 0.08, 0, 0, 0);
+    const hub = M(cylGeo, chrome, 0.08, 0.12, 0.08, 0, 0, 0);
     hub.rotation.z = Math.PI / 2;
     g.add(hub);
     trike.add(g);
@@ -2849,38 +2880,48 @@ export function makeEmmett() {
   }
 
   // frame: front fork down to the wheel, spine back to the axle
-  const fork = mesh(boxGeo, frame, 0.1, 0.58, 0.1, 0, 0.52, 0.5);
+  const fork = M(boxGeo, frame, 0.1, 0.58, 0.1, 0, 0.52, 0.5);
   fork.rotation.x = -0.3;
   trike.add(fork);
-  trike.add(mesh(boxGeo, frame, 0.14, 0.12, 0.92, 0, 0.3, 0.02));
-  trike.add(mesh(boxGeo, frame, 0.76, 0.1, 0.12, 0, 0.24, -0.34));
+  trike.add(M(boxGeo, frame, 0.14, 0.12, 0.92, 0, 0.3, 0.02));
+  trike.add(M(boxGeo, frame, 0.76, 0.1, 0.12, 0, 0.24, -0.34));
 
   // seat
-  trike.add(mesh(boxGeo, frame, 0.34, 0.12, 0.4, 0, 0.44, -0.2));
-  trike.add(mesh(sphereGeo, frame, 0.19, 0.08, 0.14, 0, 0.5, -0.22, false));
+  trike.add(M(boxGeo, frame, 0.34, 0.12, 0.4, 0, 0.44, -0.2));
+  trike.add(M(sphereGeo, frame, 0.19, 0.08, 0.14, 0, 0.5, -0.22, false));
 
   // handlebars
   const bars = new THREE.Group();
   bars.position.set(0, 0.82, 0.44);
-  bars.add(mesh(boxGeo, chrome, 0.62, 0.08, 0.08, 0, 0, 0));
-  bars.add(mesh(cylGeo, rubber, 0.07, 0.18, 0.07, -0.3, 0, 0, false));
-  bars.add(mesh(cylGeo, rubber, 0.07, 0.18, 0.07, 0.3, 0, 0, false));
+  bars.add(M(boxGeo, chrome, 0.62, 0.08, 0.08, 0, 0, 0));
+  bars.add(M(cylGeo, rubber, 0.07, 0.18, 0.07, -0.3, 0, 0, false));
+  bars.add(M(cylGeo, rubber, 0.07, 0.18, 0.07, 0.3, 0, 0, false));
   const grip1 = bars.children[1] as THREE.Mesh;
   const grip2 = bars.children[2] as THREE.Mesh;
   grip1.rotation.z = Math.PI / 2;
   grip2.rotation.z = Math.PI / 2;
   // streamers, because it is a kid's trike
-  bars.add(mesh(boxGeo, "#f0c44a", 0.05, 0.05, 0.3, -0.38, 0, -0.12, false));
-  bars.add(mesh(boxGeo, "#f0c44a", 0.05, 0.05, 0.3, 0.38, 0, -0.12, false));
+  const streamer = candy ? "#ff8a3a" : "#f0c44a";
+  bars.add(M(boxGeo, streamer, 0.05, 0.05, 0.3, -0.38, 0, -0.12, false));
+  bars.add(M(boxGeo, streamer, 0.05, 0.05, 0.3, 0.38, 0, -0.12, false));
+  // a lollipop planted on the handlebars, candy park only
+  if (candy) {
+    const pop = new THREE.Group();
+    pop.position.set(0, 0.04, -0.02);
+    pop.add(candyMesh(cylGeo, chrome, 0.017, 0.24, 0.017, 0, 0.12, 0, false));
+    pop.add(candyMesh(sphereGeo, "#ff6aa8", 0.1, 0.1, 0.04, 0, 0.26, 0, false));
+    pop.add(candyMesh(sphereGeo, chrome, 0.055, 0.055, 0.045, 0, 0.26, 0.005, false));
+    bars.add(pop);
+  }
   trike.add(bars);
 
   // pedals on the front wheel
   const pedals = new THREE.Group();
   pedals.position.set(0, 0.34, 0.52);
   for (const s of [-1, 1]) {
-    const arm = mesh(boxGeo, chrome, 0.06, 0.3, 0.06, s * 0.26, s * 0.12, 0, false);
+    const arm = M(boxGeo, chrome, 0.06, 0.3, 0.06, s * 0.26, s * 0.12, 0, false);
     pedals.add(arm);
-    pedals.add(mesh(boxGeo, rubber, 0.16, 0.06, 0.2, s * 0.26, s * 0.26, 0, false));
+    pedals.add(M(boxGeo, rubber, 0.16, 0.06, 0.2, s * 0.26, s * 0.26, 0, false));
   }
   trike.add(pedals);
 
@@ -2889,9 +2930,15 @@ export function makeEmmett() {
   body.position.set(0, 0.56, -0.14);
   root.add(body);
 
-  body.add(mesh(cylGeo, shirt, 0.25, 0.42, 0.2, 0, 0.2, 0));
-  body.add(mesh(sphereGeo, shirt, 0.26, 0.14, 0.21, 0, 0.4, 0, false));
-  body.add(mesh(cylGeo, shorts, 0.24, 0.16, 0.2, 0, -0.04, 0));
+  body.add(M(cylGeo, shirt, 0.25, 0.42, 0.2, 0, 0.2, 0));
+  body.add(M(sphereGeo, shirt, 0.26, 0.14, 0.21, 0, 0.4, 0, false));
+  body.add(M(cylGeo, shorts, 0.24, 0.16, 0.2, 0, -0.04, 0));
+  // candy-cane stripes ringing the shirt
+  if (candy) {
+    for (const yy of [0.06, 0.2, 0.34]) {
+      body.add(candyMesh(cylGeo, "#f7ead3", 0.255, 0.07, 0.205, 0, yy, 0, false));
+    }
+  }
 
   // legs reach forward to the pedals
   const legs: THREE.Group[] = [];
@@ -2914,7 +2961,7 @@ export function makeEmmett() {
   for (const s of [-1, 1]) {
     const arm = new THREE.Group();
     arm.position.set(s * 0.28, 0.34, 0);
-    const upper = mesh(cylGeo, shirt, 0.08, 0.26, 0.08, 0, -0.02, 0.14);
+    const upper = M(cylGeo, shirt, 0.08, 0.26, 0.08, 0, -0.02, 0.14);
     upper.rotation.x = 1.15;
     arm.add(upper);
     const fore = mesh(cylGeo, skin, 0.07, 0.24, 0.07, 0, -0.06, 0.36);
@@ -2943,19 +2990,19 @@ export function makeEmmett() {
   flat.visible = false;
   head.add(flat);
 
-  // red sunglasses
-  head.add(mesh(boxGeo, shades, 0.4, 0.11, 0.05, 0, 0.14, 0.24, false));
-  head.add(mesh(boxGeo, shades, 0.06, 0.05, 0.22, -0.2, 0.15, 0.13, false));
-  head.add(mesh(boxGeo, shades, 0.06, 0.05, 0.22, 0.2, 0.15, 0.13, false));
-  head.add(mesh(boxGeo, "#2a2a2e", 0.34, 0.07, 0.02, 0, 0.14, 0.27, false));
+  // sunglasses: red in the park, lilac candy-glass in Sugar Rush Park
+  head.add(M(boxGeo, shades, 0.4, 0.11, 0.05, 0, 0.14, 0.24, false));
+  head.add(M(boxGeo, shades, 0.06, 0.05, 0.22, -0.2, 0.15, 0.13, false));
+  head.add(M(boxGeo, shades, 0.06, 0.05, 0.22, 0.2, 0.15, 0.13, false));
+  head.add(M(boxGeo, "#2a2a2e", 0.34, 0.07, 0.02, 0, 0.14, 0.27, false));
   // a highlight on the lenses so they read as glass, not a painted bar
-  head.add(mesh(boxGeo, "#ff9a90", 0.08, 0.025, 0.02, -0.12, 0.17, 0.275, false));
-  head.add(mesh(boxGeo, "#ff9a90", 0.05, 0.02, 0.02, 0.14, 0.16, 0.275, false));
+  head.add(M(boxGeo, "#ff9a90", 0.08, 0.025, 0.02, -0.12, 0.17, 0.275, false));
+  head.add(M(boxGeo, "#ff9a90", 0.05, 0.02, 0.02, 0.14, 0.16, 0.275, false));
 
-  // black cap, brim forward
-  head.add(mesh(sphereGeo, cap, 0.3, 0.2, 0.29, 0, 0.3, -0.01, false));
-  head.add(mesh(boxGeo, cap, 0.34, 0.04, 0.24, 0, 0.24, 0.22, false));
-  head.add(mesh(sphereGeo, cap, 0.06, 0.05, 0.06, 0, 0.44, -0.02, false));
+  // cap, brim forward: black in the park, liquorice in Sugar Rush Park
+  head.add(M(sphereGeo, cap, 0.3, 0.2, 0.29, 0, 0.3, -0.01, false));
+  head.add(M(boxGeo, cap, 0.34, 0.04, 0.24, 0, 0.24, 0.22, false));
+  head.add(candy ? candyMesh(sphereGeo, "#ff6aa8", 0.06, 0.05, 0.06, 0, 0.44, -0.02, false) : mesh(sphereGeo, cap, 0.06, 0.05, 0.06, 0, 0.44, -0.02, false));
 
   body.add(head);
 

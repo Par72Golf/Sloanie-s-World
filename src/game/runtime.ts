@@ -13,6 +13,7 @@ import { LavaWorld } from "./lava";
 import { LookingGlass } from "./looking-glass";
 import { candyStickers } from "./candy-stickers";
 import { ChocFactoryInside, useChocFactory } from "./choc-factory-inside";
+import { PlayerTruck, RPS_ROUNDS, TRUCK_STAGES, TruckGauntlet } from "./truck-gauntlet";
 import { BowlsWorld } from "./bowls";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
@@ -597,6 +598,13 @@ export class GameRuntime {
           })
         : null;
     // floor is lava: its own platforms, rafts and colliders, like the house.
+    // Emmett's five challenges for his monster truck, and the truck once she
+    // has won it
+    this.gauntlet?.dispose();
+    this.gauntlet = this.level.id === "sugar" ? new TruckGauntlet(this.scene) : null;
+    this.playerTruck?.dispose();
+    this.playerTruck =
+      this.level.id === "sugar" && useGame.getState().truckOwned ? new PlayerTruck(this.scene) : null;
     // inside the chocolate factory: its own room in the sky over the factory,
     // built the way her house's room is
     this.factoryInside?.dispose();
@@ -649,7 +657,10 @@ export class GameRuntime {
     const base = this.level.emmettBase
       ? { x: EMMETT_BASE.x, z: EMMETT_BASE.z, loop: EMMETT_BASE.loop, park: EMMETT_BASE.trikePark }
       : null;
-    this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? [], base, feat.prefer);
+    // in the candy park he and his truck are made of sweets, which is what
+    // she asked for: "emmetts monster truck and him should be candy themed"
+    const look = this.level.id === "sugar" ? "candy" : "park";
+    this.emmett = new Emmett(this.scene, this.level.bounds, this.level.emmettKeepOut ?? [], base, feat.prefer, look);
     this.boostLeft = 0;
     useGame.getState().setBoost(0);
     this.lastRpsKey = "";
@@ -838,7 +849,20 @@ export class GameRuntime {
           if (rps.result === "win") {
             sfx.win();
             st.addTickets(3);
-            st.setEmmettNotice("You win 3 tickets!");
+            // in Sugar Rush the first three of his five challenges are these
+            // games, so a friendly win here is a win off the gauntlet too
+            const gauntletRound = this.gauntlet && st.truckWins < RPS_ROUNDS;
+            if (gauntletRound) {
+              st.winTruckStage();
+              const wins = useGame.getState().truckWins;
+              st.setEmmettNotice(
+                wins >= RPS_ROUNDS
+                  ? "3 tickets — and that's three wins! Talk to Emmett for the obstacle run."
+                  : `You win 3 tickets! That's ${wins} of ${TRUCK_STAGES.length} toward his truck.`,
+              );
+            } else {
+              st.setEmmettNotice("You win 3 tickets!");
+            }
             this.emmett.mood = "lose";
           } else if (rps.result === "lose") {
             sfx.click();
@@ -979,6 +1003,8 @@ export class GameRuntime {
   lavaWorld: LavaWorld | null = null;
   lookingGlass: LookingGlass | null = null;
   factoryInside: ChocFactoryInside | null = null;
+  gauntlet: TruckGauntlet | null = null;
+  playerTruck: PlayerTruck | null = null;
   stickerWorld: StickerWorld | null = null;
   homeWorld: HomeWorld | SugarHomeWorld | null = null;
   zooWorld: ZooWorld | null = null;
@@ -991,6 +1017,8 @@ export class GameRuntime {
     this.lavaWorld?.dispose();
     this.lookingGlass?.dispose();
     this.factoryInside?.dispose();
+    this.gauntlet?.dispose();
+    this.playerTruck?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
     this.zooWorld?.dispose();
@@ -1510,13 +1538,21 @@ export class GameRuntime {
   emmettTalkReady() {
     const e = this.emmett;
     if (!e || !this.level.emmettBase || e.state !== "home" || this.ride || this.carouselRide || this.cap.y > 2) return false;
-    // while he is resting between games there is nothing to press
-    if (this.clock - this.emmettPlayedAt < 40) return false;
+    // while he is resting between games there is nothing to press — but a
+    // course is not a game he has to recover from, and a child who has just
+    // missed a time by a second should be able to go again at once
+    if (this.clock - this.emmettPlayedAt < 40 && !this.courseOnOffer()) return false;
     const [tx, , tz] = EMMETT_BASE.talkSpot;
     return (
       Math.hypot(this.cap.x - tx, this.cap.z - tz) < 2.4 ||
       Math.hypot(this.cap.x - e.group.position.x, this.cap.z - e.group.position.z) < 2.6
     );
+  }
+
+  /** His next challenge is one of the two courses, so there is no cooldown. */
+  courseOnOffer() {
+    const st = useGame.getState();
+    return !!this.gauntlet && !st.truckOwned && st.truckWins >= RPS_ROUNDS && st.truckRace == null;
   }
 
   tryCollect() {
@@ -1527,10 +1563,11 @@ export class GameRuntime {
       sfx.click();
       return;
     }
+    if (this.playerTruck?.toggle(this.cap.x, this.cap.y, this.cap.z, this.yaw)) return;
     if (this.emmettTalkReady() && st.rps == null) {
       sfx.click();
       // a breather between games, so the truck isn't a ticket machine
-      if (this.clock - this.emmettPlayedAt < 40) {
+      if (this.clock - this.emmettPlayedAt < 40 && !this.courseOnOffer()) {
         const rest = [
           "Vroom! I'm fixing my truck. Come back soon to play!",
           "I need a snack break. Play again in a little bit!",
@@ -1540,6 +1577,10 @@ export class GameRuntime {
         return;
       }
       this.emmettPlayedAt = this.clock;
+      // in Sugar Rush the last two of his five challenges are courses, not
+      // games of hands: once she has the three wins, his truck is what is on
+      // offer at his truck
+      if (this.gauntlet && st.truckWins >= RPS_ROUNDS && !st.truckOwned && this.gauntlet.start()) return;
       const lines = [
         "Welcome to my monster truck! Want to play?",
         "This is my house! Rock, paper, scissors?",
@@ -1904,7 +1945,8 @@ export class GameRuntime {
     const inWater = (this.level.water ?? []).some((w) =>
       inCircle(this.cap.x, this.cap.z, w.x, w.z, w.r),
     );
-    const speedMul = (inWater ? 0.48 : 1) * (this.boostLeft > 0 ? BOOST_MULTIPLIER : 1);
+    // his truck goes as fast as a cotton-candy boost: that was the deal
+    const speedMul = (inWater ? 0.48 : 1) * (this.boostLeft > 0 || st.driving ? BOOST_MULTIPLIER : 1);
     if (wishLen > 0.05) {
       vx = this.wish.x * WALK * speedMul;
       vz = this.wish.z * WALK * speedMul;
@@ -2178,6 +2220,25 @@ export class GameRuntime {
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      if (!paused) this.gauntlet?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      // she won it: it stands on the lawn by her house until she gets in, and
+      // then it is drawn wherever she is
+      if (!this.playerTruck && this.level.id === "sugar" && useGame.getState().truckOwned) {
+        this.playerTruck = new PlayerTruck(this.scene);
+      }
+      this.playerTruck?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z }, this.yaw, this.speed > 0.6);
+      /*
+       * Driving is riding: her own capsule is still what the world collides
+       * with, so nothing about the physics changes — but a 3.5m truck driven
+       * on a 0.68m capsule ploughs straight through a gingerbread house, so
+       * while she is in it the capsule is the width of the cab. Not the width
+       * of the tyres: half a truck of give is what stops a gap she can
+       * obviously fit through from refusing her.
+       */
+      const driving = useGame.getState().driving;
+      this.girl.visible = !driving;
+      this.cap.hw = this.cap.hd = driving ? 1.0 : PLAYER_W;
+      this.cap.h = driving ? 2.6 : PLAYER_H;
       // the sails and the log turn whether or not anyone is playing
       this.golfWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.bowlsWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
@@ -2319,6 +2380,7 @@ export class GameRuntime {
         .getState()
         .setQuestNear(this.questWorld && !this.carouselRide && !this.ride ? this.questWorld.near(this.cap.x, this.cap.y, this.cap.z) : null);
       useGame.getState().setEmmettTalkNear(this.emmettTalkReady());
+      useGame.getState().setTruckNear(this.playerTruck?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
     }
     const d = this.nearestUnfound();
     if (!d) {

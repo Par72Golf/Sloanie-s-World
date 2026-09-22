@@ -68,6 +68,23 @@ export type GameStore = {
   /** she is at Emmett's truck while he is home */
   emmettTalkNear: boolean;
   setEmmettTalkNear: (v: boolean) => void;
+  /**
+   * Emmett's monster truck gauntlet in Sugar Rush: how many of his five
+   * challenges she has won, and whether the truck is hers. Saved, because
+   * five challenges is more than one sitting for a seven-year-old.
+   */
+  truckWins: number;
+  truckOwned: boolean;
+  winTruckStage: () => void;
+  /** live while she is running one of his courses, for the clock on the HUD */
+  truckRace: { name: string; gate: number; gates: number; time: number; target: number; started: number } | null;
+  setTruckRace: (v: GameStore["truckRace"]) => void;
+  /** she is driving his monster truck */
+  driving: boolean;
+  setDriving: (v: boolean) => void;
+  /** she is standing at the parked truck, so Collect would get her in */
+  truckNear: boolean;
+  setTruckNear: (v: boolean) => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -320,6 +337,8 @@ function persistSlice(s: GameStore) {
     lavaBest: s.lavaBest,
     stickerBook: s.stickerBook,
     candyStickerBook: s.candyStickerBook,
+    truckWins: s.truckWins,
+    truckOwned: s.truckOwned,
     stickers: s.stickers,
     quest: s.quest,
     pets: s.pets,
@@ -675,6 +694,21 @@ export const useGame = create<GameStore>((set, get) => ({
   setEmmettTalkNear: (emmettTalkNear) => {
     if (get().emmettTalkNear !== emmettTalkNear) set({ emmettTalkNear });
   },
+  truckWins: saved.truckWins,
+  truckOwned: saved.truckOwned,
+  winTruckStage: () => {
+    const truckWins = Math.min(5, get().truckWins + 1);
+    set({ truckWins, truckOwned: truckWins >= 5 });
+    persistSlice(get());
+  },
+  truckRace: null,
+  setTruckRace: (truckRace) => set({ truckRace }),
+  driving: false,
+  setDriving: (driving) => set({ driving }),
+  truckNear: false,
+  setTruckNear: (truckNear) => {
+    if (get().truckNear !== truckNear) set({ truckNear });
+  },
 
   playRps: (pick) => {
     const emmett = HANDS[Math.floor(Math.random() * 3)]!;
@@ -928,6 +962,10 @@ export const useGame = create<GameStore>((set, get) => ({
       lavaTime: null,
       stickerBook: false,
       candyStickerBook: false,
+      truckWins: 0,
+      truckOwned: false,
+      truckRace: null,
+      driving: false,
       stickers: [],
       quest: { stage: "none", treats: [], chapter: 0, seek: null },
       pets: [],

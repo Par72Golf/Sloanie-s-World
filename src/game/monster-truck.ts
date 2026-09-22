@@ -40,6 +40,21 @@ const CHROME = "#c8ced4";
 const YELLOW = "#ffc53d";
 const ORANGE = "#ff7a1a";
 
+/**
+ * Sugar Rush Park's alternative skin: a candy truck. Same rig, same shapes,
+ * only the colours and two textures change. Palette from the park spec.
+ */
+const CANDY_BODY = "#ff6aa8"; // pink
+const CANDY_BODY_DARK = "#e8384f"; // red
+const CANDY_CHOCOLATE = "#6b4226";
+const CANDY_LIQUORICE = "#2a2430";
+const CANDY_CREAM = "#f7ead3";
+const CANDY_YELLOW = "#ffc83a";
+const CANDY_MINT = "#6fe3c4";
+const CANDY_LILAC = "#b06aff";
+/** The park's wet-candy gloss. */
+const glossy = (c: string, roughness = 0.16) => lam(c, { flat: true, roughness });
+
 function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] | null {
   if (typeof document === "undefined") return null;
   const c = document.createElement("canvas");
@@ -80,6 +95,23 @@ function cyl(parent: P, color: string | THREE.Material, r: number, h: number, x:
   m.receiveShadow = true;
   parent.add(m);
   return m;
+}
+
+/** A tube built from short alternating red/cream segments, for a candy-cane striped rail. */
+function caneStripe(parent: P, r: number, len: number, x: number, y: number, z: number, axis: "x" | "y" | "z", segments = 10, shadow = true) {
+  const bands = Math.max(4, Math.round(len / 0.14));
+  const bandLen = len / bands;
+  for (let i = 0; i < bands; i++) {
+    const color = i % 2 === 0 ? CANDY_BODY_DARK : CANDY_CREAM;
+    const off = -len / 2 + bandLen * (i + 0.5);
+    let px = x;
+    let py = y;
+    let pz = z;
+    if (axis === "y") py = y + off;
+    else if (axis === "x") px = x + off;
+    else pz = z + off;
+    cyl(parent, glossy(color), r, bandLen + 0.004, px, py, pz, axis, segments, shadow);
+  }
 }
 
 /* ---------------------------------------------------------------- paint */
@@ -128,18 +160,58 @@ function flamePanel(): THREE.Texture | null {
   return texture(c);
 }
 
-/** The hand-painted sign: wobbly letters in every colour of the paint box. */
-function signPaint(): THREE.Texture | null {
+/** Candy side panel: a chocolate wafer bar, scored into fingers, with a drizzle of cream icing. */
+function waferPanel(): THREE.Texture | null {
+  const cg = canvas(1024, 128);
+  if (!cg) return null;
+  const [c, g] = cg;
+  const W = c.width;
+  const H = c.height;
+  g.fillStyle = "#8a5a34"; // light chocolate base
+  g.fillRect(0, 0, W, H);
+  // wafer score lines dividing it into fingers
+  g.fillStyle = "#6b4226";
+  const fingers = 9;
+  const seg = W / fingers;
+  for (let i = 1; i < fingers; i++) g.fillRect(i * seg - 4, 0, 8, H);
+  // top and bottom chocolate edge
+  g.fillStyle = "rgba(42, 24, 10, 0.4)";
+  g.fillRect(0, 4, W, 8);
+  g.fillRect(0, H - 12, W, 8);
+  // a cream icing drizzle streaming back, like the flame it replaces
+  g.strokeStyle = "#f7ead3";
+  g.lineWidth = 6;
+  g.beginPath();
+  for (let x = 0; x <= W; x += 16) {
+    const y = H * 0.52 + Math.sin(x * 0.018) * H * 0.22;
+    if (x === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.stroke();
+  g.strokeStyle = "#ff6aa8";
+  g.lineWidth = 4;
+  g.beginPath();
+  for (let x = 0; x <= W; x += 16) {
+    const y = H * 0.46 + Math.sin(x * 0.018 + 1.1) * H * 0.16;
+    if (x === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.stroke();
+  return texture(c);
+}
+
+/** The hand-painted sign: wobbly letters in every colour of the paint box. Candy: the park's sweet palette on a cream board. */
+function signPaint(candy = false, owner = "EMMETT'S"): THREE.Texture | null {
   const cg = canvas(512, 240);
   if (!cg) return null;
   const [c, g] = cg;
-  g.fillStyle = "#f3e2bd";
+  g.fillStyle = candy ? CANDY_CREAM : "#f3e2bd";
   g.fillRect(0, 0, c.width, c.height);
-  // wood grain
-  g.fillStyle = "#e2cc9e";
+  // wood grain (or, in candy, faint wafer scoring)
+  g.fillStyle = candy ? "#e9d9b8" : "#e2cc9e";
   for (let y = 14; y < c.height; y += 26) g.fillRect(0, y, c.width, 4);
   // a painted border, a bit uneven
-  g.strokeStyle = "#d8322c";
+  g.strokeStyle = candy ? CANDY_BODY_DARK : "#d8322c";
   g.lineWidth = 12;
   g.lineJoin = "round";
   g.beginPath();
@@ -149,8 +221,10 @@ function signPaint(): THREE.Texture | null {
   g.lineTo(12, c.height - 18);
   g.closePath();
   g.stroke();
-  const colours = ["#d8322c", "#2f7fd8", "#2f9a4a", ORANGE, "#8a4ac4", "#e8455f"];
-  const lines = ["EMMETT'S", "TRUCK"];
+  const colours = candy
+    ? ["#e8384f", "#ff8a3a", "#b06aff", "#6fe3c4", "#ff6aa8", "#6b4226"]
+    : ["#d8322c", "#2f7fd8", "#2f9a4a", ORANGE, "#8a4ac4", "#e8455f"];
+  const lines = [owner, "TRUCK"];
   let n = 0;
   lines.forEach((text, row) => {
     const size = row === 0 ? 80 : 96;
@@ -200,15 +274,20 @@ function coil() {
   return springGeo;
 }
 
-/** A big wheel on its side, axle along z; `side` is +1 for the +z wheels. */
-function wheel(x: number, z: number, side: number) {
+/** A big wheel on its side, axle along z; `side` is +1 for the +z wheels. Candy: a liquorice tyre with a candy-yellow rim. */
+function wheel(x: number, z: number, side: number, candy = false) {
   const T = TRUCK;
   const w = new THREE.Group();
   w.position.set(x, T.wheelR, z);
+  const tyreColor = candy ? CANDY_LIQUORICE : RUBBER;
+  const rimColor = candy ? CANDY_YELLOW : YELLOW;
+  const hubColor = candy ? CANDY_CREAM : CHROME;
+  const centreColor = candy ? CANDY_CHOCOLATE : BLACK;
+  const tyreMat = candy ? glossy(tyreColor, 0.2) : flat(tyreColor, 0.95);
   // the lugs make up the last 8cm of the radius, so the tread stands on the ground
   const lugH = 0.12;
   const core = T.tyreReach - 0.08;
-  const tyre = new THREE.Mesh(tyreGeo, flat(RUBBER, 0.95));
+  const tyre = new THREE.Mesh(tyreGeo, tyreMat);
   tyre.scale.set(core, T.wheelW, core);
   tyre.rotation.x = Math.PI / 2;
   tyre.castShadow = true;
@@ -216,7 +295,7 @@ function wheel(x: number, z: number, side: number) {
   w.add(tyre);
   // chunky staggered tread lugs, outer reach T.tyreReach
   const lugs = 14;
-  const rubber = flat(RUBBER, 0.95);
+  const rubber = tyreMat;
   for (const row of [-1, 1]) {
     for (let i = 0; i < lugs; i++) {
       const a = ((i + (row > 0 ? 0.5 : 0)) / lugs) * Math.PI * 2;
@@ -229,22 +308,38 @@ function wheel(x: number, z: number, side: number) {
       w.add(lug);
     }
   }
-  // outside: a yellow rim with bolts and a chrome hub cap, reaching T.hubReach from the truck's centre line
+  // outside: a rim with bolts and a hub cap, reaching T.hubReach from the truck's centre line
   const face = T.wheelW / 2;
   const hubOut = T.hubReach - T.wheelZ;
-  cyl(w, YELLOW, T.wheelR * 0.58, 0.07, 0, 0, side * (face - 0.015), "z", 20);
-  cyl(w, CHROME, 0.17, hubOut - face + 0.01, 0, 0, side * ((hubOut + face) / 2 - 0.005), "z", 12);
+  cyl(w, candy ? glossy(rimColor) : rimColor, T.wheelR * 0.58, 0.07, 0, 0, side * (face - 0.015), "z", 20);
+  cyl(w, candy ? glossy(hubColor) : hubColor, 0.17, hubOut - face + 0.01, 0, 0, side * ((hubOut + face) / 2 - 0.005), "z", 12);
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
-    box(w, CHROME, 0.06, 0.06, 0.03, Math.cos(a) * 0.35, Math.sin(a) * 0.35, side * (face + 0.03), false, false);
+    box(w, candy ? glossy(hubColor) : hubColor, 0.06, 0.06, 0.03, Math.cos(a) * 0.35, Math.sin(a) * 0.35, side * (face + 0.03), false, false);
   }
   // inside: a dark wheel centre
-  cyl(w, BLACK, T.wheelR * 0.5, 0.06, 0, 0, -side * (face - 0.02), "z", 16);
+  cyl(w, candy ? glossy(centreColor) : centreColor, T.wheelR * 0.5, 0.06, 0, 0, -side * (face - 0.02), "z", 16);
   return w;
 }
 
-export function makeMonsterTruck(): TruckRig {
+/**
+ * Emmett's monster truck. `look` picks the skin: "park" (default) is the
+ * truck as it has always been; "candy" is Sugar Rush Park's sweets-only
+ * repaint — same rig, same wheel/body shapes and hierarchy, only the
+ * materials (and two side-panel/sign textures) change, so
+ * `animateMonsterTruck` keeps working unmodified.
+ */
+export function makeMonsterTruck(look: "park" | "candy" = "park", owner = "EMMETT'S"): TruckRig {
   const T = TRUCK;
+  const candy = look === "candy";
+  // Shadow the palette constants used below: every box()/cyl() call in this
+  // function keeps its exact geometry, count and place, only its colour
+  // changes when candy is true.
+  const BLUE = candy ? CANDY_BODY : "#2f7fd8";
+  const BLUE_DARK = candy ? CANDY_BODY_DARK : "#235fa6";
+  const BLACK = candy ? CANDY_CHOCOLATE : "#26282c";
+  const CHROME = candy ? CANDY_CREAM : "#c8ced4";
+  const YELLOW = candy ? CANDY_YELLOW : "#ffc53d";
   const group = new THREE.Group();
   group.name = "monster truck";
   const body = new THREE.Group();
@@ -255,13 +350,13 @@ export function makeMonsterTruck(): TruckRig {
   const wheels: THREE.Group[] = [];
   for (const x of [-T.wheelX, T.wheelX]) {
     for (const side of [-1, 1]) {
-      const w = wheel(x, side * T.wheelZ, side);
+      const w = wheel(x, side * T.wheelZ, side, candy);
       group.add(w);
       wheels.push(w);
     }
     // axle and differential
-    cyl(group, "#5a6470", 0.09, (T.wheelZ - T.wheelW / 2) * 2 + 0.1, x, T.wheelR, 0, "z", 10, true);
-    const diff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), flat("#5a6470", 0.35));
+    cyl(group, candy ? glossy(CANDY_CHOCOLATE) : "#5a6470", 0.09, (T.wheelZ - T.wheelW / 2) * 2 + 0.1, x, T.wheelR, 0, "z", 10, true);
+    const diff = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), candy ? glossy(CANDY_CHOCOLATE) : flat("#5a6470", 0.35));
     diff.scale.set(0.24, 0.22, 0.2);
     diff.position.set(x, T.wheelR, 0.12);
     group.add(diff);
@@ -269,15 +364,15 @@ export function makeMonsterTruck(): TruckRig {
 
   // coil-overs between the wheels, on arms from each axle, so the lift shows from the side
   const springs: THREE.Mesh[] = [];
-  const springMat = flat("#ffd23a", 0.35);
+  const springMat = candy ? glossy(CANDY_YELLOW, 0.2) : flat("#ffd23a", 0.35);
   const frameBottom = T.bodyBottom - 0.22;
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       const x = sx * 0.95;
       const z = sz * 0.75;
       // trailing arm from the axle to the spring seat
-      box(group, "#5a6470", T.wheelX - 0.95 + 0.1, 0.1, 0.1, sx * (T.wheelX + 0.95) / 2, T.wheelR, z, false, true);
-      box(group, "#5a6470", 0.34, 0.06, 0.34, x, T.wheelR + 0.08, z, false, false);
+      box(group, candy ? glossy(CANDY_CHOCOLATE) : "#5a6470", T.wheelX - 0.95 + 0.1, 0.1, 0.1, sx * (T.wheelX + 0.95) / 2, T.wheelR, z, false, true);
+      box(group, candy ? glossy(CANDY_CHOCOLATE) : "#5a6470", 0.34, 0.06, 0.34, x, T.wheelR + 0.08, z, false, false);
       const s = new THREE.Mesh(coil(), springMat);
       s.position.set(x, T.wheelR + 0.11, z);
       s.scale.y = (frameBottom - (T.wheelR + 0.11)) / SPRING_REST;
@@ -308,7 +403,7 @@ export function makeMonsterTruck(): TruckRig {
   const panelW = 5.05;
   const panelH = 0.5;
   const panelGeo = new THREE.PlaneGeometry(panelW, panelH);
-  const flames = flamePanel();
+  const flames = candy ? waferPanel() : flamePanel();
   for (const side of [-1, 1]) {
     let mat: THREE.Material = flat(BLUE);
     if (flames) {
@@ -319,7 +414,7 @@ export function makeMonsterTruck(): TruckRig {
         map.offset.x = 1;
         map.needsUpdate = true;
       }
-      mat = new THREE.MeshStandardMaterial({ map, roughness: 0.4, metalness: 0.05 });
+      mat = new THREE.MeshStandardMaterial({ map, roughness: candy ? 0.25 : 0.4, metalness: 0.05 });
     }
     const p = new THREE.Mesh(panelGeo, mat);
     p.position.set(lowerX, T.bodyBottom + lowerH / 2, side * (T.bodyHalfW + 0.015));
@@ -334,18 +429,20 @@ export function makeMonsterTruck(): TruckRig {
   box(body, BLACK, 0.03, 0.12, 0.6, 2.16, T.deckTop + 0.1, 0, false, false);
   box(body, BLACK, 0.04, 0.42, 1.1, front + 0.02, 2.15, 0, false, false);
   for (let i = 0; i < 4; i++) box(body, CHROME, 0.03, 0.4, 0.06, front + 0.05, 2.15, -0.39 + i * 0.26, false, false);
-  const lens = glow("#fff4c8", "#fff0b0");
+  // headlights: warm bulbs normally, a boiled sweet (mint/pink) in candy mode
   for (const z of [-0.82, 0.82]) {
     cyl(body, CHROME, 0.21, 0.12, front + 0.05, 2.28, z, "x", 18);
+    const lens = candy ? glow(z < 0 ? CANDY_MINT : CANDY_BODY, z < 0 ? CANDY_MINT : CANDY_BODY) : glow("#fff4c8", "#fff0b0");
     cyl(body, lens, 0.16, 0.03, front + 0.12, 2.28, z, "x", 18);
   }
   box(body, BLACK, 0.22, 0.28, 2.5, T.halfLength - 0.11, T.bodyBottom + 0.12, 0, true, true);
   box(body, BLACK, 0.22, 0.28, 2.5, -T.halfLength + 0.11, T.bodyBottom + 0.12, 0, true, true);
-  for (const z of [-0.8, 0.8]) box(body, "#d8322c", 0.1, 0.1, 0.16, T.halfLength - 0.04, T.bodyBottom + 0.12, z, false, false);
+  for (const z of [-0.8, 0.8]) box(body, candy ? glossy(CANDY_BODY_DARK) : "#d8322c", 0.1, 0.1, 0.16, T.halfLength - 0.04, T.bodyBottom + 0.12, z, false, false);
   for (const z of [-0.35, 0.35]) cyl(body, CHROME, 0.04, 0.46, T.halfLength - 0.03, 2.29, z, "y", 8);
   cyl(body, CHROME, 0.04, 0.78, T.halfLength - 0.03, 2.52, 0, "z", 8);
   // tail lights
-  for (const z of [-0.85, 0.85]) box(body, glow("#e83a3a", "#c01818"), 0.04, 0.16, 0.3, lowerX - lowerLen / 2 - 0.01, 2.3, z, false, false);
+  for (const z of [-0.85, 0.85])
+    box(body, candy ? glow(CANDY_BODY_DARK, CANDY_BODY_DARK) : glow("#e83a3a", "#c01818"), 0.04, 0.16, 0.3, lowerX - lowerLen / 2 - 0.01, 2.3, z, false, false);
 
   // fender flares over each tyre
   for (const x of [-T.wheelX, T.wheelX]) {
@@ -364,14 +461,15 @@ export function makeMonsterTruck(): TruckRig {
   const cabLen = T.cabMaxX - T.cabMinX;
   const cabH = T.roofTop - 0.08 - (T.deckTop - 0.05);
   box(body, BLUE, cabLen, cabH, (T.cabHalfW - 0.05) * 2, cabX, T.deckTop - 0.05 + cabH / 2, 0, true, true);
-  const glass = lam("#1f3346", { flat: true, roughness: 0.1 });
+  // candy glass: a lilac boiled-sweet tint instead of smoked window
+  const glass = candy ? lam(CANDY_LILAC, { flat: true, roughness: 0.12 }) : lam("#1f3346", { flat: true, roughness: 0.1 });
   const winY = 2.86;
   box(body, glass, 0.03, 0.4, 1.8, T.cabMaxX + 0.005, winY, 0, false, false);
   box(body, glass, 0.03, 0.36, 1.6, T.cabMinX - 0.005, winY, 0, false, false);
   for (const side of [-1, 1]) {
     box(body, glass, 1.5, 0.4, 0.03, cabX, winY, side * (T.cabHalfW - 0.04), false, false);
     // a glint so the glass reads as glass
-    box(body, "#8fb4d4", 0.5, 0.05, 0.01, cabX + 0.3, winY + 0.1, side * (T.cabHalfW - 0.005), false, false);
+    box(body, candy ? "#f0e6ff" : "#8fb4d4", 0.5, 0.05, 0.01, cabX + 0.3, winY + 0.1, side * (T.cabHalfW - 0.005), false, false);
     box(body, CHROME, 0.14, 0.04, 0.03, cabX + 0.35, 2.55, side * (T.bodyHalfW + 0.02), false, false);
     // mirrors
     box(body, BLACK, 0.06, 0.2, 0.14, T.cabMaxX - 0.1, 2.85, side * (T.cabHalfW + 0.12), false, false);
@@ -379,9 +477,10 @@ export function makeMonsterTruck(): TruckRig {
   const roof = box(body, YELLOW, cabLen + 0.12, 0.1, T.cabHalfW * 2 + 0.04, cabX, T.roofTop - 0.05, 0, true, true);
   roof.name = "roof";
   const hatchX = 0.38;
-  box(body, "#e0a92a", 0.62, 0.06, 0.62, hatchX, T.roofTop + 0.01, 0, true, false).name = "roof hatch";
+  box(body, candy ? glossy(CANDY_YELLOW) : "#e0a92a", 0.62, 0.06, 0.62, hatchX, T.roofTop + 0.01, 0, true, false).name = "roof hatch";
   box(body, CHROME, 0.2, 0.04, 0.05, hatchX, T.roofTop + 0.06, 0, false, false).name = "hatch handle";
-  for (const z of [-0.55, 0, 0.55]) box(body, glow("#ffb03a", "#ff9a1a"), 0.08, 0.05, 0.14, T.cabMaxX - 0.03, T.roofTop + 0.02, z, false, false);
+  for (const z of [-0.55, 0, 0.55])
+    box(body, candy ? glow("#ff8a3a", "#ff8a3a") : glow("#ffb03a", "#ff9a1a"), 0.08, 0.05, 0.14, T.cabMaxX - 0.03, T.roofTop + 0.02, z, false, false);
 
   // bed: side walls and tailgate on the deck
   const bedMin = lowerX - lowerLen / 2;
@@ -389,15 +488,21 @@ export function makeMonsterTruck(): TruckRig {
   for (const side of [-1, 1]) box(body, BLUE_DARK, bedLen - 0.04, 0.34, 0.08, bedMin + bedLen / 2, T.deckTop + 0.16, side * (T.bodyHalfW - 0.05), false, true);
   box(body, BLUE_DARK, 0.08, 0.34, (T.bodyHalfW - 0.09) * 2, bedMin + 0.06, T.deckTop + 0.16, 0, false, true);
 
-  // roll bar with a light bar, behind the cab
+  // roll bar with a light bar, behind the cab; candy: a candy-cane striped rail
   const rollX = T.cabMinX - 0.3;
   const rollTop = 3.55;
-  for (const z of [-0.95, 0.95]) cyl(body, YELLOW, 0.06, rollTop - T.deckTop, rollX, (rollTop + T.deckTop) / 2, z, "y", 10, true);
-  cyl(body, YELLOW, 0.06, 2.02, rollX, rollTop, 0, "z", 10, true);
-  const brace = cyl(body, YELLOW, 0.045, 1.5, rollX, (rollTop + T.deckTop) / 2, 0, "y", 8);
+  if (candy) {
+    for (const z of [-0.95, 0.95]) caneStripe(body, 0.06, rollTop - T.deckTop, rollX, (rollTop + T.deckTop) / 2, z, "y", 10, true);
+    caneStripe(body, 0.06, 2.02, rollX, rollTop, 0, "z", 10, true);
+  } else {
+    for (const z of [-0.95, 0.95]) cyl(body, YELLOW, 0.06, rollTop - T.deckTop, rollX, (rollTop + T.deckTop) / 2, z, "y", 10, true);
+    cyl(body, YELLOW, 0.06, 2.02, rollX, rollTop, 0, "z", 10, true);
+  }
+  const brace = cyl(body, candy ? glossy(CANDY_YELLOW) : YELLOW, 0.045, 1.5, rollX, (rollTop + T.deckTop) / 2, 0, "y", 8);
   brace.rotation.x = 1.02;
   box(body, BLACK, 0.12, 0.12, 1.4, rollX, rollTop + 0.12, 0, false, false);
-  for (const z of [-0.5, -0.17, 0.17, 0.5]) cyl(body, glow("#fff4c8", "#fff0b0"), 0.07, 0.04, rollX + 0.07, rollTop + 0.12, z, "x", 12);
+  for (const z of [-0.5, -0.17, 0.17, 0.5])
+    cyl(body, candy ? glow(CANDY_YELLOW, CANDY_YELLOW) : glow("#fff4c8", "#fff0b0"), 0.07, 0.04, rollX + 0.07, rollTop + 0.12, z, "x", 12);
 
   // exhaust stacks at the back corners of the cab
   for (const side of [-1, 1]) {
@@ -406,12 +511,12 @@ export function makeMonsterTruck(): TruckRig {
   }
 
   // the hand-painted sign on each side of the bed
-  const paint = signPaint();
-  const signMat = paint ? new THREE.MeshStandardMaterial({ map: paint, roughness: 0.85 }) : flat("#f3e2bd");
-  const edge = flat("#8a5a32");
+  const paint = signPaint(candy, owner);
+  const signMat = paint ? new THREE.MeshStandardMaterial({ map: paint, roughness: 0.85 }) : flat(candy ? CANDY_CREAM : "#f3e2bd");
+  const edge = flat(candy ? CANDY_CHOCOLATE : "#8a5a32");
   for (const side of [-1, 1]) {
     const sign = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.54, 0.04), [edge, edge, edge, edge, signMat, edge]);
-    sign.name = "EMMETT'S TRUCK sign";
+    sign.name = `${owner} TRUCK sign`;
     sign.position.set(-1.85, T.bodyBottom + lowerH / 2, side * (T.bodyHalfW + 0.04));
     if (side < 0) sign.rotation.y = Math.PI;
     sign.castShadow = false;

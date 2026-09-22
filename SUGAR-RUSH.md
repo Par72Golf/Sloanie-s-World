@@ -155,9 +155,21 @@ Her list, in her order:
 3. **Her house bigger than the others**, and **upgradeable from the outside in
    three stages with tickets** — each stage makes it bigger and nicer and adds
    a room inside.
-4. **Emmett and his monster truck, candy-themed** in this park.
-5. **Beat Emmett at his monster truck five times and she keeps the truck.** It
-   parks beside her house and she can drive it; it goes as fast as a boost.
+4. **Emmett and his monster truck, candy-themed** in this park. Built: he and
+   the truck both have a second look made of sweets — a candy-cane shirt, a
+   liquorice trike, a lollipop on the handlebars; a pink body with wafer
+   panels, a chocolate chassis, liquorice tyres on candy-yellow rims and a
+   real candy-cane roll bar — and his den is at (120, 45).
+5. **Beat Emmett at his monster truck five times and she keeps the truck.**
+   Built: rock paper scissors three times at his truck, then the obstacle
+   run (six rings round the yard, beat 13 seconds) and the big race (eleven
+   rings on a long lap out east and back, beat 41 seconds). Neither run is
+   against an AI racer — a racer can get stuck on a lollipop, and losing to a
+   bug is how a seven-year-old is taught to give up — she races a time, and
+   the time is worked out from the length of the route so moving a ring can
+   never quietly make it impossible. Losing costs nothing and she can go
+   again at once. Win all five and the truck parks on the lawn by her house
+   with her name painted on the side, and she drives it at boost speed.
 6. **Inside the chocolate factory.** Built: both front doors open, and the
    inside is a hall of machinery — the mixing vat, the moulding line, the
    gumball silos, a conveyor of sweets and a control desk — with a big lever
