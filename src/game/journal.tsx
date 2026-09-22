@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Backpack,
   BookOpen,
+  Factory,
+  Search,
+  Truck,
   Check,
   Heart,
   Shirt,
@@ -14,6 +17,9 @@ import { SLOTS, accessory, allAccessories, type AccessoryId, type Slot } from ".
 import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { STICKER_SPOTS } from "./collectibles";
+import { FACTORY_PARTS } from "./candy-quest";
+import { CREATURES } from "./candy-creatures";
+import { TRUCK_STAGES } from "./truck-gauntlet";
 import { HearButton } from "./help-cards";
 import { gridMove } from "./grid-nav";
 import { ItemThumb } from "./item-thumbs";
@@ -34,17 +40,29 @@ import { cn } from "@/lib/utils";
  * a tab's grid; A equips; Esc, B or Back closes.
  */
 
-type Tab = "dumplings" | "stickers" | "bag";
-const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
+type Tab = "dumplings" | "stickers" | "bag" | "quest";
+const ALL_TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: "dumplings", label: "Dumplings", Icon: BookOpen },
   { id: "stickers", label: "Stickers", Icon: Sticker },
+  { id: "quest", label: "Jobs", Icon: Sparkles },
   { id: "bag", label: "Bag", Icon: Backpack },
 ];
+
+/**
+ * Which pages this park has. Only Sugar Rush has jobs to keep track of — the
+ * factory, the princess's creatures and Emmett's truck — and a page that says
+ * "nothing here" in park 1 is a page she opens once and learns to skip.
+ */
+function tabsFor(levelIndex: number) {
+  const sugar = LEVELS[levelIndex]?.id === "sugar";
+  return ALL_TABS.filter((t) => t.id !== "quest" || sugar);
+}
 
 /** Each page has its own colour: its tab, its header band and its badge match. */
 const TAB_LOOK: Record<Tab, { title: string; bg: string; text: string }> = {
   dumplings: { title: "Dumpling journal", bg: "bg-accent", text: "text-accent" },
   stickers: { title: "Sticker book", bg: "bg-grape", text: "text-grape" },
+  quest: { title: "Jobs to do", bg: "bg-sky", text: "text-sky" },
   bag: { title: "Backpack", bg: "bg-teal", text: "text-teal" },
 };
 
@@ -56,9 +74,10 @@ function useTabKeys() {
   useEffect(() => claimPad(), []);
   useEffect(() => {
     const step = (d: number) => {
-      const cur = useGame.getState().journalTab;
-      const i = TABS.findIndex((t) => t.id === cur);
-      setTab(TABS[(i + d + TABS.length) % TABS.length]!.id);
+      const st = useGame.getState();
+      const tabs = tabsFor(st.levelIndex);
+      const i = tabs.findIndex((t) => t.id === st.journalTab);
+      setTab(tabs[((i < 0 ? 0 : i) + d + tabs.length) % tabs.length]!.id);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "q" || e.key === "Q") step(-1);
@@ -96,9 +115,13 @@ export function Journal() {
   const tab = useGame((s) => s.journalTab);
   const setTab = useGame((s) => s.setJournalTab);
   const setJournal = useGame((s) => s.setJournal);
+  const levelIndex = useGame((s) => s.levelIndex);
   useTabKeys();
-  const look = TAB_LOOK[tab];
-  const Icon = TABS.find((t) => t.id === tab)!.Icon;
+  const tabs = tabsFor(levelIndex);
+  // a park without this page: fall back rather than render a blank header
+  const current = tabs.find((t) => t.id === tab) ?? tabs[0]!;
+  const look = TAB_LOOK[current.id];
+  const Icon = current.Icon;
   return (
     <div className="ui-backdrop animate-ui-fade pointer-events-auto absolute inset-0 z-30 flex items-center justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
       <div className="animate-ui-pop flex h-full max-h-[52rem] w-full max-w-4xl flex-col 2xl:max-w-5xl">
@@ -107,7 +130,7 @@ export function Journal() {
           <span aria-hidden className="mb-2 mr-1 hidden rounded-md border-2 border-white/80 bg-edge px-1.5 font-display text-sm font-bold text-white sm:block [@media(pointer:coarse)]:hidden">
             LB
           </span>
-          {TABS.map((t) => {
+          {tabs.map((t) => {
             const on = tab === t.id;
             return (
               <button
@@ -145,12 +168,13 @@ export function Journal() {
               <Icon className="size-6 sm:size-7" strokeWidth={2.5} />
             </span>
             <h2 className="ui-title min-w-0 flex-1 truncate py-1 text-2xl leading-tight sm:text-3xl lg:text-4xl [@media(max-height:500px)]:text-2xl">{look.title}</h2>
-            <JournalCount tab={tab} />
+            <JournalCount tab={current.id} />
           </div>
           <div className="ui-dots min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 [@media(max-height:480px)]:py-3">
-            {tab === "dumplings" && <DumplingsTab />}
-            {tab === "stickers" && <StickersTab />}
-            {tab === "bag" && <BagTab />}
+            {current.id === "dumplings" && <DumplingsTab />}
+            {current.id === "stickers" && <StickersTab />}
+            {current.id === "quest" && <JobsTab />}
+            {current.id === "bag" && <BagTab />}
           </div>
           <p className="shrink-0 border-t-[3px] border-line bg-surface-2 px-3 py-2 text-center text-sm font-bold text-ink-soft lg:text-base [@media(max-height:480px)]:hidden">
             LB / RB (or Q / E) to switch pages · B to close
@@ -286,6 +310,161 @@ function StickersTab() {
     );
   }
   return <StickerBook key={hunt.book} stickers={stickers} hunt={hunt} />;
+}
+
+
+/**
+ * Jobs to do: the three long errands of Sugar Rush, on one page.
+ *
+ * She can carry the princess's brief in her head for an afternoon, not for a
+ * week. Without this the only way back into the story is walking to the
+ * clearing and asking again, and a seven-year-old who has forgotten what she
+ * was doing does not go looking for the person who told her — she does
+ * something else.
+ *
+ * Every line is either a tick or the hint she was given, never a marker on a
+ * map: the point is still to go and look.
+ */
+function Job({
+  done,
+  title,
+  note,
+}: {
+  done: boolean;
+  title: string;
+  note: string;
+}) {
+  return (
+    <li
+      className={cn(
+        "flex items-start gap-2.5 rounded-[1.1rem] border-[3px] border-edge px-3 py-2.5 shadow-[0_3px_0_var(--color-edge)]",
+        done ? "bg-[#dff5ee]" : "bg-surface",
+      )}
+    >
+      <span
+        className={cn(
+          "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border-[2.5px] border-edge",
+          done ? "bg-teal text-white" : "bg-surface-2 text-ink-soft",
+        )}
+      >
+        {done ? <Check className="size-4" strokeWidth={3.5} /> : <Search className="size-3.5" strokeWidth={3} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cn("block text-base font-extrabold leading-tight lg:text-lg", done ? "text-teal-deep" : "text-ink")}>
+          {title}
+        </span>
+        <span className="block text-sm font-semibold leading-snug text-ink-soft lg:text-base">{note}</span>
+      </span>
+    </li>
+  );
+}
+
+function JobsTab() {
+  const parts = useGame((s) => s.candyParts);
+  const fixed = useGame((s) => s.factoryFixed);
+  const creatures = useGame((s) => s.candyCreatures);
+  const atHome = useGame((s) => s.creaturesHome);
+  const wins = useGame((s) => s.truckWins);
+  const owned = useGame((s) => s.truckOwned);
+
+  const section = "grid gap-2";
+  const heading = "flex items-center gap-2 text-lg font-extrabold text-ink lg:text-xl";
+
+  return (
+    <div className="grid gap-5">
+      <section className={section}>
+        <h3 className={heading}>
+          <Factory className="size-5 text-sky" strokeWidth={2.6} />
+          The chocolate factory
+          <span className={cn("ui-chip ml-auto text-sm", fixed ? "bg-teal text-white" : "bg-sun text-ink")}>
+            {fixed ? "Running" : `${parts.length} of ${FACTORY_PARTS.length}`}
+          </span>
+        </h3>
+        <p className="text-sm font-semibold leading-snug text-ink-soft lg:text-base">
+          {fixed
+            ? "You started it again, and the river runs chocolate all the way to the lake."
+            : "It has stopped, so the river is running white. The candy princess in the Lollipop Forest knows what is missing."}
+        </p>
+        {!fixed && (
+          <ul className="grid gap-2">
+            {FACTORY_PARTS.map((p) => (
+              <Job
+                key={p.id}
+                done={parts.includes(p.id)}
+                title={p.name[0]!.toUpperCase() + p.name.slice(1)}
+                note={parts.includes(p.id) ? "Found — take it to the factory." : p.hint}
+              />
+            ))}
+            <Job
+              done={false}
+              title="Pull the big lever"
+              note={
+                parts.length === FACTORY_PARTS.length
+                  ? "You have all three. Go inside the factory and pull it."
+                  : "Inside the factory, once you have all three."
+              }
+            />
+          </ul>
+        )}
+      </section>
+
+      <section className={section}>
+        <h3 className={heading}>
+          <Heart className="size-5 text-berry" strokeWidth={2.6} />
+          The princess&apos;s creatures
+          <span className={cn("ui-chip ml-auto text-sm", creatures.length === CREATURES.length ? "bg-teal text-white" : "bg-sun text-ink")}>
+            {creatures.length} of {CREATURES.length}
+          </span>
+        </h3>
+        <ul className="grid gap-2">
+          {CREATURES.map((c) => {
+            const got = creatures.includes(c.id);
+            const home = atHome.includes(c.id);
+            return (
+              <Job
+                key={c.id}
+                done={got}
+                title={c.name[0]!.toUpperCase() + c.name.slice(1)}
+                note={got ? (home ? "Living in your house." : "Following you.") : c.hint}
+              />
+            );
+          })}
+        </ul>
+        {creatures.length > 0 && (
+          <p className="text-sm font-semibold leading-snug text-ink-soft lg:text-base">
+            The basket by your porch sends them inside to live, and calls them back out again.
+          </p>
+        )}
+      </section>
+
+      <section className={section}>
+        <h3 className={heading}>
+          <Truck className="size-5 text-sun-deep" strokeWidth={2.6} />
+          Emmett&apos;s monster truck
+          <span className={cn("ui-chip ml-auto text-sm", owned ? "bg-teal text-white" : "bg-sun text-ink")}>
+            {owned ? "Yours" : `${wins} of ${TRUCK_STAGES.length}`}
+          </span>
+        </h3>
+        <p className="text-sm font-semibold leading-snug text-ink-soft lg:text-base">
+          {owned
+            ? "You beat him five times, so it is parked by your house. Walk up to it to drive."
+            : "Beat him five times at his den and the truck is yours."}
+        </p>
+        {!owned && (
+          <ul className="grid gap-2">
+            {TRUCK_STAGES.map((name, i) => (
+              <Job
+                key={name}
+                done={i < wins}
+                title={name}
+                note={i < wins ? "Won." : i === wins ? "Next — go and see Emmett." : "After the one before it."}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
 }
 
 /** a hand-stuck look: each collected sticker sits at its own slight angle */

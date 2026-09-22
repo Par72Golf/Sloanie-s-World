@@ -198,9 +198,12 @@ export type GameStore = {
   findStickerBook: () => void;
   findCandyStickerBook: () => void;
   findSticker: (id: string, name: string) => void;
-  /** Journal tab: dumplings, stickers, or the backpack's contents. */
-  journalTab: "dumplings" | "stickers" | "bag";
-  setJournalTab: (t: "dumplings" | "stickers" | "bag") => void;
+  /**
+   * Journal tab: her dumplings, the sticker book, the jobs she has on (Sugar
+   * Rush only) or the backpack's contents.
+   */
+  journalTab: "dumplings" | "stickers" | "bag" | "quest";
+  setJournalTab: (t: "dumplings" | "stickers" | "bag" | "quest") => void;
   /** Farmer Joe's three rescues and the pets she has adopted (saved). */
   quest: QuestSave;
   setQuestStage: (stage: QuestStage) => void;
