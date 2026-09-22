@@ -18,6 +18,7 @@ import { setRiverFlow } from "./candy-river";
 import { CandyQuest } from "./candy-quest";
 import { CandyCreatures } from "./candy-creatures";
 import { SweetShop } from "./candy-shop";
+import { Flyover, flyoverFor } from "./flyover";
 import { BowlsWorld } from "./bowls";
 import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
@@ -1836,6 +1837,8 @@ export class GameRuntime {
 
   /** Test hook: a fixed camera for inspecting a spot (see __gameTest.lookAt). */
   camOverride: { pos: THREE.Vector3; target: THREE.Vector3 } | null = null;
+  /** the grown-ups' hands-off tour of the park, when one is running */
+  private tour: Flyover | null = null;
 
   syncCamera(snap = false) {
     if (useGame.getState().fly) {
@@ -2202,8 +2205,33 @@ export class GameRuntime {
     this.sun.target.updateMatrixWorld();
   }
 
+  /**
+   * The flyover. It runs at the title as happily as in the park — the park is
+   * already drawn behind the title screen — so the tour needs no phase of its
+   * own: it takes the camera, pushes the fog out to the far side of the park
+   * so the tour is not flying through haze, and hands both back when it ends.
+   */
+  private runTour(dt: number) {
+    const st = useGame.getState();
+    if (st.flyover && !this.tour) {
+      this.tour = new Flyover(flyoverFor(this.level.id));
+      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.far = 2000;
+    }
+    if (!this.tour) return;
+    if (!st.flyover) {
+      this.tour = null;
+      this.camOverride = null;
+      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.far = this.level.fogFar;
+      return;
+    }
+    const done = this.tour.update(dt);
+    this.camOverride = { pos: this.tour.pos, target: this.tour.target };
+    if (done) st.setFlyover(false);
+  }
+
   animateWorld(dt: number) {
     if (!this.world) return;
+    this.runTour(dt);
     const collected = useGame.getState().collected[useGame.getState().levelIndex] ?? [];
     for (const d of this.world.dumplings) {
       if (!d.group.visible) {

@@ -404,7 +404,188 @@ const LOGO_SPARKLES = [
   { left: "8%", top: "90%", size: "1.1rem", delay: "1.9s" },
 ];
 
-type TitleDetail = "explorer" | "help" | "times" | "reset" | null;
+type TitleDetail = "explorer" | "help" | "times" | "reset" | "grownup" | null;
+
+
+/**
+ * While a flyover is running: nothing but a line telling her how to stop it.
+ *
+ * Any button stops it, not a particular one — whoever picks up the controller
+ * in the middle of a tour wants it to stop, and hunting for the right button
+ * is the opposite of that.
+ */
+function FlyoverHud() {
+  const stop = () => {
+    sfx.click();
+    useGame.getState().setFlyover(false);
+  };
+  useEffect(() => {
+    const onAny = () => stop();
+    window.addEventListener("keydown", onAny);
+    window.addEventListener("pointerdown", onAny);
+    return () => {
+      window.removeEventListener("keydown", onAny);
+      window.removeEventListener("pointerdown", onAny);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // any pad button, polled: the overlay cannot borrow the carnival's input
+    // hook without importing a module that imports this one
+    let raf = 0;
+    const tick = () => {
+      for (const pad of navigator.getGamepads?.() ?? []) {
+        if (pad && pad.buttons.some((b) => b.pressed)) return stop();
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <span className="ui-glass animate-ui-rise px-4 py-2 text-base font-bold text-ink lg:text-lg">
+        Flying over the park — press anything to stop
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The grown-ups' menu: a PIN, and the handful of tools that used to need a
+ * URL parameter or the browser console.
+ *
+ * It is on the start menu in plain sight rather than behind a secret gesture,
+ * because a hidden door is a thing a seven-year-old hunts for and a locked one
+ * is a thing she shrugs at. Nothing in here is saved: close the game and it is
+ * locked again, so she can never find it left open.
+ */
+const GROWNUP_PIN = "7272";
+
+function GrownUps({ onClose }: { onClose: () => void }) {
+  const grownUp = useGame((s) => s.grownUp);
+  const [entry, setEntry] = useState("");
+  const [wrong, setWrong] = useState(false);
+  const tickets = useGame((s) => s.tickets);
+  const unlocked = useGame((s) => s.unlocked);
+  const fly = useGame((s) => s.fly);
+
+  const press = (d: string) => {
+    sfx.click();
+    const next = (entry + d).slice(0, 4);
+    setEntry(next);
+    setWrong(false);
+    if (next.length < 4) return;
+    if (next === GROWNUP_PIN) {
+      sfx.win();
+      useGame.getState().setGrownUp(true);
+      // everything a build tool needs to look at: all the parks
+      if (useGame.getState().unlocked < LEVELS.length) useGame.setState({ unlocked: LEVELS.length });
+    } else {
+      sfx.wrong();
+      setWrong(true);
+      setEntry("");
+    }
+  };
+
+  const tour = (index: number) => {
+    sfx.click();
+    useGame.setState({ levelIndex: index });
+    useGame.getState().setFlyover(true);
+    onClose();
+  };
+
+  if (!grownUp) {
+    return (
+      <>
+        <p className="text-base font-semibold text-ink 2xl:text-xl">
+          Tools for building the parks. Enter the grown-ups&apos; PIN.
+        </p>
+        <div className="mt-3 flex items-center gap-2.5">
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className={cn(
+                "grid size-11 place-items-center rounded-xl border-[3px] border-edge text-2xl font-extrabold",
+                wrong ? "bg-berry/20" : entry.length > i ? "bg-grape text-white" : "bg-surface-2",
+              )}
+            >
+              {entry.length > i ? "•" : ""}
+            </span>
+          ))}
+          {wrong && <span className="text-base font-bold text-berry">Not that one.</span>}
+        </div>
+        <div className="mt-3 grid w-full max-w-[16rem] grid-cols-3 gap-2">
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "←"].map((d, i) =>
+            d === "" ? (
+              <span key={i} />
+            ) : (
+              <button
+                key={i}
+                type="button"
+                onClick={() => (d === "←" ? (sfx.click(), setEntry((e) => e.slice(0, -1))) : press(d))}
+                className="chunk-sm press grid h-12 place-items-center rounded-xl bg-surface text-xl font-extrabold text-ink"
+              >
+                {d}
+              </button>
+            ),
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p className="text-base font-semibold text-ink 2xl:text-xl">
+        Unlocked for this session. Closing the game locks it again.
+      </p>
+      <div className="mt-3 grid gap-2.5">
+        <div className="grid gap-1.5">
+          <span className="text-sm font-bold uppercase tracking-wide text-ink-soft">Fly over a park</span>
+          <div className="flex flex-wrap gap-2.5">
+            {LEVELS.map((l, i) => (
+              <Btn key={l.id} variant="secondary" onClick={() => tour(i)}>
+                <Eye className="size-5" strokeWidth={2.5} /> {l.name}
+              </Btn>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-1.5">
+          <span className="text-sm font-bold uppercase tracking-wide text-ink-soft">While you play</span>
+          <div className="flex flex-wrap gap-2.5">
+            <Btn
+              variant={fly ? "primary" : "secondary"}
+              onClick={() => {
+                sfx.click();
+                useGame.getState().setFly(!fly);
+              }}
+            >
+              <Compass className="size-5" strokeWidth={2.5} /> Free fly {fly ? "on" : "off"}
+            </Btn>
+            <Btn
+              variant="sun"
+              onClick={() => {
+                sfx.win();
+                useGame.getState().addTickets(100);
+              }}
+            >
+              <Ticket className="size-5" strokeWidth={2.5} /> +100 tickets
+            </Btn>
+          </div>
+        </div>
+        <p className="text-sm font-semibold leading-snug text-ink-soft">
+          {unlocked >= LEVELS.length ? "Every park is unlocked." : "Parks unlocked."} You have {tickets} tickets. F flies
+          and lands while you are in a park.
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          <Btn variant="ghost" onClick={onClose}>
+            Close
+          </Btn>
+        </div>
+      </div>
+    </>
+  );
+}
 
 /** One row of the start menu. The sliding selector bar behind it follows focus. */
 function MenuItem({
@@ -541,6 +722,7 @@ function TitleScreen() {
     help: { icon: HelpCircle, text: "How to play", tone: "bg-teal" },
     times: { icon: Trophy, text: "Best times", tone: "bg-sun text-ink" },
     reset: { icon: RotateCcw, text: "Start over", tone: "bg-berry" },
+    grownup: { icon: Lock, text: "Grown-ups", tone: "bg-grape" },
   };
   const D = detail ? detailTitle[detail] : null;
 
@@ -730,6 +912,7 @@ function TitleScreen() {
                 />
               )}
               <MenuItem {...rowProps()} icon={RotateCcw} tint="text-berry" label="Start over" onClick={() => toggle("reset")} />
+              <MenuItem {...rowProps()} icon={Lock} tint="text-grape" label="Grown-ups" onClick={() => toggle("grownup")} />
             </div>
           </div>
         </nav>
@@ -827,6 +1010,7 @@ function TitleScreen() {
                     </div>
                   </>
                 )}
+                {detail === "grownup" && <GrownUps onClose={() => setDetail(null)} />}
                 {detail === "help" && (
                   <ul className="grid gap-2 text-base leading-snug text-ink 2xl:text-xl">
                     {[
@@ -2296,6 +2480,7 @@ export function Overlays() {
   const fleeNotice = useGame((s) => s.fleeNotice);
   const hintText = useGame((s) => s.hintText);
   const celebrate = useGame((s) => s.celebrate);
+  const flyingOver = useGame((s) => s.flyover);
   useEffect(() => setSpeechEnabled(readAloud), [readAloud]);
   const voiceName = useGame((s) => s.voice);
   useEffect(() => setVoiceName(voiceName), [voiceName]);
@@ -2307,7 +2492,8 @@ export function Overlays() {
   return (
     <div className="overlay-root">
       <PadMenu />
-      {phase === "title" && <TitleScreen />}
+      {phase === "title" && !flyingOver && <TitleScreen />}
+      {flyingOver && <FlyoverHud />}
       {(phase === "playing" || phase === "paused" || phase === "quiz") && <HUD />}
       {phase === "quiz" && <Quiz />}
       {(phase === "playing" || phase === "quiz") && <MiniMap />}

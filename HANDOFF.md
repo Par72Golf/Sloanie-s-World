@@ -10,6 +10,25 @@ on this specific project.
 
 Current version: **v3.2** (17 Sept 2026, the day before the birthday): her house, Emmett's truck, the zoo, the mountain lookout, the rebuilt landing plaza and walkways, Sandcastle Corner, remappable controls, and the jewel UI.
 
+### The grown-ups' menu
+
+The start menu's last row, **Grown-ups**, is PIN-locked: **7272**. It is in plain
+sight on purpose — a hidden door is something a seven-year-old hunts for, a
+locked one is something she shrugs at. Nothing it turns on is ever saved, so
+closing the game locks it again and she can never find it left open.
+
+Behind it:
+
+- **Fly over a park** — a hands-off camera tour of any park, about fifty
+  seconds, from the title screen. Any button stops it. This is the quickest way
+  to see what a morning's building actually looks like.
+- **Free fly** — the old `?fly` camera. `F` flies and lands once the PIN is in.
+- **+100 tickets**, for testing anything that costs them.
+- Entering the PIN also unlocks every park, which `?preview` used to do.
+
+The PIN is `GROWNUP_PIN` at the top of `GrownUps` in `src/game/overlays.tsx`.
+`?preview` and `?fly` still work for scripted testing.
+
 ### Since v2.8 (16 Sept 2026)
 
 - The Grok scaffold (TanStack Start, Nitro, Vercel, pglite, better-auth) is gone.

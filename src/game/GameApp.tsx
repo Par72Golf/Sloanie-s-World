@@ -14,17 +14,22 @@ export function GameApp() {
    */
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    const building = q.has("preview") || q.has("fly");
-    if (!building) return;
-    if (useGame.getState().unlocked < 2) useGame.setState({ unlocked: 2 });
-    if (q.has("fly")) useGame.setState({ fly: true });
-    // F flies and lands. Only while building, so a stray F in the park does
-    // nothing, and never while she is typing her name into the explorer card.
+    if (q.has("preview") || q.has("fly")) {
+      if (useGame.getState().unlocked < 2) useGame.setState({ unlocked: 2 });
+      if (q.has("fly")) useGame.setState({ fly: true });
+    }
+    /*
+     * F flies and lands, either from the URL or once the grown-ups' menu has
+     * been unlocked with the PIN. Never while she is typing her name into the
+     * explorer card, and it does nothing at all in her own game.
+     */
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "KeyF" || e.repeat) return;
+      const st = useGame.getState();
+      if (!st.grownUp && !q.has("preview") && !q.has("fly")) return;
       const el = document.activeElement;
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
-      useGame.getState().setFly(!useGame.getState().fly);
+      st.setFly(!st.fly);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

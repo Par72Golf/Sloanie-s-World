@@ -274,6 +274,16 @@ export type GameStore = {
   /** Wipe all progress. Best times are kept unless asked; settings always are. */
   resetAll: (opts?: { bestTimes?: boolean }) => void;
   /**
+   * The grown-ups' menu has been unlocked with the PIN this session. Never
+   * saved: it is off again every time the game is opened, so nothing she does
+   * can leave the tools switched on.
+   */
+  grownUp: boolean;
+  setGrownUp: (v: boolean) => void;
+  /** a hands-off camera tour of the park she is in */
+  flyover: boolean;
+  setFlyover: (v: boolean) => void;
+  /**
    * Free-fly camera: a building tool, not part of the game. It unhooks the
    * camera from her so a park under construction can be looked at from above.
    */
@@ -1078,6 +1088,10 @@ export const useGame = create<GameStore>((set, get) => ({
       emmettNotice: null,
       celebrate: null,
     }),
+  grownUp: false,
+  setGrownUp: (grownUp) => set({ grownUp }),
+  flyover: false,
+  setFlyover: (flyover) => set({ flyover }),
   fly: false,
   setFly: (fly) => set({ fly, flyLift: 0 }),
   flyLift: 0,
