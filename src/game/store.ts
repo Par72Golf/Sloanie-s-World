@@ -110,6 +110,11 @@ export type GameStore = {
   /** she is at the basket by her door: "in" sends them to live there, "out" calls them back */
   basketNear: "in" | "out" | null;
   setBasketNear: (v: "in" | "out" | null) => void;
+  /** the sweet shop on Sugar Rush's fairground: she is at the counter, and it is open */
+  shopNear: boolean;
+  setShopNear: (v: boolean) => void;
+  sweetShop: boolean;
+  setSweetShop: (v: boolean) => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -758,6 +763,12 @@ export const useGame = create<GameStore>((set, get) => ({
   setBasketNear: (basketNear) => {
     if (get().basketNear !== basketNear) set({ basketNear });
   },
+  shopNear: false,
+  setShopNear: (shopNear) => {
+    if (get().shopNear !== shopNear) set({ shopNear });
+  },
+  sweetShop: false,
+  setSweetShop: (sweetShop) => set({ sweetShop }),
   princessNear: false,
   setPrincessNear: (princessNear) => {
     if (get().princessNear !== princessNear) set({ princessNear });

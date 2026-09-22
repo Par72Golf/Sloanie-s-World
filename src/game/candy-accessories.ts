@@ -32,7 +32,13 @@ export type CandyAccessoryId =
   | "gumdropclips"
   | "peppermintshades"
   | "rainbowwings"
-  | "canecrook";
+  | "canecrook"
+  // the sweet shop at the fairground sells these; they are not hidden anywhere
+  | "gumballhat"
+  | "licoricebow"
+  | "bubblegum"
+  | "cottoncloud"
+  | "bigswirl";
 
 /** The park's palette, the same colours sugar-rush.ts builds the world from. */
 const C = {
@@ -51,6 +57,15 @@ const C = {
   lime: "#7fd94a",
   sky: "#69c8ff",
 } as const;
+
+/** What the sweet shop sells, in the order it lays them out. Prices in tickets. */
+export const SWEET_SHOP: { id: CandyAccessoryId; price: number }[] = [
+  { id: "licoricebow", price: 5 },
+  { id: "bubblegum", price: 6 },
+  { id: "bigswirl", price: 8 },
+  { id: "cottoncloud", price: 10 },
+  { id: "gumballhat", price: 14 },
+];
 
 export const CANDY_ACCESSORIES: AccessoryDef[] = [
   {
@@ -94,6 +109,44 @@ export const CANDY_ACCESSORIES: AccessoryDef[] = [
     name: "Candy cane crook",
     slot: "hand",
     hint: "Outside the Licorice Maze, by the way in.",
+  },
+
+  // the sweet shop's five. Nothing is hidden in the park for these, so the
+  // hint says where to buy them instead of where to look.
+  {
+    id: "licoricebow",
+    name: "Liquorice bow",
+    slot: "hair",
+    hint: "Buy it at the sweet shop on the fairground.",
+    reward: "the sweet shop",
+  },
+  {
+    id: "bubblegum",
+    name: "Bubblegum bubble",
+    slot: "face",
+    hint: "Buy it at the sweet shop on the fairground.",
+    reward: "the sweet shop",
+  },
+  {
+    id: "bigswirl",
+    name: "Giant swirl lolly",
+    slot: "hand",
+    hint: "Buy it at the sweet shop on the fairground.",
+    reward: "the sweet shop",
+  },
+  {
+    id: "cottoncloud",
+    name: "Candy floss cloud",
+    slot: "back",
+    hint: "Buy it at the sweet shop on the fairground.",
+    reward: "the sweet shop",
+  },
+  {
+    id: "gumballhat",
+    name: "Gumball machine hat",
+    slot: "head",
+    hint: "Buy it at the sweet shop on the fairground.",
+    reward: "the sweet shop",
   },
 ];
 
@@ -573,6 +626,125 @@ export function makeCandyAccessory(
       caneStripes(mini, new THREE.Vector3(0, -0.05, 0), new THREE.Vector3(0, 0.17, 0), 0.02, 4);
       g.add(mini);
       return { mesh: g, attach: "torso" };
+    }
+
+    /* ------------------------------------------------ the sweet shop's five */
+
+    case "licoricebow": {
+      // a big liquorice allsort bow on the side of her head: two loops, two
+      // tails and a knot, all of it striped the way an allsort is
+      const bow = new THREE.Group();
+      bow.position.set(-0.19, 0.58, 0.02);
+      bow.rotation.set(0, -0.5, 0.25);
+      for (const side of [-1, 1] as const) {
+        const loop = new THREE.Mesh(ringGeo, glossy(C.licorice));
+        loop.scale.setScalar(0.085);
+        loop.position.set(0, side * 0.085, 0);
+        loop.rotation.x = Math.PI / 2;
+        bow.add(loop);
+        const fill = new THREE.Mesh(cylGeo, glossy(C.cane));
+        fill.scale.set(0.055, 0.03, 0.055);
+        fill.position.set(0, side * 0.085, 0);
+        bow.add(fill);
+        const tail = box(C.licorice, 0.035, 0.13, 0.035, side * 0.035, -0.11, 0, 0.2);
+        tail.rotation.z = side * 0.4;
+        bow.add(tail);
+      }
+      bow.add(ball(C.cane, 0.045, 0, 0, 0, 0.045, 0.045, glossy(C.cane)));
+      g.add(bow);
+      return { mesh: g, attach: "head" };
+    }
+
+    case "bubblegum": {
+      // a bubble blown out in front of her mouth, thin enough to see her
+      // through it, with the gum itself still on her lip
+      const bubble = new THREE.Mesh(
+        sphereGeo,
+        lam(C.blush, { flat: true, roughness: 0.08, transparent: true, opacity: 0.62 }),
+      );
+      bubble.scale.setScalar(0.135);
+      bubble.position.set(0, 0.44, 0.24);
+      g.add(bubble);
+      const shine = new THREE.Mesh(sphereGeo, flat(C.icing, 0.1));
+      shine.scale.set(0.035, 0.028, 0.02);
+      shine.position.set(-0.05, 0.48, 0.35);
+      g.add(shine);
+      g.add(ball(C.pink, 0.035, 0, 0.415, 0.13, 0.026, 0.03, glossy(C.pink)));
+      return { mesh: g, attach: "head" };
+    }
+
+    case "bigswirl": {
+      // a swirl lolly nearly as wide as she is, on a stick she holds two-handed
+      const stick = new THREE.Mesh(cylGeo, flat(C.icing, 0.35));
+      stick.scale.set(0.022, 0.42, 0.022);
+      stick.position.y = 0.2;
+      g.add(stick);
+      const disc = new THREE.Mesh(cylGeo, glossy(C.pink));
+      disc.scale.set(0.24, 0.035, 0.24);
+      disc.rotation.x = Math.PI / 2;
+      disc.position.y = 0.52;
+      disc.castShadow = true;
+      g.add(disc);
+      // the swirl, as a spiral of short bars laid on the face
+      for (let i = 0; i < 26; i++) {
+        const t = i / 26;
+        const a = t * Math.PI * 4.6;
+        const r = 0.035 + t * 0.19;
+        const bar = box(i % 2 ? C.icing : C.cane, 0.05, 0.05, 0.022, Math.cos(a) * r, 0.52 + Math.sin(a) * r, 0.038, 0.18);
+        bar.rotation.z = a;
+        g.add(bar);
+      }
+      return { mesh: g, attach: "hand" };
+    }
+
+    case "cottoncloud": {
+      // a cloud of candy floss riding on her back, pink one side, blue the
+      // other, on a paper cone she has tucked through the straps
+      const cone = new THREE.Mesh(coneGeo, flat(C.icing, 0.45));
+      cone.scale.set(0.06, 0.2, 0.06);
+      cone.position.set(0, 0.42, -0.14);
+      cone.rotation.x = -0.25;
+      g.add(cone);
+      const puffs: [number, number, number, number, string][] = [
+        [0, 0.66, -0.2, 0.16, C.blush],
+        [-0.14, 0.61, -0.19, 0.12, C.sky],
+        [0.14, 0.62, -0.2, 0.125, C.blush],
+        [0.02, 0.74, -0.24, 0.11, C.sky],
+        [-0.08, 0.72, -0.25, 0.095, C.blush],
+      ];
+      for (const [x, y, z, r, c] of puffs) {
+        g.add(ball(c, r, x, y, z, r * 0.92, r * 0.9, lam(c, { flat: true, roughness: 0.85 })));
+      }
+      return { mesh: g, attach: "torso" };
+    }
+
+    case "gumballhat": {
+      // a gumball machine worn as a hat: a red base, a glass dome and the
+      // sweets loose inside it
+      const base = new THREE.Mesh(cylGeo, flat(C.cane, 0.4));
+      base.scale.set(0.2, 0.06, 0.2);
+      base.position.y = 0.63;
+      base.castShadow = true;
+      g.add(base);
+      const dome = new THREE.Mesh(
+        sphereGeo,
+        lam("#d8f0ff", { flat: true, roughness: 0.06, transparent: true, opacity: 0.42 }),
+      );
+      dome.scale.setScalar(0.19);
+      dome.position.y = 0.76;
+      g.add(dome);
+      const balls = [C.cane, C.sun, C.mint, C.lilac, C.orange, C.pink, C.sky, C.lime];
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 * 1.7;
+        const r = 0.055 + (i % 3) * 0.045;
+        g.add(ball(balls[i % balls.length]!, 0.042, Math.cos(a) * r, 0.7 + (i % 4) * 0.045, Math.sin(a) * r, 0.042, 0.042, glossy(balls[i % balls.length]!)));
+      }
+      const knob = new THREE.Mesh(cylGeo, flat(C.icing, 0.3));
+      knob.scale.set(0.035, 0.03, 0.035);
+      knob.rotation.x = Math.PI / 2;
+      knob.position.set(0, 0.63, 0.2);
+      g.add(knob);
+      return { mesh: g, attach: "head" };
     }
   }
 }

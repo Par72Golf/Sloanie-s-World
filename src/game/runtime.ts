@@ -17,6 +17,7 @@ import { PlayerTruck, RPS_ROUNDS, TRUCK_STAGES, TruckGauntlet } from "./truck-ga
 import { setRiverFlow } from "./candy-river";
 import { CandyQuest } from "./candy-quest";
 import { CandyCreatures } from "./candy-creatures";
+import { SweetShop } from "./candy-shop";
 import { BowlsWorld } from "./bowls";
 import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
@@ -609,6 +610,9 @@ export class GameRuntime {
     // the candy princess and the three things her factory is missing
     this.candyQuest?.dispose();
     this.candyQuest = this.level.id === "sugar" ? new CandyQuest(this.scene) : null;
+    // the sweet shop on the fairground, where her tickets go in this park
+    this.sweetShop?.dispose();
+    this.sweetShop = this.level.id === "sugar" ? new SweetShop(this.scene) : null;
     // her three creatures, and the trouble each one is in
     this.creatures?.dispose();
     this.creatures =
@@ -1043,6 +1047,7 @@ export class GameRuntime {
   gauntlet: TruckGauntlet | null = null;
   candyQuest: CandyQuest | null = null;
   creatures: CandyCreatures | null = null;
+  sweetShop: SweetShop | null = null;
   playerTruck: PlayerTruck | null = null;
   /** the chocolate river's group, and how far the chocolate has flooded it */
   private river: THREE.Group | null = null;
@@ -1063,6 +1068,7 @@ export class GameRuntime {
     this.gauntlet?.dispose();
     this.candyQuest?.dispose();
     this.creatures?.dispose();
+    this.sweetShop?.dispose();
     this.playerTruck?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
@@ -1609,6 +1615,7 @@ export class GameRuntime {
       return;
     }
     if (this.creatures?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
+    if (this.sweetShop?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.candyQuest?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.playerTruck?.toggle(this.cap.x, this.cap.y, this.cap.z, this.yaw)) return;
     if (this.emmettTalkReady() && st.rps == null) {
@@ -1934,6 +1941,7 @@ export class GameRuntime {
         st.helpCard == null &&
         useHome.getState().panel == null &&
         !useHome.getState().upgrading &&
+        !st.sweetShop &&
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
       !this.ride &&
@@ -2272,12 +2280,13 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || useHome.getState().panel != null || useHome.getState().upgrading;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || st.sweetShop || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.gauntlet?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.candyQuest?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      this.sweetShop?.update(this.clock);
       if (!paused && this.world) {
         this.creatures?.update(
           dt,
@@ -2460,6 +2469,7 @@ export class GameRuntime {
       useGame.getState().setPrincessNear(this.candyQuest?.near(this.cap.x, this.cap.y, this.cap.z) === "princess");
       useGame.getState().setCreatureNear(this.creatures?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
       useGame.getState().setBasketNear(this.creatures?.atBasket(this.cap.x, this.cap.y, this.cap.z) ?? null);
+      useGame.getState().setShopNear(this.sweetShop?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
     }
     const d = this.nearestUnfound();
     if (!d) {
@@ -2552,7 +2562,8 @@ export class GameRuntime {
       tossPose.active ||
       useToss.getState().card != null ||
       useHome.getState().panel != null ||
-      useHome.getState().upgrading;
+      useHome.getState().upgrading ||
+      st.sweetShop;
     const play = st.phase === "playing" && !panel;
     if (play && (wantsInteract() || consumePadInteract())) this.tryCollect();
     else consumePadInteract();

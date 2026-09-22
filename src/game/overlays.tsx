@@ -6,6 +6,7 @@ import { HouseUpgradePanel } from "./house-upgrade";
 import { useChocFactory } from "./choc-factory-inside";
 import { useToss } from "./marshmallow-toss";
 import { TossOverlay } from "./marshmallow-toss-ui";
+import { SweetShopPanel } from "./sweet-shop";
 import { TRUCK_STAGES } from "./truck-gauntlet";
 import { useHome } from "./home-store";
 import { CHANNELS } from "./music";
@@ -909,6 +910,8 @@ function HUD() {
   const princessNear = useGame((s) => s.princessNear);
   const creatureNear = useGame((s) => s.creatureNear);
   const basketNear = useGame((s) => s.basketNear);
+  const shopNear = useGame((s) => s.shopNear);
+  const shopOpen = useGame((s) => s.sweetShop);
   const tossNear = useToss((s) => s.near);
   const tossPlaying = useToss((s) => s.playing);
   const tossCard = useToss((s) => s.card);
@@ -1160,9 +1163,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && (homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || basketNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && !shopOpen && (homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || basketNear || shopNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (basketNear ? `basket-${basketNear}` : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (basketNear ? `basket-${basketNear}` : null) ?? (shopNear ? "shop" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1184,6 +1187,8 @@ function HUD() {
                 ? basketNear === "in"
                   ? "Let them live here"
                   : "Take them with you"
+              : shopNear
+                ? "Visit the sweet shop!"
               : tossNear
                 ? "Play Marshmallow Toss!"
               : princessNear
@@ -2319,6 +2324,7 @@ export function Overlays() {
       {phase === "playing" && <HomePanel />}
       {phase === "playing" && <HouseUpgradePanel />}
       {phase === "playing" && <TossOverlay />}
+      {phase === "playing" && <SweetShopPanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}
       {controlsOpen && <ControlsRemap />}
       {showFps && phase !== "title" && <FpsCounter />}
