@@ -794,9 +794,19 @@ export class ChocFactoryInside {
       return { teleport: [STEP_X + 1.4, 0.1, DOOR_Z[this.cameInBy] ?? DOOR_Z[0]!], yaw: -Math.PI / 2 };
     }
     if (near === "lever") {
+      const st = useGame.getState();
+      // the first pull is the one that matters: the factory has been stopped
+      // and the whole river has been running vanilla because of it
+      if (!st.factoryFixed) {
+        sfx.win();
+        st.fixFactory();
+        st.setEmmettNotice("The factory is running again — look at the river!");
+        this.fastUntil = this.lastT + 8;
+        return true;
+      }
       sfx.boing();
       this.fastUntil = this.lastT + 8;
-      useGame.getState().setEmmettNotice("Full speed! The whole factory is running fast.");
+      st.setEmmettNotice("Full speed! The whole factory is running fast.");
       return true;
     }
     return false;

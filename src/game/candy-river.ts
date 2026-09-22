@@ -124,12 +124,85 @@ export function makeRibbonPath(points: [number, number][], width: number, color:
   return g;
 }
 
+/* ------------------------------------------------------- the factory's flow */
+
+/**
+ * Chocolate, and the vanilla the river runs as while the factory is stopped.
+ *
+ * The quest turns the river from one to the other, and it has to be visible
+ * from anywhere in the park, so the chocolate is not one mesh: it is a chain
+ * of them, and the flood is those meshes changing colour in turn outward from
+ * the factory. Segment edges show as a hard line, which is exactly what the
+ * front of a flood looks like.
+ */
+const FLOW = {
+  choc: { color: "#4a2a16", roughness: 0.08 },
+  /*
+   * White chocolate, not sand. The first try was a matte cream and it read as
+   * a wide path: the park's sugar paths are #e9d7b6 and the river's own bank
+   * is the same, so a matte pale band beside them is just more path. What
+   * makes it liquid is the gloss, so the stopped river keeps the chocolate's
+   * roughness and only loses its colour.
+   */
+  vanilla: { color: "#f7efe2", roughness: 0.14 },
+  froth: { color: "#c98a4a", vanilla: "#f6f1e8", roughness: 0.4 },
+  swirl: { color: "#8a5a34", vanilla: "#e6dcc9", roughness: 0.25 },
+};
+
+/** How many pieces the chocolate is cut into. Each one is a draw call. */
+const SEGMENTS = 10;
+
+type FlowPart = { mat: THREE.MeshStandardMaterial; from: THREE.Color; to: THREE.Color; r0: number; r1: number };
+export type RiverFlow = {
+  /** the chocolate, ordered outward from the factory */
+  segs: FlowPart[];
+  /** froth, swirls and the lake, which all turn together with the last segment */
+  rest: FlowPart[];
+};
+
+function ownMaterial(color: string, roughness: number) {
+  // its own instance, never the shared cache: tinting a cached material would
+  // repaint every other brown thing in the park
+  return (lam(color, { flat: true, roughness }) as THREE.MeshStandardMaterial).clone();
+}
+
+function flowPart(mat: THREE.MeshStandardMaterial, vanilla: string, choc: string, rVanilla: number, rChoc: number): FlowPart {
+  return { mat, from: new THREE.Color(vanilla), to: new THREE.Color(choc), r0: rVanilla, r1: rChoc };
+}
+
+function setPart(p: FlowPart, t: number) {
+  p.mat.color.copy(p.from).lerp(p.to, t);
+  p.mat.roughness = p.r0 + (p.r1 - p.r0) * t;
+}
+
+/**
+ * How far the flood has come, 0 (all vanilla) to 1 (all chocolate). The front
+ * moves along the segments in order and the leading one fades, so it reads as
+ * chocolate running rather than lights switching on.
+ */
+export function setRiverFlow(group: THREE.Group, filled: number) {
+  const flow = group.userData.flow as RiverFlow | undefined;
+  if (!flow) return;
+  const front = Math.max(0, Math.min(1, filled)) * flow.segs.length;
+  flow.segs.forEach((seg, i) => setPart(seg, Math.max(0, Math.min(1, front - i))));
+  for (const p of flow.rest) setPart(p, Math.max(0, Math.min(1, filled)));
+}
+
 /**
  * The whole river: bank, chocolate, froth along both edges, and swirls dragged
  * down the middle. Everything is flat and at its own height, so nothing fights.
+ *
+ * `source` is where the chocolate comes from — the factory — and the chocolate
+ * is cut into segments ordered by how far along the river they are from it, so
+ * `setRiverFlow` can run the flood outward in both directions at once.
  */
-export function makeChocolateRiver(path: RiverPoint[], lake?: { x: number; z: number; r: number }): THREE.Group {
+export function makeChocolateRiver(
+  path: RiverPoint[],
+  lake?: { x: number; z: number; r: number },
+  source?: { x: number; z: number },
+): THREE.Group {
   const g = new THREE.Group();
+  const flow: RiverFlow = { segs: [], rest: [] };
 
   if (lake) {
     const bankDisc = new THREE.Mesh(
@@ -140,11 +213,13 @@ export function makeChocolateRiver(path: RiverPoint[], lake?: { x: number; z: nu
     bankDisc.position.set(lake.x, 0.06, lake.z);
     bankDisc.receiveShadow = true;
     g.add(bankDisc);
-    const pool = new THREE.Mesh(new THREE.CircleGeometry(lake.r, 40), lam("#4a2a16", { flat: true, roughness: 0.08 }));
+    const poolMat = ownMaterial(FLOW.choc.color, FLOW.choc.roughness);
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(lake.r, 40), poolMat);
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(lake.x, 0.12, lake.z);
     pool.receiveShadow = true;
     g.add(pool);
+    flow.rest.push(flowPart(poolMat, FLOW.vanilla.color, FLOW.choc.color, FLOW.vanilla.roughness, FLOW.choc.roughness));
   }
 
   const bank = new THREE.Mesh(
@@ -154,20 +229,36 @@ export function makeChocolateRiver(path: RiverPoint[], lake?: { x: number; z: nu
   bank.receiveShadow = true;
   g.add(bank);
 
-  // Glossy and dark: chocolate is a mirror with a tint, and roughness is what
-  // makes the difference between melted chocolate and a brown floor.
-  const choc = new THREE.Mesh(
-    ribbon(path, 0.12, (p) => p.w / 2),
-    lam("#4a2a16", { flat: true, roughness: 0.08 }),
-  );
-  choc.receiveShadow = true;
-  g.add(choc);
+  /*
+   * Glossy and dark: chocolate is a mirror with a tint, and roughness is what
+   * makes the difference between melted chocolate and a brown floor. Cut into
+   * SEGMENTS pieces that share a sample at each join, so there is no seam.
+   */
+  const per = Math.max(2, Math.ceil((path.length - 1) / SEGMENTS));
+  const pieces: { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; at: number }[] = [];
+  for (let start = 0; start < path.length - 1; start += per) {
+    const slice = path.slice(start, Math.min(path.length, start + per + 1));
+    if (slice.length < 2) continue;
+    const mat = ownMaterial(FLOW.choc.color, FLOW.choc.roughness);
+    const mesh = new THREE.Mesh(ribbon(slice, 0.12, (p) => p.w / 2), mat);
+    mesh.receiveShadow = true;
+    g.add(mesh);
+    // how far along the river this piece sits, for ordering the flood
+    const mid = slice[Math.floor(slice.length / 2)]!;
+    const at = source ? Math.hypot(mid.x - source.x, mid.z - source.z) : start;
+    pieces.push({ mesh, mat, at });
+  }
+  pieces.sort((a, b) => a.at - b.at);
+  for (const p of pieces) {
+    flow.segs.push(flowPart(p.mat, FLOW.vanilla.color, FLOW.choc.color, FLOW.vanilla.roughness, FLOW.choc.roughness));
+  }
 
-  const froth = lam("#c98a4a", { flat: true, roughness: 0.4 });
+  const frothMat = ownMaterial(FLOW.froth.color, FLOW.froth.roughness);
   for (const side of [1, -1] as const) {
-    const strip = new THREE.Mesh(edgeStrip(path, 0.14, side, (p) => p.w / 2 - 0.55, 0.55), froth);
+    const strip = new THREE.Mesh(edgeStrip(path, 0.14, side, (p) => p.w / 2 - 0.55, 0.55), frothMat);
     g.add(strip);
   }
+  flow.rest.push(flowPart(frothMat, FLOW.froth.vanilla, FLOW.froth.color, 0.3, FLOW.froth.roughness));
 
   /*
    * Swirls: short cream arcs laid on the surface, spaced along the flow and
@@ -175,7 +266,7 @@ export function makeChocolateRiver(path: RiverPoint[], lake?: { x: number; z: nu
    * chocolate from the far bank, and they cost eight triangles each.
    */
   const swirlGeo = new THREE.TorusGeometry(1, 0.1, 4, 10, Math.PI * 1.2);
-  const swirlMat = lam("#8a5a34", { flat: true, roughness: 0.25 });
+  const swirlMat = ownMaterial(FLOW.swirl.color, FLOW.swirl.roughness);
   for (let i = 6; i < path.length - 6; i += 7) {
     const p = path[i]!;
     const prev = path[i - 1]!;
@@ -191,6 +282,9 @@ export function makeChocolateRiver(path: RiverPoint[], lake?: { x: number; z: nu
     swirl.position.set(p.x + ((-dz / len) * side * p.w) / 5, 0.16, p.z + ((dx / len) * side * p.w) / 5);
     g.add(swirl);
   }
+  flow.rest.push(flowPart(swirlMat, FLOW.swirl.vanilla, FLOW.swirl.color, 0.22, FLOW.swirl.roughness));
 
+  g.userData.flow = flow;
+  g.name = "chocolate river";
   return g;
 }

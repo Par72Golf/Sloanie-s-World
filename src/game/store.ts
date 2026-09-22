@@ -85,6 +85,14 @@ export type GameStore = {
   /** she is standing at the parked truck, so Collect would get her in */
   truckNear: boolean;
   setTruckNear: (v: boolean) => void;
+  /**
+   * Sugar Rush's chocolate factory. While it is stopped the river runs
+   * vanilla, which is the thing you can see from anywhere in the park;
+   * starting it floods the whole river brown. Saved, because a park that
+   * forgets she fixed it would be a park that broke itself overnight.
+   */
+  factoryFixed: boolean;
+  fixFactory: () => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -339,6 +347,7 @@ function persistSlice(s: GameStore) {
     candyStickerBook: s.candyStickerBook,
     truckWins: s.truckWins,
     truckOwned: s.truckOwned,
+    factoryFixed: s.factoryFixed,
     stickers: s.stickers,
     quest: s.quest,
     pets: s.pets,
@@ -709,6 +718,12 @@ export const useGame = create<GameStore>((set, get) => ({
   setTruckNear: (truckNear) => {
     if (get().truckNear !== truckNear) set({ truckNear });
   },
+  factoryFixed: saved.factoryFixed,
+  fixFactory: () => {
+    if (get().factoryFixed) return;
+    set({ factoryFixed: true });
+    persistSlice(get());
+  },
 
   playRps: (pick) => {
     const emmett = HANDS[Math.floor(Math.random() * 3)]!;
@@ -964,6 +979,7 @@ export const useGame = create<GameStore>((set, get) => ({
       candyStickerBook: false,
       truckWins: 0,
       truckOwned: false,
+      factoryFixed: false,
       truckRace: null,
       driving: false,
       stickers: [],

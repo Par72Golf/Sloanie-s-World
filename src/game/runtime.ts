@@ -14,6 +14,7 @@ import { LookingGlass } from "./looking-glass";
 import { candyStickers } from "./candy-stickers";
 import { ChocFactoryInside, useChocFactory } from "./choc-factory-inside";
 import { PlayerTruck, RPS_ROUNDS, TRUCK_STAGES, TruckGauntlet } from "./truck-gauntlet";
+import { setRiverFlow } from "./candy-river";
 import { BowlsWorld } from "./bowls";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
@@ -605,6 +606,13 @@ export class GameRuntime {
     this.playerTruck?.dispose();
     this.playerTruck =
       this.level.id === "sugar" && useGame.getState().truckOwned ? new PlayerTruck(this.scene) : null;
+    /*
+     * The river runs vanilla while the factory is stopped. On a fresh load it
+     * snaps to whatever the save says, so she never watches the flood twice.
+     */
+    this.river = this.level.id === "sugar" ? (this.scene.getObjectByName("chocolate river") as THREE.Group | null) : null;
+    this.riverFlow = useGame.getState().factoryFixed ? 1 : 0;
+    if (this.river) setRiverFlow(this.river, this.riverFlow);
     // inside the chocolate factory: its own room in the sky over the factory,
     // built the way her house's room is
     this.factoryInside?.dispose();
@@ -1005,6 +1013,9 @@ export class GameRuntime {
   factoryInside: ChocFactoryInside | null = null;
   gauntlet: TruckGauntlet | null = null;
   playerTruck: PlayerTruck | null = null;
+  /** the chocolate river's group, and how far the chocolate has flooded it */
+  private river: THREE.Group | null = null;
+  private riverFlow = 0;
   stickerWorld: StickerWorld | null = null;
   homeWorld: HomeWorld | SugarHomeWorld | null = null;
   zooWorld: ZooWorld | null = null;
@@ -2221,6 +2232,14 @@ export class GameRuntime {
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.gauntlet?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      // the flood: about three seconds from the factory to both ends
+      if (this.river) {
+        const want = useGame.getState().factoryFixed ? 1 : 0;
+        if (this.riverFlow !== want) {
+          this.riverFlow = want > this.riverFlow ? Math.min(1, this.riverFlow + dt * 0.34) : Math.max(0, this.riverFlow - dt * 0.34);
+          setRiverFlow(this.river, this.riverFlow);
+        }
+      }
       // she won it: it stands on the lawn by her house until she gets in, and
       // then it is drawn wherever she is
       if (!this.playerTruck && this.level.id === "sugar" && useGame.getState().truckOwned) {

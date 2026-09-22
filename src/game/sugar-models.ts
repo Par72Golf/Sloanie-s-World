@@ -176,7 +176,7 @@ const STALL_AWNINGS = [CANDY.pink, CANDY.mint, CANDY.yellow, CANDY.lilac];
  * The river is a single mesh built from the park's own curve, so it is placed
  * at the origin rather than at a point: the geometry already knows where it is.
  */
-registerModel("choc-river", [], () => makeChocolateRiver(RIVER_PATH, SUGAR.lake));
+registerModel("choc-river", [], () => makeChocolateRiver(RIVER_PATH, SUGAR.lake, SUGAR.factory));
 // the wood's trails: ribbons, for the same reason the river is one
 registerModel("forest-trail", [], () => makeRibbonPath(FOREST_TRAIL, 3.4, "#e9d7b6", 0.075));
 registerModel("forest-spur", [], () => makeRibbonPath(FOREST_SPUR, 3, "#e9d7b6", 0.075));
