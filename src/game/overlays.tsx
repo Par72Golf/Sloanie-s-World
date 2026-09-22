@@ -70,7 +70,7 @@ import {
 import { bindingLabel } from "./bindings";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
-import { ACCESSORIES, accessory } from "./accessories";
+import { accessory, allAccessories } from "./accessories";
 import { ItemThumb } from "./item-thumbs";
 import { LEVELS } from "./levels";
 import { MiniMap } from "./minimap";
@@ -2298,12 +2298,12 @@ function Wardrobe() {
           tone="grape"
           icon={Shirt}
           title="Wardrobe"
-          subtitle={`Found ${found.length} of ${ACCESSORIES.length}. Look for the glowing rings around the park.`}
+          subtitle={`Found ${found.length} of ${allAccessories().length}. Look for the glowing rings around the park.`}
           onClose={() => setWardrobe(false)}
           closeLabel="Close wardrobe"
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {ACCESSORIES.map((a) => {
+            {allAccessories().map((a) => {
               const have = found.includes(a.id);
               const wearing = worn[a.slot] === a.id;
               return (

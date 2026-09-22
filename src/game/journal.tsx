@@ -10,7 +10,7 @@ import {
   Ticket,
   X,
 } from "lucide-react";
-import { ACCESSORIES, SLOTS, accessory, type AccessoryId, type Slot } from "./accessories";
+import { SLOTS, accessory, allAccessories, type AccessoryId, type Slot } from "./accessories";
 import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
 import { STICKER_SPOTS } from "./collectibles";
@@ -19,6 +19,7 @@ import { gridMove } from "./grid-nav";
 import { ItemThumb } from "./item-thumbs";
 import { claimPad } from "./input";
 import { STICKER_ART, stickerDataUrl } from "./sticker-art";
+import { CANDY_STICKER_ART, candyStickerDataUrl, candyStickerSpots } from "./candy-stickers";
 import { LEVELS } from "./levels";
 import { Panel } from "./overlays";
 import { speak } from "./speech";
@@ -160,16 +161,44 @@ export function Journal() {
   );
 }
 
+/**
+ * Which park's sticker hunt this is.
+ *
+ * Each park has its own book, its own twenty or thirty stickers and its own
+ * art, but one list of what she has stuck in, because a sticker she found is
+ * hers wherever she found it. The page shows the park she is standing in.
+ */
+function stickerHunt(levelIndex: number) {
+  const sugar = LEVELS[levelIndex]?.id === "sugar";
+  return sugar
+    ? {
+        art: CANDY_STICKER_ART as readonly { id: string; name: string; rarity: string }[],
+        spots: candyStickerSpots() as readonly { id: string; hint: string }[],
+        // the id is this hunt's own; the cast is only to give the two hunts
+        // one shape, and a mismatch would have to be a hand-typed id
+        url: candyStickerDataUrl as (id: string, size?: number, found?: boolean) => string,
+        book: "candyStickerBook" as const,
+      }
+    : {
+        art: STICKER_ART as readonly { id: string; name: string; rarity: string }[],
+        spots: STICKER_SPOTS as readonly { id: string; hint: string }[],
+        url: stickerDataUrl as (id: string, size?: number, found?: boolean) => string,
+        book: "stickerBook" as const,
+      };
+}
+
 /** The count in a page's header band: dumplings found, stickers stuck in, tickets carried. */
 function JournalCount({ tab }: { tab: Tab }) {
   const levelIndex = useGame((s) => s.levelIndex);
   const found = useGame((s) => (s.collected[levelIndex] ?? []).length);
-  const hasBook = useGame((s) => s.stickerBook);
-  const stickers = useGame((s) => s.stickers.length);
+  const hunt = stickerHunt(levelIndex);
+  const hasBook = useGame((s) => s[hunt.book]);
+  const all = useGame((s) => s.stickers);
+  const stickers = all.filter((id) => hunt.art.some((a) => a.id === id)).length;
   const tickets = useGame((s) => s.tickets);
   const chip = "ui-chip shrink-0 bg-surface py-1 text-lg text-ink sm:text-xl";
   if (tab === "dumplings") return <span className={chip}>{found} / {LEVELS[levelIndex]!.dumplings.length}</span>;
-  if (tab === "stickers") return hasBook ? <span className={chip}>{stickers} / {STICKER_ART.length}</span> : null;
+  if (tab === "stickers") return hasBook ? <span className={chip}>{stickers} / {hunt.art.length}</span> : null;
   return (
     <span className={cn(chip, "bg-sun")}>
       <Ticket className="size-5" strokeWidth={2.5} /> {tickets}
@@ -245,7 +274,9 @@ function EmptyPage({ Icon, tone, title, children }: { Icon: typeof BookOpen; ton
 }
 
 function StickersTab() {
-  const hasBook = useGame((s) => s.stickerBook);
+  const levelIndex = useGame((s) => s.levelIndex);
+  const hunt = stickerHunt(levelIndex);
+  const hasBook = useGame((s) => s[hunt.book]);
   const stickers = useGame((s) => s.stickers);
   if (!hasBook) {
     return (
@@ -254,7 +285,7 @@ function StickersTab() {
       </EmptyPage>
     );
   }
-  return <StickerBook stickers={stickers} />;
+  return <StickerBook key={hunt.book} stickers={stickers} hunt={hunt} />;
 }
 
 /** a hand-stuck look: each collected sticker sits at its own slight angle */
@@ -265,14 +296,14 @@ const TILT = [-7, 4, -3, 6, -5, 3, 5, -4, 2, -6, 7, -2];
  * shapes with a question mark. Choosing a space shows its name, or a clue to
  * where it's hiding.
  */
-function StickerBook({ stickers }: { stickers: string[] }) {
+function StickerBook({ stickers, hunt }: { stickers: string[]; hunt: ReturnType<typeof stickerHunt> }) {
   const [cursor, setCursor] = useState(0);
   const cols = 6;
-  const n = STICKER_ART.length;
+  const n = hunt.art.length;
   const grid = useRef<HTMLDivElement>(null);
-  const sel = STICKER_ART[cursor]!;
+  const sel = hunt.art[cursor]!;
   const have = stickers.includes(sel.id);
-  const spot = STICKER_SPOTS.find((s) => s.id === sel.id);
+  const spot = hunt.spots.find((s) => s.id === sel.id);
   const line = have ? `${sel.name}${sel.rarity === "shiny" ? ", a shiny one!" : sel.rarity === "rare" ? ", a rare one!" : "!"}` : `Still hiding. ${spot?.hint ?? ""}`;
   useInput((e) => {
     if (e === "left") setCursor((c) => (c + n - 1) % n);
@@ -293,7 +324,7 @@ function StickerBook({ stickers }: { stickers: string[] }) {
         ref={grid}
         className="grid grid-cols-6 gap-1.5 rounded-[1.1rem] border-[3px] border-edge bg-[#fffdf7] p-2 shadow-[inset_0_0_0_5px_#fff,inset_0_0_0_7px_var(--color-line),0_4px_0_var(--color-edge)] sm:gap-2.5 sm:p-4 lg:gap-2 lg:p-3 2xl:gap-3 2xl:p-4"
       >
-        {STICKER_ART.map((art, i) => {
+        {hunt.art.map((art, i) => {
           const got = stickers.includes(art.id);
           const on = i === cursor;
           return (
@@ -310,7 +341,7 @@ function StickerBook({ stickers }: { stickers: string[] }) {
               aria-label={got ? art.name : "hidden sticker"}
             >
               <img
-                src={stickerDataUrl(art.id, 96, got)}
+                src={hunt.url(art.id, 96, got)}
                 alt=""
                 className={cn(
                   "size-full",
@@ -332,7 +363,7 @@ function StickerBook({ stickers }: { stickers: string[] }) {
           )}
         >
           <img
-            src={stickerDataUrl(sel.id, 128, have)}
+            src={hunt.url(sel.id, 128, have)}
             alt=""
             className={cn("size-full", have ? "-rotate-6 drop-shadow-[0_4px_3px_rgb(29_36_82/0.3)]" : "scale-75 opacity-50")}
           />
@@ -367,7 +398,8 @@ function EquipGrid() {
   // the backpack is in the grid like everything else: wings, a cape and the
   // teddy share its slot, so she needs a way to put it back on. Finding it is
   // what unlocks pickups; wearing it is just how she looks.
-  const items = ACCESSORIES.filter((a) => found.includes(a.id));
+  // both parks' things: what she found in one park is still hers in the other
+  const items = allAccessories().filter((a) => found.includes(a.id));
   const [cursor, setCursor] = useState(0);
   const grid = useRef<HTMLDivElement>(null);
   useEffect(() => {

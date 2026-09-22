@@ -90,8 +90,16 @@ export const ACCESSORIES: AccessoryDef[] = [
  * Every accessory in the game, both parks. ACCESSORIES stays park 1's list —
  * it is what the wardrobe card counts — and each park's pickups come from its
  * own level, so nothing here changes what park 1 shows.
+ *
+ * It is a function, not a constant, on purpose: candy-accessories.ts reads the
+ * park's region centres, so it pulls in the world, which pulls in this file
+ * again. Merging the two lists while this module is still being evaluated
+ * throws if the candy file happened to be the one that started the chain.
+ * Asking for the list at call time never can.
  */
-export const ALL_ACCESSORIES: AccessoryDef[] = [...ACCESSORIES, ...CANDY_ACCESSORIES];
+export function allAccessories(): AccessoryDef[] {
+  return [...ACCESSORIES, ...CANDY_ACCESSORIES];
+}
 
 export const SLOTS: Slot[] = ["head", "hair", "face", "back", "hand"];
 
@@ -100,7 +108,7 @@ export type Worn = Record<Slot, AccessoryId | null>;
 export const NOTHING_WORN: Worn = { head: null, hair: null, face: null, back: null, hand: null };
 
 export function accessory(id: AccessoryId): AccessoryDef {
-  return ALL_ACCESSORIES.find((a) => a.id === id)!;
+  return ACCESSORIES.find((a) => a.id === id) ?? CANDY_ACCESSORIES.find((a) => a.id === id)!;
 }
 
 /**

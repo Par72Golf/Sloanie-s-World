@@ -27,6 +27,8 @@ export type StickerSet = {
   bookColors: { cover: string; pages: string; badge: string; ring: string; glow: string };
   /** id to display name, for the notice when one is picked up */
   names: Map<string, string>;
+  /** the sticker's art as a sprite texture; each park draws its own */
+  texture: (id: string) => THREE.Texture;
   hasBook: (st: GameState) => boolean;
   findBook: (st: GameState) => void;
   take: (st: GameState, id: string, name: string) => void;
@@ -40,6 +42,7 @@ export const PICNIC_STICKERS: StickerSet = {
   book: STICKER_BOOK,
   bookColors: { cover: "#8a4ad0", pages: "#fff8ec", badge: "#ffc53d", ring: "#d8b8ff", glow: "#a070ff" },
   names: new Map(STICKER_ART.map((s) => [s.id as string, s.name])),
+  texture: (id) => stickerTexture(id as StickerId),
   hasBook: (st) => st.stickerBook,
   findBook: (st) => st.findStickerBook(),
   take: (st, id, name) => st.findSticker(id, name),
@@ -49,7 +52,7 @@ export const PICNIC_STICKERS: StickerSet = {
 export class StickerWorld {
   group = new THREE.Group();
   private book: THREE.Group;
-  private stickers: { id: StickerId; name: string; sprite: THREE.Sprite; ring: THREE.Mesh; base: THREE.Vector3; warned: boolean; phase: number }[] = [];
+  private stickers: { id: string; name: string; sprite: THREE.Sprite; ring: THREE.Mesh; base: THREE.Vector3; warned: boolean; phase: number }[] = [];
   private bookWarned = false;
 
   constructor(
@@ -83,8 +86,8 @@ export class StickerWorld {
 
     const names = set.names;
     set.spots.forEach((spot, i) => {
-      const id = spot.id as StickerId;
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: stickerTexture(id), transparent: true, depthWrite: false }));
+      const id = spot.id;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: set.texture(id), transparent: true, depthWrite: false }));
       sprite.scale.set(0.9, 0.9, 1);
       const base = new THREE.Vector3(spot.pos[0], spot.pos[1], spot.pos[2]);
       sprite.position.copy(base);

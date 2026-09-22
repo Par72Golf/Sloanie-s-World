@@ -114,51 +114,58 @@ export function isCandyAccessory(id: string): id is CandyAccessoryId {
  * least 4m from anything else hidden, never on a path, in the river or inside
  * a model, and reachable on foot from the spawn without jumping. y is 0, the
  * park's ground: the pickup floats 1.05m over it, the same as park 1's.
+ *
+ * A function rather than a table because it reads SUGAR: the park's module
+ * reaches this file again through the accessory list, and a table would be
+ * built while sugar-rush.ts was still being evaluated if anything imported
+ * this file first — SUGAR would be undefined and the park would not load.
  */
-export const CANDY_ACCESSORY_SPOTS: NonNullable<LevelDef["accessories"]> = [
-  // behind the candy stall at the east end of the sweet shop street
-  {
-    id: "candypack",
-    pos: [SUGAR.plaza.x - 26, 0, SUGAR.plaza.z + 30],
-    region: "the sweet shop street",
-  },
-  // the west side of the gingerbread village's square
-  {
-    id: "candycrown",
-    pos: [SUGAR.village.x - 16, 0, SUGAR.village.z + 3],
-    region: "Gingerbread Village",
-  },
-  // off the east end of the fairground apron, past the stall row
-  {
-    id: "cupcakehat",
-    pos: [SUGAR.fair.x + 29, 0, SUGAR.fair.z + 14],
-    region: "the fairground",
-  },
-  // out in the gumdrop hills
-  {
-    id: "gumdropclips",
-    pos: [SUGAR.meadow.x - 7, 0, SUGAR.meadow.z + 5],
-    region: "Gumdrop Meadow",
-  },
-  // the foot of the mountain, on the side the climb starts from
-  {
-    id: "peppermintshades",
-    pos: [SUGAR.mountain.x + 10, 0, SUGAR.mountain.z + 11],
-    region: "Ice Cream Mountain",
-  },
-  // the edge of the princess's clearing in the wood
-  {
-    id: "rainbowwings",
-    pos: [SUGAR.forest.x + 9.5, 0, SUGAR.forest.z - 6],
-    region: "the Lollipop Forest",
-  },
-  // out on the grass west of the maze, where the hedges start
-  {
-    id: "canecrook",
-    pos: [SUGAR.maze.x - 30, 0, SUGAR.maze.z + 4],
-    region: "the Licorice Maze",
-  },
-];
+export function candyAccessorySpots(): NonNullable<LevelDef["accessories"]> {
+  return [
+    // behind the candy stall at the east end of the sweet shop street
+    {
+      id: "candypack",
+      pos: [SUGAR.plaza.x - 26, 0, SUGAR.plaza.z + 30],
+      region: "the sweet shop street",
+    },
+    // the south-west corner of the gingerbread village's square
+    {
+      id: "candycrown",
+      pos: [SUGAR.village.x - 12, 0, SUGAR.village.z + 15],
+      region: "Gingerbread Village",
+    },
+    // off the east end of the fairground apron, past the stall row
+    {
+      id: "cupcakehat",
+      pos: [SUGAR.fair.x + 29, 0, SUGAR.fair.z + 14],
+      region: "the fairground",
+    },
+    // out in the gumdrop hills
+    {
+      id: "gumdropclips",
+      pos: [SUGAR.meadow.x - 14, 0, SUGAR.meadow.z - 6],
+      region: "Gumdrop Meadow",
+    },
+    // the foot of the mountain, on the side the climb starts from
+    {
+      id: "peppermintshades",
+      pos: [SUGAR.mountain.x + 10, 0, SUGAR.mountain.z + 11],
+      region: "Ice Cream Mountain",
+    },
+    // the edge of the princess's clearing in the wood
+    {
+      id: "rainbowwings",
+      pos: [SUGAR.forest.x + 9.5, 0, SUGAR.forest.z - 6],
+      region: "the Lollipop Forest",
+    },
+    // out on the grass west of the maze, where the hedges start
+    {
+      id: "canecrook",
+      pos: [SUGAR.maze.x - 28, 0, SUGAR.maze.z + 4],
+      region: "the Licorice Maze",
+    },
+  ];
+}
 
 /* ----------------------------------------------------------------- the meshes */
 
@@ -169,14 +176,32 @@ const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 12);
 const coneGeo = new THREE.ConeGeometry(1, 1, 12);
 const ringGeo = new THREE.TorusGeometry(1, 0.08, 8, 24);
 
-function box(color: string, sx: number, sy: number, sz: number, x: number, y: number, z: number, roughness = 0.5) {
+function box(
+  color: string,
+  sx: number,
+  sy: number,
+  sz: number,
+  x: number,
+  y: number,
+  z: number,
+  roughness = 0.5,
+) {
   const m = new THREE.Mesh(beveledBox(sx, sy, sz), flat(color, roughness));
   m.position.set(x, y, z);
   m.castShadow = true;
   return m;
 }
 
-function ball(color: string, r: number, x: number, y: number, z: number, sy = r, sz = r, mat?: THREE.Material) {
+function ball(
+  color: string,
+  r: number,
+  x: number,
+  y: number,
+  z: number,
+  sy = r,
+  sz = r,
+  mat?: THREE.Material,
+) {
   const m = new THREE.Mesh(sphereGeo, mat ?? flat(color));
   m.scale.set(r, sy, sz);
   m.position.set(x, y, z);
@@ -202,15 +227,20 @@ function gumdrop(color: string, r: number, x: number, y: number, z: number) {
 }
 
 /**
- * Red stripes wound round a white rod: a stack of tilted rings, which is what
+ * Red stripes wound round a white rod: a stack of tilted bands, which is what
  * a candy cane's spiral looks like from any distance you can see one at.
+ *
+ * The band has its own torus rather than the thin ringGeo: scaling a torus
+ * scales its tube with it, and ringGeo shrunk to a 3cm rod gave stripes 2mm
+ * thick, which is a white stick with a pink smudge on it.
  */
+const stripeGeo = new THREE.TorusGeometry(1, 0.34, 6, 14);
 function caneStripes(g: THREE.Group, from: THREE.Vector3, to: THREE.Vector3, r: number, n: number) {
   const red = flat(C.cane, 0.3);
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n;
-    const ring = new THREE.Mesh(ringGeo, red);
-    ring.scale.set(r * 1.02, r * 1.02, r * 0.55);
+    const ring = new THREE.Mesh(stripeGeo, red);
+    ring.scale.set(r * 0.92, r * 0.92, r * 0.5);
     ring.rotation.x = Math.PI / 2;
     ring.rotation.y = 0.5;
     ring.position.lerpVectors(from, to, t);
@@ -226,7 +256,11 @@ wingShape.bezierCurveTo(0.16, 0.5, 0.52, 0.62, 0.58, 0.3);
 wingShape.bezierCurveTo(0.64, 0.02, 0.4, -0.3, 0.16, -0.34);
 wingShape.bezierCurveTo(0.06, -0.36, 0.0, -0.22, 0, -0.04);
 const wingGeo = (() => {
-  const geo = new THREE.ExtrudeGeometry(wingShape, { depth: 0.022, bevelEnabled: false, curveSegments: 14 });
+  const geo = new THREE.ExtrudeGeometry(wingShape, {
+    depth: 0.022,
+    bevelEnabled: false,
+    curveSegments: 14,
+  });
   geo.translate(0, 0, -0.011);
   return geo;
 })();
@@ -252,7 +286,9 @@ export function makeCandyAccessory(
       g.add(band);
       for (let i = 0; i < 10; i++) {
         const a = (i / 10) * Math.PI * 2;
-        g.add(ball(C.icing, 0.045, Math.cos(a) * 0.215, 0.575, Math.sin(a) * 0.215 - 0.01, 0.05, 0.045));
+        g.add(
+          ball(C.icing, 0.045, Math.cos(a) * 0.215, 0.575, Math.sin(a) * 0.215 - 0.01, 0.05, 0.045),
+        );
       }
       const drops = [C.cane, C.sun, C.mint, C.lilac, C.orange, C.blush];
       drops.forEach((c, i) => {
@@ -261,7 +297,8 @@ export function makeCandyAccessory(
       });
       // a pink candy heart over her forehead, the front of the crown
       const heart = new THREE.Group();
-      for (const s of [-1, 1]) heart.add(ball(C.pink, 0.038, s * 0.024, 0.012, 0, 0.038, 0.02, glossy(C.pink)));
+      for (const s of [-1, 1])
+        heart.add(ball(C.pink, 0.038, s * 0.024, 0.012, 0, 0.038, 0.02, glossy(C.pink)));
       const tip = new THREE.Mesh(coneGeo, glossy(C.pink));
       tip.scale.set(0.072, 0.07, 0.04);
       tip.rotation.z = Math.PI;
@@ -274,47 +311,65 @@ export function makeCandyAccessory(
     case "cupcakehat": {
       // a whole cupcake sitting on her head: a fluted wrapper, a fat swirl of
       // frosting, sprinkles and a cherry
-      const wrapper = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.17, 0.2, 16), flat(C.blush, 0.55));
-      wrapper.position.set(0, 0.68, -0.01);
+      const wrapper = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.21, 0.155, 0.18, 16),
+        flat(C.blush, 0.55),
+      );
+      wrapper.position.set(0, 0.66, -0.01);
       wrapper.castShadow = true;
       g.add(wrapper);
       for (let i = 0; i < 14; i++) {
         const a = (i / 14) * Math.PI * 2;
-        const rib = box(C.pink, 0.03, 0.2, 0.03, Math.cos(a) * 0.21, 0.68, Math.sin(a) * 0.21 - 0.01, 0.55);
+        const rib = box(
+          C.pink,
+          0.028,
+          0.18,
+          0.028,
+          Math.cos(a) * 0.188,
+          0.66,
+          Math.sin(a) * 0.188 - 0.01,
+          0.55,
+        );
         rib.rotation.y = -a;
         g.add(rib);
       }
-      g.add(ball(C.cream, 0.235, 0, 0.79, -0.01, 0.06, 0.235)); // the cake's lip
-      // the swirl: three softening rounds of frosting, each turned a little
-      const frosting = glossy("#fff2f7");
+      g.add(ball(C.cream, 0.208, 0, 0.75, -0.01, 0.05, 0.208)); // the cake's lip
+      /*
+       * The swirl. It was three fat white rounds to start with and read as a
+       * chef's hat from behind her: too tall, and white at this size is just a
+       * blob. Pink frosting, alternating shades so the turns show, and half the
+       * height — the sweet has to sit ON her head, not replace it.
+       */
+      const icingA = glossy("#ffd9ea");
+      const icingB = glossy("#ffb3d8");
       const swirl: [number, number, number, number][] = [
-        [0.215, 0.87, 0.1, 0.0],
-        [0.165, 0.97, 0.085, 0.5],
-        [0.115, 1.05, 0.07, 1.0],
+        [0.185, 0.81, 0.075, 0.0],
+        [0.14, 0.875, 0.062, 0.7],
+        [0.095, 0.925, 0.05, 1.4],
       ];
-      for (const [r, y, h, turn] of swirl) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, h, 8, 20), frosting);
+      swirl.forEach(([r, y, h, turn], i) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, h, 8, 20), i % 2 ? icingB : icingA);
         ring.rotation.x = Math.PI / 2;
         ring.rotation.z = turn;
-        ring.position.set(Math.cos(turn) * 0.018, y, Math.sin(turn) * 0.018 - 0.01);
+        ring.position.set(Math.cos(turn) * 0.016, y, Math.sin(turn) * 0.016 - 0.01);
         ring.castShadow = true;
         g.add(ring);
-      }
-      g.add(ball("#fff2f7", 0.1, 0, 1.1, -0.01, 0.075, 0.1, frosting));
+      });
+      g.add(ball("#ffd9ea", 0.075, 0, 0.96, -0.01, 0.055, 0.075, icingA));
       const sprinkles = [C.cane, C.sun, C.mint, C.lilac, C.sky, C.orange];
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2 + 0.4;
-        const r = 0.1 + (i % 3) * 0.055;
+        const r = 0.09 + (i % 3) * 0.045;
         const s = new THREE.Mesh(sprinkleGeo, flat(sprinkles[i % sprinkles.length]!, 0.4));
-        s.scale.setScalar(1.5);
-        s.position.set(Math.cos(a) * r, 0.94 + (i % 4) * 0.045, Math.sin(a) * r - 0.01);
+        s.scale.setScalar(2.2);
+        s.position.set(Math.cos(a) * r, 0.855 + (i % 4) * 0.035, Math.sin(a) * r - 0.01);
         s.rotation.set(1.2 + i, a, 0.6);
         g.add(s);
       }
-      g.add(ball(C.cherry, 0.062, 0, 1.19, -0.01, 0.062, 0.062, glossy(C.cherry)));
+      g.add(ball(C.cherry, 0.055, 0, 1.02, -0.01, 0.055, 0.055, glossy(C.cherry)));
       const stalk = new THREE.Mesh(cylGeo, flat("#4a7a2a", 0.6));
-      stalk.scale.set(0.009, 0.1, 0.009);
-      stalk.position.set(0.02, 1.26, -0.01);
+      stalk.scale.set(0.009, 0.09, 0.009);
+      stalk.position.set(0.018, 1.08, -0.01);
       stalk.rotation.z = -0.4;
       g.add(stalk);
       return { mesh: g, attach: "head" };
@@ -323,14 +378,16 @@ export function makeCandyAccessory(
       // a big sugared gumdrop over each ear on a licorice clip, with a little
       // one behind it: hair slot, so it sits below the hats
       for (const s of [-1, 1]) {
-        const clip = box(C.licorice, 0.11, 0.028, 0.075, s * 0.2, 0.5, 0.02, 0.35);
+        const clip = box(C.licorice, 0.12, 0.03, 0.08, s * 0.205, 0.525, 0.02, 0.35);
         clip.rotation.z = -s * 0.35;
         g.add(clip);
-        const big = gumdrop(s > 0 ? C.pink : C.lilac, 0.085, s * 0.235, 0.535, 0.035);
-        big.rotation.z = -s * 0.5;
+        // big enough to see from behind her, and set out on the hair rather
+        // than buried in it
+        const big = gumdrop(s > 0 ? C.pink : C.lilac, 0.105, s * 0.25, 0.565, 0.03);
+        big.rotation.z = -s * 0.55;
         g.add(big);
-        const small = gumdrop(s > 0 ? C.sun : C.mint, 0.055, s * 0.205, 0.5, -0.075);
-        small.rotation.z = -s * 0.6;
+        const small = gumdrop(s > 0 ? C.sun : C.mint, 0.065, s * 0.225, 0.515, -0.085);
+        small.rotation.z = -s * 0.65;
         g.add(small);
       }
       return { mesh: g, attach: "head" };
@@ -338,27 +395,41 @@ export function makeCandyAccessory(
     case "peppermintshades": {
       // round pink lenses in candy-cane rims, with licorice arms and a little
       // mint humbug where the arm meets the frame
+      /*
+       * Round lenses the size park 1's sunglasses use. The first pair was
+       * twice this and read as a carnival mask, not a pair of glasses: on a
+       * face this small, "chunky" is 6cm across, not 12.
+       */
+      const rimGeo = new THREE.TorusGeometry(0.062, 0.013, 8, 18);
       for (const s of [-1, 1]) {
         const lens = new THREE.Mesh(cylGeo, lam("#ff8fc4", { flat: true, roughness: 0.15 }));
-        lens.scale.set(0.088, 0.018, 0.088);
+        lens.scale.set(0.058, 0.016, 0.058);
         lens.rotation.x = Math.PI / 2;
-        lens.position.set(s * 0.1, 0.325, 0.285);
+        lens.position.set(s * 0.095, 0.325, 0.283);
         g.add(lens);
-        // the rim: a white ring with red bars across it, a candy cane bent round
-        const rim = new THREE.Mesh(ringGeo, flat(C.icing, 0.35));
-        rim.scale.set(0.095, 0.095, 0.03);
-        rim.position.set(s * 0.1, 0.325, 0.292);
+        // the rim, a candy cane bent into a circle: white with red stripes
+        const rim = new THREE.Mesh(rimGeo, flat(C.icing, 0.35));
+        rim.position.set(s * 0.095, 0.325, 0.29);
         g.add(rim);
-        for (let i = 0; i < 8; i++) {
-          const a = (i / 8) * Math.PI * 2;
-          const bar = box(C.cane, 0.028, 0.03, 0.03, s * 0.1 + Math.cos(a) * 0.095, 0.325 + Math.sin(a) * 0.095, 0.292, 0.3);
-          bar.rotation.z = a + 0.6;
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + 0.3;
+          const bar = box(
+            C.cane,
+            0.016,
+            0.03,
+            0.026,
+            s * 0.095 + Math.cos(a) * 0.062,
+            0.325 + Math.sin(a) * 0.062,
+            0.29,
+            0.3,
+          );
+          bar.rotation.z = a + Math.PI / 2;
           g.add(bar);
         }
-        g.add(box(C.licorice, 0.02, 0.016, 0.26, s * 0.21, 0.335, 0.165, 0.3));
-        g.add(ball(C.mint, 0.032, s * 0.2, 0.332, 0.275, 0.032, 0.018, glossy(C.mint)));
+        g.add(box(C.licorice, 0.018, 0.014, 0.26, s * 0.2, 0.335, 0.165, 0.3));
+        g.add(ball(C.mint, 0.022, s * 0.185, 0.332, 0.268, 0.022, 0.014, glossy(C.mint)));
       }
-      g.add(box(C.icing, 0.05, 0.016, 0.018, 0, 0.335, 0.293, 0.3));
+      g.add(box(C.icing, 0.045, 0.014, 0.016, 0, 0.33, 0.29, 0.3));
       return { mesh: g, attach: "head" };
     }
     case "rainbowwings": {
@@ -370,6 +441,9 @@ export function makeCandyAccessory(
         side.position.set(s * 0.05, 0.3, -0.2);
         side.rotation.y = s > 0 ? 0.42 : Math.PI - 0.42;
         side.rotation.z = s > 0 ? 0.15 : -0.15;
+        // a shade smaller than park 1's butterfly wings, which is as big as a
+        // pair of wings can be before they are wider than she is
+        side.scale.setScalar(0.84);
         bands.forEach((c, i) => {
           const k = 1 - i * 0.145;
           const band = new THREE.Mesh(wingGeo, flat(c, 0.35));
@@ -398,19 +472,19 @@ export function makeCandyAccessory(
       // a candy cane as tall as she is, held like a shepherd's crook: a striped
       // rod leaning out of her fist and a hook curling forward at the top
       const cane = new THREE.Group();
-      cane.rotation.x = 0.38;
+      cane.rotation.x = 0.32;
       const white = flat(C.icing, 0.3);
-      const R = 0.032;
+      const R = 0.042;
       const rod = new THREE.Mesh(cylGeo, white);
-      rod.scale.set(R, 0.86, R);
-      rod.position.y = 0.2;
+      rod.scale.set(R, 0.98, R);
+      rod.position.y = 0.26;
       rod.castShadow = true;
       cane.add(rod);
-      caneStripes(cane, new THREE.Vector3(0, -0.2, 0), new THREE.Vector3(0, 0.6, 0), R, 9);
+      caneStripes(cane, new THREE.Vector3(0, -0.21, 0), new THREE.Vector3(0, 0.71, 0), R, 9);
       // the hook: a half torus standing in the xy plane, curling forward
-      const hookR = 0.14;
+      const hookR = 0.19;
       const hook = new THREE.Group();
-      hook.position.set(0, 0.63, 0);
+      hook.position.set(0, 0.75, 0);
       const arc = new THREE.Mesh(new THREE.TorusGeometry(hookR, R, 10, 22, Math.PI * 1.1), white);
       arc.rotation.y = Math.PI / 2;
       arc.rotation.z = -Math.PI / 2;
@@ -418,8 +492,8 @@ export function makeCandyAccessory(
       hook.add(arc);
       for (let i = 0; i < 5; i++) {
         const a = 0.25 + (i / 5) * Math.PI * 0.95;
-        const ring = new THREE.Mesh(ringGeo, flat(C.cane, 0.3));
-        ring.scale.set(R * 1.02, R * 1.02, R * 0.55);
+        const ring = new THREE.Mesh(stripeGeo, flat(C.cane, 0.3));
+        ring.scale.set(R * 0.92, R * 0.92, R * 0.5);
         ring.position.set(0, hookR * Math.cos(a), hookR * Math.sin(a));
         ring.rotation.x = Math.PI / 2 - a;
         ring.rotation.y = 0.4;
@@ -430,7 +504,7 @@ export function makeCandyAccessory(
       const bow = new THREE.Group();
       for (const s of [-1, 1]) bow.add(ball(C.pink, 0.05, s * 0.05, 0, 0, 0.035, 0.028));
       bow.add(ball(C.blush, 0.022, 0, 0, 0.01));
-      bow.position.set(0, 0.16, 0.03);
+      bow.position.set(0, 0.2, 0.035);
       cane.add(bow);
       g.add(cane);
       return { mesh: g, attach: "hand" };
@@ -475,7 +549,16 @@ export function makeCandyAccessory(
       lolly.add(disc);
       for (let i = 0; i < 3; i++) {
         const a = (i / 3) * Math.PI * 2;
-        const arm = box(C.cane, 0.028, 0.03, 0.07, Math.cos(a) * 0.04, 0.13, Math.sin(a) * 0.04, 0.25);
+        const arm = box(
+          C.cane,
+          0.028,
+          0.03,
+          0.07,
+          Math.cos(a) * 0.04,
+          0.13,
+          Math.sin(a) * 0.04,
+          0.25,
+        );
         arm.rotation.y = -a;
         lolly.add(arm);
       }
@@ -493,12 +576,3 @@ export function makeCandyAccessory(
     }
   }
 }
-
-/** Every candy item's slot, for anything that wants to group them. */
-export const CANDY_SLOTS: Record<CandyAccessoryId, Slot> = CANDY_ACCESSORIES.reduce(
-  (acc, a) => {
-    acc[a.id as CandyAccessoryId] = a.slot;
-    return acc;
-  },
-  {} as Record<CandyAccessoryId, Slot>,
-);

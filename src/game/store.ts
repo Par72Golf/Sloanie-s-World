@@ -10,7 +10,7 @@ import {
   type TempBand,
 } from "./types";
 import { clearSave, loadSave, persistSave, type RunRecord } from "./save";
-import { ACCESSORIES, NOTHING_WORN, accessory, type AccessoryId, type Slot, type Worn } from "./accessories";
+import { ACCESSORIES, NOTHING_WORN, accessory, allAccessories, type AccessoryId, type Slot, type Worn } from "./accessories";
 import type { BoothGame } from "./carnival";
 import type { PetKindId, PetSave, QuestSave, QuestStage } from "./types";
 import type { HelpId } from "./help-cards";
@@ -145,8 +145,11 @@ export type GameStore = {
   buyItem: (id: AccessoryId, price: number) => boolean;
   /** Sticker book and stickers (saved). Stickers need the book. */
   stickerBook: boolean;
+  /** Sugar Rush's own book: a different park, a different hunt, its own book */
+  candyStickerBook: boolean;
   stickers: string[];
   findStickerBook: () => void;
+  findCandyStickerBook: () => void;
   findSticker: (id: string, name: string) => void;
   /** Journal tab: dumplings, stickers, or the backpack's contents. */
   journalTab: "dumplings" | "stickers" | "bag";
@@ -316,6 +319,7 @@ function persistSlice(s: GameStore) {
     bowlsBest: s.bowlsBest,
     lavaBest: s.lavaBest,
     stickerBook: s.stickerBook,
+    candyStickerBook: s.candyStickerBook,
     stickers: s.stickers,
     quest: s.quest,
     pets: s.pets,
@@ -335,7 +339,7 @@ function wornFromSave(raw: Record<string, string | null>): Worn {
   const worn: Worn = { ...NOTHING_WORN };
   for (const id of Object.values(raw ?? {})) {
     if (!id) continue;
-    const def = ACCESSORIES.find((a) => a.id === id);
+    const def = allAccessories().find((a) => a.id === id);
     if (def) worn[def.slot] = def.id;
   }
   return worn;
@@ -467,6 +471,7 @@ export const useGame = create<GameStore>((set, get) => ({
     return true;
   },
   stickerBook: saved.stickerBook,
+  candyStickerBook: saved.candyStickerBook ?? false,
   stickers: saved.stickers,
   findStickerBook: () => {
     if (get().stickerBook) return;
@@ -474,9 +479,17 @@ export const useGame = create<GameStore>((set, get) => ({
     persistSlice(get());
     get().showHelp("stickers");
   },
+  findCandyStickerBook: () => {
+    if (get().candyStickerBook) return;
+    set({ candyStickerBook: true, emmettNotice: "You found a candy sticker book! Now you can collect candy stickers." });
+    persistSlice(get());
+    get().showHelp("stickers");
+  },
   findSticker: (id, name) => {
     const st = get();
-    if (!st.stickerBook || st.stickers.includes(id)) return;
+    // either park's book will keep a sticker: the hunt that offered it has
+    // already checked she has the right one
+    if ((!st.stickerBook && !st.candyStickerBook) || st.stickers.includes(id)) return;
     const stickers = [...st.stickers, id];
     set({ stickers, emmettNotice: `${name} sticker! That's ${stickers.length} in your book.` });
     persistSlice(get());
@@ -914,6 +927,7 @@ export const useGame = create<GameStore>((set, get) => ({
       lavaBest: null,
       lavaTime: null,
       stickerBook: false,
+      candyStickerBook: false,
       stickers: [],
       quest: { stage: "none", treats: [], chapter: 0, seek: null },
       pets: [],

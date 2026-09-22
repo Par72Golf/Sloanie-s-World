@@ -1,4 +1,12 @@
-import { ART_KIT, registerStickerArt, type Art, type StickerRarity } from "./sticker-art";
+import {
+  ART_KIT,
+  drawStickerArt,
+  stickerDataUrlArt,
+  stickerTextureArt,
+  type Art,
+  type ArtSource,
+  type StickerRarity,
+} from "./sticker-art";
 import type { StickerSpot } from "./collectibles";
 import type { StickerSet } from "./stickers-world";
 import { SUGAR, mazeCell } from "./sugar-rush";
@@ -45,10 +53,35 @@ export type CandyStickerId =
 
 /* ------------------------------------------------------------------ the art */
 
-const { TAU, WHITE, C, E, RR, P, LINE, PATH, part, blob, clip, strokePath, lin, ball, dot, gloss, twinkle, eye, smile, blush } = ART_KIT;
+const {
+  TAU,
+  WHITE,
+  C,
+  E,
+  RR,
+  P,
+  LINE,
+  PATH,
+  part,
+  blob,
+  clip,
+  strokePath,
+  lin,
+  ball,
+  dot,
+  gloss,
+  twinkle,
+  eye,
+  smile,
+  blush,
+} = ART_KIT;
 
 /** Sugar crystals scattered over a sweet: what makes a gumdrop look sugared. */
-function sugar(g: CanvasRenderingContext2D, pts: [number, number, number][], color = "rgba(255,255,255,0.92)") {
+function sugar(
+  g: CanvasRenderingContext2D,
+  pts: [number, number, number][],
+  color = "rgba(255,255,255,0.92)",
+) {
   for (const [x, y, r] of pts) dot(g, x, y, r, color);
 }
 
@@ -70,29 +103,38 @@ const gumballs: Art = (() => {
 })();
 
 const candycane: Art = (() => {
-  const cane = PATH((g) => {
+  /*
+   * The stripes are a dashed white stroke laid over a red one, not a clip.
+   * Clipping to the cane does not work: it is an open line, and a clip uses
+   * the path's fill, which for a line is a sliver — the first version came out
+   * as an empty outline with two stripes in it.
+   */
+  const path = (g: CanvasRenderingContext2D) => {
     g.moveTo(62, 88);
     g.lineTo(62, 44);
     g.bezierCurveTo(62, 20, 30, 20, 30, 44);
     g.lineTo(30, 54);
-  }, 19);
+  };
+  const cane = PATH(path, 19);
   return {
     sil: [cane],
     draw(g) {
-      part(g, cane, WHITE);
-      clip(g, cane, () => {
-        for (let i = -40; i < 120; i += 15) {
-          strokePath(g, (g) => {
-            g.moveTo(i, 96);
-            g.lineTo(i + 30, 4);
-          }, "#e8384f", 8);
-        }
-      });
-      part(g, cane, "rgba(0,0,0,0)");
-      strokePath(g, (g) => {
-        g.moveTo(57, 84);
-        g.lineTo(57, 50);
-      }, "rgba(255,255,255,0.45)", 3);
+      part(g, cane, "#e8384f");
+      g.save();
+      g.setLineDash([9, 9]);
+      g.lineCap = "butt";
+      strokePath(g, path, "#fffaf4", 19);
+      g.restore();
+      g.lineCap = "round";
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(57, 82);
+          g.lineTo(57, 52);
+        },
+        "rgba(255,255,255,0.35)",
+        3,
+      );
     },
   };
 })();
@@ -107,15 +149,46 @@ const cupcake: Art = (() => {
     draw(g) {
       part(g, cup, lin(g, 0, 54, 0, 88, "#ff93c4", "#e8508f"));
       clip(g, cup, () => {
-        for (let x = 30; x < 74; x += 8) strokePath(g, (g) => { g.moveTo(x, 54); g.lineTo(x - 3, 90); }, "rgba(255,255,255,0.45)", 3);
+        for (let x = 30; x < 74; x += 8)
+          strokePath(
+            g,
+            (g) => {
+              g.moveTo(x, 54);
+              g.lineTo(x - 3, 90);
+            },
+            "rgba(255,255,255,0.45)",
+            3,
+          );
       });
       part(g, lip, "#f7ead3");
       blob(g, frost, lin(g, 30, 24, 70, 56, "#fffafc", "#ffd9ea"));
-      for (const [x, y, c] of [[36, 40, "#e8384f"], [58, 36, "#39a8e8"], [48, 46, "#7fd94a"], [64, 46, "#ffc83a"], [42, 28, "#b06aff"]] as [number, number, string][]) {
-        strokePath(g, (g) => { g.moveTo(x - 3, y - 2); g.lineTo(x + 3, y + 2); }, c, 3.4);
+      for (const [x, y, c] of [
+        [36, 40, "#e8384f"],
+        [58, 36, "#39a8e8"],
+        [48, 46, "#7fd94a"],
+        [64, 46, "#ffc83a"],
+        [42, 28, "#b06aff"],
+      ] as [number, number, string][]) {
+        strokePath(
+          g,
+          (g) => {
+            g.moveTo(x - 3, y - 2);
+            g.lineTo(x + 3, y + 2);
+          },
+          c,
+          3.4,
+        );
       }
       part(g, cherry, ball(g, 50, 15, 8, "#ff8a8a", "#d81f3c", "#8f0f24"));
-      strokePath(g, (g) => { g.moveTo(52, 9); g.quadraticCurveTo(58, 2, 64, 4); }, "#4a7a2a", 3);
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(52, 9);
+          g.quadraticCurveTo(58, 2, 64, 4);
+        },
+        "#4a7a2a",
+        3,
+      );
       gloss(g, 47, 12, 2.4, 1.6, -0.6);
     },
   };
@@ -144,7 +217,15 @@ const donut: Art = (() => {
         const r = 16 + (i % 3) * 7;
         const x = 50 + Math.cos(a) * r;
         const y = 48 + Math.sin(a) * r * 0.95;
-        strokePath(g, (g) => { g.moveTo(x - 3, y - 2); g.lineTo(x + 3, y + 2); }, ["#fff6ea", "#ffc83a", "#7fd94a", "#39a8e8"][i % 4]!, 3.2);
+        strokePath(
+          g,
+          (g) => {
+            g.moveTo(x - 3, y - 2);
+            g.lineTo(x + 3, y + 2);
+          },
+          ["#fff6ea", "#ffc83a", "#7fd94a", "#39a8e8"][i % 4]!,
+          3.2,
+        );
       }
       part(g, hole, "#c98a44");
       part(g, C(50, 51, 7), "#a86a30", 0);
@@ -164,8 +245,24 @@ const icecream: Art = (() => {
       part(g, cone, lin(g, 29, 50, 71, 92, "#f0c98a", "#c98a44"));
       clip(g, cone, () => {
         for (let i = -60; i < 90; i += 11) {
-          strokePath(g, (g) => { g.moveTo(i, 44); g.lineTo(i + 60, 100); }, "rgba(120,74,30,0.55)", 2.4);
-          strokePath(g, (g) => { g.moveTo(i + 60, 44); g.lineTo(i, 100); }, "rgba(120,74,30,0.55)", 2.4);
+          strokePath(
+            g,
+            (g) => {
+              g.moveTo(i, 44);
+              g.lineTo(i + 60, 100);
+            },
+            "rgba(120,74,30,0.55)",
+            2.4,
+          );
+          strokePath(
+            g,
+            (g) => {
+              g.moveTo(i + 60, 44);
+              g.lineTo(i, 100);
+            },
+            "rgba(120,74,30,0.55)",
+            2.4,
+          );
         }
       });
       part(g, bottom, ball(g, 44, 38, 26, "#ffd0e6", "#ff93c4", "#e8508f"));
@@ -222,7 +319,6 @@ const swirlpop: Art = (() => {
         g.lineCap = "round";
         g.stroke();
       });
-      part(g, disc, "rgba(0,0,0,0)");
       gloss(g, 34, 26, 7, 4.4, -0.7);
       twinkle(g, 74, 18, 6);
       twinkle(g, 22, 60, 4);
@@ -238,12 +334,46 @@ const chocbar: Art = (() => {
     draw(g) {
       part(g, foil, lin(g, 10, 14, 54, 42, "#f2f4f8", "#b8c2cf"));
       part(g, bar, lin(g, 16, 30, 84, 80, "#8a5a34", "#5a3418"));
-      for (let i = 1; i < 4; i++) strokePath(g, (g) => { g.moveTo(16 + i * 17, 30); g.lineTo(16 + i * 17, 80); }, "#43250f", 3);
-      for (let i = 1; i < 3; i++) strokePath(g, (g) => { g.moveTo(16, 30 + i * 16.7); g.lineTo(84, 30 + i * 16.7); }, "#43250f", 3);
+      for (let i = 1; i < 4; i++)
+        strokePath(
+          g,
+          (g) => {
+            g.moveTo(16 + i * 17, 30);
+            g.lineTo(16 + i * 17, 80);
+          },
+          "#43250f",
+          3,
+        );
+      for (let i = 1; i < 3; i++)
+        strokePath(
+          g,
+          (g) => {
+            g.moveTo(16, 30 + i * 16.7);
+            g.lineTo(84, 30 + i * 16.7);
+          },
+          "#43250f",
+          3,
+        );
       for (let i = 0; i < 4; i++) {
-        strokePath(g, (g) => { g.moveTo(19 + i * 17, 33); g.lineTo(30 + i * 17, 33); }, "rgba(255,255,255,0.3)", 3);
+        strokePath(
+          g,
+          (g) => {
+            g.moveTo(19 + i * 17, 33);
+            g.lineTo(30 + i * 17, 33);
+          },
+          "rgba(255,255,255,0.3)",
+          3,
+        );
       }
-      strokePath(g, (g) => { g.moveTo(16, 24); g.lineTo(44, 16); }, "rgba(255,255,255,0.7)", 3);
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(16, 24);
+          g.lineTo(44, 16);
+        },
+        "rgba(255,255,255,0.7)",
+        3,
+      );
     },
   };
 })();
@@ -277,7 +407,14 @@ const mallow: Art = (() => {
       part(g, E(50, 52, 28, 9), "#fff0f6", 2.6);
       blob(g, [upper, upperTop], lin(g, 30, 17, 30, 52, "#fffaf4", "#f0e2d4"));
       part(g, E(50, 24, 20, 7), WHITE, 2.6);
-      sugar(g, [[36, 66, 1.8], [58, 72, 1.6], [46, 76, 1.5], [66, 60, 1.6], [42, 34, 1.5], [60, 36, 1.4]]);
+      sugar(g, [
+        [36, 66, 1.8],
+        [58, 72, 1.6],
+        [46, 76, 1.5],
+        [66, 60, 1.6],
+        [42, 34, 1.5],
+        [60, 36, 1.4],
+      ]);
       gloss(g, 34, 62, 4, 8, 0.1, 0.4);
     },
   };
@@ -285,14 +422,27 @@ const mallow: Art = (() => {
 
 const cottonfloss: Art = (() => {
   const cone = P(40, 56, 60, 56, 52, 92, 48, 92);
-  const puffs = [C(33, 42, 17), C(66, 40, 18), C(50, 28, 18), C(50, 50, 18), C(44, 38, 18)];
+  const puffs = [C(33, 42, 18), C(66, 41, 18), C(50, 29, 19), C(50, 49, 19)];
   return {
     sil: [cone, ...puffs],
     draw(g) {
       part(g, cone, lin(g, 40, 56, 60, 92, "#f7ead3", "#d9c2a0"));
-      strokePath(g, (g) => { g.moveTo(41, 64); g.lineTo(59, 64); }, "#b06aff", 3);
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(41, 64);
+          g.lineTo(59, 64);
+        },
+        "#b06aff",
+        3,
+      );
       blob(g, puffs, lin(g, 24, 16, 76, 62, "#fff0f8", "#ff93c4", "#e8508f"));
-      for (const [x, y, r] of [[36, 34, 6], [58, 30, 5], [46, 48, 5.5], [64, 48, 4.5]] as [number, number, number][]) {
+      for (const [x, y, r] of [
+        [36, 34, 6],
+        [58, 30, 5],
+        [46, 48, 5.5],
+        [64, 48, 4.5],
+      ] as [number, number, number][]) {
         part(g, C(x, y, r), "rgba(255,255,255,0.42)", 0);
       }
       twinkle(g, 78, 22, 5);
@@ -313,8 +463,16 @@ const gumdrop: Art = (() => {
       blob(g, [dome, base], ball(g, 40, 44, 44, "#ffd0a8", "#ff8a3a", "#c95a10"));
       part(g, E(50, 78, 30, 9), "#ffb37a", 2.6);
       sugar(g, [
-        [30, 60, 2.2], [38, 46, 2], [52, 38, 2.2], [66, 48, 2], [72, 62, 2.2],
-        [26, 72, 1.8], [44, 68, 1.8], [60, 66, 2], [74, 74, 1.8], [50, 54, 1.7],
+        [30, 60, 2.2],
+        [38, 46, 2],
+        [52, 38, 2.2],
+        [66, 48, 2],
+        [72, 62, 2.2],
+        [26, 72, 1.8],
+        [44, 68, 1.8],
+        [60, 66, 2],
+        [74, 74, 1.8],
+        [50, 54, 1.7],
       ]);
       gloss(g, 36, 44, 5, 9, -0.5, 0.5);
     },
@@ -366,8 +524,18 @@ const sourworm: Art = (() => {
         g.fillStyle = "#ff8a3a";
         g.fill();
       });
-      part(g, body, "rgba(0,0,0,0)");
-      sugar(g, [[26, 62, 1.8], [36, 60, 1.6], [44, 70, 1.7], [58, 46, 1.7], [68, 34, 1.6], [76, 44, 1.7]], "rgba(255,255,255,0.75)");
+      sugar(
+        g,
+        [
+          [26, 62, 1.8],
+          [36, 60, 1.6],
+          [44, 70, 1.7],
+          [58, 46, 1.7],
+          [68, 34, 1.6],
+          [76, 44, 1.7],
+        ],
+        "rgba(255,255,255,0.75)",
+      );
       eye(g, 78, 43, 2.4);
       eye(g, 82, 51, 2.2);
       blush(g, 72, 54, 3.4, 2.2);
@@ -398,17 +566,11 @@ const peppermint: Art = (() => {
             50 + Math.cos(a + 0.9) * 34,
             50 + Math.sin(a + 0.9) * 34,
           );
-          g.quadraticCurveTo(
-            50 + Math.cos(a + 0.62) * 20,
-            50 + Math.sin(a + 0.62) * 20,
-            50,
-            50,
-          );
+          g.quadraticCurveTo(50 + Math.cos(a + 0.62) * 20, 50 + Math.sin(a + 0.62) * 20, 50, 50);
           g.fillStyle = "#e8384f";
           g.fill();
         }
       });
-      part(g, disc, "rgba(0,0,0,0)");
       part(g, C(50, 50, 7), "#fff6ea", 2.6);
       gloss(g, 33, 31, 7.5, 4.2, -0.7);
     },
@@ -430,7 +592,15 @@ const toffeeapple: Art = (() => {
       part(g, stick, lin(g, 45, 68, 55, 96, "#f0dcbe", "#c9a878"));
       part(g, apple, ball(g, 40, 36, 36, "#ff9b7a", "#d81f3c", "#8f0f24"));
       part(g, leaf, lin(g, 58, 20, 86, 12, "#3f9e30", "#8fdc5a"));
-      strokePath(g, (g) => { g.moveTo(50, 20); g.quadraticCurveTo(49, 12, 55, 8); }, "#6b4226", 4);
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(50, 20);
+          g.quadraticCurveTo(49, 12, 55, 8);
+        },
+        "#6b4226",
+        4,
+      );
       gloss(g, 34, 34, 6, 12, -0.5, 0.75);
       dot(g, 62, 60, 3, "rgba(255,255,255,0.55)");
     },
@@ -438,20 +608,25 @@ const toffeeapple: Art = (() => {
 })();
 
 const macaron: Art = (() => {
-  const top = RR(16, 26, 68, 24, 12);
-  const bottom = RR(16, 54, 68, 24, 12);
-  const cream = RR(18, 47, 64, 12, 6);
+  const top = RR(16, 24, 68, 25, 12);
+  const bottom = RR(16, 53, 68, 25, 12);
+  const cream = RR(19, 45, 62, 14, 7);
   return {
     sil: [top, bottom, cream],
     draw(g) {
-      part(g, cream, lin(g, 18, 47, 18, 59, "#fff0c9", "#f0cf8a"));
-      part(g, top, lin(g, 16, 22, 16, 50, "#ffd0e6", "#ff93c4"));
-      part(g, bottom, lin(g, 16, 54, 16, 80, "#ffb3d8", "#e8508f"));
-      for (let i = 0; i < 6; i++) {
-        part(g, C(22 + i * 11.5, 48, 4.6), "#ff9bc9", 0);
-        part(g, C(22 + i * 11.5, 57, 4.6), "#e07aae", 0);
+      // the filling first and with no outline of its own: outlined, the gap
+      // between the two shells read as a row of black teeth
+      part(g, cream, lin(g, 19, 45, 19, 59, "#fff0c9", "#eccd86"), 0);
+      part(g, top, lin(g, 16, 20, 16, 49, "#ffd9ec", "#ff93c4"));
+      part(g, bottom, lin(g, 16, 53, 16, 80, "#ffb3d8", "#e8508f"));
+      // the ruffled feet: bumps along the inner edge of each shell, drawn
+      // over the join so the two outlines do not read as a row of teeth
+      for (let i = 0; i < 7; i++) {
+        part(g, C(22 + i * 9.4, 47, 4.6), "#ffc6e2", 0);
+        part(g, C(22 + i * 9.4, 57, 4.6), "#f09dc4", 0);
       }
-      gloss(g, 32, 32, 9, 3.4, -0.1, 0.55);
+      part(g, RR(19, 49.5, 62, 5, 2.5), "#f7dfa4", 0);
+      gloss(g, 32, 30, 10, 3.4, -0.1, 0.55);
     },
   };
 })();
@@ -465,11 +640,49 @@ const gingerbreadman: Art = (() => {
     sil: [head, body, arms, ...legs],
     draw(g) {
       blob(g, [arms, ...legs, body, head], lin(g, 20, 10, 80, 92, "#e0a860", "#b87a34"));
-      for (const [x, y] of [[50, 50], [50, 62]] as [number, number][]) part(g, C(x, y, 4.2), "#e8384f", 2.2);
-      strokePath(g, (g) => { g.moveTo(26, 44); g.lineTo(34, 48); g.lineTo(26, 52); }, "#fff6ea", 3);
-      strokePath(g, (g) => { g.moveTo(74, 44); g.lineTo(66, 48); g.lineTo(74, 52); }, "#fff6ea", 3);
-      strokePath(g, (g) => { g.moveTo(38, 82); g.lineTo(46, 79); }, "#fff6ea", 3);
-      strokePath(g, (g) => { g.moveTo(62, 82); g.lineTo(54, 79); }, "#fff6ea", 3);
+      for (const [x, y] of [
+        [50, 50],
+        [50, 62],
+      ] as [number, number][])
+        part(g, C(x, y, 4.2), "#e8384f", 2.2);
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(26, 44);
+          g.lineTo(34, 48);
+          g.lineTo(26, 52);
+        },
+        "#fff6ea",
+        3,
+      );
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(74, 44);
+          g.lineTo(66, 48);
+          g.lineTo(74, 52);
+        },
+        "#fff6ea",
+        3,
+      );
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(38, 82);
+          g.lineTo(46, 79);
+        },
+        "#fff6ea",
+        3,
+      );
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(62, 82);
+          g.lineTo(54, 79);
+        },
+        "#fff6ea",
+        3,
+      );
       eye(g, 44, 22, 2.8);
       eye(g, 56, 22, 2.8);
       smile(g, 50, 29, 12, 2.6);
@@ -498,7 +711,6 @@ const popsicle: Art = (() => {
         g.fillStyle = "#ffc83a";
         g.fill();
       });
-      part(g, body, "rgba(0,0,0,0)");
       gloss(g, 36, 24, 4.5, 10, 0.1, 0.6);
       dot(g, 62, 26, 3, "rgba(255,255,255,0.5)");
     },
@@ -518,9 +730,27 @@ const rockcandy: Art = (() => {
     draw(g) {
       part(g, stick, lin(g, 45, 52, 55, 92, "#f0dcbe", "#c9a878"));
       const faces = ["#d8a8ff", "#b06aff", "#e8c2ff", "#9b4ae0"];
-      crystals.forEach((c, i) => part(g, c, lin(g, 26, 16, 76, 68, faces[i]!, i % 2 ? "#7a2fc0" : "#c98aff")));
-      strokePath(g, (g) => { g.moveTo(36, 30); g.lineTo(42, 22); }, "rgba(255,255,255,0.7)", 3);
-      strokePath(g, (g) => { g.moveTo(60, 28); g.lineTo(68, 22); }, "rgba(255,255,255,0.6)", 3);
+      crystals.forEach((c, i) =>
+        part(g, c, lin(g, 26, 16, 76, 68, faces[i]!, i % 2 ? "#7a2fc0" : "#c98aff")),
+      );
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(36, 30);
+          g.lineTo(42, 22);
+        },
+        "rgba(255,255,255,0.7)",
+        3,
+      );
+      strokePath(
+        g,
+        (g) => {
+          g.moveTo(60, 28);
+          g.lineTo(68, 22);
+        },
+        "rgba(255,255,255,0.6)",
+        3,
+      );
       twinkle(g, 22, 26, 6);
       twinkle(g, 82, 36, 5);
     },
@@ -555,144 +785,187 @@ export const CANDY_STICKER_ART: CandyStickerDef[] = [
   { id: "rockcandy", name: "Rock Candy", rarity: "shiny", art: rockcandy },
 ];
 
-// the art is drawn by sticker-art.ts, which looks these up by id
-registerStickerArt(CANDY_STICKER_ART);
+/**
+ * The art handed to sticker-art.ts's renderer. It is passed in rather than
+ * registered: the drawing is shared, the art is this park's, and nothing
+ * depends on which file loaded first.
+ */
+const SOURCES = new Map<string, ArtSource>(
+  CANDY_STICKER_ART.map((s) => [
+    s.id as string,
+    { key: s.id, art: s.art, shiny: s.rarity === "shiny" },
+  ]),
+);
+
+const sourceFor = (id: string): ArtSource => SOURCES.get(id) ?? SOURCES.get("gumballs")!;
+
+/** One of this park's stickers as a texture for the floating pickup. */
+export function candyStickerTexture(id: string) {
+  return stickerTextureArt(sourceFor(id));
+}
+
+/** One of this park's stickers as a data URL, for the sticker book UI. */
+export function candyStickerDataUrl(id: string, size = 128, found = true) {
+  return stickerDataUrlArt(sourceFor(id), size, found);
+}
+
+/** One of this park's stickers drawn straight onto a canvas. */
+export function drawCandySticker(
+  g: CanvasRenderingContext2D,
+  id: string,
+  size: number,
+  found = true,
+) {
+  drawStickerArt(g, sourceFor(id), size, found);
+}
 
 /* ----------------------------------------------------------------- the spots */
 
-const P2 = SUGAR.plaza;
 const at = (x: number, z: number): [number, number, number] => [x, 0.9, z];
 
-export const CANDY_STICKER_SPOTS: StickerSpot[] = [
-  {
-    id: "gumballs",
-    pos: at(P2.x - 18, P2.z + 12),
-    area: "the sweet shop street",
-    hint: "Gumballs spilled in front of the candy stall on the north side of the sweet shop street, just south of where you start.",
-  },
-  {
-    id: "peppermint",
-    pos: at(P2.x + 17, P2.z - 12),
-    area: "Peppermint Plaza",
-    hint: "A peppermint swirl is on the grass north-east of the big peppermint plaza.",
-  },
-  {
-    id: "candycane",
-    pos: at(P2.x - 19, P2.z - 5),
-    area: "Peppermint Plaza",
-    hint: "A candy cane is lying just outside the plaza, on its north-west side.",
-  },
-  {
-    id: "macaron",
-    pos: at(P2.x - 54, P2.z + 16),
-    area: "the sweet shop street",
-    hint: "A macaron rolled past the last cottage, at the west end of the sweet shop street.",
-  },
-  {
-    id: "jellybeans",
-    // the walled candy garden round the chocolate fountain (sugar-rush.ts)
-    pos: at(-28.5, 9.5),
-    area: "the candy garden",
-    hint: "Jelly beans are spilled in the walled garden with the chocolate fountain, west of the plaza.",
-  },
-  {
-    id: "chocbar",
-    pos: at(SUGAR.factory.x - 19, SUGAR.factory.z + 10),
-    area: "the candy factory",
-    hint: "A chocolate bar is round the west side of the candy factory.",
-  },
-  {
-    id: "gumdrop",
-    pos: at(SUGAR.meadow.x - 12, SUGAR.meadow.z - 6),
-    area: "Gumdrop Meadow",
-    hint: "A gumdrop is sitting among the gumdrop hills, on the west side of the meadow.",
-  },
-  {
-    id: "cottonfloss",
-    pos: at(SUGAR.meadow.x + 16, SUGAR.meadow.z - 10),
-    area: "Gumdrop Meadow",
-    hint: "Cotton candy floated to the north-east corner of the gumdrop meadow.",
-  },
-  {
-    id: "licorice",
-    // a corner cell of the maze, well away from the licorice twist in the middle
-    pos: at(mazeCell(1, 4)[0], mazeCell(1, 4)[1]),
-    area: "the Licorice Maze",
-    hint: "A licorice wheel is deep in the licorice maze, in the south-west of it.",
-  },
-  {
-    id: "gummy",
-    pos: at(SUGAR.forest.x - 7.5, SUGAR.forest.z + 9),
-    area: "the Lollipop Forest",
-    hint: "A gummy bear is hiding in the lollipop woods, south of the princess's clearing.",
-  },
-  {
-    id: "swirlpop",
-    pos: at(SUGAR.forest.x + 27, SUGAR.forest.z - 10),
-    area: "the Lollipop Forest",
-    hint: "A swirl lollipop is at the east edge of the lollipop woods, off the trail.",
-  },
-  {
-    id: "toffeeapple",
-    pos: at(SUGAR.village.x - 5, SUGAR.village.z - 16),
-    area: "Gingerbread Village",
-    hint: "A toffee apple is by the gingerbread house at the north end of the village.",
-  },
-  {
-    id: "gingerbreadman",
-    pos: at(SUGAR.village.x - 1, SUGAR.village.z + 14),
-    area: "Gingerbread Village",
-    hint: "A gingerbread man ran off to the south side of the village square.",
-  },
-  {
-    id: "donut",
-    pos: at(SUGAR.village.x + 7, SUGAR.village.z + 13),
-    area: "Gingerbread Village",
-    hint: "A donut is behind the candy shop on the village square.",
-  },
-  {
-    id: "icecream",
-    pos: at(SUGAR.mountain.x + 24, SUGAR.mountain.z + 1),
-    area: "Ice Cream Mountain",
-    hint: "An ice cream cone is on the grass east of Ice Cream Mountain, near the top of the chocolate river.",
-  },
-  {
-    id: "rockcandy",
-    pos: at(SUGAR.mountain.x - 15, SUGAR.mountain.z - 2),
-    area: "Ice Cream Mountain",
-    hint: "Rock candy is growing on the west side of Ice Cream Mountain, far to the north-west.",
-  },
-  {
-    id: "popsicle",
-    pos: at(SUGAR.mountain.x + 19, SUGAR.mountain.z - 6),
-    area: "Ice Cream Mountain",
-    hint: "An ice lolly is melting on the north-east side of Ice Cream Mountain.",
-  },
-  {
-    id: "mallow",
-    pos: at(SUGAR.marshmallow.x + 11, SUGAR.marshmallow.z - 12.5),
-    area: "Marshmallow Fields",
-    hint: "Marshmallows are stacked on the bouncy white fields, far to the south.",
-  },
-  {
-    id: "cupcake",
-    pos: at(SUGAR.fair.x - 17, SUGAR.fair.z + 8),
-    area: "the fairground",
-    hint: "A cupcake is in front of the candy stalls at the fairground.",
-  },
-  {
-    id: "sourworm",
-    pos: at(SUGAR.lake.x - 23, SUGAR.lake.z - 0.5),
-    area: "the chocolate lake",
-    hint: "A sour worm is wiggling on the shore of the chocolate lake, in the far south-east corner.",
-  },
-];
+/**
+ * Where the twenty are, off the region centres in sugar-rush.ts.
+ *
+ * A function rather than a table, for the same reason as the accessories':
+ * this file reads SUGAR, and the park's module reaches back here, so a table
+ * built at module load would read an empty SUGAR if anything imported this
+ * file before the park's.
+ */
+export function candyStickerSpots(): StickerSpot[] {
+  const P2 = SUGAR.plaza;
+  return [
+    {
+      id: "gumballs",
+      pos: at(P2.x - 18, P2.z + 12),
+      area: "the sweet shop street",
+      hint: "Gumballs spilled in front of the candy stall on the north side of the sweet shop street, just south of where you start.",
+    },
+    {
+      id: "peppermint",
+      pos: at(P2.x + 17, P2.z - 12),
+      area: "Peppermint Plaza",
+      hint: "A peppermint swirl is on the grass north-east of the big peppermint plaza.",
+    },
+    {
+      id: "candycane",
+      pos: at(P2.x - 19, P2.z - 5),
+      area: "Peppermint Plaza",
+      hint: "A candy cane is lying just outside the plaza, on its north-west side.",
+    },
+    {
+      id: "macaron",
+      pos: at(P2.x - 54, P2.z + 16),
+      area: "the sweet shop street",
+      hint: "A macaron rolled past the last cottage, at the west end of the sweet shop street.",
+    },
+    {
+      id: "jellybeans",
+      // the walled candy garden round the chocolate fountain (sugar-rush.ts)
+      pos: at(-28.5, 9.5),
+      area: "the candy garden",
+      hint: "Jelly beans are spilled in the walled garden with the chocolate fountain, west of the plaza.",
+    },
+    {
+      id: "chocbar",
+      pos: at(SUGAR.factory.x - 19, SUGAR.factory.z + 10),
+      area: "the candy factory",
+      hint: "A chocolate bar is round the west side of the candy factory.",
+    },
+    {
+      id: "gumdrop",
+      pos: at(SUGAR.meadow.x - 12, SUGAR.meadow.z - 6),
+      area: "Gumdrop Meadow",
+      hint: "A gumdrop is sitting among the gumdrop hills, on the west side of the meadow.",
+    },
+    {
+      id: "cottonfloss",
+      pos: at(SUGAR.meadow.x + 16, SUGAR.meadow.z - 10),
+      area: "Gumdrop Meadow",
+      hint: "Cotton candy floated to the north-east corner of the gumdrop meadow.",
+    },
+    {
+      id: "licorice",
+      // a corner cell of the maze, well away from the licorice twist in the middle
+      pos: at(mazeCell(1, 4)[0], mazeCell(1, 4)[1]),
+      area: "the Licorice Maze",
+      hint: "A licorice wheel is deep in the licorice maze, in the south-west of it.",
+    },
+    {
+      id: "gummy",
+      pos: at(SUGAR.forest.x - 7.5, SUGAR.forest.z + 9),
+      area: "the Lollipop Forest",
+      hint: "A gummy bear is hiding in the lollipop woods, south of the princess's clearing.",
+    },
+    {
+      id: "swirlpop",
+      pos: at(SUGAR.forest.x + 27, SUGAR.forest.z - 10),
+      area: "the Lollipop Forest",
+      hint: "A swirl lollipop is at the east edge of the lollipop woods, off the trail.",
+    },
+    {
+      id: "toffeeapple",
+      pos: at(SUGAR.village.x - 5, SUGAR.village.z - 16),
+      area: "Gingerbread Village",
+      hint: "A toffee apple is by the gingerbread house at the north end of the village.",
+    },
+    {
+      id: "gingerbreadman",
+      pos: at(SUGAR.village.x - 1, SUGAR.village.z + 14),
+      area: "Gingerbread Village",
+      hint: "A gingerbread man ran off to the south side of the village square.",
+    },
+    {
+      id: "donut",
+      pos: at(SUGAR.village.x + 7, SUGAR.village.z + 13),
+      area: "Gingerbread Village",
+      hint: "A donut is behind the candy shop on the village square.",
+    },
+    {
+      id: "icecream",
+      pos: at(SUGAR.mountain.x + 24, SUGAR.mountain.z + 1),
+      area: "Ice Cream Mountain",
+      hint: "An ice cream cone is on the grass east of Ice Cream Mountain, near the top of the chocolate river.",
+    },
+    {
+      id: "rockcandy",
+      pos: at(SUGAR.mountain.x - 15, SUGAR.mountain.z - 2),
+      area: "Ice Cream Mountain",
+      hint: "Rock candy is growing on the west side of Ice Cream Mountain, far to the north-west.",
+    },
+    {
+      id: "popsicle",
+      pos: at(SUGAR.mountain.x + 19, SUGAR.mountain.z - 6),
+      area: "Ice Cream Mountain",
+      hint: "An ice lolly is melting on the north-east side of Ice Cream Mountain.",
+    },
+    {
+      id: "mallow",
+      pos: at(SUGAR.marshmallow.x + 11, SUGAR.marshmallow.z - 12.5),
+      area: "Marshmallow Fields",
+      hint: "Marshmallows are stacked on the bouncy white fields, far to the south.",
+    },
+    {
+      id: "cupcake",
+      pos: at(SUGAR.fair.x - 17, SUGAR.fair.z + 8),
+      area: "the fairground",
+      hint: "A cupcake is in front of the candy stalls at the fairground.",
+    },
+    {
+      id: "sourworm",
+      pos: at(SUGAR.lake.x - 23, SUGAR.lake.z - 0.5),
+      area: "the chocolate lake",
+      hint: "A sour worm is wiggling on the shore of the chocolate lake, in the far south-east corner.",
+    },
+  ];
+}
 
 /** Her candy sticker book, a short walk east of where she arrives. */
-export const CANDY_STICKER_BOOK: { pos: [number, number, number]; hint: string } = {
-  pos: at(P2.x + 25, P2.z + 18),
-  hint: "Your candy sticker book is just east of where you start, past the end of the sweet shop street.",
-};
+export function candyStickerBook(): { pos: [number, number, number]; hint: string } {
+  return {
+    pos: at(SUGAR.plaza.x + 25, SUGAR.plaza.z + 18),
+    hint: "Your candy sticker book is just east of where you start, past the end of the sweet shop street.",
+  };
+}
 
 /* ------------------------------------------------------------------- the set */
 
@@ -708,15 +981,24 @@ type CandyBookStore = {
 const bookStore = (st: unknown) => st as CandyBookStore;
 
 /** The park's hunt, ready to hand to StickerWorld. */
-export const CANDY_STICKERS: StickerSet = {
-  spots: CANDY_STICKER_SPOTS,
-  book: CANDY_STICKER_BOOK,
-  // a pink book with an icing spine and a gold candy badge
-  bookColors: { cover: "#ff6aa8", pages: "#fff6ea", badge: "#ffc83a", ring: "#ffd0e6", glow: "#ff5fa8" },
-  names: new Map(CANDY_STICKER_ART.map((s) => [s.id as string, s.name])),
-  hasBook: (st) => bookStore(st).candyStickerBook === true,
-  findBook: (st) => bookStore(st).findCandyStickerBook?.(),
-  take: (st, id, name) => st.findSticker(id, name),
-  needBook: (name) =>
-    `A ${name.toLowerCase()} sticker! You need a candy sticker book to keep it. There's one near where you started.`,
-};
+export function candyStickers(): StickerSet {
+  return {
+    spots: candyStickerSpots(),
+    book: candyStickerBook(),
+    // a pink book with an icing spine and a gold candy badge
+    bookColors: {
+      cover: "#ff6aa8",
+      pages: "#fff6ea",
+      badge: "#ffc83a",
+      ring: "#ffd0e6",
+      glow: "#ff5fa8",
+    },
+    texture: candyStickerTexture,
+    names: new Map(CANDY_STICKER_ART.map((s) => [s.id as string, s.name])),
+    hasBook: (st) => bookStore(st).candyStickerBook === true,
+    findBook: (st) => bookStore(st).findCandyStickerBook?.(),
+    take: (st, id, name) => st.findSticker(id, name),
+    needBook: (name) =>
+      `A ${name.toLowerCase()} sticker! You need a candy sticker book to keep it. There's one near where you started.`,
+  };
+}

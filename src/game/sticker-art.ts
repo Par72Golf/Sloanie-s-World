@@ -9,16 +9,13 @@
  * and the whole layer is then stamped onto the target with a soft shadow.
  */
 import * as THREE from "three";
-import type { CandyStickerId } from "./candy-stickers";
 
-type PicnicStickerId =
+export type StickerId =
   | "frog" | "dragonfly" | "goldfish" | "butterfly" | "ladybug" | "bee"
   | "apple" | "tractor" | "chicken" | "sunflower" | "horse" | "balloon"
   | "popcorn" | "ferriswheel" | "mushroom" | "crystal" | "bat" | "tent"
   | "marshmallow" | "owl" | "squirrel" | "baseball" | "tennisball" | "basketball"
   | "soccerball" | "golfflag" | "beachball" | "rainbow" | "sneaker" | "snail";
-/** Park 1's stickers plus Sugar Rush's, which live in candy-stickers.ts. */
-export type StickerId = PicnicStickerId | CandyStickerId;
 
 export type StickerRarity = "common" | "rare" | "shiny";
 
@@ -1398,7 +1395,7 @@ const snail: Art = (() => {
   };
 })();
 
-const ART: Record<PicnicStickerId, Art> = {
+const ART: Record<StickerId, Art> = {
   frog, dragonfly, goldfish, butterfly, ladybug, bee, apple, tractor, chicken, sunflower,
   horse, balloon, popcorn, ferriswheel, mushroom, crystal, bat, tent, marshmallow, owl,
   squirrel, baseball, tennisball, basketball, soccerball, golfflag, beachball, rainbow, sneaker, snail,
@@ -1407,22 +1404,18 @@ const ART: Record<PicnicStickerId, Art> = {
 const RARITY = new Map<StickerId, StickerRarity>(STICKER_ART.map((s) => [s.id, s.rarity]));
 
 /**
- * Art from another park's book, added at module load by the file that owns it
- * (candy-stickers.ts). Everything that draws a sticker goes through artFor, so
- * a park's art can live beside that park's spots rather than in here.
+ * A sticker to draw: its art, whether it is a shiny, and a key unique across
+ * the game to cache the rendered layer under.
+ *
+ * Another park's book (candy-stickers.ts) hands one of these in rather than
+ * registering its art here. A registry looked tidier and was a trap: it is
+ * module state, and anything that ends up with two copies of this module —
+ * a dev-server reload, a second bundle — draws every one of that park's
+ * stickers as a frog, because the art was registered on the other copy.
  */
-const EXTRA_ART = new Map<string, Art>();
+export type ArtSource = { key: string; art: Art; shiny?: boolean };
 
-export function registerStickerArt(defs: readonly (StickerArtDef & { art: Art })[]): void {
-  for (const d of defs) {
-    EXTRA_ART.set(d.id, d.art);
-    RARITY.set(d.id, d.rarity);
-  }
-}
-
-function artFor(id: StickerId): Art {
-  return (ART as Record<string, Art | undefined>)[id] ?? EXTRA_ART.get(id) ?? ART.frog;
-}
+const sourceFor = (id: StickerId): ArtSource => ({ key: id, art: ART[id], shiny: RARITY.get(id) === "shiny" });
 
 /**
  * The drawing kit, so a park's stickers can be drawn in that park's own file
@@ -1520,8 +1513,8 @@ function paintHolo(g: G): void {
 }
 
 /** The sticker (border + art + effects) drawn onto a transparent px-square canvas. */
-function renderLayer(id: StickerId, px: number, found: boolean): HTMLCanvasElement {
-  const a = artFor(id);
+function renderLayer(src: ArtSource, px: number, found: boolean): HTMLCanvasElement {
+  const a = src.art;
   const c = makeCanvas(px, px);
   const g = ctx2d(c);
   toStickerSpace(g, px, a);
@@ -1531,7 +1524,7 @@ function renderLayer(id: StickerId, px: number, found: boolean): HTMLCanvasEleme
     a.draw(g);
     g.restore();
     paintGloss(g);
-    if (RARITY.get(id) === "shiny") paintHolo(g);
+    if (src.shiny) paintHolo(g);
     return c;
   }
   // Not found yet: a flat grey cut-out of the exact art shape, with a "?".
@@ -1563,11 +1556,11 @@ function renderLayer(id: StickerId, px: number, found: boolean): HTMLCanvasEleme
 
 const layerCache = new Map<string, HTMLCanvasElement>();
 
-function layerFor(id: StickerId, px: number, found: boolean): HTMLCanvasElement {
-  const key = `${id}|${px}|${found ? 1 : 0}`;
+function layerFor(src: ArtSource, px: number, found: boolean): HTMLCanvasElement {
+  const key = `${src.key}|${px}|${found ? 1 : 0}`;
   let c = layerCache.get(key);
   if (!c) {
-    c = renderLayer(id, px, found);
+    c = renderLayer(src, px, found);
     layerCache.set(key, c);
   }
   return c;
@@ -1575,11 +1568,16 @@ function layerFor(id: StickerId, px: number, found: boolean): HTMLCanvasElement 
 
 /** Draw the sticker centred in a size x size area of g (origin top-left of that area). found=false draws a grey silhouette with a "?" instead. */
 export function drawSticker(g: CanvasRenderingContext2D, id: StickerId, size: number, found = true): void {
+  drawStickerArt(g, sourceFor(id), size, found);
+}
+
+/** As drawSticker, for art this module does not own (another park's book). */
+export function drawStickerArt(g: CanvasRenderingContext2D, src: ArtSource, size: number, found = true): void {
   if (!(size > 0)) return;
   const t = g.getTransform();
   const scale = Math.min(4, Math.max(1, Math.hypot(t.a, t.b)));
   const px = Math.max(16, Math.ceil(size * scale));
-  const layer = layerFor(id, px, found);
+  const layer = layerFor(src, px, found);
   g.save();
   // Shadow sizes are in device pixels and ignore the transform.
   g.shadowColor = found ? "rgba(45,28,12,0.34)" : "rgba(45,28,12,0.18)";
@@ -1594,11 +1592,16 @@ const urlCache = new Map<string, string>();
 
 /** A cached data URL (PNG) of the sticker for the sticker book UI. */
 export function stickerDataUrl(id: StickerId, size = 128, found = true): string {
-  const key = `${id}|${size}|${found ? 1 : 0}`;
+  return stickerDataUrlArt(sourceFor(id), size, found);
+}
+
+/** As stickerDataUrl, for art this module does not own. */
+export function stickerDataUrlArt(src: ArtSource, size = 128, found = true): string {
+  const key = `${src.key}|${size}|${found ? 1 : 0}`;
   let url = urlCache.get(key);
   if (!url) {
     const c = makeCanvas(size, size);
-    drawSticker(ctx2d(c), id, size, found);
+    drawStickerArt(ctx2d(c), src, size, found);
     url = c.toDataURL("image/png");
     urlCache.set(key, url);
   }
@@ -1609,11 +1612,16 @@ const texCache = new Map<string, THREE.CanvasTexture>();
 
 /** A cached THREE.CanvasTexture (256px, transparent background, sRGB) for the floating pickup in the park. */
 export function stickerTexture(id: StickerId): THREE.CanvasTexture {
-  const key = `${id}|256|1`;
+  return stickerTextureArt(sourceFor(id));
+}
+
+/** As stickerTexture, for art this module does not own. */
+export function stickerTextureArt(src: ArtSource): THREE.CanvasTexture {
+  const key = `${src.key}|256|1`;
   let tex = texCache.get(key);
   if (!tex) {
     const c = makeCanvas(256, 256);
-    drawSticker(ctx2d(c), id, 256, true);
+    drawStickerArt(ctx2d(c), src, 256, true);
     tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;

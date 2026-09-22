@@ -1,6 +1,7 @@
 import type { BoxProp, CylinderProp, ModelProp, Prop, WaterZone } from "./types";
 import { riverPath } from "./candy-river";
 import { TREE_IDS, bridgeFor, model } from "./sugar-models";
+import { modelColliders } from "./models";
 
 /**
  * Sugar Rush Park: the ground plan.
@@ -909,18 +910,42 @@ export function frostingProps(keepOut: [number, number][], already: Prop[]): Pro
  * boost that does not exist — and the spacing is checked here rather than
  * hoped for.
  */
-export function boostSpots(keepOut: [number, number][]): [number, number][] {
+export function boostSpots(keepOut: [number, number][], already: Prop[] = []): [number, number][] {
   const out: [number, number][] = [];
   const rand = rng(6161);
   const nearAPath = (x: number, z: number) =>
     loopRects().some(
       (r) => x > r.minX - 14 && x < r.maxX + 14 && z > r.minZ - 14 && z < r.maxZ + 14,
     );
+  /*
+   * clearGround knows about the paths, the river and the candies, but not
+   * about the hundreds of things already standing in the park — and a boost
+   * she cannot reach because it is inside a gingerbread house is worse than
+   * no boost at all. So the solids that are already placed are walked here.
+   */
+  const solids: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
+  for (const p of already) {
+    if (p.kind === "model") {
+      for (const b of modelColliders(p)) if (b.maxY > 0.5) solids.push(b);
+    } else if (p.kind === "box" && p.collide !== false && p.size[1] > 0.5) {
+      solids.push({
+        minX: p.pos[0] - p.size[0] / 2,
+        maxX: p.pos[0] + p.size[0] / 2,
+        minZ: p.pos[2] - p.size[2] / 2,
+        maxZ: p.pos[2] + p.size[2] / 2,
+      });
+    } else if (p.kind === "cyl" && p.collide !== false && p.h > 0.5) {
+      solids.push({ minX: p.pos[0] - p.r, maxX: p.pos[0] + p.r, minZ: p.pos[2] - p.r, maxZ: p.pos[2] + p.r });
+    }
+  }
+  const inSolid = (x: number, z: number) =>
+    solids.some((b) => x > b.minX - 1.4 && x < b.maxX + 1.4 && z > b.minZ - 1.4 && z < b.maxZ + 1.4);
   for (let tries = 0; tries < 6000 && out.length < 19; tries++) {
     const x = (rand() - 0.5) * 290;
     const z = (rand() - 0.5) * 290;
     if (!clearGround(x, z, 2.5, keepOut)) continue;
     if (!nearAPath(x, z)) continue;
+    if (inSolid(x, z)) continue;
     if (out.some(([ox, oz]) => dist2(x, z, ox, oz) < 20 * 20)) continue;
     out.push([x, z]);
   }
