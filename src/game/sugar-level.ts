@@ -1,6 +1,7 @@
 import { CANDIES } from "./candies";
 import { candyAccessorySpots } from "./candy-accessories";
 import { CHOC_SITE } from "./choc-course";
+import { yardProps } from "./emmett-base";
 import { SKY_LIGHTING, skyProps } from "./sugar-sky";
 import { bunting, regionGates, regionSigns } from "./sugar-signs";
 import { gumdropHills, sugarBerms } from "./sugar-terrain";
@@ -10,6 +11,7 @@ import {
   NO_PLANT,
   SUGAR,
   SUGAR_BOUNDS,
+  SUGAR_DEN,
   WHEEL,
   boundaryProps,
   gardenProps,
@@ -106,15 +108,18 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   bubblegum: {
     id: "bubblegum",
     /*
-     * South-west of the ferris wheel, not beside it. There is one Collect key:
-     * standing inside the wheel's boarding circle it boards the wheel, and a
-     * sweet inside that circle is a sweet she cannot pick up. tools/buttons.ts
-     * keeps every sweet clear of every button.
+     * Out on the fairground apron west of the ferris wheel. There is one
+     * Collect key: standing inside the wheel's boarding circle it boards the
+     * wheel, and a sweet inside that circle is a sweet she cannot pick up, so
+     * tools/buttons.ts keeps every sweet clear of every button. It was first
+     * moved to (-104, 90), which cleared the button but put it hard against
+     * the fairground fence where the flood fill could not stand — this spot is
+     * open ground with nothing within a metre and a half.
      */
-    pos: [-104, 0.55, 90],
+    pos: [-112, 0.55, 96],
     hide: "medium",
     region: "the fairground",
-    hint: "On the grass south of the big wheel.",
+    hint: "On the fairground, west of the big wheel.",
   },
   "licorice twist": {
     id: "licoricetwist",
@@ -236,6 +241,14 @@ export function sugarRushPark(): LevelDef {
     ...startDistrictProps(spots),
     ...gardenProps(),
     ...plantingProps(spots),
+    /*
+     * The solid pieces in Emmett's den: the two tyre stacks, the kicker ramp
+     * and the toy box. Park 1 has carried these since it was built; Sugar Rush
+     * never did, so all four were drawn and none was solid — she walked
+     * straight through them. The origin is passed rather than defaulted
+     * because this list is built at import, before the yard has been moved.
+     */
+    ...yardProps(SUGAR_DEN, "candy"),
     ...regionGates(),
     ...regionSigns(),
     ...bunting(),

@@ -395,9 +395,33 @@ for (const d of level.dumplings) {
 
 const spawn = level.spawn ?? [0, 0, 0];
 const reach = reachability(level, boxes, [spawn[0], spawn[2]]);
+/**
+ * Collectibles the flood fill cannot see, on purpose.
+ *
+ * The fill is a 2D walkable grid: it cannot climb onto a picnic table, onto a
+ * roof, or into a cave, so a collectible put in one of those places reads as
+ * unreachable when it is exactly where it was meant to go. Each of these is
+ * deliberate and says why; anything else that comes back unreachable is a
+ * mistake and fails the run. That is the check the bubblegum needed — it was
+ * moved out of the ferris wheel's boarding circle and straight up against the
+ * fairground fence, and this file printed it and exited 0.
+ */
+const CLIMBED: Record<string, string> = {
+  sesame: "sitting on a picnic table on the east lawn",
+  cocoa: "up on the climbing tower's roof at the playground",
+  moon: "on the ledge in the mountain cave, reached through the tunnels",
+  maple: "on a table under the pavilion roof",
+};
+
+let hardFails = 0;
+const fail = (msg: string) => {
+  hardFails++;
+  console.log(`  FAIL ${msg}`);
+};
+
 console.log(`\n--- reachability from spawn (${spawn[0]}, ${spawn[2]}) ---`);
 if (reach.startBlocked) {
-  console.log("  SPAWN IS INSIDE A SOLID");
+  fail("the spawn is inside a solid");
 } else {
   let unreachable = 0;
   for (const d of level.dumplings) {
@@ -405,10 +429,14 @@ if (reach.startBlocked) {
       console.log(`  ride:        ${d.id} is reached by riding the wheel`);
       continue;
     }
+    if (CLIMBED[d.id]) {
+      console.log(`  climbed:     ${d.id} is ${CLIMBED[d.id]}`);
+      continue;
+    }
     const i = reach.idx!(d.pos[0], d.pos[2]);
     if (i < 0 || !reach.seen[i]) {
       unreachable++;
-      console.log(`  UNREACHABLE: ${d.id} @ (${d.pos[0]}, ${d.pos[2]})`);
+      fail(`UNREACHABLE: ${d.id} @ (${d.pos[0]}, ${d.pos[2]})`);
       let best = Infinity;
       let bx = 0;
       let bz = 0;
@@ -451,9 +479,9 @@ if (reach.startBlocked) {
         b.maxY > 0.62 &&
         b.minY < 1.6, // something overhead (an arch) is not in the way
     );
-    console.log(
-      `  ${ok && !under.length ? "ok         " : "BLOCKED    "} accessory ${a.id} @ (${a.pos[0]}, ${a.pos[2]}) ${a.region}${under.length ? ` (inside ${under[0]!.label})` : ""}`,
-    );
+    const line = `accessory ${a.id} @ (${a.pos[0]}, ${a.pos[2]}) ${a.region}${under.length ? ` (inside ${under[0]!.label})` : ""}`;
+    if (ok && !under.length) console.log(`  ok          ${line}`);
+    else fail(`BLOCKED ${line}`);
   }
 
   // report which named zones can be walked to
@@ -498,9 +526,8 @@ if (reach.startBlocked) {
       if (x < level.bounds.minX + 2 || x > level.bounds.maxX - 2 || z < level.bounds.minZ + 2 || z > level.bounds.maxZ - 2) escaped++;
     }
   }
-  console.log(
-    escaped ? `  BOUNDARY LEAK: ${escaped} walkable cells outside the wall` : "  boundary holds",
-  );
+  if (escaped) fail(`BOUNDARY LEAK: ${escaped} walkable cells outside the wall`);
+  else console.log("  boundary holds");
 
   for (const [name, zx, zz] of zones) {
     const i = reach.idx!(zx, zz);
@@ -564,3 +591,10 @@ for (const [x, z] of level.juice ?? []) {
           : `  UNREACHABLE (${x}, ${z})`,
   );
 }
+
+console.log(
+  hardFails === 0
+    ? `\nno hard failures (${base.name})`
+    : `\n${hardFails} HARD FAILURE${hardFails === 1 ? "" : "S"} (${base.name})`,
+);
+if (hardFails) process.exitCode = 1;
