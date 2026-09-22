@@ -80,6 +80,13 @@ Sugar Rush has eight landmarks now, one per region, each on clear ground and
 clear of every button even after the spot is nudged. `tools/buttons.ts` checks
 the landmarks too, since a rehidden sweet is still a sweet she has to collect.
 
+### 3e. The map was a green field with a blue river
+The minimap and the full map are drawn from one hardcoded palette: park 1's.
+Opening the map in Sugar Rush gave her a green park with a blue river running
+through it — the right shapes in the wrong park's colours. Each park now has its
+own palette, and Sugar Rush's map is mint ground, pink sugar paths and a
+chocolate river. Park 1's map draws pixel-for-pixel what it always did.
+
 ### 4. The world kept running behind the fair's result cards
 Whack-a-Gummy and Sweet Sorter put a results card up when the clock runs out.
 Unlike golf, bowls and the toss, those two were not in the runtime's "a panel is

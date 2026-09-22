@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Map as MapIcon, X } from "lucide-react";
+import { CANDY } from "./sugar-rush";
 import { LEVELS } from "./levels";
 import { modelColliders } from "./models";
 import { worldPose } from "./pose";
@@ -17,7 +18,27 @@ import type { LevelDef, Prop } from "./types";
 
 const INK = "#3f3228";
 
-const COL = {
+type Palette = {
+  ground: string;
+  grassDark: string;
+  path: string;
+  court: string;
+  water: string;
+  sand: string;
+  building: string;
+  roof: string;
+  tree: string;
+  solid: string;
+  wall: string;
+  /** prop colours this park reads as liquid, wet surface, path, court and wall */
+  liquid: string[];
+  wet: string[];
+  paths: string[];
+  courts: string[];
+  walls: string[];
+};
+
+const PICNIC: Palette = {
   ground: "#cfe0bd",
   grassDark: "#bcd3a6",
   path: "#e6d7b4",
@@ -29,11 +50,45 @@ const COL = {
   tree: "#6f9e5e",
   solid: "#a9b39c",
   wall: "#8f8878",
+  liquid: ["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de", "#6f9fb8", "#8fc4d8", "#bfe4ee"],
+  wet: ["#e0c48a", "#cbb894", "#b07a4a"],
+  paths: ["#d8c49a", "#b6b0a6", "#cfc6b4"],
+  courts: ["#3f7fa8", "#4a9a68", "#b07a52", "#5a7f9a", "#c4674a"],
+  walls: ["#b3a894", "#9b8f7c", "#c4b48a", "#a89878"],
 };
+
+/**
+ * Sugar Rush's map, in Sugar Rush's colours. The same drawing with park 1's
+ * palette gives her a green field with a blue river running through it, which
+ * is the wrong park: the ground here is spearmint, the paths are pink sugar and
+ * the river is chocolate.
+ */
+const SUGAR_MAP: Palette = {
+  ground: "#a8e6d6",
+  grassDark: "#8ed8c4",
+  path: "#f4e0c2",
+  court: "#ffc6e0",
+  water: CANDY.chocRiver,
+  sand: "#f2dfc0",
+  building: "#d8a86a",
+  roof: "#c4784a",
+  tree: CANDY.blush,
+  solid: "#d6bfd0",
+  wall: "#bf9ab4",
+  liquid: [CANDY.chocRiver, CANDY.choc, CANDY.chocLight, "#4a2a16", "#f7efe2"],
+  wet: [CANDY.cream],
+  paths: [CANDY.sugar, "#d8c49a", "#cfc6b4"],
+  courts: [CANDY.stripe, CANDY.lawn],
+  walls: [CANDY.licorice, CANDY.icing],
+};
+
+function paletteFor(level: LevelDef): Palette {
+  return level.id === "sugar" ? SUGAR_MAP : PICNIC;
+}
 
 type Bounds = LevelDef["bounds"];
 
-function categorise(p: Prop): { fill: string; layer: number } | null {
+function categorise(p: Prop, COL: Palette): { fill: string; layer: number } | null {
   if (p.kind === "tree") return { fill: COL.tree, layer: 3 };
   if (p.kind === "house") return { fill: COL.roof, layer: 3 };
   if (p.kind === "tent") return { fill: p.color, layer: 3 };
@@ -48,21 +103,12 @@ function categorise(p: Prop): { fill: string; layer: number } | null {
   const h = p.kind === "box" ? p.size[1] : p.kind === "cyl" ? p.h : 0;
 
   // liquid and wet surfaces
-  if (["#5aa8c8", "#6cb8d4", "#9fd4ea", "#6cb4d4", "#5aa0bc", "#7ec4de", "#6f9fb8", "#8fc4d8", "#bfe4ee"].includes(color)) {
-    return { fill: COL.water, layer: 2 };
-  }
-  if (color === "#e0c48a" || color === "#cbb894" || color === "#b07a4a") {
-    return { fill: COL.sand, layer: 2 };
-  }
-  if (color === "#d8c49a" || color === "#b6b0a6" || color === "#cfc6b4") {
-    return { fill: COL.path, layer: 1 };
-  }
-  if (color === "#3f7fa8" || color === "#4a9a68" || color === "#b07a52" || color === "#5a7f9a" || color === "#c4674a") {
-    return { fill: COL.court, layer: 2 };
-  }
-  if (color === "#b3a894" || color === "#9b8f7c" || color === "#c4b48a" || color === "#a89878") {
-    return { fill: COL.wall, layer: 4 };
-  }
+  const has = (list: string[]) => list.some((c) => c.toLowerCase() === color);
+  if (has(COL.liquid)) return { fill: COL.water, layer: 2 };
+  if (has(COL.wet)) return { fill: COL.sand, layer: 2 };
+  if (has(COL.paths)) return { fill: COL.path, layer: 1 };
+  if (has(COL.courts)) return { fill: COL.court, layer: 2 };
+  if (has(COL.walls)) return { fill: COL.wall, layer: 4 };
   // low flat things are ground cover, tall things are obstacles
   if (h <= 0.35) return { fill: COL.grassDark, layer: 1 };
   if (h >= 1.0) return { fill: COL.solid, layer: 3 };
@@ -84,18 +130,19 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
   const wx = (x: number) => (b.maxX - x) * s;
   const wz = (z: number) => (b.maxZ - z) * s;
 
+  const COL = paletteFor(level);
   g.fillStyle = COL.ground;
   g.fillRect(0, 0, px, px);
 
   const buckets: Prop[][] = [[], [], [], [], []];
   for (const p of level.props) {
-    const cat = categorise(p);
+    const cat = categorise(p, COL);
     if (cat) buckets[cat.layer]!.push(p);
   }
 
   for (let layer = 0; layer < buckets.length; layer++) {
     for (const p of buckets[layer]!) {
-      const cat = categorise(p)!;
+      const cat = categorise(p, COL)!;
       g.fillStyle = cat.fill;
       if (p.kind === "tree") {
         const r = Math.max(1, 1.5 * (p.scale ?? 1) * s);
@@ -292,7 +339,7 @@ export function MiniMap() {
             const sy = (b.maxZ - (worldPose.z + view / 2)) * perWorld;
             const sw = view * perWorld;
             const dw = size * pad;
-            g.fillStyle = COL.ground;
+            g.fillStyle = paletteFor(level).ground;
             g.fillRect(-size, -size, size * 3, size * 3);
             g.drawImage(base, sx, sy, sw, sw, (size - dw) / 2, (size - dw) / 2, dw, dw);
           }
