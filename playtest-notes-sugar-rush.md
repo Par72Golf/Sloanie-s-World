@@ -51,6 +51,18 @@ sticker card, and a new **factory card** that lays out the whole job the first
 time she meets the princess. The journal names the sweets, the satchel and the
 sweet shop when she is in Sugar Rush, and is byte-for-byte the same in park 1.
 
+### 3b. The quiz, the pause screen and the park-complete screen too
+Every sweet she picks up opens a panel titled **"Solve it to keep the dumpling"**
+— sixteen times a park. Pausing said "The dumplings will wait." Rock paper
+scissors with Emmett offered to let her "keep your dumplings". And the screen she
+sees at the very end, after finding all sixteen, read **"16 squishy dumplings
+rescued from Sugar Rush Park."** One `prizeWord(levelIndex)` now answers all of
+them, and it says sweet in Sugar Rush.
+
+And the satchel: three places told her it was "behind the start", and the source
+comment put it at the east end of the sweet shop street. It is at the west end,
+and the street is sixteen metres *north* of where she spawns.
+
 ### 4. The world kept running behind the fair's result cards
 Whack-a-Gummy and Sweet Sorter put a results card up when the clock runs out.
 Unlike golf, bowls and the toss, those two were not in the runtime's "a panel is

@@ -598,6 +598,16 @@ function GrownUps({ onClose }: { onClose: () => void }) {
  * for his pets whichever park she was about to start, and in Sugar Rush there
  * is no ball field and no Farmer Joe. It follows the park the Play row is on.
  */
+/**
+ * What a park hides, for every panel that has to name it. Park 1 hides
+ * dumplings; Sugar Rush hides sweets. She reads the quiz title sixteen times a
+ * park, so it had better be the right word.
+ */
+export function prizeWord(levelIndex: number) {
+  const sugar = LEVELS[levelIndex]?.id === "sugar";
+  return { one: sugar ? "sweet" : "dumpling", many: sugar ? "sweets" : "dumplings" };
+}
+
 function helpLines(levelIndex: number): string[] {
   const common = [
     "Find the hidden dumplings! Warm means close. Cold means far.",
@@ -1935,6 +1945,7 @@ function CatchCard() {
 
 function RpsPanel() {
   const rps = useGame((s) => s.rps);
+  const levelIndex = useGame((s) => s.levelIndex);
   const playRps = useGame((s) => s.playRps);
   const nextRpsRound = useGame((s) => s.nextRpsRound);
   const closeRps = useGame((s) => s.closeRps);
@@ -2054,7 +2065,7 @@ function RpsPanel() {
           <p className="text-lg font-semibold leading-snug text-ink-soft [@media(max-height:520px)]:text-base">
             {rps.friendly
               ? "Just for fun at his truck. Win and you get 3 tickets!"
-              : "Win and you keep your dumplings. Lose and he takes one."}
+              : `Win and you keep your ${prizeWord(levelIndex).many}. Lose and he takes one.`}
           </p>
         )}
 
@@ -2076,7 +2087,7 @@ function RpsPanel() {
                     ? "3 tickets for you!"
                     : "Good game! Play again any time."
                   : won
-                    ? "Every dumpling stays yours."
+                    ? `Every ${prizeWord(levelIndex).one} stays yours.`
                     : "He is taking one and hiding it."}
               </p>
             )}
@@ -2130,6 +2141,7 @@ function RpsPanel() {
 
 function Quiz() {
   const quiz = useGame((s) => s.quiz);
+  const levelIndex = useGame((s) => s.levelIndex);
   const bumpAttempt = useGame((s) => s.bumpAttempt);
   const markCollected = useGame((s) => s.markCollected);
   const fleeDumpling = useGame((s) => s.fleeDumpling);
@@ -2216,7 +2228,7 @@ function Quiz() {
 
   return (
     <Layer z="z-30">
-      <Sheet tone="sun" icon={Calculator} title="Solve it to keep the dumpling" className="max-w-xl 2xl:max-w-2xl">
+      <Sheet tone="sun" icon={Calculator} title={`Solve it to keep the ${prizeWord(levelIndex).one}`} className="max-w-xl 2xl:max-w-2xl">
         <div className={cn("text-center", shake && "animate-pulse")}>
           <p className="font-display text-6xl font-bold tabular-nums tracking-tight 2xl:text-7xl [@media(max-height:520px)]:text-4xl">
             {quiz.q.prompt} = ?
@@ -2291,7 +2303,7 @@ function PauseScreen() {
         tone="blue"
         icon={Pause}
         title="Paused"
-        subtitle="The dumplings will wait."
+        subtitle={`The ${prizeWord(levelIndex).many} will wait.`}
         className="max-w-md sm:max-w-4xl 2xl:max-w-5xl"
       >
         <div className="grid gap-3 sm:grid-cols-3">
@@ -2390,6 +2402,8 @@ function CompleteScreen() {
   // The first park is the one she will finish on her birthday, so it gets the
   // party treatment: the crown she just earned, and her name in lights.
   const party = levelIndex === 0;
+  // park 2 hides sweets, not dumplings, and the last thing she reads should know it
+  const sugar = LEVELS[levelIndex]?.id === "sugar";
   return (
     <Layer z="z-30">
       <Sheet
@@ -2401,7 +2415,9 @@ function CompleteScreen() {
             ? `Happy birthday${playerName ? `, ${playerName}` : ", Sloan"}!`
             : playerName
               ? `${playerName} found them all`
-              : "Every dumpling found"
+              : sugar
+                ? "Every sweet found"
+                : "Every dumpling found"
         }
         subtitle={party ? "You found every dumpling in the park!" : undefined}
         className="max-w-lg sm:landscape:max-w-4xl 2xl:max-w-5xl"
@@ -2409,7 +2425,7 @@ function CompleteScreen() {
         <div className="grid gap-5 sm:landscape:grid-cols-2 sm:landscape:gap-6">
           <div>
             <p className="text-lg font-semibold leading-relaxed text-ink-soft 2xl:text-xl">
-              {level.dumplings.length} squishy dumplings rescued from {level.name}.
+              {level.dumplings.length} {sugar ? "sweets" : "squishy dumplings"} rescued from {level.name}.
             </p>
 
             {party && (
