@@ -85,12 +85,12 @@ export const CREATURES: {
     coat: CANDY.amber,
     at: CREATURE_SPOTS[2]!,
     region: "Gumdrop Meadow",
-    hint: "He is set fast in a puddle of toffee out on the meadow.",
+    hint: "He is set fast in a puddle of toffee out on the meadow. Jump on the toffee to crack it.",
   },
 ];
 
 /** How near she has to be to pick one up. */
-const FREE_R = 2.2;
+export const FREE_R = 2.2;
 /** and to the basket by her door to send them in, or call them back out */
 const BASKET_R = 2.4;
 
@@ -368,6 +368,8 @@ export class CandyCreatures {
   private pads: Pad[] = [];
   private cracks: THREE.Object3D[] = [];
   private stomps = 0;
+  /** told her to jump on the toffee, so it is said once a visit, not every frame */
+  private toldToStomp = false;
   private wasGrounded = true;
   private basket = makeBasket();
   private mySolids: Solid[] = [];
@@ -520,6 +522,17 @@ export class CandyCreatures {
     // ---- the toffee: she cracks it by landing on it
     if (this.stomps < 3) {
       const over = Math.hypot(her.x - this.toffeeAt[0], her.z - this.toffeeAt[1]) < 2.4 && her.y < 1.4;
+      /*
+       * Walking up to the bear and pressing Collect does nothing until the
+       * toffee is cracked, and a button that does nothing reads as broken. So
+       * the first time she stands on the toffee, say what it wants: jump.
+       */
+      if (over && !this.toldToStomp) {
+        this.toldToStomp = true;
+        st.setEmmettNotice("He is stuck fast in the toffee. Jump on it to crack it!");
+      } else if (!over && Math.hypot(her.x - this.toffeeAt[0], her.z - this.toffeeAt[1]) > 9) {
+        this.toldToStomp = false;
+      }
       if (over && grounded && !this.wasGrounded) {
         this.stomps++;
         sfx.boing();
