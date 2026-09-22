@@ -907,6 +907,7 @@ function HUD() {
   const truckOwned = useGame((s) => s.truckOwned);
   const truckRace = useGame((s) => s.truckRace);
   const princessNear = useGame((s) => s.princessNear);
+  const creatureNear = useGame((s) => s.creatureNear);
   const tossNear = useToss((s) => s.near);
   const tossPlaying = useToss((s) => s.playing);
   const tossCard = useToss((s) => s.card);
@@ -1158,9 +1159,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && (homeNear || factoryNear || truckNear || driving || princessNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && (homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1176,6 +1177,8 @@ function HUD() {
                   : factoryNear === "exit"
                     ? "Go outside"
                     : "Pull the big lever!"
+              : creatureNear
+                ? "Pick it up!"
               : tossNear
                 ? "Play Marshmallow Toss!"
               : princessNear

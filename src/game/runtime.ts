@@ -16,6 +16,7 @@ import { ChocFactoryInside, useChocFactory } from "./choc-factory-inside";
 import { PlayerTruck, RPS_ROUNDS, TRUCK_STAGES, TruckGauntlet } from "./truck-gauntlet";
 import { setRiverFlow } from "./candy-river";
 import { CandyQuest } from "./candy-quest";
+import { CandyCreatures } from "./candy-creatures";
 import { BowlsWorld } from "./bowls";
 import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
@@ -608,6 +609,12 @@ export class GameRuntime {
     // the candy princess and the three things her factory is missing
     this.candyQuest?.dispose();
     this.candyQuest = this.level.id === "sugar" ? new CandyQuest(this.scene) : null;
+    // her three creatures, and the trouble each one is in
+    this.creatures?.dispose();
+    this.creatures =
+      this.level.id === "sugar" && this.world
+        ? new CandyCreatures(this.scene, this.world.colliders, this.level.groundY)
+        : null;
     this.playerTruck?.dispose();
     this.playerTruck =
       this.level.id === "sugar" && useGame.getState().truckOwned ? new PlayerTruck(this.scene) : null;
@@ -1035,6 +1042,7 @@ export class GameRuntime {
   factoryInside: ChocFactoryInside | null = null;
   gauntlet: TruckGauntlet | null = null;
   candyQuest: CandyQuest | null = null;
+  creatures: CandyCreatures | null = null;
   playerTruck: PlayerTruck | null = null;
   /** the chocolate river's group, and how far the chocolate has flooded it */
   private river: THREE.Group | null = null;
@@ -1054,6 +1062,7 @@ export class GameRuntime {
     this.factoryInside?.dispose();
     this.gauntlet?.dispose();
     this.candyQuest?.dispose();
+    this.creatures?.dispose();
     this.playerTruck?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
@@ -1599,6 +1608,7 @@ export class GameRuntime {
       sfx.click();
       return;
     }
+    if (this.creatures?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.candyQuest?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.playerTruck?.toggle(this.cap.x, this.cap.y, this.cap.z, this.yaw)) return;
     if (this.emmettTalkReady() && st.rps == null) {
@@ -2268,6 +2278,15 @@ export class GameRuntime {
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.gauntlet?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.candyQuest?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      if (!paused && this.world) {
+        this.creatures?.update(
+          dt,
+          this.clock,
+          { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw, speed: this.speed },
+          this.grounded,
+          this.world.colliders,
+        );
+      }
       // the flood: about three seconds from the factory to both ends
       if (this.river) {
         const want = useGame.getState().factoryFixed ? 1 : 0;
@@ -2439,6 +2458,7 @@ export class GameRuntime {
       useGame.getState().setEmmettTalkNear(this.emmettTalkReady());
       useGame.getState().setTruckNear(this.playerTruck?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
       useGame.getState().setPrincessNear(this.candyQuest?.near(this.cap.x, this.cap.y, this.cap.z) === "princess");
+      useGame.getState().setCreatureNear(this.creatures?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
     }
     const d = this.nearestUnfound();
     if (!d) {

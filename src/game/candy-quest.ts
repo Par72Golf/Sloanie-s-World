@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { sfx } from "./audio";
 import { glowMaterial } from "./furniture";
 import { boxGeo, cylGeo, lam, mesh, signBoard, sphereGeo } from "./meshes";
+import { CandyCreatures } from "./candy-creatures";
 import { SUGAR } from "./sugar-rush";
 import { useGame } from "./store";
 
@@ -286,10 +287,25 @@ export class CandyQuest {
   private speak() {
     const st = useGame.getState();
     if (st.factoryFixed) {
+      /*
+       * The factory first, her creatures second. Two errands at once is two
+       * errands a seven-year-old is holding in her head, so the second one is
+       * not mentioned until the first is finished.
+       */
+      const stuck = CandyCreatures.stillStuck(st.candyCreatures);
+      if (stuck.length) {
+        const next = stuck[this.line++ % stuck.length]!;
+        st.setEmmettNotice(
+          st.candyCreatures.length === 0 && this.line === 1
+            ? `Now — my three creatures ran off while the factory was quiet. ${next.hint}`
+            : `${stuck.length} of my creatures still need you. ${next.hint}`,
+        );
+        return;
+      }
       const done = [
-        "You fixed it! Look at the river — chocolate all the way to the lake.",
-        "The whole park smells of chocolate again. Thank you!",
-        "My factory is running. Have a sweet, you have earned it.",
+        "You fixed my factory and you found all three. You are the best thing that ever happened to this park.",
+        "Look at the river — chocolate all the way to the lake. And look who is following you!",
+        "They have decided you are theirs now. Take good care of them.",
       ];
       st.setEmmettNotice(done[this.line++ % done.length]!);
       return;

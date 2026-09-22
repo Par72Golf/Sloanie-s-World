@@ -7,6 +7,7 @@ import { gumdropHills, sugarBerms } from "./sugar-terrain";
 import type { DumplingDef, Hide, LevelDef } from "./types";
 import {
   CANDY,
+  CREATURE_SPOTS,
   SUGAR,
   SUGAR_BOUNDS,
   WHEEL,
@@ -184,7 +185,12 @@ const sugarCandies: DumplingDef[] = CANDIES.map((c) => {
 
 export function sugarRushPark(): LevelDef {
   // every candy keeps a clear circle round it, so nothing is ever planted on top
-  const spots = sugarCandies.map((d) => [d.pos[0], d.pos[2]] as [number, number]);
+  /*
+   * Every point the park must not plant on: the candies, and the three places
+   * the princess's creatures are stuck. A lollipop tree she has to climb is
+   * no use with three more lollipop trees grown round it.
+   */
+  const spots = [...sugarCandies.map((d) => [d.pos[0], d.pos[2]] as [number, number]), ...CREATURE_SPOTS];
   // the frosting goes on last, because it has to see what is already down
   const props = [
     ...riverProps(),

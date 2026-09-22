@@ -99,6 +99,14 @@ export type GameStore = {
   /** she is standing close enough to the candy princess to talk to her */
   princessNear: boolean;
   setPrincessNear: (v: boolean) => void;
+  /** the princess's creatures she has got out of trouble, and the ones living in her house */
+  candyCreatures: string[];
+  creaturesHome: string[];
+  freeCreature: (id: string) => void;
+  setCreatureHome: (id: string, home: boolean) => void;
+  /** she is standing next to a creature she could pick up */
+  creatureNear: boolean;
+  setCreatureNear: (v: boolean) => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -355,6 +363,8 @@ function persistSlice(s: GameStore) {
     truckOwned: s.truckOwned,
     factoryFixed: s.factoryFixed,
     candyParts: s.candyParts,
+    candyCreatures: s.candyCreatures,
+    creaturesHome: s.creaturesHome,
     stickers: s.stickers,
     quest: s.quest,
     pets: s.pets,
@@ -725,6 +735,22 @@ export const useGame = create<GameStore>((set, get) => ({
   setTruckNear: (truckNear) => {
     if (get().truckNear !== truckNear) set({ truckNear });
   },
+  candyCreatures: saved.candyCreatures,
+  creaturesHome: saved.creaturesHome,
+  freeCreature: (id) => {
+    if (get().candyCreatures.includes(id)) return;
+    set({ candyCreatures: [...get().candyCreatures, id] });
+    persistSlice(get());
+  },
+  setCreatureHome: (id, home) => {
+    const at = get().creaturesHome.filter((c) => c !== id);
+    set({ creaturesHome: home ? [...at, id] : at });
+    persistSlice(get());
+  },
+  creatureNear: false,
+  setCreatureNear: (creatureNear) => {
+    if (get().creatureNear !== creatureNear) set({ creatureNear });
+  },
   princessNear: false,
   setPrincessNear: (princessNear) => {
     if (get().princessNear !== princessNear) set({ princessNear });
@@ -998,6 +1024,8 @@ export const useGame = create<GameStore>((set, get) => ({
       truckOwned: false,
       factoryFixed: false,
       candyParts: [],
+      candyCreatures: [],
+      creaturesHome: [],
       truckRace: null,
       driving: false,
       stickers: [],

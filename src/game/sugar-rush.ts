@@ -910,6 +910,22 @@ export function frostingProps(keepOut: [number, number][], already: Prop[]): Pro
  * boost that does not exist — and the spacing is checked here rather than
  * hoped for.
  */
+/**
+ * Where the princess's three creatures are stuck (candy-creatures.ts). Kept
+ * here rather than there because the park's planting has to know about them
+ * before anything else is built, and nothing in this file may import the
+ * things that import it.
+ *
+ *   the jellybean puppy   up a lollipop tree in the forest
+ *   the marshmallow bunny out in the bog in Marshmallow Fields
+ *   the gummy bear        set in a toffee puddle on Gumdrop Meadow
+ */
+export const CREATURE_SPOTS: [number, number][] = [
+  [-118, 34],
+  [-8, 120],
+  [96, 96],
+];
+
 export function boostSpots(
   keepOut: [number, number][],
   already: Prop[] = [],
