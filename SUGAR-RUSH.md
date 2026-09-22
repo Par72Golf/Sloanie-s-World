@@ -139,6 +139,17 @@ Her list, in her order:
 1. **The floor is chocolate** — not park 1's course re-themed but **a new
    layout, bigger**, with **two or three checkpoints**: fall in the chocolate
    and she goes back to the last checkpoint she reached, not the start.
+
+   Built: a 240m chocolate canal along the park's northern frontage, **29
+   pieces in seven sections** against park 1's 27 in five, and **three candy
+   flags** to light — Gumdrop Hops (it climbs), the Liquorice Beams (narrow,
+   and they step sideways), the Marshmallow Bog (they sink under her weight,
+   so standing still drops her in), the Chocolate Ferry (a barge she has to
+   catch — the only thing on either course she cannot get past by jumping
+   better), the Peppermint Wheels (landing on something that is moving), the
+   Wafer Climb (a lift to a tower 6.6m up and a three-metre drop off the far
+   side) and the Last Leap. The first section is deliberately the most
+   forgiving on either course and every section after it is tighter.
 2. **A tall candy mountain** to climb, with a **looking glass** at the top to
    look out over the park.
 3. **Her house bigger than the others**, and **upgradeable from the outside in

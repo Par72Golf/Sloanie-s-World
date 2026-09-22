@@ -1,5 +1,6 @@
 import { CANDIES } from "./candies";
 import { candyAccessorySpots } from "./candy-accessories";
+import { CHOC_SITE } from "./choc-course";
 import { SKY_LIGHTING, skyProps } from "./sugar-sky";
 import { bunting, regionGates, regionSigns } from "./sugar-signs";
 import { gumdropHills, sugarBerms } from "./sugar-terrain";
@@ -245,7 +246,7 @@ export function sugarRushPark(): LevelDef {
     props,
     dumplings: sugarCandies,
     water: [...riverWater(), ...startWater()],
-    juice: boostSpots(spots, props),
+    juice: boostSpots(spots, props, [CHOC_SITE]),
     // her candy satchel and six things to wear, hidden the way park 1's are
     accessories: candyAccessorySpots(),
     boost: "cotton",

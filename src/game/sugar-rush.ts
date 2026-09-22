@@ -910,7 +910,11 @@ export function frostingProps(keepOut: [number, number][], already: Prop[]): Pro
  * boost that does not exist — and the spacing is checked here rather than
  * hoped for.
  */
-export function boostSpots(keepOut: [number, number][], already: Prop[] = []): [number, number][] {
+export function boostSpots(
+  keepOut: [number, number][],
+  already: Prop[] = [],
+  noGo: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [],
+): [number, number][] {
   const out: [number, number][] = [];
   const rand = rng(6161);
   const nearAPath = (x: number, z: number) =>
@@ -946,6 +950,8 @@ export function boostSpots(keepOut: [number, number][], already: Prop[] = []): [
     if (!clearGround(x, z, 2.5, keepOut)) continue;
     if (!nearAPath(x, z)) continue;
     if (inSolid(x, z)) continue;
+    // ground another module builds on at runtime, such as the chocolate course
+    if (noGo.some((r) => x > r.minX - 4 && x < r.maxX + 4 && z > r.minZ - 4 && z < r.maxZ + 4)) continue;
     if (out.some(([ox, oz]) => dist2(x, z, ox, oz) < 20 * 20)) continue;
     out.push([x, z]);
   }

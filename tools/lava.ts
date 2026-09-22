@@ -34,6 +34,10 @@ import { moveAndCollide, type AABB, type Capsule } from "../src/game/collision";
 import { GRAVITY, JUMP, PLAYER_H, PLAYER_W, WALK, jumpHeight, jumpReach } from "../src/game/tuning";
 import { BOOST_MULTIPLIER } from "../src/game/emmett";
 import { NODES } from "../src/game/walkways";
+import { featuresFor } from "../src/game/features";
+import { setLavaStart } from "../src/game/lava";
+import { SUGAR, loopRects } from "../src/game/sugar-rush";
+import { CHOC_SITE } from "../src/game/choc-course";
 
 const PARAPET_SLACK = 0.7;
 const DX: Record<string, number> = { E: 1, W: -1, N: 0, S: 0 };
@@ -69,7 +73,11 @@ import {
 
 const DT = 1 / 60;
 const STEP_UP = 0.62;
-const level = LEVELS[0]!;
+// LEVEL picks the park: 0 is Sunny Picnic Park's lava, 1 Sugar Rush's chocolate.
+const LEVEL = Number(process.env.LEVEL ?? "0");
+const level = LEVELS[LEVEL]!;
+// the module keeps one course at a time, the way the game does when a park loads
+setLavaStart(featuresFor(level).lava);
 const park = collidersFor(level);
 const mode = process.argv[2] ?? "";
 
@@ -115,7 +123,34 @@ if (mode === "route") {
   process.exit(0);
 }
 
-const LANDMARKS: [string, number, number, number][] = [
+/**
+ * Sugar Rush's landmarks, and the path network she finds the course from.
+ * The loop is a rounded rectangle of walkway rects rather than a graph of
+ * named nodes, so its rects stand in for park 1's nodes.
+ */
+const SUGAR_LANDMARKS: [string, number, number, number][] = [
+  ["the plaza", SUGAR.plaza.x, SUGAR.plaza.z, 20],
+  ["the candy factory", SUGAR.factory.x, SUGAR.factory.z, 22],
+  // the mountain's base is 9.4m across the middle; 16 keeps the course off
+  // the ground the climb starts from
+  ["Ice Cream Mountain", SUGAR.mountain.x, SUGAR.mountain.z, 16],
+  ["the Lollipop Forest", SUGAR.forest.x, SUGAR.forest.z, 24],
+  ["Gingerbread Village", SUGAR.village.x, SUGAR.village.z, 26],
+  ["the Licorice Maze", SUGAR.maze.x, SUGAR.maze.z, 28],
+  ["Gumdrop Meadow", SUGAR.meadow.x, SUGAR.meadow.z, 24],
+  ["Marshmallow Fields", SUGAR.marshmallow.x, SUGAR.marshmallow.z, 24],
+  ["the fairground", SUGAR.fair.x, SUGAR.fair.z, 28],
+  ["the chocolate lake", SUGAR.lake.x, SUGAR.lake.z, 20],
+];
+
+const PATH_NODES: Record<string, { x: number; z: number }> =
+  LEVEL === 1
+    ? Object.fromEntries(
+        loopRects().map((r, i) => [`loop${i}`, { x: (r.minX + r.maxX) / 2, z: (r.minZ + r.maxZ) / 2 }]),
+      )
+    : (NODES as unknown as Record<string, { x: number; z: number }>);
+
+const PARK1_LANDMARKS: [string, number, number, number][] = [
   ["the carousel", -16, 46, 22],
   ["the mini golf", 20, -132, 24],
   ["the zoo", -15, -136, 24],
@@ -125,6 +160,8 @@ const LANDMARKS: [string, number, number, number][] = [
   ["her house", -9, 110, 14],
   ["the ninja course", 8, 136, 16],
 ];
+
+const LANDMARKS = LEVEL === 1 ? SUGAR_LANDMARKS : PARK1_LANDMARKS;
 
 /* --------------------------------------------------- the clear-ground scan */
 
@@ -189,7 +226,7 @@ if (mode === "scan") {
   for (const r of kept) {
     let bn = Infinity;
     let node = "";
-    for (const [n, nd] of Object.entries(NODES)) {
+    for (const [n, nd] of Object.entries(PATH_NODES)) {
       const cx = Math.max(r.minX, Math.min(nd.x, r.maxX));
       const cz = Math.max(r.minZ, Math.min(nd.z, r.maxZ));
       const d = Math.hypot(nd.x - cx, nd.z - cz);
@@ -225,7 +262,11 @@ console.log("the site");
     site.minX > b.minX + 6 && site.maxX < b.maxX - 6 && site.minZ > b.minZ + 6 && site.maxZ < b.maxZ - 6,
     "the whole site is inside the park's boundary wall",
   );
-  check(site.maxX <= -45 || site.minX >= 45 || site.maxZ <= -30 || site.minZ >= 55, "clear of the inner square x -45..45, z -30..55");
+  // park 1 keeps the middle of the park free for the games; Sugar Rush's
+  // middle is the plaza, which the landmark check already covers
+  if (LEVEL === 0) {
+    check(site.maxX <= -45 || site.minX >= 45 || site.maxZ <= -30 || site.minZ >= 55, "clear of the inner square x -45..45, z -30..55");
+  }
   for (const [name, lx, lz, r] of LANDMARKS) {
     const cx = Math.max(site.minX, Math.min(lx, site.maxX));
     const cz = Math.max(site.minZ, Math.min(lz, site.maxZ));
@@ -237,7 +278,7 @@ console.log("the site");
   }
   let nearest = Infinity;
   let node = "";
-  for (const [n, nd] of Object.entries(NODES)) {
+  for (const [n, nd] of Object.entries(PATH_NODES)) {
     const cx = Math.max(site.minX, Math.min(nd.x, site.maxX));
     const cz = Math.max(site.minZ, Math.min(nd.z, site.maxZ));
     const d = Math.hypot(nd.x - cx, nd.z - cz);
@@ -247,6 +288,14 @@ console.log("the site");
     }
   }
   check(nearest < 20, `a walkway comes within 20m of the site (${f1(nearest)}m, node ${node})`);
+  if (LEVEL === 1) {
+    // the park keeps its own copy of this rectangle, because the course is
+    // built at runtime and nothing the park lays out can ask where it is
+    check(
+      CHOC_SITE.minX <= site.minX && CHOC_SITE.maxX >= site.maxX && CHOC_SITE.minZ <= site.minZ && CHOC_SITE.maxZ >= site.maxZ,
+      `CHOC_SITE still covers the course as built (x ${f1(site.minX)}..${f1(site.maxX)}, z ${f1(site.minZ)}..${f1(site.maxZ)})`,
+    );
+  }
   for (const key of ["dumplings", "accessories", "juice"] as const) {
     const arr = (level as unknown as Record<string, unknown[]>)[key] ?? [];
     const close = arr.filter((a) => {
@@ -307,11 +356,25 @@ console.log("\nhonesty: every collider is exactly the piece it draws");
   check(!missing, `every piece has its own collider at all ${PHASES} phases${missing ? `: ${missing} is missing` : ""}`);
   check(worstBox < 1e-9, `the collider is exactly where the mesh is drawn (worst ${worstBox.toExponential(1)}m on ${worstId})`);
 
-  // no piece ever rotates: the model has no rotation at all, so a mesh cannot
-  // drift away from its box the way the old rolling logs did
+  // No piece travels by turning: every motion is a translation, so a mesh
+  // cannot drift away from its box the way the old rolling logs did.
   check(
-    PIECES.every((p) => ["static", "slide", "lift", "orbit", "sink", "give"].includes(p.motion.kind)),
-    "every motion is a translation; nothing solid on this course rotates",
+    PIECES.every((p) => ["static", "slide", "lift", "orbit", "sink", "give", "squash", "shuttle"].includes(p.motion.kind)),
+    "every motion is a translation; nothing solid on this course travels by turning",
+  );
+  /*
+   * A piece may still spin on the spot, but only if spinning cannot move its
+   * mesh outside its box: that means a round top on a square footprint, which
+   * looks identical at every angle. A square slab spun about its centre pokes
+   * its corners out past the collider, which is the invisible-ledge bug.
+   */
+  const ROUND_SKINS = new Set(["peppermint", "gumdrop"]);
+  const spinners = PIECES.filter((p) => p.spin !== 0);
+  const badSpin = spinners.find((p) => !ROUND_SKINS.has(p.skin) || Math.abs(p.w - p.d) > 1e-9);
+  check(
+    !badSpin,
+    `anything that spins is round on a square footprint, so its mesh never leaves its box` +
+      (badSpin ? `: ${badSpin.id} is ${badSpin.skin} ${f1(badSpin.w)}x${f1(badSpin.d)}` : ` (${spinners.length} spinning)`),
   );
 
   // nothing solid stands in the lava below the line she is caught at
@@ -511,9 +574,8 @@ console.log("\nstandability: she can stand on every piece, at every phase it is 
     check(!bad && tried > 0, `${p.id} (${p.motion.kind}) is standable${bad ? `: ${bad}` : ` at all ${tried} phases tried`}`);
   }
 
-  // and walking the length of the bridge and the beams never drops her
-  for (const id of ["bridge", "beam1", "beam2"]) {
-    const p = PIECES.find((q) => q.id === id)!;
+  // and walking the length of every narrow piece never drops her
+  for (const p of PIECES.filter((q) => q.kind === "beam" || q.kind === "bridge")) {
     const ax = axisOf(p);
     const sg = signOf(p);
     const half = lenOn(p, ax) / 2 - 0.4;
@@ -526,7 +588,7 @@ console.log("\nstandability: she can stand on every piece, at every phase it is 
     lowest = Math.min(lowest, sim.cap.y);
     check(
       sim.on === p.index && lowest > p.top - 0.2,
-      `she walks the whole length of ${id} without dropping through (lowest ${f2(lowest)}m, top ${f2(p.top)}m)`,
+      `she walks the whole length of ${p.id} without dropping through (lowest ${f2(lowest)}m, top ${f2(p.top)}m)`,
     );
   }
 }
@@ -669,9 +731,20 @@ const hops: { from: Piece; to: Piece; best: number; worst: number }[] = [];
       `${from.id} to ${to.id}: ${f2(real)}m to cross${moving ? " at its closest" : real - to.gap > 0.15 ? " (a diagonal)" : ""}, ` +
         `${f1(REACH / Math.max(0.01, real))}x her ${f2(REACH)}m reach`,
     );
+    const rise = to.top - from.top;
     check(
-      Math.abs(to.top - from.top) < HEIGHT - 1.2,
-      `${from.id} to ${to.id}: rise ${f2(to.top - from.top)}m, far under her ${f2(HEIGHT)}m jump`,
+      rise < HEIGHT - 1.2,
+      `${from.id} to ${to.id}: rise ${f2(rise)}m, far under her ${f2(HEIGHT)}m jump`,
+    );
+    /*
+     * Going down is free — she cannot fail to fall — so a drop is allowed to
+     * be bigger than a climb. What it must not be is a drop she cannot judge
+     * from the top: past about three and a half metres the landing is out of
+     * frame as she jumps, and it has to be long enough to catch her running.
+     */
+    check(
+      rise > -3.5 && (rise > -1.6 || lenOn(to, axisOf(to)) >= 6.0),
+      `${from.id} to ${to.id}: drop ${f2(-rise)}m onto ${f1(lenOn(to, axisOf(to)))}m of landing`,
     );
     check(
       best > 0.35,
@@ -854,7 +927,12 @@ console.log("\nfalling in: always back to the start deck");
         // skip anywhere a piece can be while she is falling, including every
         // position a raft or an arm sweeps through
         if (PIECES.some((p) => {
-          const reach = p.motion.kind === "slide" ? p.motion.travel : p.motion.kind === "orbit" ? p.motion.r * 2 : 0;
+          const reach =
+            p.motion.kind === "slide" || p.motion.kind === "shuttle"
+              ? p.motion.travel
+              : p.motion.kind === "orbit"
+                ? p.motion.r * 2
+                : 0;
           return Math.abs(x - p.cx) < p.w / 2 + reach + 1.4 && Math.abs(z - p.cz) < p.d / 2 + reach + 1.4;
         }))
           continue;

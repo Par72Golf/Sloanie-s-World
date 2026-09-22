@@ -137,9 +137,11 @@ const biscuit: Dress = (g, p, y0) => {
 const gumdrop: Dress = (g, p, y0) => {
   const r = fit(p);
   const color = GUMDROP[p.index % GUMDROP.length]!;
-  g.add(puck(color, p.cx, p.cz, r * 0.97, r * 0.62, p.top - 0.1, y0));
+  // wide at the foot and drawn in a little at the top: a gumdrop is a dome
+  // with the tip cut off, and the other way round it reads as a bucket
+  g.add(puck(color, p.cx, p.cz, r * 0.84, r * 0.99, p.top - 0.1, y0));
   // the sugar the sweet is rolled in, and the flat the engine says is its top
-  g.add(puck(C.icing, p.cx, p.cz, r * 0.93, r * 0.99, p.top + 0.03, p.top - 0.12, true));
+  g.add(puck(C.icing, p.cx, p.cz, r * 0.8, r * 0.86, p.top + 0.03, p.top - 0.12, true));
 };
 
 /** A liquorice beam: black, with the red stripe of an allsort across it. */
@@ -291,7 +293,14 @@ export const CHOC_THEME: LavaTheme = {
   // Chocolate is not molten rock: it takes its colour from the light rather
   // than making its own, so the glow is only enough to keep it warm in shade
   // and it stays well under the bloom threshold.
-  liquid: { color: C.choc, glow: "#5a2f12", glowIntensity: 0.45, crust: C.chocDark },
+  /*
+   * Chocolate is not molten rock. It takes its colour from the light rather
+   * than making its own, so the glow is only enough to keep it warm in shade,
+   * and it is nearly smooth so it catches the sky — the same recipe as the
+   * river in candy-river.ts, because they are the same chocolate. At the
+   * default roughness the pool read as a field of mud.
+   */
+  liquid: { color: "#4a2a16", glow: "#3a1f10", glowIntensity: 0.22, crust: C.chocLight, roughness: 0.1 },
   rock: C.sugar,
   rockDark: C.chocDark,
   stone: C.biscuit,
@@ -363,10 +372,14 @@ export const CHOC_PLAN: PlanStep[] = [
   { id: "deck", kind: "deck", skin: "biscuit", len: 9.0, wide: 9.5, top: 3.0, section: 0 },
 
   // ---- 1. Gumdrop Hops: wide, but it climbs a metre as it zig-zags -------
-  { id: "g1", skin: "gumdrop", len: 4.4, wide: 4.8, gap: 2.4, top: 3.1, section: 1 },
-  { id: "g2", skin: "gumdrop", len: 4.4, wide: 4.8, gap: 2.7, off: 1.8, top: 3.4, section: 1 },
-  { id: "g3", skin: "gumdrop", len: 4.4, wide: 4.8, gap: 2.9, off: -1.8, top: 3.7, section: 1 },
-  { id: "brink", skin: "biscuit", len: 5.4, wide: 5.8, gap: 3.0, off: 1.4, top: 4.0, section: 1 },
+  // The gaps here are the shortest on the course and the gumdrops the longest,
+  // on purpose: this section is where she learns that up is a direction, and
+  // the course has to get harder from here, not start hard. Every later
+  // section's take-off window is tighter than these.
+  { id: "g1", skin: "gumdrop", len: 6.0, wide: 4.8, gap: 1.9, top: 3.1, section: 1 },
+  { id: "g2", skin: "gumdrop", len: 6.0, wide: 4.8, gap: 2.0, off: 1.8, top: 3.4, section: 1 },
+  { id: "g3", skin: "gumdrop", len: 6.0, wide: 4.8, gap: 2.0, off: -1.8, top: 3.7, section: 1 },
+  { id: "brink", skin: "biscuit", len: 6.6, wide: 5.8, gap: 2.1, off: 1.4, top: 4.0, section: 1 },
 
   // ---- 2. The Liquorice Beams: narrow, and they step sideways ------------
   // Park 1's beams are 1.5m wide and in a straight line. These are 1.4m and
@@ -458,6 +471,17 @@ export const CHOC_SECTIONS = [
  * west along a second lane 16m further south, so the chocolate lake is one
  * long canal rather than a pond.
  */
+/**
+ * The ground the course stands on, with its kerb and a metre of margin.
+ *
+ * The course builds itself at runtime, so nothing the park lays out knows it
+ * is there — and a cotton-candy boost hidden in the middle of a chocolate
+ * canal is a boost she can never reach. This is that footprint written down
+ * for the park to keep clear of; `tools/lava.ts` checks it still matches the
+ * course as built.
+ */
+export const CHOC_SITE = { minX: -96, maxX: 149, minZ: -153, maxZ: -117 };
+
 export const CHOC_COURSE: LavaCourse = {
   x: 142,
   z: -143,

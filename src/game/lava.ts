@@ -953,7 +953,18 @@ export type LavaTheme = {
    */
   prize: AccessoryId | null;
   /** the pool: a dark base, the light that comes out of it, and its crust */
-  liquid: { color: string; glow: string; glowIntensity: number; crust: string };
+  liquid: {
+    color: string;
+    glow: string;
+    glowIntensity: number;
+    crust: string;
+    /**
+     * How the surface takes the light. Molten rock is matte and makes its own
+     * light, which is the default; melted chocolate is a mirror with a tint,
+     * and at 0.95 it reads as mud.
+     */
+    roughness?: number;
+  };
   /** the solids */
   rock: string;
   rockDark: string;
@@ -1075,7 +1086,7 @@ export class LavaWorld {
       color: THEME.liquid.color,
       emissive: new THREE.Color(THEME.liquid.glow),
       emissiveIntensity: THEME.liquid.glowIntensity,
-      roughness: 0.95,
+      roughness: THEME.liquid.roughness ?? 0.95,
       metalness: 0,
     });
 
