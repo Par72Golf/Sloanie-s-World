@@ -323,6 +323,10 @@ export class SorterWorld {
   }
 
   update(dt: number, her: { x: number; y: number; z: number }) {
+    // a frame can arrive with a negative delta when the page's own loop and a
+    // stepped test frame interleave, and anything integrating time then runs
+    // backwards; the park's older movers guard the same way
+    if (!(dt > 0)) return;
     this.t += dt;
     const again = useSorter.getState().again;
     if (again !== this.lastAgain) {

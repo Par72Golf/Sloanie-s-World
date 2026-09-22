@@ -21,6 +21,7 @@ import { SweetShop } from "./candy-shop";
 import { Flyover, flyoverFor } from "./flyover";
 import { WhackWorld } from "./whack-a-gummy";
 import { SorterWorld } from "./sweet-sorter";
+import { BoatRide } from "./boat-ride";
 import { BowlsWorld } from "./bowls";
 import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
@@ -613,6 +614,9 @@ export class GameRuntime {
     // the candy princess and the three things her factory is missing
     this.candyQuest?.dispose();
     this.candyQuest = this.level.id === "sugar" ? new CandyQuest(this.scene) : null;
+    // the chocolate river boat: a jetty east of the plaza, down to the lake
+    this.boat?.dispose();
+    this.boat = this.level.id === "sugar" && this.world ? new BoatRide(this.scene, this.world.colliders) : null;
     // the sweet sorter, in the bunting bay west of the wheel
     this.sorter?.dispose();
     this.sorter = this.level.id === "sugar" && this.world ? new SorterWorld(this.scene, this.world.colliders) : null;
@@ -1059,6 +1063,7 @@ export class GameRuntime {
   sweetShop: SweetShop | null = null;
   whack: WhackWorld | null = null;
   sorter: SorterWorld | null = null;
+  boat: BoatRide | null = null;
   playerTruck: PlayerTruck | null = null;
   /** the chocolate river's group, and how far the chocolate has flooded it */
   private river: THREE.Group | null = null;
@@ -1082,6 +1087,7 @@ export class GameRuntime {
     this.sweetShop?.dispose();
     this.whack?.dispose();
     this.sorter?.dispose();
+    this.boat?.dispose();
     this.playerTruck?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
@@ -1467,6 +1473,7 @@ export class GameRuntime {
       this.grounded &&
       !this.ride &&
       !this.carouselRide &&
+      !this.boat?.riding &&
       st.phase === "playing" &&
       !st.quiz &&
       !st.rps &&
@@ -1630,6 +1637,7 @@ export class GameRuntime {
     // a bear beside her beats everything else Collect could mean out here
     if (this.whack?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.sorter?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
+    if (this.boat?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.creatures?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.sweetShop?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.candyQuest?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
@@ -2437,6 +2445,7 @@ export class GameRuntime {
     this.updateJuice(dt);
     this.updatePickups(dt);
     this.updateRide(dt);
+    this.boat?.update(dt, this.cap);
     this.updateCarousel(dt);
     this.updateEmmett(dt);
     this.updateCelebration(dt);
@@ -2515,6 +2524,7 @@ export class GameRuntime {
       useGame.getState().setCreatureNear(this.creatures?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
       useGame.getState().setBasketNear(this.creatures?.atBasket(this.cap.x, this.cap.y, this.cap.z) ?? null);
       useGame.getState().setShopNear(this.sweetShop?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
+      useGame.getState().setBoatNear(this.boat?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
     }
     const d = this.nearestUnfound();
     if (!d) {

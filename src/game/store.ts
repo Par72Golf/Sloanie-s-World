@@ -113,6 +113,9 @@ export type GameStore = {
   /** the sweet shop on Sugar Rush's fairground: she is at the counter, and it is open */
   shopNear: boolean;
   setShopNear: (v: boolean) => void;
+  /** she is on the jetty with the chocolate river boat moored at it */
+  boatNear: boolean;
+  setBoatNear: (v: boolean) => void;
   sweetShop: boolean;
   setSweetShop: (v: boolean) => void;
   boostLeft: number;
@@ -779,6 +782,10 @@ export const useGame = create<GameStore>((set, get) => ({
   shopNear: false,
   setShopNear: (shopNear) => {
     if (get().shopNear !== shopNear) set({ shopNear });
+  },
+  boatNear: false,
+  setBoatNear: (boatNear) => {
+    if (get().boatNear !== boatNear) set({ boatNear });
   },
   sweetShop: false,
   setSweetShop: (sweetShop) => set({ sweetShop }),
