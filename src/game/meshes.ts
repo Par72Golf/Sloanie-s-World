@@ -1699,6 +1699,13 @@ export function makeWaterMaterial(hex: string) {
 
 export { boxGeo, sphereGeo, cylGeo, coneGeo, cone4Geo };
 
+/**
+ * Where she stands to board a ferris wheel, in the wheel's own frame, and how
+ * far from that spot Collect boards instead of doing anything else. Both parks'
+ * wheels use it, and tools/buttons.ts keeps the sweets out of it.
+ */
+export const WHEEL_BOARD = { dz: 4.0, y: 0.6, r: 2.4 };
+
 export type FerrisWheel = {
   group: THREE.Group;
   /** rotates about z; gondolas hang from it */
@@ -1820,7 +1827,7 @@ export function makeFerrisWheel(radius = 6, hubY = 7.8, count = 8): FerrisWheel 
     gondolas,
     radius,
     hubY,
-    boardLocal: new THREE.Vector3(0, 0.6, 4.0),
+    boardLocal: new THREE.Vector3(0, WHEEL_BOARD.y, WHEEL_BOARD.dz),
     origin: new THREE.Vector3(),
   };
 }

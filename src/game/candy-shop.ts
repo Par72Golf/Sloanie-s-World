@@ -29,8 +29,8 @@ import { useGame } from "./store";
  */
 export const SHOP_AT = { x: SUGAR.fair.x + 6, z: SUGAR.fair.z + 16 };
 const COUNTER_TOP = 1.08;
-const STAND = { x: SHOP_AT.x, z: SHOP_AT.z + 3.2 };
-const NEAR_R = 2.6;
+export const STAND = { x: SHOP_AT.x, z: SHOP_AT.z + 3.2 };
+export const NEAR_R = 2.6;
 
 const gloss = (c: string, roughness = 0.16) => lam(c, { flat: true, roughness });
 

@@ -37,6 +37,7 @@ jobs:
       - run: npx jiti tools/gauntlet.ts
       - run: npx jiti tools/creatures.ts
       - run: npx jiti tools/toss.ts
+      - run: npx jiti tools/buttons.ts
       - run: npm run build
       - uses: actions/upload-pages-artifact@v4
         with:

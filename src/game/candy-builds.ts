@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { beveledBox } from "./beveled";
-import { boxGeo, coneGeo, cone4Geo, cylGeo, lam, mesh, signBoard, sphereGeo, type FerrisWheel } from "./meshes";
+import { boxGeo, coneGeo, cone4Geo, cylGeo, lam, mesh, signBoard, sphereGeo, WHEEL_BOARD, type FerrisWheel } from "./meshes";
 
 /**
  * The buildings and rides of Sugar Rush Park.
@@ -1397,7 +1397,7 @@ export function makeGumdropWheelRig(radius = 6, hubY = 7.8, count = 8): FerrisWh
     gondolas,
     radius,
     hubY,
-    boardLocal: new THREE.Vector3(0, 0.6, 4.0),
+    boardLocal: new THREE.Vector3(0, WHEEL_BOARD.y, WHEEL_BOARD.dz),
     origin: new THREE.Vector3(),
   };
 }

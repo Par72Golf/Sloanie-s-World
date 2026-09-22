@@ -39,7 +39,7 @@ const ZOOM_FOV = 20;
 /** Seconds to zoom either way, so it reads as a telescope and not as a cut. */
 const ZOOM_TIME = 0.45;
 /** She has to be this close to the tripod for Collect to mean "look". */
-const REACH = 2.2;
+export const REACH = 2.2;
 /**
  * How far in front of the tripod the camera sits.
  *

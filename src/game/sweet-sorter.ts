@@ -65,7 +65,7 @@ export const SORTER = {
 
 const PICK_R = 1.0;
 const BIN_R = 1.35;
-const START_R = 2.4;
+export const START_R = 2.4;
 /** the belt's pace, from the first sweet to the last */
 const DROP_FROM = 2.5;
 const DROP_TO = 1.0;

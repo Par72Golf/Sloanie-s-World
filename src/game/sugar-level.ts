@@ -105,10 +105,16 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   bubblegum: {
     id: "bubblegum",
-    pos: [-100, 0.55, 96],
+    /*
+     * South-west of the ferris wheel, not beside it. There is one Collect key:
+     * standing inside the wheel's boarding circle it boards the wheel, and a
+     * sweet inside that circle is a sweet she cannot pick up. tools/buttons.ts
+     * keeps every sweet clear of every button.
+     */
+    pos: [-104, 0.55, 90],
     hide: "medium",
     region: "the fairground",
-    hint: "Near the rides.",
+    hint: "On the grass south of the big wheel.",
   },
   "licorice twist": {
     id: "licoricetwist",

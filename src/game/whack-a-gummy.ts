@@ -70,7 +70,7 @@ export const WHACK = {
 
 /** How near a bear she has to be for Collect to whack it. Generous on purpose. */
 const WHACK_R = 2.1;
-const START_R = 2.4;
+export const START_R = 2.4;
 
 /** How long a bear stays up, from the first one to the last. */
 const UP_FROM = 1.7;

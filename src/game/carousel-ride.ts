@@ -55,7 +55,7 @@ export const CAROUSEL = {
   seconds: 34,
 } as const;
 
-const NEAR_R = 2.4;
+export const NEAR_R = 2.4;
 /** a full turn every so many seconds */
 const TURN = 11;
 

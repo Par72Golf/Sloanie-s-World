@@ -41,7 +41,7 @@ const gloss = (c: string, roughness = 0.2) => lam(c, { flat: true, roughness });
 const BOARD_AT = 96;
 /** samples a second; the river is sampled every 2.5m, so this is about 5.5 m/s */
 const PACE = 2.2;
-const NEAR_R = 2.6;
+export const NEAR_R = 2.6;
 /** how far off the middle of the river the jetty stands */
 const JETTY_OUT = 1.2;
 
@@ -57,6 +57,16 @@ function at(i: number) {
   const dz = b.z - a.z;
   const len = Math.hypot(dx, dz) || 1;
   return { x, z, w: a.w, dx: dx / len, dz: dz / len };
+}
+
+/**
+ * Where the boarding jetty stands, so the layout checks can keep the sweets and
+ * everything else she picks up out of the jetty's button.
+ */
+export function boatBoard(): { x: number; z: number } {
+  const p = at(BOARD_AT);
+  const off = p.w / 2 + JETTY_OUT;
+  return { x: p.x - p.dz * off, z: p.z + p.dx * off };
 }
 
 /** A jetty: a wafer deck on cane piles, standing out over the chocolate. */
