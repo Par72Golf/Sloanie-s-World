@@ -8,7 +8,9 @@ context. It covers what exists, what the tooling is for, the bugs that cost the 
 time and why, what "finished" would actually require, and how to prompt effectively
 on this specific project.
 
-Current version: **v3.2** (17 Sept 2026, the day before the birthday): her house, Emmett's truck, the zoo, the mountain lookout, the rebuilt landing plaza and walkways, Sandcastle Corner, remappable controls, and the jewel UI.
+Current version: **v3.3** (22 Sept 2026): Sugar Rush Park, the second full-size park — a candy world with its own hunt, accessories and stickers, a gingerbread house she builds up in three stages, a chocolate obstacle course, a factory she can go inside, three rides, three fairground games played in the park rather than in a menu, the candy princess's quest, and Emmett's monster truck to win and drive. See SUGAR-RUSH.md.
+
+Before that, v3.2 (17 Sept 2026, the day before the birthday): her house, Emmett's truck, the zoo, the mountain lookout, the rebuilt landing plaza and walkways, Sandcastle Corner, remappable controls, and the jewel UI.
 
 ### The grown-ups' menu
 

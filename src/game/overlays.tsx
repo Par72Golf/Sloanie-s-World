@@ -591,6 +591,50 @@ function GrownUps({ onClose }: { onClose: () => void }) {
   );
 }
 
+/**
+ * What "How to play" says, which is not the same in both parks.
+ *
+ * The list used to send her to the ball field for a backpack and to Farmer Joe
+ * for his pets whichever park she was about to start, and in Sugar Rush there
+ * is no ball field and no Farmer Joe. It follows the park the Play row is on.
+ */
+function helpLines(levelIndex: number): string[] {
+  const common = [
+    "Find the hidden dumplings! Warm means close. Cold means far.",
+    `Next to one? Press Collect (${bindingLabel("collect")}) and answer the math.`,
+    "Miss twice and it runs off to hide somewhere new.",
+    `Open your bag with ${bindingLabel("journal")}.`,
+  ];
+  if (LEVELS[levelIndex]?.id === "sugar") {
+    return [
+      "Find the sixteen sweets! Warm means close. Cold means far.",
+      `Next to one? Press Collect (${bindingLabel("collect")}) and answer the math.`,
+      "Miss twice and it runs off to hide somewhere new.",
+      "Find the candy satchel near the sweet shops. Then you can carry things.",
+      `Open your bag and your jobs list with ${bindingLabel("journal")}.`,
+      "The candy sticker book is near the start. 20 stickers are hiding in the park.",
+      "Grab a cotton candy to run super fast for a little while.",
+      "The candy princess is in the Lollipop Forest. Her factory has stopped — that is why the river is white.",
+      "Her three creatures are stuck. One is up a tree, one is in the bog and one is set in toffee.",
+      "At the fairground: Marshmallow Toss, Whack-a-Gummy, Sweet Sorter, and a sweet shop to spend your tickets in.",
+      "Ride the gumdrop wheel, the chocolate river boat and the cupcake carousel.",
+      "Your gingerbread house is on the village square. Build it bigger at the board by the gate.",
+      "Beat Emmett five times at his den and his monster truck is yours to drive.",
+      "Climb Ice Cream Mountain and look through the telescope at the top.",
+    ];
+  }
+  return [
+    ...common,
+    "Find the backpack on the ball field. Then you can carry things.",
+    "The sticker book is near the start. 30 stickers are hiding in the park.",
+    "Emmett rides up on his trike. Beat him at rock paper scissors to keep your dumplings.",
+    "Grab a juice box to run super fast for a little while.",
+    "At the carnival, play games to win tickets. Spend them at the prize booth.",
+    "Farmer Joe at the farm lost his pets. Can you bring them home?",
+    "Find the big mountain and explore the cave inside.",
+  ];
+}
+
 /** One row of the start menu. The sliding selector bar behind it follows focus. */
 function MenuItem({
   icon: Icon,
@@ -639,6 +683,7 @@ function MenuItem({
 
 function TitleScreen() {
   const playerName = useGame((s) => s.playerName);
+  const levelIndex = useGame((s) => s.levelIndex);
   const dress = useGame((s) => s.dress);
   const unlocked = useGame((s) => s.unlocked);
   const collected = useGame((s) => s.collected);
@@ -1018,18 +1063,8 @@ function TitleScreen() {
                 {detail === "help" && (
                   <ul className="grid gap-2 text-base leading-snug text-ink 2xl:text-xl">
                     {[
-                      "Find the hidden dumplings! Warm means close. Cold means far.",
-                      `Next to one? Press Collect (${bindingLabel("collect")}) and answer the math.`,
-                      "Miss twice and it runs off to hide somewhere new.",
-                      "Find the backpack on the ball field. Then you can carry things.",
-                      `Open your backpack with ${bindingLabel("journal")}.`,
-                      "The sticker book is near the start. 30 stickers are hiding in the park.",
-                      "Emmett rides up on his trike. Beat him at rock paper scissors to keep your dumplings.",
-                      "Grab a juice box to run super fast for a little while.",
-                      "At the carnival, play games to win tickets. Spend them at the prize booth.",
-                      "Farmer Joe at the farm lost his pets. Can you bring them home?",
+                      ...helpLines(levelIndex),
                       `Press ${bindingLabel("music")} to play music on your iPod. Stand still and you will dance!`,
-                      "Find the big mountain and explore the cave inside.",
                       `Walk with W A S D or the left stick. Jump with ${bindingLabel("jump")}.`,
                       "Turn the camera with the shoulder buttons, or by dragging the screen.",
                     ].map((line) => (

@@ -54,6 +54,46 @@ The game is at **https://par72golf.github.io/Sloanie-s-World/**
 - **Everything else:** the carnival games and prize booth, her house to
   decorate, Emmett's monster truck, the zoo, the mountain cave and the lookout.
 
+## 3b. Sugar Rush Park, when she gets there
+
+Park 2 unlocks when she finishes park 1. It is the same game in a candy world,
+so everything she already knows still works — sweets instead of dumplings, a
+candy satchel instead of the backpack, cotton candy instead of juice boxes —
+and then there is a lot that is new. A good order to let her find it in:
+
+1. **The white river.** Do not explain it. She will notice the river is the
+   wrong colour, and the answer is the candy princess in the Lollipop Forest,
+   west of the start.
+2. **The princess's errand.** The factory has stopped and three things are
+   missing: the big whisk in Marshmallow Fields, the bucket of syrup by the
+   chocolate lake, the cog at the Licorice Maze. Carry all three into the
+   factory and pull the big lever, and the chocolate floods the whole river
+   from the factory outward. It is the best thing in the park and it takes
+   about twenty minutes to earn.
+3. **Her three creatures**, once the factory runs. One is up a lollipop tree
+   (walk up the spiral), one is out in the marshmallow bog (hop the pads before
+   they sink), one is set in toffee (jump on it three times). They follow her
+   afterwards, and the basket by her porch sends them inside to live.
+4. **Her gingerbread house** at the head of the village square, east. Bigger
+   than the neighbours', and the board by the gate builds it up in three
+   stages with tickets — cottage, candy house, candy castle — each one adding
+   a room inside to decorate.
+5. **Emmett's den**, south of the village: rock paper scissors three times,
+   then an obstacle run, then a race. Win all five and his monster truck is
+   hers, parked by her house, and she can drive it at boost speed.
+6. **The fairground**, far north-west: Marshmallow Toss, Whack-a-Gummy, Sweet
+   Sorter, the gumdrop wheel, and a sweet shop to spend the tickets in. The
+   cupcake carousel is through the arch on its own green.
+7. **The chocolate river boat**, from a jetty a short walk east of the start:
+   half a minute down the river to the lake.
+8. **Ice Cream Mountain** in the far north-west corner: a spiral walk to the
+   top and a telescope that zooms and sparkles the sweets she has not found.
+9. **The Floor is Chocolate** along the whole north edge: longer than park 1's
+   lava course, with three candy flags that catch her when she falls in.
+
+If she loses the thread, the **journal has a Jobs page** in this park listing
+everything still to do and where she was told to look.
+
 ## 4. If something goes wrong
 
 - **Controls feel wrong:** main menu → Controls → **Reset to normal**.

@@ -196,14 +196,29 @@ Then: nail down the quests.
 ## Stages
 
 1. **Ground and layout** — terrain, the river, the path loop, region blockout,
-   sky and palette, colliders, reachability checks.
+   sky and palette, colliders, reachability checks. **Done.**
 2. **Landmarks** — the forest, meadow, village, mountain, maze, factory, plaza.
-3. **The hunt** — 16 candies, hiding spots and alternates, hints, signs, soda
-   cans, the map layer.
-4. **Rides and games** — boat, carousel, wheel, jumping course, booths, shop.
-5. **The princess quest** — her creatures, and them following Sloan.
-6. **Emmett** — visits, his den, then Play as Emmett here.
+   **Done**, and the mountain is climbable with a looking glass on top.
+3. **The hunt** — 16 candies, hints, signs, plus 7 candy accessories, 20 candy
+   stickers and their own book. **Done.**
+4. **Rides and games** — the gumdrop wheel, the chocolate river boat and the
+   cupcake carousel; Marshmallow Toss, Whack-a-Gummy and Sweet Sorter, all
+   played in the park rather than in a card menu; the sweet shop. **Done.**
+5. **The princess quest** — the stopped factory, the white river, the three
+   missing parts, her three creatures and where they live. **Done.**
+6. **Emmett** — his den, the candy truck, the five challenges and driving it
+   afterwards. **Done.** Play as Emmett here is not started, and the
+   `emmett-mode` branch it would build on is still unfinished.
 7. **Polish** — frame rate on the TV, the tool checks, the morning checklist.
+   The checks are in CI; BIRTHDAY-MORNING.md covers this park; the frame rate
+   on the real TV has not been measured.
+
+## What is not built
+
+- **Play as Emmett** in this park, and the `emmett-mode` branch generally.
+- The park has never been played end to end by a child. Every number in it —
+  the course times, the game clocks, the ticket prices — was set from a
+  simulated run or from judgement, not from watching her.
 
 ## Rules this park must keep
 
