@@ -82,6 +82,11 @@ export type BuiltWorld = {
   carnival: CarnivalRig | null;
   truck: TruckRig | null;
   campfire: Campfire | null;
+  /**
+   * Doors that swing open as she comes up to them: each hinge, the angle it
+   * opens to, and where the middle of its doorway is in the world.
+   */
+  doors: { hinge: THREE.Object3D; opens: number; x: number; z: number }[];
 };
 
 /** A `model` prop as a placed group; models.ts owns the art and the boxes. */
@@ -469,6 +474,17 @@ export function buildWorld(level: LevelDef): BuiltWorld {
   if (campfire) live.add(campfire.group);
   for (const o of placeLive) live.add(o);
   if (truck) live.add(truck.group);
+  // the doors that open: kept whole so the runtime can swing them, and their
+  // doorways found now, while every one of them is still shut
+  const doors: BuiltWorld["doors"] = [];
+  group.updateMatrixWorld(true);
+  group.traverse((o) => {
+    if (o.name !== "door-hinge" || typeof o.userData.opens !== "number") return;
+    // the middle of the doorway: half a door along from the hinge
+    const at = o.localToWorld(new THREE.Vector3((o.userData.width ?? 1.2) / 2, 0, 0));
+    doors.push({ hinge: o, opens: o.userData.opens, x: at.x, z: at.z });
+    live.add(o);
+  });
   // ?nomerge=1 keeps the original per-prop meshes, for A/B measurement with
   // the probes on window.__gameTest.
   const noMerge =
@@ -498,6 +514,7 @@ export function buildWorld(level: LevelDef): BuiltWorld {
     spray,
     splash,
     carnival,
+    doors,
     truck,
     campfire,
   };

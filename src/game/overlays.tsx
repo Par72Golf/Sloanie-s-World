@@ -1157,6 +1157,7 @@ function HUD() {
   const whackCard = useWhack((s) => s.card);
   const sorterNear = useSorter((s) => s.near);
   const boatNear = useGame((s) => s.boatNear);
+  const glassNear = useGame((s) => s.glassNear);
   const cupcakesNear = useGame((s) => s.cupcakesNear);
   const sorterCard = useSorter((s) => s.card);
   const shopOpen = useGame((s) => s.sweetShop);
@@ -1411,11 +1412,15 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && !shopOpen && !whackCard && !sorterCard && (homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || basketNear || shopNear || whackNear || whackHit || sorterNear || boatNear || cupcakesNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && !shopOpen && !whackCard && !sorterCard && (glassNear || homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || basketNear || shopNear || whackNear || whackHit || sorterNear || boatNear || cupcakesNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (basketNear ? `basket-${basketNear}` : null) ?? (shopNear ? "shop" : null) ?? (whackHit ? "whack-hit" : whackNear ? "whack" : null) ?? (sorterNear ? "sorter" : null) ?? (boatNear ? "boat" : null) ?? (cupcakesNear ? "cupcakes" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={(glassNear ? `glass-${glassNear}` : null) ?? homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (basketNear ? `basket-${basketNear}` : null) ?? (shopNear ? "shop" : null) ?? (whackHit ? "whack-hit" : whackNear ? "whack" : null) ?? (sorterNear ? "sorter" : null) ?? (boatNear ? "boat" : null) ?? (cupcakesNear ? "cupcakes" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
-            homeNear
+            glassNear
+              ? glassNear === "near"
+                ? "Look through the telescope!"
+                : "Stop looking"
+            : homeNear
               ? homeNear === "door"
                 ? "Go inside your house"
                 : homeNear === "exit"

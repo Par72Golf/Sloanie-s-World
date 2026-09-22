@@ -116,6 +116,9 @@ export type GameStore = {
   /** she is on the jetty with the chocolate river boat moored at it */
   boatNear: boolean;
   setBoatNear: (v: boolean) => void;
+  /** at the telescope on top of Ice Cream Mountain: able to look, or looking */
+  glassNear: "near" | "looking" | null;
+  setGlassNear: (v: "near" | "looking" | null) => void;
   /** she is at the cupcake carousel's way in */
   cupcakesNear: boolean;
   setCupcakesNear: (v: boolean) => void;
@@ -785,6 +788,10 @@ export const useGame = create<GameStore>((set, get) => ({
   shopNear: false,
   setShopNear: (shopNear) => {
     if (get().shopNear !== shopNear) set({ shopNear });
+  },
+  glassNear: null,
+  setGlassNear: (glassNear) => {
+    if (get().glassNear !== glassNear) set({ glassNear });
   },
   boatNear: false,
   setBoatNear: (boatNear) => {

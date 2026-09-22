@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { beveledBox } from "./beveled";
 import { CANDY } from "./candy-scenery";
+import { makeCandyDoor } from "./candy-builds";
 import { boxGeo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 import type { AABB } from "./collision";
 
@@ -191,9 +192,14 @@ function groundFloor(g: THREE.Group, boxes: AABB[]) {
   const lintel = part(cylGeo, flat(CANDY.red, 0.3), 0.14, doorW + 0.5, 0.14, 0, doorH + 0.25, d / 2 + 0.07, false);
   lintel.rotation.z = Math.PI / 2;
   g.add(lintel);
-  const leaf = part(null, flat(WAFER, 0.6), doorW - 0.15, doorH - 0.1, 0.1, -half - 0.5, doorH / 2, d / 2 + 0.5, false);
-  leaf.rotation.y = 1.15;
-  g.add(leaf);
+  // Her door is shut, and solid. Her rooms are not behind it — Collect at the
+  // door takes her to them — so an open doorway only ever showed an empty
+  // shell she could wander into, and the leaf propped off the wall beside it
+  // read as a shutter, not a door.
+  const door = makeCandyDoor(doorW - 0.08, doorH - 0.04, CHERRY);
+  door.position.set(-half + 0.04, 0.02, d / 2 - 0.08);
+  g.add(door);
+  boxes.push(bx(0, doorH / 2, fz, doorW, doorH, t));
 
   // windows: an icing frame round a boiled-sweet pane, one each side of the door
   for (const s of [-1, 1]) {

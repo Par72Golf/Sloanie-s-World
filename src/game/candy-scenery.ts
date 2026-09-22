@@ -271,6 +271,18 @@ export function makeLollipopTree(variant = 0, scale = 1) {
   return g;
 }
 
+/**
+ * Where a lollipop tree's candy sits, before scale: the middle of the disc, its
+ * radius, and how thick it is. The disc stands upright facing +z, so its
+ * collider is a thin slab in x and y. The smallest trees carry the bottom of
+ * the disc at 0.8m — across her middle — and with only the stick solid she
+ * walked straight through the candy.
+ */
+export function lollipopHead(variant: number) {
+  const v = POPS[Math.abs(Math.round(variant)) % POPS.length]!;
+  return { cy: v.height - v.r, r: v.r, thick: POP_THICK };
+}
+
 /** Ground-to-top height of a lollipop tree variant, before scale. */
 export function lollipopTreeHeight(variant = 0) {
   return POPS[Math.abs(Math.round(variant)) % POPS.length]!.height;
@@ -455,6 +467,35 @@ export const BRIDGE_DECK_W = 2.4;
 const BRIDGE_APPROACH = 1.4;
 
 /**
+ * The bridge's colliders, from the same numbers the drawing uses. They used to
+ * be copied out by hand into sugar-models.ts, and the copy kept an approach of
+ * 2.4m after the drawing moved to 1.4m: for the last metre at each end of every
+ * bridge the drawn deck sat 0.3m above the solid one and the drawn rails had
+ * nothing behind them, so she sank into the planks and could walk off the side.
+ */
+export function candyCaneBridgeBoxes(span = 9): AABB[] {
+  const s = Math.max(5, span);
+  const half = s / 2;
+  const hx = BRIDGE_DECK_W / 2;
+  const deckEnd = half - BRIDGE_APPROACH;
+  const out: AABB[] = [box(-hx, hx, 0, BRIDGE_DECK_Y, -deckEnd, deckEnd)];
+  for (const dir of [1, -1]) {
+    for (let k = 0; k < 2; k++) {
+      const top = 0.6 - k * 0.3;
+      const z0 = deckEnd + k * 0.7;
+      const z1 = z0 + 0.7;
+      out.push(box(-hx, hx, 0, top, Math.min(z0 * dir, z1 * dir), Math.max(z0 * dir, z1 * dir)));
+    }
+  }
+  const railTop = BRIDGE_DECK_Y + 0.95;
+  for (const sx of [-1, 1]) {
+    const px = sx * (hx - 0.1);
+    out.push(box(px - 0.12, px + 0.12, BRIDGE_DECK_Y, railTop, -deckEnd - 0.1, deckEnd + 0.1));
+  }
+  return out;
+}
+
+/**
  * A bridge over the chocolate river. She walks along +z; `span` is the whole
  * length including both approaches.
  *
@@ -543,7 +584,8 @@ export function makeCandyCaneBridge(span = 9) {
     boxes.push(box(px - 0.12, px + 0.12, BRIDGE_DECK_Y, RAIL_TOP, -deckEnd - 0.1, deckEnd + 0.1));
   }
 
-  g.userData.boxes = boxes;
+  // one source for the boxes: the helper above, not the pushes along the way
+  g.userData.boxes = candyCaneBridgeBoxes(span);
   g.userData.deckY = BRIDGE_DECK_Y;
   return g;
 }
@@ -836,6 +878,42 @@ export function makeCottonCandyPuff(scale = 1) {
 
   g.scale.setScalar(scale);
   return g;
+}
+
+/** How tall the paper stick of a candy-floss tree stands, before scale. */
+export const FLOSS_STICK = 2.1;
+
+/**
+ * A candy-floss tree: the same floss as the speed boost, up on a tall paper
+ * stick with the cloud over her head.
+ *
+ * These used to be the boost's own mesh at the boost's own size, 22 of them in
+ * the woods beside the 19 real ones, and she ran into the fakes and nothing
+ * happened. Raised up like this they read as trees, the way the lollipops do,
+ * and the only floss at waist height is the one that makes her fast.
+ */
+export function makeCandyFlossTree() {
+  const g = new THREE.Group();
+  g.add(mesh(cylGeo, CANDY.cream, 0.07, FLOSS_STICK, 0.07, 0, FLOSS_STICK / 2, 0));
+  const puff = makeCottonCandyPuff(1.5);
+  // the stick runs up into the paper cone, the way a real one is held
+  puff.position.y = FLOSS_STICK - 0.5;
+  g.add(puff);
+  return g;
+}
+
+/**
+ * The glowing ring under a speed boost, the same gold as the ring under
+ * everything else she can pick up: one rule for her, a ring means grab it.
+ */
+export function makeBoostRing() {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.62, 0.05, 8, 28),
+    new THREE.MeshStandardMaterial({ color: "#ffe08a", emissive: new THREE.Color("#ffd34a"), emissiveIntensity: 1.6, roughness: 0.4 }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.name = "boost ring";
+  return ring;
 }
 
 // ---------------------------------------------------------------------------

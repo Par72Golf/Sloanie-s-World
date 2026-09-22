@@ -404,11 +404,12 @@ export function boundaryProps(): Prop[] {
   for (let i = -15; i <= 15; i++) {
     const at = i * 10;
     for (const z of [-FENCE_AT, FENCE_AT]) {
-      out.push(cyl(at, h * 0.5, z + (z < 0 ? 1.1 : -1.1), 0.7, h, CANDY.icing, false));
+      // solid: a 5.4m pier standing 1.8m into the park is something she runs into
+      out.push(cyl(at, h * 0.5, z + (z < 0 ? 1.1 : -1.1), 0.7, h, CANDY.icing));
       out.push(cyl(at, h + 0.7, z + (z < 0 ? 1.1 : -1.1), 0.75, 0.5, CANDY.stripe, false));
     }
     for (const x of [-FENCE_AT, FENCE_AT]) {
-      out.push(cyl(x + (x < 0 ? 1.1 : -1.1), h * 0.5, at, 0.7, h, CANDY.icing, false));
+      out.push(cyl(x + (x < 0 ? 1.1 : -1.1), h * 0.5, at, 0.7, h, CANDY.icing));
       out.push(cyl(x + (x < 0 ? 1.1 : -1.1), h + 0.7, at, 0.75, 0.5, CANDY.stripe, false));
     }
   }
@@ -565,7 +566,7 @@ export function forestProps(keepOut: [number, number][]): Prop[] {
        */
       const big = 1 - t;
       const v = Math.floor(rand() * TREE_IDS.length);
-      out.push(model(TREE_IDS[v]!, x, z, { scale: (0.9 + big * 0.9) * (v === 3 ? 1.5 : 1), ry: rand() * Math.PI * 2 }));
+      out.push(model(TREE_IDS[v]!, x, z, { scale: (0.9 + big * 0.9) * (v === 3 ? 1.5 : 1), ry: Math.floor(rand() * 4) * (Math.PI / 2) }));
     }
     // understorey, at the foot of the copse and nowhere else
     for (let i = 0; i < 2; i++) {
@@ -1257,7 +1258,11 @@ function fence(x: number, z: number, len: number, ry = 0): Prop[] {
     const t = -len / 2 + (i * len) / n;
     out.push(cyl(x + Math.cos(ry) * t, 0.35, z - Math.sin(ry) * t, 0.11, 0.7, i % 2 ? CANDY.cane : CANDY.icing));
   }
-  out.push(box(x, 0.72, z, len, 0.1, 0.14, CANDY.icing, false, { ry: ry + Math.PI / 2 }));
+  // The rail runs along the posts. It used to be turned a further quarter,
+  // which three.js reads as straight across them: every garden fence on the
+  // start street had a 5.4m white bar sticking out through the flowerbed and
+  // into the street, with nothing solid in it. Solid now, so the fence is one.
+  out.push(box(x, 0.72, z, len, 0.1, 0.14, CANDY.icing, true, { ry }));
   return out;
 }
 

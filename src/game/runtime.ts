@@ -1,5 +1,5 @@
 import { ZooWorld } from "./zoo-mesh";
-import { makeCottonCandyPuff } from "./candy-scenery";
+import { makeBoostRing, makeCottonCandyPuff } from "./candy-scenery";
 import { EMMETT_BASE } from "./emmett-base";
 import { animateMonsterTruck } from "./monster-truck";
 import { HomeWorld } from "./home";
@@ -78,6 +78,8 @@ import { GEYSER } from "./splash";
 import { pickFleePos } from "./flee";
 const FIXED = 1 / 60;
 const COLLECT_R = 2.15;
+/** Above this she is on something over the water, not in it (see the wade test). */
+const WADE_TOP = 0.3;
 // On the ferris wheel the sky dumpling floats clear above the rim so it stands
 // out against the sky, which puts it further from her seat than a normal reach.
 // At 2.3m above her this still gives roughly a 4.5 second window at the top.
@@ -740,7 +742,10 @@ export class GameRuntime {
   }
 
   spawnJuice() {
-    for (const j of this.juice) this.scene.remove(j.group);
+    for (const j of this.juice) {
+      this.scene.remove(j.group);
+      if (j.ring) this.scene.remove(j.ring);
+    }
     this.juice = [];
     const flavours = ["#d4494f", "#e08a2a", "#5aa84a", "#8a5ac4", "#d46aa0"];
     (this.level.juice ?? []).forEach(([x, z], i) => {
@@ -749,7 +754,15 @@ export class GameRuntime {
       g.position.set(x, 0.1, z);
       noOutline(g);
       this.scene.add(g);
-      this.juice.push({ group: g, pos: [x, 0.1, z], taken: false, respawn: 0, phase: i * 0.8 });
+      // the candy park's floss also stands on trees all over the woods, so the
+      // one that makes her fast gets the gold ring every pickup has
+      let ring: THREE.Object3D | undefined;
+      if (this.level.boost === "cotton") {
+        ring = makeBoostRing();
+        ring.position.set(x, 0.08, z);
+        this.scene.add(ring);
+      }
+      this.juice.push({ group: g, ring, pos: [x, 0.1, z], taken: false, respawn: 0, phase: i * 0.8 });
     });
   }
 
@@ -842,6 +855,25 @@ export class GameRuntime {
     }
   }
 
+  /**
+   * Swing the walk-in doors: open as she comes up the path, shut again once
+   * she has gone. Fast enough that she never meets a shut one at a run — a
+   * boost covers the 3.2m in a third of a second, and the door is most of the
+   * way open in a quarter.
+   */
+  updateDoors(dt: number) {
+    const doors = this.world?.doors;
+    if (!doors?.length || !(dt > 0)) return;
+    for (const d of doors) {
+      const near = Math.hypot(this.cap.x - d.x, this.cap.z - d.z) < 3.2 && this.cap.y < 3;
+      const want = near ? d.opens : 0;
+      const at = d.hinge.rotation.y;
+      if (at === want) continue;
+      const step = dt * 7;
+      d.hinge.rotation.y = Math.abs(want - at) <= step ? want : at + Math.sign(want - at) * step;
+    }
+  }
+
   updateJuice(dt: number) {
     const boosted = this.boostLeft > 0;
     for (const j of this.juice) {
@@ -850,9 +882,11 @@ export class GameRuntime {
         if (j.respawn <= 0) {
           j.taken = false;
           j.group.visible = true;
+          if (j.ring) j.ring.visible = true;
         }
         continue;
       }
+      if (j.ring) j.ring.rotation.z += dt * 0.8;
       j.group.rotation.y += dt * 1.6;
       j.group.position.y = j.pos[1] + Math.sin(this.clock * 2.4 + j.phase) * 0.12;
 
@@ -861,6 +895,7 @@ export class GameRuntime {
         j.taken = true;
         j.respawn = 45;
         j.group.visible = false;
+        if (j.ring) j.ring.visible = false;
         this.burst(j.pos[0], j.pos[1] + 0.4, j.pos[2], "#ffd34a");
         sfx.collect();
         // drinking a second one tops the timer back up rather than stacking
@@ -2059,9 +2094,18 @@ export class GameRuntime {
 
     let vx = 0;
     let vz = 0;
-    const inWater = (this.level.water ?? []).some((w) =>
-      inCircle(this.cap.x, this.cap.z, w.x, w.z, w.r),
-    );
+    /*
+     * She wades only when she is down in it. This used to be a flat test —
+     * inside a water circle on the map, at any height — so a bridge deck over
+     * the river, the factory room floating above its chocolate channel, and the
+     * whole of Ice Cream Mountain (the river's source runs right under it) all
+     * walked at half speed. Every water floor in both parks is at 0.05m or
+     * below and the lowest step anyone climbs is 0.35m, so this line sits
+     * cleanly between them.
+     */
+    const inWater =
+      this.cap.y < WADE_TOP &&
+      (this.level.water ?? []).some((w) => inCircle(this.cap.x, this.cap.z, w.x, w.z, w.r));
     // his truck goes as fast as a cotton-candy boost: that was the deal
     const speedMul = (inWater ? 0.48 : 1) * (this.boostLeft > 0 || st.driving ? BOOST_MULTIPLIER : 1);
     if (wishLen > 0.05) {
@@ -2418,6 +2462,10 @@ export class GameRuntime {
         targets: this.world?.dumplings ?? [],
         paused,
       });
+      // the telescope's prompt: nothing ever told her it was there, or how to
+      // stop looking once she had found it
+      const g = this.lookingGlass;
+      useGame.getState().setGlassNear(!g ? null : g.active ? "looking" : g.near(this.cap.x, this.cap.y, this.cap.z) ? "near" : null);
       if (!paused) this.zooWorld?.update(this.clock, this.cap.x, this.cap.z);
       if (this.questWorld) {
         const d = this.nearestUnfound();
@@ -2470,6 +2518,7 @@ export class GameRuntime {
       }
     }
     this.updateJuice(dt);
+    this.updateDoors(dt);
     this.updatePickups(dt);
     this.updateRide(dt);
     this.boat?.update(dt, this.cap);

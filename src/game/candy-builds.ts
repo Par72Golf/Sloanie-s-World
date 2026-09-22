@@ -302,6 +302,32 @@ function candyCane(height: number, r = 0.14, a = RED, b = ICING) {
   return g;
 }
 
+/* ============================================================== candy door */
+
+/**
+ * A front door for a sweet house: a wafer leaf with an icing panel on each
+ * face and a gumdrop knob, hinged at its own origin and hanging along +x, so
+ * turning the group about y swings it on its hinge. Shut at rotation 0.
+ *
+ * Every house in the park used to have a wafer leaf propped at an angle off
+ * the wall beside the doorway, not hung from anything, and from the path it
+ * read as a shutter: the houses looked like they had holes where their doors
+ * should be. The house decides whether its door opens (userData.opens, the
+ * angle it swings to) — the runtime does the swinging.
+ */
+export function makeCandyDoor(w: number, h: number, knob = GUMDROPS[1]!): THREE.Group {
+  const g = new THREE.Group();
+  g.name = "door-hinge";
+  g.userData.width = w;
+  g.add(mesh(boxGeo, WAFER, w, h, 0.1, w / 2, h / 2, 0));
+  for (const face of [-1, 1]) {
+    g.add(mesh(boxGeo, ICING, w * 0.62, h * 0.32, 0.03, w / 2, h * 0.7, face * 0.06, false));
+    g.add(mesh(boxGeo, ICING, w * 0.62, h * 0.28, 0.03, w / 2, h * 0.3, face * 0.06, false));
+    g.add(mesh(sphereGeo, knob, 0.075, 0.075, 0.075, w - 0.16, h * 0.48, face * 0.1, false));
+  }
+  return g;
+}
+
 /* ======================================================== gingerbread house */
 
 /**
@@ -393,9 +419,12 @@ export function makeGingerbreadHouse(w = 5.5, d = 5, variant = 0, seed = 2026092
     g.add(post);
   }
   turned(g, part(cyl16, striped(caneTexture(ICING, RED, 5, 2)), 0.13, DOOR_W + 0.42, 0.13, 0, DOOR_H + 0.22, d / 2 + 0.06, false), 0, 0, Math.PI / 2);
-  const leaf = mesh(boxGeo, WAFER, DOOR_W - 0.1, DOOR_H - 0.1, 0.1, -half - 0.42, DOOR_H / 2, d / 2 + 0.4, false);
-  leaf.rotation.y = 1.1;
-  g.add(leaf);
+  // the door, hung from the west jamb and shut: she can walk in, so the
+  // runtime swings it open as she comes up the path (updateDoors)
+  const door = makeCandyDoor(DOOR_W - 0.06, DOOR_H - 0.04);
+  door.position.set(-half + 0.03, 0.02, d / 2 - 0.08);
+  door.userData.opens = 1.55;
+  g.add(door);
 
   // ---- windows: icing frames round a boiled-sweet pane
   const panes: [number, number][] = variant === 1 ? [[-1, 1.5], [1, 1.5], [-1, 3.3], [1, 3.3]] : [[-1, 1.5], [1, 1.5]];

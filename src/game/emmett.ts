@@ -717,6 +717,8 @@ export class Emmett {
 
 export type JuicePickup = {
   group: THREE.Group;
+  /** the glowing ring on the ground under a candy-floss boost; it does not bob */
+  ring?: THREE.Object3D;
   pos: [number, number, number];
   taken: boolean;
   respawn: number;
