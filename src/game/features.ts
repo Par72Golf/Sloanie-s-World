@@ -1,6 +1,6 @@
 import { PARK_DIRECTORIES, PARK_NAME_SIGNS, type Directory, type NameSign } from "./signs";
 import { CHOC_COURSE } from "./choc-course";
-import { loopRects } from "./sugar-rush";
+import { SUGAR_DEN, loopRects } from "./sugar-rush";
 import { walkwayRects } from "./walkways";
 import type { LavaCourse } from "./lava";
 import type { NavRect } from "./navgrid";
@@ -145,7 +145,7 @@ function sugarFeatures(): LevelFeatures {
     home: { x: 130, z: -13 },
     house: "candy",
     // his den: east of the loop's north-east corner, facing the path
-    emmettBase: { x: 120, z: 45, yaw: Math.PI },
+    emmettBase: SUGAR_DEN,
   });
 }
 

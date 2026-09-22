@@ -194,10 +194,17 @@ export function yardBoxesLocal(): { box: [number, number, number, number, number
  * The builder also draws a box for each; every one is sized to sit inside the
  * tyre stack, ramp or toy box that makeTruckYard draws over it.
  */
-export function yardProps(o: BaseOrigin = EMMETT_BASE): Prop[] {
+export function yardProps(o: BaseOrigin = EMMETT_BASE, flavour: "park" | "candy" = "park"): Prop[] {
+  // each of these sits inside the shape makeTruckYard draws over it, so the
+  // colour only shows if something has gone wrong — but a brown box peeking
+  // out of a wafer ramp would still be the wrong brown
+  const HIDDEN = {
+    park: { tyre: "#2a2724", ramp: "#b88a50", box: "#d8453a" },
+    candy: { tyre: "#2a2430", ramp: "#d4b483", box: "#ff6aa8" },
+  }[flavour];
   return yardBoxesLocal().map(({ box: [cx, cy, cz, sx, sy, sz], label }): BoxProp => {
     const r = rectToWorld(cx, cz, sx, sz, o);
-    const color = label.startsWith("tyre") ? "#2a2724" : label.startsWith("ramp") ? "#b88a50" : "#d8453a";
+    const color = label.startsWith("tyre") ? HIDDEN.tyre : label.startsWith("ramp") ? HIDDEN.ramp : HIDDEN.box;
     return {
       kind: "box",
       pos: [(r.minX + r.maxX) / 2, cy, (r.minZ + r.maxZ) / 2],

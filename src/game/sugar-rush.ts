@@ -128,6 +128,14 @@ export const SUGAR = {
   emmett: { x: 120, z: 45 },
 } as const;
 
+/**
+ * Emmett's den, as a yard origin. The features table and the park's own props
+ * both need it — the props because `yardProps` has to be given the origin
+ * explicitly: LEVELS is built at import, before `applyLevelOrigins` has moved
+ * the yard, so anything asking for the yard's default would get park 1's.
+ */
+export const SUGAR_DEN = { x: SUGAR.emmett.x, z: SUGAR.emmett.z, yaw: Math.PI };
+
 /* ------------------------------------------------------------ the river */
 
 /**

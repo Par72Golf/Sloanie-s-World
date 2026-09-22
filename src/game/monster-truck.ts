@@ -578,13 +578,93 @@ export function animateMonsterTruck(rig: TruckRig, t: number, excited: boolean):
 /* ---------------------------------------------------------------- the yard */
 
 /** Dirt with speckles, and the ruts of Emmett's laps round the truck. */
-function dirtPaint(): THREE.Texture | null {
+/**
+ * The yard, in the colours of the park it stands in.
+ *
+ * Everything in Sugar Rush got candified when the park was built except the
+ * ground Emmett parks on, which stayed the picnic park's dirt: a patch of
+ * brown mud with tyre ruts sitting on spearmint. Same yard, same shapes, same
+ * colliders — a crushed-biscuit apron with cocoa crumbs and sprinkles in it,
+ * licorice tyres, a wafer ramp and a candy toy box.
+ */
+export type YardFlavour = "park" | "candy";
+
+type YardLook = {
+  /** the apron: base, the two crumb colours, the rut, and the flecks in it */
+  ground: string;
+  crumbs: [string, string];
+  rut: string;
+  flecks: string[];
+  /** the stacked tyres, and the odd one out on the two-high stack */
+  tyre: string;
+  tyreTop: string;
+  /** the kicker ramp: its deck, its side stringers, and the two lip stripes */
+  ramp: string;
+  rampEdge: string;
+  lip: [string, string];
+  /** the toy box: chest, lid band, corner straps, and the ball on top */
+  chest: string;
+  chestTrim: string;
+  strap: string;
+  ball: string;
+  /** the cones round the outside, and the flag at the end */
+  cone: string;
+  coneBase: string;
+  flagPole: string;
+  flag: [string, string];
+};
+
+const YARD_LOOKS: Record<YardFlavour, YardLook> = {
+  park: {
+    ground: "#a57a4c",
+    crumbs: ["#8e6640", "#bb9062"],
+    rut: "rgba(110, 76, 44, 0.55)",
+    flecks: ["#c9c0b0", "#8a857c"],
+    tyre: RUBBER,
+    tyreTop: ORANGE,
+    ramp: "#c89a5a",
+    rampEdge: "#8a5a32",
+    lip: [YELLOW, BLACK],
+    chest: "#d8453a",
+    chestTrim: "#ffd23a",
+    strap: "#2f7fd8",
+    ball: "#2f9a4a",
+    cone: ORANGE,
+    coneBase: BLACK,
+    flagPole: CHROME,
+    flag: ["#1c1c20", "#f4f7fb"],
+  },
+  candy: {
+    // crushed biscuit dusted with cocoa, which is what a candy yard is churned
+    // out of: warmer and lighter than the park's mud, so it reads on mint
+    ground: "#c08f62",
+    crumbs: ["#94663c", "#dcb68a"],
+    rut: "rgba(74, 46, 24, 0.6)",
+    // sprinkles where the picnic yard has pebbles
+    flecks: ["#ff6aa8", "#6fe3c4", "#ffc83a", "#b06aff", "#f7ead3"],
+    tyre: CANDY_LIQUORICE,
+    tyreTop: CANDY_BODY,
+    ramp: "#e8cf9e",
+    rampEdge: CANDY_CHOCOLATE,
+    lip: [CANDY_BODY, CANDY_CREAM],
+    chest: CANDY_BODY,
+    chestTrim: CANDY_CREAM,
+    strap: CANDY_LILAC,
+    ball: CANDY_MINT,
+    cone: CANDY_BODY,
+    coneBase: CANDY_LIQUORICE,
+    flagPole: CANDY_CREAM,
+    flag: [CANDY_BODY_DARK, CANDY_CREAM],
+  },
+};
+
+function dirtPaint(look: YardLook): THREE.Texture | null {
   const cg = canvas(512, 400);
   if (!cg) return null;
   const [c, g] = cg;
   const W = c.width;
   const H = c.height;
-  g.fillStyle = "#a57a4c";
+  g.fillStyle = look.ground;
   g.fillRect(0, 0, W, H);
   let s = 7;
   const rnd = () => {
@@ -592,23 +672,23 @@ function dirtPaint(): THREE.Texture | null {
     return (s - 1) / 2147483646;
   };
   for (let i = 0; i < 900; i++) {
-    g.fillStyle = rnd() < 0.5 ? "#8e6640" : "#bb9062";
+    g.fillStyle = look.crumbs[rnd() < 0.5 ? 0 : 1];
     const r = 1 + rnd() * 3;
     g.fillRect(rnd() * W, rnd() * H, r, r);
   }
   // ruts: the lap line and two tyre tracks either side of it
   const px = W / YARD.length;
   const pz = H / YARD.width;
-  g.strokeStyle = "rgba(110, 76, 44, 0.55)";
+  g.strokeStyle = look.rut;
   for (const off of [-0.28, 0.28]) {
     g.lineWidth = 0.16 * px;
     g.beginPath();
     g.ellipse(W / 2, H / 2, (YARD.loop + off) * px, (YARD.loop + off) * pz, 0, 0, Math.PI * 2);
     g.stroke();
   }
-  // a few pebbles
+  // a few pebbles, or a scatter of sprinkles
   for (let i = 0; i < 40; i++) {
-    g.fillStyle = rnd() < 0.5 ? "#c9c0b0" : "#8a857c";
+    g.fillStyle = look.flecks[Math.floor(rnd() * look.flecks.length)]!;
     g.beginPath();
     g.ellipse(rnd() * W, rnd() * H, 2 + rnd() * 3, 2 + rnd() * 2, rnd() * 3, 0, Math.PI * 2);
     g.fill();
@@ -616,7 +696,7 @@ function dirtPaint(): THREE.Texture | null {
   return texture(c);
 }
 
-function dirtPatch() {
+function dirtPatch(look: YardLook) {
   const hx = YARD.length / 2;
   const hz = YARD.width / 2;
   const shape = new THREE.Shape();
@@ -639,8 +719,8 @@ function dirtPatch() {
   const pos = geo.attributes.position!;
   const uv = geo.attributes.uv!;
   for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + hx) / YARD.length, (pos.getY(i) + hz) / YARD.width);
-  const map = dirtPaint();
-  const mat = map ? new THREE.MeshStandardMaterial({ map, roughness: 1, metalness: 0 }) : lam("#a57a4c", { flat: true, roughness: 1 });
+  const map = dirtPaint(look);
+  const mat = map ? new THREE.MeshStandardMaterial({ map, roughness: 1, metalness: 0 }) : lam(look.ground, { flat: true, roughness: 1 });
   const m = new THREE.Mesh(geo, mat);
   m.name = "dirt patch";
   m.rotation.x = -Math.PI / 2;
@@ -653,11 +733,11 @@ const tyreRing = new THREE.TorusGeometry(TYRE_STACK.ring, TYRE_STACK.tube, 8, 18
 const coneGeo = new THREE.ConeGeometry(1, 1, 12);
 const coneBand = new THREE.CylinderGeometry(0.088, 0.115, 0.1, 12, 1, true);
 
-function cone(parent: P, x: number, z: number) {
+function cone(parent: P, x: number, z: number, look: YardLook) {
   const g = new THREE.Group();
   g.position.set(x, 0, z);
-  box(g, BLACK, 0.4, 0.04, 0.4, 0, 0.02, 0, false, false);
-  const c = new THREE.Mesh(coneGeo, flat(ORANGE, 0.45));
+  box(g, look.coneBase, 0.4, 0.04, 0.4, 0, 0.02, 0, false, false);
+  const c = new THREE.Mesh(coneGeo, flat(look.cone, 0.45));
   c.scale.set(0.17, 0.52, 0.17);
   c.position.y = 0.3;
   c.castShadow = true;
@@ -676,16 +756,17 @@ function cone(parent: P, x: number, z: number) {
  * in emmett-base.ts; each drawn piece is tagged userData.solidCover and
  * encloses its collider box.
  */
-export function makeTruckYard(): THREE.Group {
+export function makeTruckYard(flavour: YardFlavour = "park"): THREE.Group {
+  const look = YARD_LOOKS[flavour];
   const yard = new THREE.Group();
   yard.name = "truck yard";
-  yard.add(dirtPatch());
+  yard.add(dirtPatch(look));
 
   for (const s of YARD_SOLIDS) {
     if (s.kind === "tyres") {
       for (let i = 0; i < s.count; i++) {
         const painted = s.count === 2 && i === s.count - 1;
-        const t = new THREE.Mesh(tyreRing, flat(painted ? ORANGE : RUBBER, painted ? 0.5 : 0.95));
+        const t = new THREE.Mesh(tyreRing, flat(painted ? look.tyreTop : look.tyre, painted ? 0.5 : 0.95));
         t.rotation.x = Math.PI / 2;
         t.position.set(s.x, TYRE_STACK.tube + i * TYRE_STACK.pitch, s.z);
         t.castShadow = true;
@@ -701,7 +782,7 @@ export function makeTruckYard(): THREE.Group {
       shape.closePath();
       const geo = new THREE.ExtrudeGeometry(shape, { depth: s.w, bevelEnabled: false });
       geo.translate(0, 0, -s.w / 2);
-      const wedge = new THREE.Mesh(geo, flat("#c89a5a", 0.7));
+      const wedge = new THREE.Mesh(geo, flat(look.ramp, 0.7));
       wedge.position.set(s.x, 0, s.z);
       wedge.castShadow = true;
       wedge.receiveShadow = true;
@@ -712,29 +793,29 @@ export function makeTruckYard(): THREE.Group {
       const slope = Math.atan2(s.h, s.len);
       const run = Math.hypot(s.h, s.len);
       for (const side of [-1, 1]) {
-        const st = box(yard, "#8a5a32", run, 0.09, 0.04, s.x, s.h / 2 - 0.03, s.z + side * (s.w / 2 + 0.02), false, false);
+        const st = box(yard, look.rampEdge, run, 0.09, 0.04, s.x, s.h / 2 - 0.03, s.z + side * (s.w / 2 + 0.02), false, false);
         st.rotation.z = slope;
       }
       for (let i = 0; i < 5; i++) {
-        box(yard, i % 2 ? BLACK : "#ffd23a", 0.1, 0.04, s.w / 5, s.x + s.len / 2 - 0.05, s.h + 0.005, s.z - s.w / 2 + (i + 0.5) * (s.w / 5), false, false);
+        box(yard, look.lip[i % 2 ? 1 : 0], 0.1, 0.04, s.w / 5, s.x + s.len / 2 - 0.05, s.h + 0.005, s.z - s.w / 2 + (i + 0.5) * (s.w / 5), false, false);
       }
       // a back brace under the lip
-      box(yard, "#8a5a32", 0.06, s.h - 0.02, s.w - 0.1, s.x + s.len / 2 + 0.03, (s.h - 0.02) / 2, s.z, false, false);
+      box(yard, look.rampEdge, 0.06, s.h - 0.02, s.w - 0.1, s.x + s.len / 2 + 0.03, (s.h - 0.02) / 2, s.z, false, false);
     } else {
       const toy = new THREE.Group();
       toy.position.set(s.x, 0, s.z);
       yard.add(toy);
-      const chest = box(toy, "#d8453a", s.w, s.h, s.d, 0, s.h / 2, 0, false, true);
+      const chest = box(toy, look.chest, s.w, s.h, s.d, 0, s.h / 2, 0, false, true);
       chest.userData.solidCover = true;
       chest.name = "toy box";
-      box(toy, "#ffd23a", s.w + 0.06, 0.08, s.d + 0.06, 0, s.h + 0.04, 0, false, true);
+      box(toy, look.chestTrim, s.w + 0.06, 0.08, s.d + 0.06, 0, s.h + 0.04, 0, false, true);
       // blue corner straps and rope handles
       for (const x of [-1, 1]) {
-        box(toy, "#2f7fd8", 0.08, s.h - 0.04, s.d + 0.04, x * (s.w / 2 - 0.12), s.h / 2, 0, false, false);
+        box(toy, look.strap, 0.08, s.h - 0.04, s.d + 0.04, x * (s.w / 2 - 0.12), s.h / 2, 0, false, false);
         box(toy, "#f3e2bd", 0.03, 0.06, 0.3, x * (s.w / 2 + 0.015), s.h * 0.62, 0, false, false);
       }
       // toys on the lid: a ball and a little toy monster truck
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), flat("#2f9a4a", 0.35));
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), flat(look.ball, 0.35));
       ball.position.set(-0.35, s.h + 0.23, 0.1);
       ball.castShadow = true;
       toy.add(ball);
@@ -752,20 +833,20 @@ export function makeTruckYard(): THREE.Group {
     [-6.6, 1.2],
     [-2.6, 6.3],
   ];
-  for (const [x, z] of cones) cone(yard, x, z);
+  for (const [x, z] of cones) cone(yard, x, z, look);
 
   // a checkered flag at the far end
   const flag = new THREE.Group();
   flag.name = "checkered flag";
   flag.position.set(-8.3, 0, 0);
   yard.add(flag);
-  cyl(flag, CHROME, 0.04, 3, 0, 1.5, 0, "y", 8, true);
+  cyl(flag, look.flagPole, 0.04, 3, 0, 1.5, 0, "y", 8, true);
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), flat(YELLOW, 0.3));
   knob.position.y = 3.05;
   flag.add(knob);
   const cell = 0.18;
-  const black = flat("#1c1c20", 0.6);
-  const white = flat("#f4f7fb", 0.6);
+  const black = flat(look.flag[0], 0.6);
+  const white = flat(look.flag[1], 0.6);
   for (let col = 0; col < 5; col++) {
     for (let row = 0; row < 4; row++) {
       const q = new THREE.Mesh(unitBox, (col + row) % 2 ? black : white);

@@ -66,7 +66,9 @@ type Gate = { x: number; z: number };
  * The race leaves the yard and loops out over the grass to the south and west.
  */
 const RUN_LOCAL: Gate[] = [
-  { x: 7.0, z: 5.0 },
+  // clear of the toy box at (7.3, 5.0), which she used to drive straight
+  // through: it was drawn in both parks but only ever solid in park 1
+  { x: 5.2, z: 5.6 },
   { x: -2.0, z: 6.0 },
   { x: -9.5, z: 0.0 },
   { x: -2.0, z: -6.0 },
