@@ -18,8 +18,14 @@ import type { Prop } from "./types";
  *   1. a **name board** beside the path she is already on, at the turn-off,
  *      telling her what is down there;
  *   2. a **gate** at the mouth of the place itself, built out of whatever that
- *      place is made of, so arriving is a thing that happens to her;
+ *      place is made of, with the name across it, so arriving is a thing that
+ *      happens to her;
  *   3. **bunting** over the two places that are meant to feel like a party.
+ *
+ * The board and the gate carry the same words, so they are kept thirty metres
+ * apart and never share a frame: at fifteen the pair read as one sign printed
+ * twice. Far apart they are two different jobs — the board is the choice, the
+ * gate is the arrival.
  *
  * Everything here is a registered model placed as a `model` prop, so the mesh
  * and its collider come from one entry and the level only has to spread three
@@ -158,10 +164,21 @@ function makeNameSign(text: string) {
 
 /* ------------------------------------------------------------------ gates */
 
-/** A gate's name banner, sized to be read from where you start walking at it. */
-const BANNER = { w: 6.4, h: 1.05 };
+/**
+ * A gate's name banner.
+ *
+ * It hangs *in* the opening at about 3.1m, not on the lintel. On the lintel is
+ * where it wants to go and where it was first put, and on a gate built out of
+ * sweets the lintel is never a flat plank: the licorice beam swallowed the
+ * board whole, the icing drips hung over the letters, and the lollipop swag
+ * cut the name in half. Down here it is clear of all of them, it is still well
+ * above her head, and it is nearer her eye than the top of a 4.5m arch.
+ */
+// 5.6 wide, not 6.4: at 6.4 the ends of the board ran behind the gate's own
+// uprights and a letter went dark as soon as you stepped off the centre line.
+const BANNER = { w: 5.6, h: 1.05, y: 3.1 };
 
-function gateBanner(text: string, y: number) {
+function gateBanner(text: string, y = BANNER.y) {
   const g = paintedBoard(text, BANNER.w, BANNER.h, 0.3);
   g.position.y = y;
   return g;
@@ -173,7 +190,7 @@ function gateBanner(text: string, y: number) {
  * Each one is made of the sweet its region is made of, because "an entrance
  * you can see you are going through" has to also say *which* place you are
  * going into — five identical arches in five colours would not. They all leave
- * at least 7.8m clear between their uprights, against a 6m path, so nothing
+ * at least 7.2m clear between their uprights, against a 6m path, so nothing
  * here can ever be the reason she cannot get somewhere.
  */
 
@@ -209,7 +226,7 @@ function makeLicoriceGate(name: string) {
       g.add(m);
     }
   }
-  g.add(gateBanner(name, H + 0.28));
+  g.add(gateBanner(name));
   return g;
 }
 
@@ -228,20 +245,22 @@ function makeIcingGate(name: string) {
       }
     }
   }
-  const lintelY = H + 0.75;
+  // 1.0 above the piers, not 0.75: the drips hanging off the underside are
+  // 0.7 long and at the lower beam they hung down over the name.
+  const lintelY = H + 1.0;
   g.add(mesh(boxGeo, CREAM, GATE_HALF * 2 + 2, 0.62, 1.0, 0, lintelY, 0));
   // icing dripping off the underside of the lintel, which is what makes a
   // beam read as icing rather than as a plank painted cream
   for (let i = 0; i < 15; i++) {
     const x = -GATE_HALF - 0.8 + (i / 14) * (GATE_HALF * 2 + 1.6);
-    const drop = 0.24 + (i % 3) * 0.16;
+    const drop = 0.18 + (i % 3) * 0.12;
     g.add(mesh(sphereGeo, ICING, 0.3, 0.26 + drop, 0.3, x, lintelY - 0.31, 0, false));
   }
   for (let i = 0; i < 5; i++) {
     const x = -3.6 + i * 1.8;
     g.add(mesh(sphereGeo, PARTY[i % PARTY.length]!, 0.4, 0.38, 0.4, x, lintelY + 0.5, 0, false));
   }
-  g.add(gateBanner(name, lintelY));
+  g.add(gateBanner(name, 3.05));
   return g;
 }
 
@@ -276,7 +295,7 @@ function makeLollipopGate(name: string) {
     px = x;
     py = y;
   }
-  g.add(gateBanner(name, y0 - 1.7));
+  g.add(gateBanner(name));
   return g;
 }
 
@@ -294,8 +313,6 @@ function makeWaferGate(name: string) {
       g.add(m);
     }
     g.add(mesh(boxGeo, CHOC, 1.8, 0.2, 1.8, s * GATE_HALF, H + 0.1, 0));
-    g.add(mesh(cylGeo, "#4e7a3a", 0.05, 0.5, 0.05, s * GATE_HALF, H + 0.45, 0, false));
-    g.add(mesh(sphereGeo, "#e03a4e", 0.42, 0.4, 0.42, s * GATE_HALF, H + 0.9, 0));
   }
   const lintelY = H + 0.62;
   g.add(mesh(boxGeo, WAFER, GATE_HALF * 2 + 1.9, 0.62, 1.9, 0, lintelY, 0));
@@ -312,7 +329,13 @@ function makeWaferGate(name: string) {
   for (let i = 0; i < 4; i++) {
     g.add(mesh(boxGeo, CHOC, 0.18, 0.42, 2.0, -3 + i * 2, lintelY - 0.4, 0, false));
   }
-  g.add(gateBanner(name, lintelY - 1.25));
+  // The cherries sit on top of the lintel, not on the towers: on the towers
+  // they were at the lintel's own height and the beam ate them.
+  for (const s of [-1, 1]) {
+    g.add(mesh(cylGeo, "#4e7a3a", 0.05, 0.5, 0.05, s * GATE_HALF, lintelY + 0.55, 0, false));
+    g.add(mesh(sphereGeo, "#e03a4e", 0.42, 0.4, 0.42, s * GATE_HALF, lintelY + 1.0, 0));
+  }
+  g.add(gateBanner(name, 3.15));
   return g;
 }
 
@@ -348,7 +371,7 @@ function makeCanvasGate(name: string) {
     f.rotation.y = Math.PI / 4;
     g.add(f);
   }
-  g.add(gateBanner(name, top - 1.3));
+  g.add(gateBanner(name, 3.2));
   return g;
 }
 
@@ -437,30 +460,35 @@ const nameOf = (id: string) => NAME_OF.get(id) ?? id;
  * across the path she is walking on.
  */
 const SIGN_SITES: { id: string; x: number; z: number; ry: number; why: string }[] = [
-  // On the plaza apron beside the spawn, facing back at where she lands.
-  // clearGround keeps everything 18m off the plaza centre, so this corner of
-  // the apron is the one bit of open ground in the park nothing can take.
-  { id: "plaza", x: -9, z: 30.5, ry: 0, why: "the first thing she sees on arrival" },
+  // On the lawn between the plaza and the east end of the village street, the
+  // one window on the arrival side: the plaza apron runs into the street, and
+  // the cottage row at z 31 walls the plaza off from it everywhere west of
+  // x 7. clearGround keeps everything 20m off the plaza centre, so nothing can
+  // ever be planted here.
+  { id: "plaza", x: 10.5, z: 33.5, ry: 0, why: "read off the street, with the plaza behind it" },
   // north verge of the west spoke, in front of the garden's south hedge
   { id: "garden", x: -48.5, z: 15.5, ry: 0, why: "beside the west spoke, under the garden's south arch" },
-  // same verge, further west, a good fifteen metres before the lollipop gate
-  { id: "forest", x: -56, z: 15.5, ry: 0, why: "the turn-off for the wood, before the gate" },
-  // east verge of the north spoke, south of the factory so she reads it on the way up
-  { id: "factory", x: 4.5, z: -42, ry: -Math.PI / 2, why: "on the walk north, before the building fills the view" },
-  // south verge of the north loop run, east of the wafer gate
-  { id: "mountain", x: -78, z: -103.5, ry: Math.PI, why: "on the loop, walking west toward the scoops" },
-  // south verge of the north loop run, west of the maze
-  { id: "maze", x: 58, z: -103.5, ry: Math.PI, why: "where she turns south off the loop into the hedges" },
-  // north verge of the east spoke, at the end of the avenue into the village
-  { id: "village", x: 99, z: 15.2, ry: 0, why: "the end of the east avenue, in sight of the roofs" },
+  // South verge of the west spoke, on the opposite side to the garden board:
+  // two 5.5m boards on one verge butt together and read as one billboard.
+  { id: "forest", x: -30, z: 24.5, ry: Math.PI, why: "the turn-off for the wood, forty metres out" },
+  // East verge of the north spoke, south of the factory so she reads it on the
+  // way up, and 7m clear of the peppermint hidden at (6, -30).
+  { id: "factory", x: 4.5, z: -40, ry: -Math.PI / 2, why: "on the walk north, before the building fills the view" },
+  // south verge of the north loop run, thirty metres east of the wafer gate
+  { id: "mountain", x: -36, z: -103.5, ry: Math.PI, why: "on the loop, walking west toward the scoops" },
+  // south verge of the north loop run, thirty metres west of the licorice gate
+  { id: "maze", x: 33, z: -103.5, ry: Math.PI, why: "where she turns south off the loop into the hedges" },
+  // north verge of the east spoke, at the far end of the avenue into the village
+  { id: "village", x: 85, z: 15.2, ry: 0, why: "the end of the east avenue, in sight of the roofs" },
   // west verge of the east loop run, facing the path across it
   { id: "meadow", x: 103.5, z: 78, ry: Math.PI / 2, why: "broadside to the east run, over the gumdrop hills" },
-  // south verge of the south loop run, between two avenue trees
-  { id: "marshmallow", x: -38, z: 112.5, ry: Math.PI, why: "where the loop passes the soft ground" },
-  // east verge of the west loop run, north of the canvas gate
-  { id: "fair", x: -103.5, z: 70, ry: -Math.PI / 2, why: "coming south down the west run toward the wheel" },
+  // south verge of the south loop run, between two avenue trees. Not x -38:
+  // that stood the board inside the trampoline at (-40, 110).
+  { id: "marshmallow", x: -24, z: 112.5, ry: Math.PI, why: "where the loop passes the soft ground" },
+  // east verge of the west loop run, thirty metres north of the canvas gate
+  { id: "fair", x: -103.5, z: 56, ry: -Math.PI / 2, why: "coming south down the west run toward the wheel" },
   // east verge of the east run, at its south end, pointing on to the water
-  { id: "lake", x: 112.5, z: 100, ry: -Math.PI / 2, why: "the last board before the loop's corner and the lake" },
+  { id: "lake", x: 112.5, z: 94, ry: -Math.PI / 2, why: "the last board before the loop's corner and the lake" },
 ];
 
 for (const s of SIGN_SITES) {
@@ -492,9 +520,12 @@ const GATE_SITES: { id: string; x: number; z: number; ry: number; why: string }[
   // across the west spoke where the forest trail leaves it, 3m short of the
   // trailhead at (-67, 19)
   { id: "forest", x: -70, z: 20, ry: Math.PI / 2, why: "across the spoke at the trailhead" },
-  // across the north loop run at the mountain's east shoulder; 2.6m clear of
-  // the scoops, which start at x -95.6
-  { id: "mountain", x: -93, z: -108, ry: Math.PI / 2, why: "across the loop at the foot of the mountain" },
+  // Across the north loop run at the east end of the chocolate bridge. Not at
+  // the mountain's own foot: `bridgeSites` puts a 26m bridge at x -83, its deck
+  // runs -96.2..-70.2, and west of that the scoops start at x -95.6, so there
+  // is no gap on that side wide enough to stand a gate in. Here the gate marks
+  // the edge of the region and the bridge crossing is the arrival.
+  { id: "mountain", x: -66, z: -108, ry: Math.PI / 2, why: "across the loop at the mountain end of the bridge" },
   // across the west loop run where it crosses into the fairground apron
   { id: "fair", x: -108, z: 84, ry: 0, why: "across the west run at the fairground's north edge" },
 ];
@@ -508,9 +539,13 @@ const GATE_BUILD: Record<string, (name: string) => THREE.Group> = {
 };
 
 /**
- * What each gate is solid at: its two uprights and nothing else. The openings
- * are 7.8m (9.9m for the lollipops) against a 6m path, so the narrowest of
- * them still leaves 0.9m of spare path on each side.
+ * What each gate is solid at: its two uprights and nothing else.
+ *
+ * The clear openings are 7.2m (wafer), 7.4m (icing), 7.8m (liquorice), 8.5m
+ * (canvas) and 9.6m (lollipops), against a 6m path. The narrowest of them
+ * still leaves 0.6m of spare path on each side, and the boxes are a little
+ * tighter than the art so she is never stopped by an overhang she can see
+ * daylight under.
  */
 const GATE_BOXES: Record<string, ModelBox[]> = {
   maze: [-1, 1].map((s) => box(s * GATE_HALF - 0.6, s * GATE_HALF + 0.6, 0, 4.4, -0.6, 0.6)),
@@ -571,7 +606,9 @@ export function bunting(): Prop[] {
   // the fairground: poles at x -126..-78, straddling the west run (x -111..-105)
   // with 3m to spare on each side so nothing stands on the path
   const fairXs = [-126, -114, -102, -90, -78];
-  for (const z of [100, 113.5]) {
+  // z 102, not 100: at 100 the pole at x -102 stood 4.5m from the bubblegum
+  // hidden at (-100, 96), and nothing may be planted within 4m of a candy.
+  for (const z of [102, 113.5]) {
     for (const x of fairXs) out.push(model("sugar-bunting-pole", x, z));
     run(fairXs, z, BUNTING_POLE.tie);
   }

@@ -1,4 +1,5 @@
 import { ZooWorld } from "./zoo-mesh";
+import { makeCottonCandyPuff } from "./candy-scenery";
 import { EMMETT_BASE } from "./emmett-base";
 import { animateMonsterTruck } from "./monster-truck";
 import { HomeWorld } from "./home";
@@ -636,7 +637,8 @@ export class GameRuntime {
     this.juice = [];
     const flavours = ["#d4494f", "#e08a2a", "#5aa84a", "#8a5ac4", "#d46aa0"];
     (this.level.juice ?? []).forEach(([x, z], i) => {
-      const g = makeJuiceBox(flavours[i % flavours.length]!);
+      // the candy park's boosts are candy floss on a stick, not a juice box
+      const g = this.level.boost === "cotton" ? makeCottonCandyPuff(1.1) : makeJuiceBox(flavours[i % flavours.length]!);
       g.position.set(x, 0.1, z);
       noOutline(g);
       this.scene.add(g);

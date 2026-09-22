@@ -253,6 +253,8 @@ export type LevelDef = {
   layout?: number;
   /** Juice box pickup spots, ground level. */
   juice?: [number, number][];
+  /** What a speed boost looks like here: a juice box, or candy floss. */
+  boost?: "juice" | "cotton";
   /** Areas Emmett will not ride into: maze corridors, walled gardens. */
   emmettKeepOut?: { minX: number; maxX: number; minZ: number; maxZ: number }[];
   /** Landmarks Emmett rehides a dumpling to, so a loss is never a mystery. */

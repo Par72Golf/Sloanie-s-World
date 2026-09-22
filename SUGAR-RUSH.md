@@ -24,11 +24,11 @@ North is -z, east is +x, same as park 1. Bounds ±160, candy boundary fence at
 | Peppermint Plaza | (0, 20) | r 14 | arrival hub, spawn at (0, 34) facing it, signposts, peppermint paving |
 | Chocolate River | see below | 8m wide | the spine of the park; bridges where the loop crosses it |
 | Chocolate Lake | (125, 125) | r 18 | where the river ends; the boat turns around here |
-| Ice Cream Mountain | (-105, -120) | 36m across, 12m tall | scoops, a walk to the top deck, a slide down to (-80, -100) |
-| The Candy Factory | (-8, -58) | 26 x 18 | the big landmark; the river runs straight through it |
+| Ice Cream Mountain | (-112, -124) | 36m across | scoops, a walk to the top deck, a slide down |
+| The Candy Factory | (-18, -58) | 26 x 18 | the big landmark; the river runs straight through it |
 | Lollipop Forest | (-145..-70, -30..60) | | lollipop trees; the princess's clearing at (-105, 15) |
-| Gingerbread Village | (95..145, -20..40) | | icing houses, the candy shop |
-| Licorice Maze | (60..120, -120..-60) | | black and red hedges |
+| Gingerbread Village | (130, 10) | | icing houses, the candy shop, her own house |
+| Licorice Maze | (80, -78) | 48m square | black and red hedges, six cells square |
 | Gumdrop Meadow | (40..110, 45..110) | | gumdrop hills to climb |
 | Marshmallow Fields | (-60..0, 90..140) | | bouncy ground; the jumping course runs east over a chocolate canal at z 120 |
 | Fairground | (-140..-70, 70..140) | | cupcake carousel (-110, 100), gumdrop wheel (-85, 115), booths along z 80 |
@@ -94,7 +94,7 @@ within the park.
   worm, gummy bear, jellybean, lollipop, marshmallow, bubblegum, licorice twist,
   peppermint, toffee, rock candy, cotton candy, caramel, fudge, jawbreaker. Same
   warm and cold, same little sum to keep each one, same journal and map.
-- **Fizzy soda cans** instead of juice boxes for the speed boost.
+- **Candy floss** instead of juice boxes for the speed boost.
 - **Three rides**: the chocolate river boat, the cupcake carousel, the gumdrop
   ferris wheel.
 - **A jumping course** over the chocolate river: marshmallows and gumdrops, and
@@ -117,6 +117,40 @@ within the park.
   poster; a marshmallow pet bed or a tyre pet bed.
 - **Emmett** visits for rock paper scissors and has a den here, and Play as
   Emmett works in this park too, with its own side quests.
+
+## Asked for after Sloan saw it (2026-09-21)
+
+Her list, in her order:
+
+1. **The floor is chocolate** — the lava course, re-themed: fall in the
+   chocolate and you go back to the start.
+2. **A tall candy mountain** to climb, with a **looking glass** at the top to
+   look out over the park.
+3. **Her house bigger than the others**, and **upgradeable from the outside in
+   three stages with tickets** — each stage makes it bigger and nicer and adds
+   a room inside.
+4. **Emmett and his monster truck, candy-themed** in this park.
+5. **Beat Emmett at his monster truck five times and she keeps the truck.** It
+   parks beside her house and she can drive it; it goes as fast as a boost.
+6. **Inside the chocolate factory.**
+7. **Cotton candy instead of juice boxes** for the speed boosts.
+
+Decided with her list:
+
+- **The truck gauntlet is five challenges, escalating**: rock paper scissors
+  three times, then an obstacle run, then a final race. Win all five and the
+  truck is hers, parked by her house, drivable at boost speed.
+- **The looking glass zooms**, and sparkles the candies she has not found and
+  the places she has not been.
+- **The house upgrades in three stages**: gingerbread cottage, then a
+  two-storey candy house with a garden, then a small candy castle with towers —
+  each stage bought with tickets and adding a room inside.
+
+Also asked for: **her own things to find here** — candy accessories to wear, a
+candy backpack (nothing can be carried until she finds it, as in park 1), and a
+sticker hunt on theme, with its own sticker book.
+
+Then: nail down the quests.
 
 ## Stages
 

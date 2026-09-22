@@ -1,4 +1,4 @@
-import { CANDY, SUGAR, clearGround } from "./sugar-rush";
+import { CANDY, SUGAR, clearGround, riverDistance } from "./sugar-rush";
 import { model } from "./sugar-models";
 import type { BoxProp, Prop } from "./types";
 
@@ -8,7 +8,7 @@ import type { BoxProp, Prop } from "./types";
  * The park was a 320m table with things standing on it. This gives it relief in
  * the only way the engine has — stacked slabs — and the whole module is written
  * round one number: her step-up is 0.62m (collision.ts), so no riser here is
- * over 0.46m and she never has to jump. A wide flat slab is solid whatever its
+ * over 0.52m and she never has to jump. A wide flat slab is solid whatever its
  * `collide` flag says (colliders.ts), which is exactly what makes a stack of
  * them a staircase rather than a painting of one.
  *
@@ -81,7 +81,7 @@ function terrace(r: Rect, top: number, rise: number, color: string): BoxProp {
 /**
  * The bottom step of everything here is 0.28m, never more.
  *
- * Not for her legs — she could take 0.46 — but for the rest of the park. The
+ * Not for her legs — she could take twice it — but for the rest of the park. The
  * bottom slab is the only one that sits down on the ground where the frosting
  * patches, the lawn aprons and the planted roundels already are, and at 0.29m
  * thick it is under both of the thresholds that matter: `frostingProps` counts
@@ -94,10 +94,15 @@ function terrace(r: Rect, top: number, rise: number, color: string): BoxProp {
  * to be in the `already` list, which is why the frosting goes on last.
  *
  * Above the ground nothing else is flat, so the risers up there are free to be
- * the comfortable 0.46.
+ * the full step.
  */
 const APRON_RISE = 0.28;
-const STEP_RISE = 0.46;
+/**
+ * Every step above the apron. Her step-up is 0.62m, so this keeps a tenth of a
+ * metre in hand: enough that a frame of jitter on the way up can never leave
+ * her standing at the foot of a wall she was walking up a moment ago.
+ */
+const STEP_RISE = 0.52;
 
 const KERB_W = 0.28;
 /** The opening left in the rim: the way up, seen from the bottom of the hill. */
@@ -150,9 +155,11 @@ function kerbs(r: Rect, top: number, face: Face, stair: number, color: string): 
 
 /**
  * Two sugar stripes up the face of the hill, one tread at a time, all of them
- * on the same line so they read as one staircase from the foot.
+ * on the same line so they read as one staircase from the foot. Blossom, the
+ * colour of the stripe across every path in this park, because that is what
+ * they are: a path marking. In sugar they read as two planks laid on the step.
  *
- * They are 30cm wide and non-colliding, so they are paint and nothing else.
+ * They are 24cm wide and non-colliding, so they are paint and nothing else.
  * The obvious thing — a wide sugar landing on each tread — is a trap: a wide
  * slab is solid however it is flagged, and a solid pad sitting on the very
  * edge she is stepping onto fails the step-up's headroom test and turns the
@@ -177,8 +184,8 @@ function stairStripes(outer: Rect, inner: Rect | null, top: number, face: Face, 
   for (const s of [-1, 1]) {
     out.push({
       kind: "box",
-      pos: alongX ? [mid, top + 0.05, stair + s * 1.7] : [stair + s * 1.7, top + 0.05, mid],
-      size: alongX ? [len, 0.1, 0.3] : [0.3, 0.1, len],
+      pos: alongX ? [mid, top + 0.05, stair + s * 1.5] : [stair + s * 1.5, top + 0.05, mid],
+      size: alongX ? [len, 0.1, 0.24] : [0.24, 0.1, len],
       color,
       collide: false,
     });
@@ -211,9 +218,26 @@ type Hill = {
  * the first fairground look like a warning sign. The saturated colours arrive
  * as gumdrops, which is the point of the meadow.
  */
-const STRATA = [CANDY.lawn, "#a9e7d6", CANDY.cream, "#ffc7e0"];
+/**
+ * The strata, bottom to top. One ramp shared by all three hills, so they read
+ * as one place cut from the same cake rather than three unrelated lumps: the
+ * ground's own mint at the foot, lightening through sponge to blossom, and
+ * every summit iced. A hill with fewer terraces than there are strata takes its
+ * colours spread over the whole ramp rather than stopping halfway up it, which
+ * is what keeps the little hill looking like the top of the big one.
+ *
+ * Pastels, because a whole hillside of a saturated candy colour is what made
+ * the first fairground look like a warning sign. The saturated colours arrive
+ * as gumdrops, which is the point of the meadow.
+ */
+const STRATA = [CANDY.lawn, "#8ddfcb", "#a9e7d6", CANDY.cream, "#ffd9e8", "#ffc7e0"];
 /** The iced top. #f6f1e8 is the white that does not bloom in sunlight. */
 const SUMMIT = CANDY.icing;
+
+const strataFor = (i: number, n: number) =>
+  n - 1 >= STRATA.length
+    ? STRATA[Math.min(i, STRATA.length - 1)]!
+    : STRATA[Math.round((i * (STRATA.length - 1)) / Math.max(1, n - 1))]!;
 
 /**
  * Three hills, fitted to the ground that is actually free.
@@ -222,61 +246,71 @@ const SUMMIT = CANDY.icing;
  * diagonally across its west half, the candy-cane loop takes the east edge, the
  * planted roundel at (92, 92) holds a 7m circle and two hidden candies hold 4m
  * circles at (66, 62) and (94, 84). What is left is a band of open ground
- * running south-west to north-east between the river and the path, so that is
- * how the hills are arranged: a chain along the river's own line, big one in
- * the middle, a smaller one at each end, with a walkable saddle between each
- * pair. Planting follows lines that already exist here too.
+ * between the river and the path, so that is how the hills are arranged: the
+ * big one in the middle of it with a smaller one either side, and a saddle you
+ * can walk through between each pair.
  *
- * Each hill's summit is offset from its base, which is what gives it a gentle
- * side and a steep one: the treads are three metres deep where the summit has
- * moved away and under a metre where it has moved toward. The wide side is the
- * way up and it faces where she comes from — the loop path for the big hill,
- * the saddle for the other two — and the narrow side is the shoulder you stand
- * on and look down.
+ * Every hill is the same shape twice over. A wide apron at the bottom — a
+ * single 0.28m step, three metres deep — is the planted rim: it is the only
+ * tread with room for a gumdrop of any size, and its corners are where the
+ * giants stand. Above it the steps are 0.52m and the treads are barely a metre
+ * and a half, because that is what makes the thing read as a hill instead of a
+ * stack of plates. The first version of this file used three-metre treads all
+ * the way up and looked like a running track.
+ *
+ * The summit is offset from the base, which gives every hill a gentle side and
+ * a steep one: the treads are widest where the summit has moved away. That side
+ * is the way up and it faces where she comes from — the loop path for the big
+ * hill, the saddle for the other two — and the narrow side is the shoulder you
+ * stand on and look down.
  */
 const HILLS: Hill[] = [
   {
-    // the big one, at (85, 58): five terraces to 2.12m, the high ground of the
+    // the big one, at (85, 58): seven terraces to 3.40m, the high ground of the
     // meadow, climbed from the east where the candy-cane loop brings her in
     name: "sugarloaf",
     dx: 11,
     dz: -20,
     face: [1, 0],
     levels: [
-      { w: 24, d: 19, dx: 0, dz: 0, rise: APRON_RISE },
-      { w: 19, d: 15, dx: -1.2, dz: -0.6, rise: STEP_RISE },
-      { w: 14.5, d: 11.5, dx: -2.4, dz: -1.2, rise: STEP_RISE },
-      { w: 10.5, d: 8.5, dx: -3.4, dz: -1.8, rise: STEP_RISE },
-      { w: 7.5, d: 6.5, dx: -4.2, dz: -2.2, rise: STEP_RISE },
+      { w: 26.5, d: 24.5, dx: 0, dz: 0, rise: APRON_RISE },
+      { w: 20.5, d: 18.5, dx: 0, dz: 0, rise: STEP_RISE },
+      { w: 17.8, d: 16.0, dx: -0.25, dz: -0.15, rise: STEP_RISE },
+      { w: 15.1, d: 13.5, dx: -0.5, dz: -0.3, rise: STEP_RISE },
+      { w: 12.4, d: 11.0, dx: -0.75, dz: -0.45, rise: STEP_RISE },
+      { w: 9.7, d: 8.5, dx: -1.0, dz: -0.6, rise: STEP_RISE },
+      { w: 7.0, d: 6.0, dx: -1.25, dz: -0.75, rise: STEP_RISE },
     ],
     seed: 71041,
   },
   {
-    // the north one, at (79, 80.5): three terraces to 1.18m, climbed from the
+    // the south one, at (76, 82): four terraces to 1.84m, climbed from the
     // saddle it shares with the big hill, so crossing from one to the other is
     // a walk down and straight back up
-    name: "north knoll",
-    dx: 5,
-    dz: 2.5,
-    face: [0, 1],
+    name: "south knoll",
+    dx: 2,
+    dz: 4,
+    face: [0, -1],
     levels: [
-      { w: 15, d: 13, dx: 0, dz: 0, rise: APRON_RISE },
-      { w: 11, d: 9.5, dx: 0, dz: -0.9, rise: 0.45 },
-      { w: 7.5, d: 6.5, dx: 0, dz: -1.8, rise: 0.45 },
+      { w: 16.6, d: 15.6, dx: 0, dz: 0, rise: APRON_RISE },
+      { w: 12.2, d: 11.2, dx: 0, dz: 0, rise: STEP_RISE },
+      { w: 9.6, d: 8.6, dx: 0, dz: 0.1, rise: STEP_RISE },
+      { w: 7.0, d: 6.0, dx: 0, dz: 0.2, rise: STEP_RISE },
     ],
     seed: 71043,
   },
   {
-    // the little one, at (61, 45.5): two steps and a top at 0.59m, for the days
-    // when a seven-year-old wants to be on top of something immediately. Under
-    // 0.75m it is not even a wall to the layout checker's flood fill.
+    // the little one, at (61, 45.5): two shallow steps and a top at 0.90m, for
+    // the days when a seven-year-old wants to be on top of something
+    // immediately
     name: "sugar button",
     dx: -13,
     dz: -32.5,
     face: [1, 0],
     levels: [
-      { w: 13, d: 11, dx: 0, dz: 0, rise: APRON_RISE },
-      { w: 7.5, d: 6.5, dx: -1.4, dz: 0, rise: 0.31 },
+      { w: 13.9, d: 12.9, dx: 0, dz: 0, rise: APRON_RISE },
+      { w: 9.5, d: 8.5, dx: 0, dz: 0, rise: 0.31 },
+      { w: 7.0, d: 6.0, dx: -0.6, dz: 0, rise: 0.31 },
     ],
     seed: 71047,
   },
@@ -422,6 +456,15 @@ function planter(out: Prop[], seed: number): Plant {
   };
 }
 
+/** The clear ground between two hills' feet, which is the saddle she walks. */
+function footGap(a: Hill, b: Hill) {
+  const ra = rectFor(a, 0);
+  const rb = rectFor(b, 0);
+  const dx = Math.max(ra.x0 - rb.x1, rb.x0 - ra.x1);
+  const dz = Math.max(ra.z0 - rb.z1, rb.z0 - ra.z1);
+  return dx > 0 && dz > 0 ? Math.hypot(dx, dz) : Math.max(dx, dz);
+}
+
 /** How far a point is outside every hill's foot. Negative means it is on one. */
 function offHill(x: number, z: number) {
   let worst = Infinity;
@@ -443,10 +486,13 @@ function hillProps(h: Hill, out: Prop[], plant: Plant, keepOut: [number, number]
     const r = rectFor(h, i);
     const top = topOf(h, i);
     const last = i + 1 === n;
-    out.push(terrace(r, top, h.levels[i]!.rise, last ? SUMMIT : STRATA[i % STRATA.length]!));
-    // blossom piping on the iced top, icing piping on everything below it
-    out.push(...kerbs(r, top, h.face, stair, last ? CANDY.blush : CANDY.icing));
-    out.push(...stairStripes(r, last ? null : rectFor(h, i + 1), top, h.face, stair, CANDY.sugar));
+    out.push(terrace(r, top, h.levels[i]!.rise, last ? SUMMIT : strataFor(i, n)));
+    // Piping round the iced top and nowhere else. Every terrace used to get a
+    // white lip and the hill came out looking like a municipal swimming pool:
+    // at this scale a rim on a 1.3m tread is a painted line on a court. The
+    // strata do that job anyway — the colour changes at every edge.
+    if (last) out.push(...kerbs(r, top, h.face, stair, CANDY.blush));
+    out.push(...stairStripes(r, last ? null : rectFor(h, i + 1), top, h.face, stair, CANDY.stripe));
 
     if (!last) {
       for (const s of rimSpots(r, rectFor(h, i + 1), h.face, stair, 7)) plant(s.x, s.z, top, Math.min(s.room, 1.15));
@@ -485,9 +531,19 @@ function hillProps(h: Hill, out: Prop[], plant: Plant, keepOut: [number, number]
    */
   const foot = rectFor(h, 0);
   const skirt = { x0: foot.x0 - 4.2, x1: foot.x1 + 4.2, z0: foot.z0 - 4.2, z1: foot.z1 + 4.2 };
-  for (const s of rimSpots(skirt, foot, h.face, stair, 9)) {
+  for (const s of rimSpots(skirt, foot, h.face, stair, 7.5)) {
+    // a ring of big ones or nothing: a spot squeezed between two hills would
+    // get a button, and a scattering of buttons round the foot is the look
+    // this rebuild exists to get rid of
     if (!clearGround(s.x, s.z, 2, keepOut)) continue;
-    plant(s.x, s.z, 0, Math.min(s.room, offHill(s.x, s.z) - 0.4, 1.35));
+    // the bank is the river's, not the meadow's: plantingProps stands its
+    // cotton candy and its lollipops 3.2m off the water, and a gumdrop planted
+    // on top of one of them is two props inside each other. clearGround only
+    // knows where the water is, so the last two metres are this rule's job.
+    if (riverDistance(s.x, s.z) < 11) continue;
+    const room = Math.min(s.room, offHill(s.x, s.z) - 0.4, 1.35);
+    if (room < 0.62) continue;
+    plant(s.x, s.z, 0, room);
   }
 }
 
@@ -518,12 +574,14 @@ export function gumdropHills(keepOut: [number, number][] = MEADOW_CANDIES): Prop
   /*
    * The saddles: the gaps you walk through between one hill and the next.
    *
-   * Gumdrops are stepped down the line joining each pair of hills, standing
-   * back from it on both sides so the line itself stays clear — she runs
-   * through the gate, she does not squeeze past it. Anything that lands on a
-   * hill, or too close to one to stand clear of it, is dropped rather than
-   * nudged. The open lawn beyond stays open, because a park needs somewhere to
-   * run.
+   * A pair of gumdrops stands either side of the line joining two hills, like
+   * a gate, and the line itself stays clear — she runs through it, she does not
+   * squeeze past it. Only pairs with a real gap between their feet get one: the
+   * big hill and the south knoll are four metres apart, and a gate planted in a
+   * four-metre gap is not a gate, it is the clutter this whole rebuild was
+   * meant to get rid of. Anything that lands on a hill is dropped rather than
+   * nudged, and the open lawn beyond stays open, because a park needs somewhere
+   * to run.
    */
   const rand = rng(71071);
   const centre = (h: Hill) => [SUGAR.meadow.x + h.dx, SUGAR.meadow.z + h.dz] as [number, number];
@@ -534,9 +592,10 @@ export function gumdropHills(keepOut: [number, number][] = MEADOW_CANDIES): Prop
     const [ax, az] = centre(a);
     const [bx, bz] = centre(b);
     const len = Math.hypot(bx - ax, bz - az) || 1;
+    if (footGap(a, b) < 7) continue;
     const nx = -(bz - az) / len;
     const nz = (bx - ax) / len;
-    for (let t = 0.32; t <= 0.7; t += 0.18) {
+    for (let t = 0.36; t <= 0.66; t += 0.28) {
       for (const s of [-1, 1]) {
         const x = ax + (bx - ax) * t + nx * s * 6.5;
         const z = az + (bz - az) * t + nz * s * 6.5;

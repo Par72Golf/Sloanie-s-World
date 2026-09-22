@@ -115,11 +115,11 @@ function disc(x: number, top: number, z: number, r: number, color: string, h = 0
 export const SUGAR = {
   plaza: { x: 0, z: 20, r: 14 },
   spawn: [0, 0, 34] as [number, number, number],
-  factory: { x: -8, z: -58 },
-  mountain: { x: -105, z: -120 },
+  factory: { x: -18, z: -58 },
+  mountain: { x: -112, z: -124 },
   forest: { x: -105, z: 15 },
-  village: { x: 124, z: 10 },
-  maze: { x: 90, z: -92 },
+  village: { x: 130, z: 10 },
+  maze: { x: 80, z: -78 },
   meadow: { x: 74, z: 78 },
   marshmallow: { x: -30, z: 116 },
   fair: { x: -104, z: 104 },
@@ -675,7 +675,11 @@ export function marshmallowProps(keepOut: [number, number][]): Prop[] {
  * could follow her in, and the whole thing is small enough to solve by looking,
  * because this is a seven-year-old's maze and the one in park 1 is the hard one.
  */
-export const MAZE = { cell: 8, n: 7 };
+/**
+ * Six cells, not seven: at seven the maze reached the loop's north run and the
+ * path ran inside the hedges, which the signs agent's placement checks caught.
+ */
+export const MAZE = { cell: 8, n: 6 };
 
 /** The middle of maze cell (i, j), which is where a candy can safely hide. */
 export function mazeCell(i: number, j: number): [number, number] {
@@ -884,6 +888,33 @@ export function frostingProps(keepOut: [number, number][], already: Prop[]): Pro
     if (flats.some((f) => Math.abs(f.x - x) < f.hw + r + 1 && Math.abs(f.z - z) < f.hd + r + 1)) continue;
     taken.push([x, z, r]);
     out.push(disc(x, TOP.lawn, z, r, shades[Math.floor(rand() * shades.length)]!, 0.1));
+  }
+  return out;
+}
+
+/**
+ * Where the cotton candy sits: the speed boosts.
+ *
+ * Park 1's rule is that every landmark has one within 50m, and no two are
+ * closer than 18m, so they are worth going out of your way for without being
+ * everywhere. These are picked near the paths — a boost she never finds is a
+ * boost that does not exist — and the spacing is checked here rather than
+ * hoped for.
+ */
+export function boostSpots(keepOut: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  const rand = rng(6161);
+  const nearAPath = (x: number, z: number) =>
+    loopRects().some(
+      (r) => x > r.minX - 14 && x < r.maxX + 14 && z > r.minZ - 14 && z < r.maxZ + 14,
+    );
+  for (let tries = 0; tries < 6000 && out.length < 19; tries++) {
+    const x = (rand() - 0.5) * 290;
+    const z = (rand() - 0.5) * 290;
+    if (!clearGround(x, z, 2.5, keepOut)) continue;
+    if (!nearAPath(x, z)) continue;
+    if (out.some(([ox, oz]) => dist2(x, z, ox, oz) < 20 * 20)) continue;
+    out.push([x, z]);
   }
   return out;
 }

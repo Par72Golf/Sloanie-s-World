@@ -1,5 +1,6 @@
 import { CANDIES } from "./candies";
 import { SKY_LIGHTING, skyProps } from "./sugar-sky";
+import { bunting, regionGates, regionSigns } from "./sugar-signs";
 import type { DumplingDef, Hide, LevelDef } from "./types";
 import {
   CANDY,
@@ -10,6 +11,7 @@ import {
   gardenProps,
   factoryProps,
   fairProps,
+  boostSpots,
   forestProps,
   frostingProps,
   marshmallowProps,
@@ -51,7 +53,7 @@ import {
 const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: Hide; region: string; hint: string }> = {
   "chocolate drop": {
     id: "chocdrop",
-    pos: [-20, 0.55, -50],
+    pos: [-30, 0.55, -48],
     hide: "easy",
     region: "the candy factory",
     hint: "By the factory doors, where the chocolate comes out.",
@@ -79,7 +81,7 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   jellybean: {
     id: "jellybean",
-    pos: [134, 0.55, 2],
+    pos: [140, 0.55, 2],
     hide: "medium",
     region: "Gingerbread Village",
     hint: "Among the gingerbread houses, by the village square.",
@@ -107,7 +109,7 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   "licorice twist": {
     id: "licoricetwist",
-    pos: [90, 0.55, -92],
+    pos: [84, 0.55, -74],
     hide: "hard",
     region: "the Licorice Maze",
     hint: "Right in the middle of the black and red hedges.",
@@ -128,7 +130,7 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
   },
   "rock candy": {
     id: "rockcandy",
-    pos: [-92, 0.55, -96],
+    pos: [-124, 0.55, -106],
     hide: "hard",
     region: "Ice Cream Mountain",
     hint: "At the foot of the mountain of scoops.",
@@ -200,6 +202,9 @@ export function sugarRushPark(): LevelDef {
     ...startDistrictProps(spots),
     ...gardenProps(),
     ...plantingProps(spots),
+    ...regionGates(),
+    ...regionSigns(),
+    ...bunting(),
     ...boundaryProps(),
     ...skyProps(),
   ];
@@ -237,6 +242,8 @@ export function sugarRushPark(): LevelDef {
     props,
     dumplings: sugarCandies,
     water: [...riverWater(), ...startWater()],
+    juice: boostSpots(spots),
+    boost: "cotton",
     ride: WHEEL,
   };
 }
