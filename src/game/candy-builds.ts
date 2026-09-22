@@ -736,7 +736,7 @@ export const ICE_CREAM_MOUNTAIN = {
     /** the way the barrel points when nobody has turned it */
     facing: GLASS_ANGLE,
     /** her eye at the eyepiece, above the summit floor */
-    eyeY: PEAK.top + 1.31,
+    eyeY: PEAK.top + 1.55,
   },
 };
 
@@ -789,34 +789,41 @@ function makeLookingGlassMesh(x: number, y: number, z: number, facing: number) {
 
   // a sugar roundel under it, so from the last step it is obvious this is a
   // thing to stand at rather than a thing to look at
-  turned(t, mesh(cyl24, ICING, 1.5, 0.06, 1.5, 0, 0.11, 0, false));
+  turned(t, mesh(cyl24, ICING, 1.6, 0.06, 1.6, 0, 0.11, 0, false));
 
   // three candy-cane legs, splayed the way a tripod's are: each leans out at
   // the foot and meets its neighbours at the hub
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
-    const leg = mesh(cylGeo, i === 0 ? RED : ICING, 0.09, 1.04, 0.09, Math.cos(a) * 0.2, 0.55, Math.sin(a) * 0.2, false);
+    const leg = mesh(cylGeo, i === 0 ? RED : ICING, 0.12, 1.3, 0.12, Math.cos(a) * 0.24, 0.68, Math.sin(a) * 0.24, false);
     leg.rotation.z = 0.36 * Math.cos(a);
     leg.rotation.x = -0.36 * Math.sin(a);
     t.add(leg);
   }
-  t.add(mesh(sphereGeo, YELLOW, 0.34, 0.34, 0.34, 0, 1.07, 0, false));
+  t.add(mesh(sphereGeo, YELLOW, 0.44, 0.44, 0.44, 0, 1.34, 0, false));
 
-  // the barrel, tipped a little down: from sixteen metres up everything worth
-  // looking at is below the horizon
+  /*
+   * The barrel, tipped a little down, because from sixteen metres up
+   * everything worth looking at is below the horizon.
+   *
+   * It is deliberately large — two metres of it, half a metre thick. The
+   * first one was built to scale beside a seven-year-old and disappeared
+   * among the candy canes of the rail: on a summit this small, the one thing
+   * she climbed up here to use has to be the one thing she sees.
+   */
   const arm = new THREE.Group();
-  arm.position.set(0, 1.22, 0);
+  arm.position.set(0, 1.5, 0);
   arm.rotation.z = -0.13;
   t.add(arm);
   const along = (o: THREE.Object3D) => turned(arm, o, 0, 0, Math.PI / 2);
-  along(mesh(cyl16, PINK, 0.34, 1.2, 0.34, 0.12, 0, 0, false));
-  along(mesh(cyl16, LILAC, 0.29, 0.5, 0.29, -0.4, 0, 0, false));
-  along(mesh(cyl16, YELLOW, 0.37, 0.12, 0.37, 0.42, 0, 0, false));
-  along(mesh(cyl16, YELLOW, 0.37, 0.12, 0.37, -0.18, 0, 0, false));
+  along(mesh(cyl16, PINK, 0.48, 1.5, 0.48, 0.16, 0, 0, false));
+  along(mesh(cyl16, LILAC, 0.4, 0.62, 0.4, -0.52, 0, 0, false));
+  along(mesh(cyl16, YELLOW, 0.53, 0.14, 0.53, 0.56, 0, 0, false));
+  along(mesh(cyl16, YELLOW, 0.53, 0.14, 0.53, -0.24, 0, 0, false));
   // the wide end, with a mint lens in it, and the eyepiece at the near end
-  along(mesh(cyl16, YELLOW, 0.46, 0.16, 0.46, 0.78, 0, 0, false));
-  along(mesh(cyl16, MINT, 0.4, 0.04, 0.4, 0.86, 0, 0, false));
-  along(mesh(cyl16, LIQUORICE, 0.22, 0.26, 0.22, -0.72, 0, 0, false));
+  along(mesh(cyl16, YELLOW, 0.66, 0.2, 0.66, 1.0, 0, 0, false));
+  along(mesh(cyl16, MINT, 0.58, 0.05, 0.58, 1.1, 0, 0, false));
+  along(mesh(cyl16, LIQUORICE, 0.3, 0.3, 0.3, -0.95, 0, 0, false));
   return t;
 }
 
@@ -1041,30 +1048,48 @@ export function makeIceCreamMountain(seed = 20260921) {
    */
   const railN = 16;
   const railR = PEAK.r - 0.2;
+  const sa = M.summitArriveAngle;
+  const caneAt = (a: number, r: number, y: number, red: boolean) => {
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    g.add(mesh(cylGeo, red ? RED : ICING, 0.17, 1.0, 0.17, x, y + 0.5, z, false));
+    // a small cap, not a ball: big ones turned the rail into birthday candles
+    g.add(mesh(sphereGeo, red ? ICING : RED, 0.18, 0.14, 0.18, x, y + 1.02, z, false));
+    boxes.push(bx(x, y + 0.5, z, 0.34, 1.0, 0.34));
+  };
   for (let i = 0; i < railN; i++) {
     const a = (i / railN) * Math.PI * 2;
-    if (Math.abs(Math.atan2(Math.sin(a - M.summitArriveAngle), Math.cos(a - M.summitArriveAngle))) < 0.45) continue;
-    const x = Math.cos(a) * railR;
-    const z = Math.sin(a) * railR;
-    g.add(mesh(cylGeo, i % 2 ? RED : ICING, 0.17, 1.0, 0.17, x, sy + 0.5, z, false));
-    g.add(mesh(sphereGeo, i % 2 ? ICING : RED, 0.24, 0.24, 0.24, x, sy + 1.04, z, false));
-    boxes.push(bx(x, sy + 0.5, z, 0.34, 1.0, 0.34));
+    if (Math.abs(Math.atan2(Math.sin(a - sa), Math.cos(a - sa))) < 0.45) continue;
+    caneAt(a, railR, sy, i % 2 === 1);
   }
+  /*
+   * Two gateposts, set a little proud of the ring, narrowing the way out to
+   * the width of the top tread. Without them the doorway was wide enough to
+   * leave at a slant, which walked her past the end of the stair and off the
+   * side of the mountain.
+   *
+   * The stair itself gets no rail, here or lower down: a tread is 1.5m and
+   * she is 0.68m across, so a parapet on one would leave a gap she cannot
+   * walk through. The summit is railed because it is the one place up here
+   * she is meant to stand still in.
+   */
+  for (const s of [-1, 1]) caneAt(sa + s * 0.38, railR + 0.15, sy, s > 0);
   // the hoop across the tops of the canes, drawn only: it is above the boxes
   // that already stop her, and a collider up there would only bump her head
   turned(g, part(tube24, flat(ICING, 0.45), railR, 0.1, railR, 0, sy + 0.94, 0, false));
 
-  // the cherry, off to the side so the middle of the floor stays hers
-  const cx = Math.cos(M.summitArriveAngle + Math.PI) * 0.78;
-  const cz = Math.sin(M.summitArriveAngle + Math.PI) * 0.78;
-  g.add(mesh(sphereGeo, ICING, 0.95, 0.62, 0.95, cx, sy + 0.34, cz, false));
-  g.add(mesh(sphereGeo, ICING, 0.72, 0.5, 0.72, cx, sy + 0.72, cz, false));
-  g.add(mesh(sphere16, CHERRY, 0.95, 0.95, 0.95, cx, sy + 1.5, cz));
-  g.add(mesh(sphereGeo, "#ff7a86", 0.26, 0.26, 0.26, cx - 0.3, sy + 1.98, cz + 0.34, false));
-  const stalk = mesh(cylGeo, "#4e8a3c", 0.08, 1.4, 0.08, cx + 0.2, sy + 2.62, cz, false);
+  // the cherry, pushed out to the rail on the far side so the middle of the
+  // floor stays hers and it never stands between her and the glass
+  const cx = Math.cos(M.summitArriveAngle + Math.PI) * 1.05;
+  const cz = Math.sin(M.summitArriveAngle + Math.PI) * 1.05;
+  g.add(mesh(sphereGeo, ICING, 0.85, 0.55, 0.85, cx, sy + 0.3, cz, false));
+  g.add(mesh(sphereGeo, ICING, 0.64, 0.44, 0.64, cx, sy + 0.62, cz, false));
+  g.add(mesh(sphere16, CHERRY, 0.8, 0.8, 0.8, cx, sy + 1.24, cz));
+  g.add(mesh(sphereGeo, "#ff7a86", 0.22, 0.22, 0.22, cx - 0.25, sy + 1.62, cz + 0.29, false));
+  const stalk = mesh(cylGeo, "#4e8a3c", 0.08, 1.3, 0.08, cx + 0.19, sy + 2.22, cz, false);
   stalk.rotation.z = -0.36;
   g.add(stalk);
-  g.add(mesh(sphereGeo, "#7ec86a", 0.5, 0.12, 0.28, cx + 0.62, sy + 3.2, cz, false));
+  g.add(mesh(sphereGeo, "#7ec86a", 0.46, 0.12, 0.26, cx + 0.58, sy + 2.76, cz, false));
 
   // the looking glass itself
   g.add(makeLookingGlassMesh(M.glass.x, sy, M.glass.z, M.glass.facing));

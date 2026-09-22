@@ -10,13 +10,15 @@ import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
 import { QuestWorld } from "./quest";
 import { GolfWorld } from "./minigolf";
 import { LavaWorld } from "./lava";
+import { LookingGlass } from "./looking-glass";
+import { candyStickers } from "./candy-stickers";
 import { BowlsWorld } from "./bowls";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
 import * as THREE from "three";
 import { placeCamera } from "./camera";
 import { perf, recordFrame } from "./debug";
-import { applyWorn, makePickup, type AccessoryId } from "./accessories";
+import { applyWorn, bagFor, makePickup, type AccessoryId } from "./accessories";
 import { levelGondolas } from "./meshes";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -562,7 +564,12 @@ export class GameRuntime {
     this.questWorld?.dispose();
     this.stickerWorld?.dispose();
     this.questWorld = this.level.id === "picnic" ? new QuestWorld(this.scene) : null;
-    this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
+    this.stickerWorld =
+      this.level.id === "picnic"
+        ? new StickerWorld(this.scene)
+        : this.level.id === "sugar"
+          ? new StickerWorld(this.scene, candyStickers())
+          : null;
     this.homeWorld?.dispose();
     // the two houses share one store: swap the catalogue and the save slot to
     // the one this park's house is made of before anything reads it
@@ -589,6 +596,10 @@ export class GameRuntime {
           })
         : null;
     // floor is lava: its own platforms, rafts and colliders, like the house.
+    // the telescope on top of Ice Cream Mountain: it takes the camera for the
+    // frames she is looking through it, and nothing else
+    this.lookingGlass?.dispose();
+    this.lookingGlass = this.level.id === "sugar" ? new LookingGlass(this.scene) : null;
     // A fall puts her straight back on the start deck, and the camera comes
     // round with her so she is looking down the course, ready to go again.
     this.lavaWorld?.dispose();
@@ -681,14 +692,15 @@ export class GameRuntime {
       ring.rotation.z += dt * 0.8;
       const d = Math.hypot(this.cap.x - p.pos[0], this.cap.z - p.pos[2]);
       if (d < 1.7 && Math.abs(this.cap.y - p.pos[1]) < 2.4) {
-        // Nothing can be carried until she has the backpack. The item stays
-        // put and she is told where the bag is, once per visit.
+        // Nothing can be carried until she has this park's bag. The item
+        // stays put and she is told where the bag is, once per visit.
         const st = useGame.getState();
-        if (p.id !== "backpack" && !st.foundAccessories.includes("backpack")) {
+        const bag = bagFor(this.level.id);
+        if (p.id !== bag.id && !st.foundAccessories.includes(bag.id)) {
           if (!p.warned) {
             p.warned = true;
             sfx.wrong();
-            st.setEmmettNotice("You need a backpack to carry that! Look for it out on the ball field.");
+            st.setEmmettNotice(bag.blocked);
           }
           continue;
         }
@@ -697,8 +709,8 @@ export class GameRuntime {
         this.scene.remove(p.group);
         this.pickups.splice(i, 1);
         useGame.getState().findAccessory(p.id);
-        if (p.id === "backpack") {
-          useGame.getState().setEmmettNotice("You found the backpack! Now you can carry things.");
+        if (p.id === bag.id) {
+          useGame.getState().setEmmettNotice(bag.found);
           useGame.getState().showHelp("backpack");
         }
       } else {
@@ -960,6 +972,7 @@ export class GameRuntime {
   golfWorld: GolfWorld | null = null;
   bowlsWorld: BowlsWorld | null = null;
   lavaWorld: LavaWorld | null = null;
+  lookingGlass: LookingGlass | null = null;
   stickerWorld: StickerWorld | null = null;
   homeWorld: HomeWorld | SugarHomeWorld | null = null;
   zooWorld: ZooWorld | null = null;
@@ -970,6 +983,7 @@ export class GameRuntime {
     this.golfWorld?.dispose();
     this.bowlsWorld?.dispose();
     this.lavaWorld?.dispose();
+    this.lookingGlass?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
     this.zooWorld?.dispose();
@@ -1501,6 +1515,11 @@ export class GameRuntime {
   tryCollect() {
     const st = useGame.getState();
     if (st.phase !== "playing") return;
+    // at the top of the mountain, Collect is the looking glass and nothing else
+    if (this.lookingGlass?.toggle(this.cap.x, this.cap.y, this.cap.z)) {
+      sfx.click();
+      return;
+    }
     if (this.emmettTalkReady() && st.rps == null) {
       sfx.click();
       // a breather between games, so the truck isn't a ticket machine
@@ -1807,7 +1826,9 @@ export class GameRuntime {
       !this.carouselRide &&
       // putting takes her controls the way the carousel does
       !st.golfPlaying &&
-      !st.bowlsPlaying;
+      !st.bowlsPlaying &&
+      // she stands still while she is looking through the glass
+      !this.lookingGlass?.active;
     if (!live) {
       consumeJumpTap();
       this.jumpBuffer = 0;
@@ -1822,7 +1843,7 @@ export class GameRuntime {
       // key in isDown; GAME_CODES only decides which ones preventDefault)
       if (camLeftHeld()) this.cameraYaw += dt * 1.6;
       if (camRightHeld()) this.cameraYaw -= dt * 1.6;
-      if (this.firstPerson) {
+      if (this.firstPerson || this.lookingGlass?.active) {
         this.pitch = THREE.MathUtils.clamp(this.pitch - lookDelta.dy * 0.0045, -1.15, 1.0);
       }
     }
@@ -2142,6 +2163,17 @@ export class GameRuntime {
       this.golfWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.bowlsWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.lavaWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused);
+      // after syncCamera, which runs inside physics: the glass has the last
+      // word on the camera for the frames she is looking through it
+      this.lookingGlass?.update(dt, this.camera, {
+        x: this.cap.x,
+        y: this.cap.y,
+        z: this.cap.z,
+        yaw: this.cameraYaw,
+        pitch: this.pitch,
+        targets: this.world?.dumplings ?? [],
+        paused,
+      });
       if (!paused) this.zooWorld?.update(this.clock, this.cap.x, this.cap.z);
       if (this.questWorld) {
         const d = this.nearestUnfound();
@@ -2362,7 +2394,9 @@ export class GameRuntime {
     else consumePadInteract();
 
     const pauseEdge = consumePadPause();
-    if (play && pauseEdge) st.pause();
+    // Back steps out of the looking glass before it opens the pause menu
+    if (play && pauseEdge && this.lookingGlass?.active) this.lookingGlass.exit();
+    else if (play && pauseEdge) st.pause();
     else if (st.phase === "paused" && pauseEdge) st.resumePlay();
 
     if (play && consumePadHint()) st.useHint();
