@@ -179,7 +179,7 @@ export class HomeWorld {
       // step out onto the front path, facing the street
       return { teleport: [DOOR_OUT[0], 0.1, DOOR_OUT[1] - 2.4], yaw: 0 };
     }
-    if (home.near) {
+    if (home.near && home.near !== "upgrade") {
       sfx.click();
       home.setPanel(home.near);
       return true;

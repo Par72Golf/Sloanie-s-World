@@ -817,12 +817,20 @@ export function villageProps(): Prop[] {
     [x + 14, z - 10, 0, 1],
     [x - 14, z + 10, Math.PI, 2],
     [x + 14, z + 10, Math.PI, 0],
-    [x + 1, z - 17, 0, 2],
   ];
   for (const [hx, hz, ry, v] of houses) out.push(model(`gingerbread${v}`, hx, hz, { ry }));
+  /*
+   * The head of the square is left empty: that is her plot. Her own house is
+   * built by the runtime rather than placed here, because it changes as she
+   * upgrades it (sugar-home.ts), so all the village lays out is the ground it
+   * stands on — a path from the square to her gate, and a lawn under it.
+   */
+  out.push(surf(x, TOP.lawn, z - 18, 26, 18, CANDY.lawn));
+  out.push(surf(x, TOP.drive, z - 6.5, 4, 12, CANDY.sugar));
   out.push(model("candy-stall", x - 7, z + 4, { variant: 0 }));
   out.push(model("candy-stall", x + 7, z + 4, { variant: 1, ry: Math.PI }));
-  out.push(model("gumball-machine", x, z - 6, { scale: 1.2 }));
+  // at the south end of the square: the middle of it is the way to her door
+  out.push(model("gumball-machine", x, z + 8, { scale: 1.2 }));
   out.push(model("cane-post", x - 10, z - 1));
   out.push(model("cane-post", x + 10, z - 1));
   return out;

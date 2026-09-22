@@ -104,7 +104,21 @@ within the park.
 - **The candy princess** in the Lollipop Forest has lost her candy creatures — a
   gummy bear, a marshmallow bunny, a jellybean puppy. Sloan rescues them and they
   follow her, the way Farmer Joe's pets do.
-- **Her own gingerbread house** in Gingerbread Village, to decorate and upgrade.
+- **Her own gingerbread house** at the head of the village square, to decorate
+  and to build up. It is bigger than the neighbours' cottages, and it grows in
+  three stages bought at a builder's board by the gate — **gingerbread cottage
+  (free) → candy house (30 tickets) → candy castle (60 tickets)** — each stage
+  adding an upstairs or a tower outside and **another room inside**:
+
+  | Stage | Outside | Room it opens | What she decorates there |
+  | --- | --- | --- | --- |
+  | 1 | 11 x 9 cottage, gabled icing roof, cane porch | Bedroom | bed, rug, lamp, curtains, and the wallpaper and floor for the whole house |
+  | 2 | upper storey, balcony over the porch, chocolate chimney, sugar garden | Sweet kitchen | table and plant, round a fitted chocolate counter |
+  | 3 | two striped towers with swirl roofs, battlements, her flag | Tower room | picture and pet bed, by a window seat |
+
+  The room she walks into is built high above the house, as park one's is, so
+  the minimap still says she is at home.
+
   It works like her house in park 1 — the same ten things to change (bed, rug,
   wallpaper, floor, curtains, lamp, plant, table, picture, pet bed), bought with
   tickets — but everything in it is made of sweets, and it keeps its own

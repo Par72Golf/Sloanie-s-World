@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createElement, useEffect, useState, type CSSProperties } from "react";
 import { makeAccessory, type AccessoryId } from "./accessories";
-import { furnitureDef, makeFurniture, surfaceMaterial } from "./furniture";
+import { anyFurnitureDef as furnitureDef, anyMakeFurniture as makeFurniture, anySurfaceMaterial as surfaceMaterial } from "./furniture-kits";
 import { cn } from "@/lib/utils";
 
 /**

@@ -2,6 +2,7 @@ import { activePad } from "./input";
 import { ControlsRemap } from "./controls-remap";
 import { SPOTS } from "./furniture";
 import { HomePanel } from "./home-panel";
+import { HouseUpgradePanel } from "./house-upgrade";
 import { useHome } from "./home-store";
 import { CHANNELS } from "./music";
 import { HELP_CARDS, HelpCard, type HelpId } from "./help-cards";
@@ -894,6 +895,7 @@ function HUD() {
   const homeNear = useHome((s) => s.near);
   const emmettTalkNear = useGame((s) => s.emmettTalkNear);
   const homeOpen = useHome((s) => s.panel);
+  const houseBuilding = useHome((s) => s.upgrading);
   const questOpen = useGame((s) => s.questPanel);
   const tickets = useGame((s) => s.tickets);
   const riding = useGame((s) => s.riding);
@@ -1135,7 +1137,7 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !golfPlaying && !bowlsPlaying && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
           key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
@@ -1144,7 +1146,9 @@ function HUD() {
                 ? "Go inside your house"
                 : homeNear === "exit"
                   ? "Go outside"
-                  : `Decorate: ${SPOTS.find((s) => s.id === homeNear)?.name ?? homeNear}`
+                  : homeNear === "upgrade"
+                    ? "Build your house bigger"
+                    : `Decorate: ${SPOTS.find((s) => s.id === homeNear)?.name ?? homeNear}`
               : emmettTalkNear
                 ? "Play with Emmett"
                 : questNear
@@ -2268,6 +2272,7 @@ export function Overlays() {
       {phase === "playing" && <BowlsOverlay />}
       {phase === "playing" && <QuestPanel />}
       {phase === "playing" && <HomePanel />}
+      {phase === "playing" && <HouseUpgradePanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}
       {controlsOpen && <ControlsRemap />}
       {showFps && phase !== "title" && <FpsCounter />}

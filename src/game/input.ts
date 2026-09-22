@@ -290,7 +290,7 @@ export function bindInput() {
       padPause = true;
     } else if (s.mapOpen && s.phase === "playing") {
       useGame.setState({ mapOpen: false });
-    } else if (s.phase === "playing" && !menu(s) && !useHome.getState().panel) {
+    } else if (s.phase === "playing" && !menu(s) && !useHome.getState().panel && !useHome.getState().upgrading) {
       padPause = true;
     }
   };

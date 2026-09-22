@@ -1,7 +1,10 @@
 import { PARK_DIRECTORIES, PARK_NAME_SIGNS, type Directory, type NameSign } from "./signs";
+import { CHOC_COURSE } from "./choc-course";
 import { loopRects } from "./sugar-rush";
 import { walkwayRects } from "./walkways";
+import type { LavaCourse } from "./lava";
 import type { NavRect } from "./navgrid";
+import type { HouseKitId } from "./furniture-kits";
 import type { LevelDef, ModelProp } from "./types";
 
 /**
@@ -35,10 +38,16 @@ export type LevelFeatures = {
   golf?: Origin;
   /** the bowls club (bowls.ts BOWLS): the centre of the green */
   bowls?: Origin;
-  /** floor is lava (lava.ts): the start deck, and the way the route sets off */
-  lava?: { x: number; z: number; dir: "N" | "S" | "E" | "W" };
+  /** floor is lava (lava.ts): where the course starts, and which course */
+  lava?: LavaCourse;
   /** her house (home.ts HOUSE): the house on the street that is hers */
   home?: Origin;
+  /**
+   * Which house stands there: park one's clubhouse, or Sugar Rush's
+   * gingerbread house, which she builds up a stage at a time. It picks the
+   * furniture catalogue and the save slot as well as the building.
+   */
+  house?: HouseKitId;
   /** the zoo (zoo.ts ZOO): centre of the fence lines, and its half turn */
   zoo?: TurnedOrigin;
   /** Emmett's truck yard (emmett-base.ts EMMETT_BASE): yard centre and the truck's yaw */
@@ -128,7 +137,14 @@ const FEATURES: Record<string, LevelFeatures> = {
  */
 let sugar: LevelFeatures | null = null;
 function sugarFeatures(): LevelFeatures {
-  return (sugar ??= { wheel: "gumdrop", prefer: loopRects() });
+  return (sugar ??= {
+    wheel: "gumdrop",
+    prefer: loopRects(),
+    lava: CHOC_COURSE,
+    // her own gingerbread house, at the head of the village square
+    home: { x: 130, z: -13 },
+    house: "candy",
+  });
 }
 
 export function featuresFor(level: LevelDef): LevelFeatures {

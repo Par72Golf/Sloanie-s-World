@@ -3,6 +3,7 @@ import { makeCottonCandyPuff } from "./candy-scenery";
 import { EMMETT_BASE } from "./emmett-base";
 import { animateMonsterTruck } from "./monster-truck";
 import { HomeWorld } from "./home";
+import { SugarHomeWorld } from "./sugar-home";
 import { useHome } from "./home-store";
 import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
@@ -563,7 +564,15 @@ export class GameRuntime {
     this.questWorld = this.level.id === "picnic" ? new QuestWorld(this.scene) : null;
     this.stickerWorld = this.level.id === "picnic" ? new StickerWorld(this.scene) : null;
     this.homeWorld?.dispose();
-    this.homeWorld = feat.home && this.world ? new HomeWorld(this.scene, this.world.colliders) : null;
+    // the two houses share one store: swap the catalogue and the save slot to
+    // the one this park's house is made of before anything reads it
+    useHome.getState().setKit(feat.house ?? "clubhouse");
+    this.homeWorld =
+      feat.home && this.world
+        ? feat.house === "candy"
+          ? new SugarHomeWorld(this.scene, this.world.colliders)
+          : new HomeWorld(this.scene, this.world.colliders)
+        : null;
     // mini golf: its own ball, sails and log, like the quest and the house
     this.golfWorld?.dispose();
     this.golfWorld =
@@ -952,7 +961,7 @@ export class GameRuntime {
   bowlsWorld: BowlsWorld | null = null;
   lavaWorld: LavaWorld | null = null;
   stickerWorld: StickerWorld | null = null;
-  homeWorld: HomeWorld | null = null;
+  homeWorld: HomeWorld | SugarHomeWorld | null = null;
   zooWorld: ZooWorld | null = null;
 
   dispose() {
@@ -1791,6 +1800,7 @@ export class GameRuntime {
         st.questPanel == null &&
         st.helpCard == null &&
         useHome.getState().panel == null &&
+        !useHome.getState().upgrading &&
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
       !this.ride &&
@@ -2125,7 +2135,7 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || useHome.getState().panel != null;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       // the sails and the log turn whether or not anyone is playing
@@ -2345,7 +2355,8 @@ export class GameRuntime {
       st.golfCard != null ||
       st.bowlsPlaying ||
       st.bowlsCard != null ||
-      useHome.getState().panel != null;
+      useHome.getState().panel != null ||
+      useHome.getState().upgrading;
     const play = st.phase === "playing" && !panel;
     if (play && (wantsInteract() || consumePadInteract())) this.tryCollect();
     else consumePadInteract();

@@ -366,62 +366,72 @@ export const CHOC_PLAN: PlanStep[] = [
   { id: "g1", skin: "gumdrop", len: 4.4, wide: 4.8, gap: 2.4, top: 3.1, section: 1 },
   { id: "g2", skin: "gumdrop", len: 4.4, wide: 4.8, gap: 2.7, off: 1.8, top: 3.4, section: 1 },
   { id: "g3", skin: "gumdrop", len: 4.4, wide: 4.8, gap: 2.9, off: -1.8, top: 3.7, section: 1 },
-  { id: "brink", skin: "biscuit", len: 5.4, wide: 5.8, gap: 3.0, top: 4.0, section: 1 },
+  { id: "brink", skin: "biscuit", len: 5.4, wide: 5.8, gap: 3.0, off: 1.4, top: 4.0, section: 1 },
 
-  // ---- 2. The Liquorice Beams: narrow, and entered sideways --------------
-  // The course turns here, so the first beam is a 1.4m-wide thing she has to
-  // land on after changing direction, not one she walks onto off a wide pad.
-  // It ends with a 3.8m run-up jump taken off the end of a beam; park 1's
-  // longest is 3.6m and it is taken off a pad three times as wide.
-  { id: "beam1", kind: "beam", skin: "liquorice", len: 7.0, wide: 1.4, gap: 2.8, top: 4.0, turn: "S", section: 2, slab: 0.45 },
-  { id: "hinge", skin: "biscuit", len: 3.6, wide: 4.0, gap: 2.6, top: 4.1, section: 2 },
-  { id: "beam2", kind: "beam", skin: "liquorice", len: 6.4, wide: 1.4, gap: 2.8, off: -2.2, top: 4.1, section: 2, slab: 0.45 },
-  { id: "beam3", kind: "beam", skin: "liquorice", len: 5.0, wide: 1.4, gap: 2.8, off: 2.2, top: 4.2, section: 2, slab: 0.45 },
-  // the run-up jump: 3.8m, taken off the end of a beam, onto the first flag
+  // ---- 2. The Liquorice Beams: narrow, and they step sideways ------------
+  // Park 1's beams are 1.5m wide and in a straight line. These are 1.4m and
+  // each one is offset across the route from the last, so every landing is a
+  // sideways one onto something she cannot see much of, and the section ends
+  // with a 3.8m run-up jump taken off the end of a beam rather than off a pad.
+  { id: "beam1", kind: "beam", skin: "liquorice", len: 6.4, wide: 1.4, gap: 2.8, top: 4.0, section: 2, slab: 0.45 },
+  { id: "hinge", skin: "biscuit", len: 3.8, wide: 4.2, gap: 2.6, top: 4.1, section: 2 },
+  { id: "beam2", kind: "beam", skin: "liquorice", len: 6.0, wide: 1.4, gap: 2.8, off: -2.0, top: 4.1, section: 2, slab: 0.45 },
+  { id: "beam3", kind: "beam", skin: "liquorice", len: 5.0, wide: 1.4, gap: 2.8, off: 2.0, top: 4.2, section: 2, slab: 0.45 },
   { id: "flag1", skin: "marshmallow", len: 6.2, wide: 6.6, gap: 3.8, top: 4.2, section: 2, checkpoint: true },
 
   // ---- 3. The Marshmallow Bog: they sink under her, not on a timer -------
-  // Three seconds of standing on one puts her in the chocolate, so the whole
-  // section is one held breath. The gaps are short on purpose: this is about
-  // not stopping, not about how far she can jump.
-  { id: "bog1", skin: "marshmallow", len: 3.8, wide: 4.2, gap: 2.4, top: 4.2, turn: "E", section: 3, slab: 1.3, motion: SINK },
+  // Two and a half seconds of standing on one puts her in the chocolate, so
+  // the whole section is one held breath. The gaps are short on purpose: this
+  // is about not stopping, not about how far she can jump.
+  { id: "bog1", skin: "marshmallow", len: 3.8, wide: 4.2, gap: 2.4, top: 4.2, section: 3, slab: 1.3, motion: SINK },
   { id: "bog2", skin: "marshmallow", len: 3.8, wide: 4.2, gap: 2.4, off: 1.6, top: 4.2, section: 3, slab: 1.3, motion: SINK },
   { id: "bog3", skin: "marshmallow", len: 3.8, wide: 4.2, gap: 2.4, off: -1.6, top: 4.2, section: 3, slab: 1.3, motion: SINK },
   { id: "bank", skin: "biscuit", len: 5.4, wide: 5.8, gap: 2.6, top: 4.2, section: 3 },
 
-  // ---- 4. The Chocolate Ferry: catch it, ride it, get off ----------------
-  // The far quay is nine metres away. Nothing jumps that, so the only way on
-  // is the barge, and the only way off is to still be on it when it arrives.
-  { id: "quay", skin: "chocbar", len: 4.8, wide: 5.2, gap: 2.6, top: 4.2, turn: "S", section: 4 },
-  { id: "ferry", skin: "chocbar", len: 5.2, wide: 5.4, gap: 3.0, top: 4.2, section: 4, slab: 1.1,
-    motion: { kind: "shuttle", travel: 9.0, period: 12.5, phase: 0 } },
-  { id: "far", skin: "biscuit", len: 4.8, wide: 5.2, gap: 3.0, top: 4.2, section: 4 },
+  // ---- 4. The Chocolate Ferry: catch it, ride it, get off ---------------
+  // The course turns south here onto two chocolate-bar quays, and then the
+  // only way on down it is the barge. Nothing jumps the seven metres it
+  // covers, so this is the first thing on either course that she cannot get
+  // past by jumping better — she has to wait, and waiting is a skill too.
+  { id: "quay", skin: "chocbar", len: 5.0, wide: 5.4, gap: 2.8, top: 4.2, turn: "S", section: 4 },
+  { id: "step", skin: "chocbar", len: 5.0, wide: 5.4, gap: 2.8, top: 4.2, section: 4 },
+  { id: "ferry", skin: "chocbar", len: 5.2, wide: 5.4, gap: 3.0, top: 4.2, turn: "W", section: 4, slab: 1.1,
+    motion: { kind: "shuttle", travel: 7.0, period: 12.5, phase: 0 } },
   { id: "flag2", skin: "marshmallow", len: 6.2, wide: 6.6, gap: 3.0, top: 4.2, section: 4, checkpoint: true },
 
   // ---- 5. The Peppermint Wheels: land on something that is moving -------
-  { id: "mint1", skin: "peppermint", len: 4.4, wide: 4.4, gap: 2.8, top: 4.4, turn: "W", section: 5, slab: 1.0, spin: 0.3,
-    motion: { kind: "slide", travel: 4.2, period: 6.4, phase: 0 } },
-  { id: "mint2", skin: "peppermint", len: 4.4, wide: 4.4, gap: 2.9, off: 1.8, top: 4.5, section: 5, slab: 1.0, spin: -0.26,
-    motion: { kind: "slide", travel: 4.2, period: 6.4, phase: Math.PI } },
-  { id: "mint3", skin: "peppermint", len: 4.4, wide: 4.4, gap: 2.9, off: -1.8, top: 4.6, section: 5, slab: 1.0, spin: 0.22,
-    motion: { kind: "slide", travel: 4.0, period: 5.6, phase: 2.4 } },
-  { id: "shelf", skin: "wafer", len: 5.2, wide: 5.6, gap: 3.0, top: 4.6, section: 5 },
+  // The two discs are nearly in step on purpose. Anti-phase, they drift more
+  // than two metres apart during the second she is in the air, and a child
+  // aiming at where a disc *is* lands where it *was*: she has to lead it, and
+  // a seven-year-old does not lead a target. Nearly in step, the pair drift
+  // less than a metre while she crosses, so the timing that matters is
+  // getting on and getting off, which is the thing worth asking.
+  { id: "mint1", skin: "peppermint", len: 5.0, wide: 5.0, gap: 2.8, top: 4.4, section: 5, slab: 1.0, spin: 0.3,
+    motion: { kind: "slide", travel: 3.6, period: 7.2, phase: 0 } },
+  { id: "mint2", skin: "peppermint", len: 5.0, wide: 5.0, gap: 2.9, off: 1.8, top: 4.5, section: 5, slab: 1.0, spin: -0.26,
+    motion: { kind: "slide", travel: 3.6, period: 7.2, phase: 0.6 } },
+  { id: "shelf", skin: "wafer", len: 5.2, wide: 5.6, gap: 3.0, off: -1.8, top: 4.6, section: 5 },
 
   // ---- 6. The Wafer Climb: up a lift to a tower, and a drop off it ------
   { id: "rung", skin: "wafer", len: 4.2, wide: 4.4, gap: 2.8, top: 5.0, section: 6, slab: 0.9 },
+  // the lift's travel is short on purpose: at the top of its rise the step up
+  // to the tower has to still be a step, and a lift that rose the whole way
+  // put the tower 2.8m over her head at the wrong moment, which is above the
+  // 2.73m she can jump and reads as the lift refusing to let her off
   { id: "hoist", skin: "wafer", len: 4.6, wide: 4.8, gap: 2.8, top: 5.2, section: 6, slab: 1.0,
-    motion: { kind: "lift", travel: 2.6, period: 8.5, phase: 0 } },
+    motion: { kind: "lift", travel: 1.6, period: 8.5, phase: 0 } },
   { id: "tower", skin: "biscuit", len: 5.4, wide: 5.8, gap: 2.8, top: 6.6, section: 6 },
   // the drop: three metres down, onto a landing long enough to catch a jump
   // taken at full speed from that height
   { id: "flag3", skin: "marshmallow", len: 8.0, wide: 6.8, gap: 3.2, top: 3.4, section: 6, checkpoint: true },
 
   // ---- 7. The Last Leap: small gumdrops, long gaps, one of them moving ---
-  { id: "leap1", skin: "gumdrop", len: 3.2, wide: 3.6, gap: 3.4, top: 3.5, turn: "N", section: 7 },
-  { id: "leap2", skin: "gumdrop", len: 3.0, wide: 3.6, gap: 3.5, off: -2.0, top: 3.6, section: 7 },
-  { id: "swing", skin: "peppermint", len: 3.6, wide: 3.8, gap: 3.4, off: 2.0, top: 3.7, section: 7, slab: 1.0, spin: 0.34,
-    motion: { kind: "slide", travel: 3.4, period: 5.2, phase: 1.1 } },
-  { id: "leap3", skin: "gumdrop", len: 3.0, wide: 3.6, gap: 3.5, top: 3.8, section: 7 },
+  { id: "leap1", skin: "gumdrop", len: 3.2, wide: 3.6, gap: 3.4, top: 3.5, section: 7 },
+  // the moving landing of the finish: slow and short, because the pad is only
+  // 4.4m across and she is arriving on it from 3.4m away
+  { id: "swing", skin: "peppermint", len: 4.4, wide: 4.4, gap: 3.4, off: 2.0, top: 3.7, section: 7, slab: 1.0, spin: 0.34,
+    motion: { kind: "slide", travel: 2.4, period: 6.4, phase: 1.1 } },
+  { id: "leap2", skin: "gumdrop", len: 3.0, wide: 3.6, gap: 3.5, off: -2.0, top: 3.8, section: 7 },
   { id: "podium", kind: "podium", skin: "cake", len: 7.0, wide: 7.2, gap: 3.8, top: 4.2, section: 7 },
 ];
 
@@ -437,12 +447,20 @@ export const CHOC_SECTIONS = [
 ];
 
 /**
- * Where it stands in Sugar Rush: on the open ground, running west off the deck
- * and looping round to finish facing back at it.
+ * Where it stands in Sugar Rush: the open ground along the park's northern
+ * frontage, north of the candy-cane loop and south of the boundary. It is the
+ * only clear ground in the park big enough — a 238 x 34m strip with no path,
+ * no river, no planting and no hidden candy in it — and the loop runs the
+ * whole length of it ten metres away, so she walks past the course every time
+ * she goes round the park.
+ *
+ * It runs 107m west off the deck, steps south onto the quays, and comes back
+ * west along a second lane 16m further south, so the chocolate lake is one
+ * long canal rather than a pond.
  */
 export const CHOC_COURSE: LavaCourse = {
-  x: 0,
-  z: 0,
+  x: 142,
+  z: -143,
   dir: "W",
   plan: CHOC_PLAN,
   sections: CHOC_SECTIONS,

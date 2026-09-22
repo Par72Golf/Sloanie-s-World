@@ -3,6 +3,7 @@ import { setCarnivalOrigin } from "./carnival";
 import { setEmmettBase } from "./emmett-base";
 import { featuresFor } from "./features";
 import { setHouseOrigin } from "./home";
+import { setCandyHouseOrigin } from "./sugar-home";
 import { setLavaStart } from "./lava";
 import { setGolfOrigin } from "./park";
 import { setZooOrigin } from "./zoo";
@@ -28,6 +29,7 @@ export function applyLevelOrigins(level: LevelDef) {
   setBowlsOrigin(feat.bowls);
   setLavaStart(feat.lava);
   setHouseOrigin(feat.home);
+  setCandyHouseOrigin(feat.home);
   setZooOrigin(feat.zoo);
   setEmmettBase(feat.emmettBase);
   setCarnivalOrigin(feat.carnival);

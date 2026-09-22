@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Check, Lock, Paintbrush, Ticket, X } from "lucide-react";
 import { sfx } from "./audio";
 import { useInput } from "./carnival-games";
-import { FURNITURE, SPOTS, type FurnitureDef } from "./furniture";
+import { SPOTS, type FurnitureDef } from "./furniture";
 import { HearButton } from "./help-cards";
 import { gridMove } from "./grid-nav";
 import { ItemThumb } from "./item-thumbs";
@@ -37,7 +37,9 @@ function Decorate() {
   const placed = useHome((s) => s.placed);
   const owned = useHome((s) => s.owned);
   const tickets = useGame((s) => s.tickets);
-  const options = FURNITURE.filter((f) => f.spot === spot);
+  // whichever house she is standing in: the clubhouse's catalogue or the
+  // gingerbread house's, both keyed on the same ten spots
+  const options = useHome((s) => s.kit).catalogue.filter((f) => f.spot === spot);
   const original = useRef(placed[spot]);
   const tiles = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(Math.max(0, options.findIndex((f) => f.id === placed[spot])));
