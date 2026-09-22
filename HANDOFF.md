@@ -430,7 +430,7 @@ was found either by a human playing it or by one of these scripts. Run them with
 
 | Tool | What it proves |
 | --- | --- |
-| `check-layout.ts` | The main one. Rebuilds the exact colliders the engine builds, then reports overlapping solids, coplanar surfaces that will z-fight, dumplings that are floating or buried, boundary containment, and reachability by flood fill from the spawn. `LAYOUT=1 npx jiti tools/check-layout.ts` checks an alternate dumpling layout. |
+| `check-layout.ts` | The main one. Rebuilds the exact colliders the engine builds, then reports overlapping solids, coplanar surfaces that will z-fight, dumplings that are floating or buried, boundary containment, and reachability by flood fill from the spawn. `LAYOUT=1 npx jiti tools/check-layout.ts` checks an alternate dumpling layout, and `LEVEL=1` checks Sugar Rush instead of park 1. |
 | `probe.ts` | Tall props that are not solid (walk-through walls) and solid props too faint to see (invisible walls). |
 | `thin.ts` | Thin solid props, the other source of invisible walls. |
 | `cave.ts` | The mountain cave through the real collision code: walks from outside the entrance along the tunnel grid to every open cell and each hiding spot, checks the lowest roof, that no hop is ever needed except onto the cavern ledge, and that no hiding spot is visible from the entrance. |
@@ -462,6 +462,10 @@ was found either by a human playing it or by one of these scripts. Run them with
 | `berm.ts` | Jumps at every stepped berm in the park through the real collision and camera code, stepped like the runtime; hunts the "reset" where she dropped inside a tier. Must report 0 events. |
 | `flee.ts` | The new-spot picker for a fleeing dumpling against its rules, compared with the old picker. |
 | `merge.ts` | Proves the static-mesh merge preserves geometry: triangle count, precise bounding box, sampled world-space vertices, and that live, transparent, instanced and cloud meshes are left alone. |
+| `buttons.ts` | **Both parks.** There is one Collect key, and `tryCollect` reads every button — the booths, the golf tees, the bowls mats, both ferris wheels, the fair's three games, the boat jetty, the sweet shop, the princess, her truck, her front door, the telescope, the three stuck creatures — before it reads the sweet at her feet. This proves no sweet's collect circle can overlap a button's, so no sweet is one she presses Collect at and boards a ride instead. It knows a sweet above her head (the Sky Dumpling) is out of a ground button's reach. Found the Sugar Rush bubblegum. |
+| `gauntlet.ts` | Emmett's five challenges in Sugar Rush: the obstacle run and the big race routes walkable ring to ring, nothing solid in a gate, and the courses clear of his truck and the meadow terraces. |
+| `creatures.ts` | The princess's three predicaments: the lollipop climb's treads touch and never rise more than her step-up, the marshmallow bog's pads are within a jump and cannot be walked around, the toffee sits above its own surface, and all three stand on clear reachable ground away from everything else hidden. |
+| `toss.ts`, `toss-space.ts` | The marshmallow toss: the lob physics reach every mug inside the power range, the mouths are catchable, and the booth's footprint is clear of the bunting, the loop path and the stall row. |
 | `diamond.ts`, `rotated.ts`, `face.ts` | Targeted diagnostics kept from specific investigations. (The old hill's `climb.ts`, `cavewalk.ts`, `los.ts`, `summit.ts` and `cave.ts` went with the hill.) |
 
 ### In-browser perf probes

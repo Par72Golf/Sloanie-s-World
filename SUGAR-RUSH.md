@@ -216,15 +216,34 @@ Then: nail down the quests.
 ## What is not built
 
 - **Play as Emmett** in this park, and the `emmett-mode` branch generally.
-- The park has never been played end to end by a child. Every number in it —
-  the course times, the game clocks, the ticket prices — was set from a
-  simulated run or from judgement, not from watching her.
+- The park has never been played end to end **by a child**. It has now been
+  walked end to end in the built game (see below), but every number in it — the
+  course times, the game clocks, the ticket prices — is still set from a
+  simulated run or from judgement, not from watching Sloan.
+
+## Played end to end, 22 September 2026
+
+The whole park was walked in the built snapshot: all 16 sweets, the satchel gate,
+the sticker book and all 20 stickers, the princess's quest from her first line to
+the river running chocolate, the three creatures and the basket, the three house
+stages, Emmett's five challenges and the truck, the three games, the three rides,
+the chocolate course's checkpoints, the mountain's 42 treads and the telescope,
+the flyover and the grown-ups PIN. `playtest-notes-sugar-rush.md` is the record:
+six things were wrong and all six are fixed.
+
+The one that mattered: the bubblegum sat inside the ferris wheel's boarding
+circle, so pressing Collect at it boarded the wheel. `tools/buttons.ts` now
+proves no sweet in either park can sit inside any button.
 
 ## Rules this park must keep
 
 - Everything procedural. No asset files.
 - It must pass the existing checks: reachability, hiding-spot spread, no floating
-  or buried collectibles, nothing inside a wall.
+  or buried collectibles, nothing inside a wall, and no sweet inside a button
+  (`tools/buttons.ts`).
+- Park 2 uses park 2's words. She finds *sweets*, not dumplings, and carries a
+  *candy satchel*, not a backpack. Anything she reads — a help card, a journal
+  page, a hint — belongs to the park she is standing in.
 - It must hold 60fps on the MacBook driving the TV, in Sharp, the same as park 1.
 - Nothing about it may touch Sloan's save for park 1, and the park stays locked
   until she finishes park 1.
