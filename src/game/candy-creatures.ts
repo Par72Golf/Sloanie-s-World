@@ -4,6 +4,7 @@ import type { AABB } from "./collision";
 import { glowMaterial } from "./furniture";
 import { boxGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 import { makePet, animatePet, type PetKind, type PetRig } from "./pets";
+import { candyHouseSpots } from "./sugar-home";
 import { CREATURE_SPOTS } from "./sugar-rush";
 import { makeWalker, placeWalker, followHer, followLead, separateHerd, LEAD_BACK, TRAIN_GAP, type Walker } from "./quest";
 import { useGame } from "./store";
@@ -90,6 +91,20 @@ export const CREATURES: {
 
 /** How near she has to be to pick one up. */
 const FREE_R = 2.2;
+/** and to the basket by her door to send them in, or call them back out */
+const BASKET_R = 2.4;
+
+/**
+ * Where they curl up indoors, in her room's frame. All three are in the
+ * bedroom round the rug, which is the one room she has from the start: a pet
+ * that only appears once she has bought the third upgrade is a pet she does
+ * not believe lives there.
+ */
+const INDOORS: [number, number, number][] = [
+  [-1.9, 0, 1.7],
+  [1.5, 0, 2.0],
+  [2.4, 0, -0.6],
+];
 
 /* ------------------------------------------------------------- the rigs */
 
@@ -278,6 +293,34 @@ function bog(x: number, z: number, solids: Solid[]): { group: THREE.Group; pads:
   return { group: g, pads, island: 0.62 };
 }
 
+/**
+ * The basket by her front door: a wafer bed with a cushion in it. Standing at
+ * it with creatures at her heels sends them inside to live; standing at it
+ * with them indoors calls them back out. One object, one press, right next to
+ * the door she already knows.
+ */
+function makeBasket(): THREE.Group {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.8, 0.3, 16), gloss(CANDY.toffee, 0.4));
+  base.position.y = 0.15;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  g.add(base);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.11, 6, 20), gloss(CANDY.toffeeDark, 0.35));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.3;
+  g.add(rim);
+  const cushion = new THREE.Mesh(new THREE.SphereGeometry(0.72, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), lam(CANDY.mallowPink, { flat: true, roughness: 0.8 }));
+  cushion.scale.y = 0.3;
+  cushion.position.y = 0.3;
+  g.add(cushion);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    g.add(mesh(sphereGeo, [CANDY.pink, CANDY.mint, CANDY.lilac, CANDY.red, "#ffc83a"][i]!, 0.1, 0.12, 0.1, Math.cos(a) * 0.9, 0.42, Math.sin(a) * 0.9, false));
+  }
+  return g;
+}
+
 /** The toffee the bear is set in, and the cracks she puts in it. */
 function toffee(x: number, z: number): { group: THREE.Group; cracks: THREE.Object3D[] } {
   const g = new THREE.Group();
@@ -326,6 +369,7 @@ export class CandyCreatures {
   private cracks: THREE.Object3D[] = [];
   private stomps = 0;
   private wasGrounded = true;
+  private basket = makeBasket();
   private mySolids: Solid[] = [];
   private toffeeAt: [number, number] = [0, 0];
 
@@ -366,6 +410,16 @@ export class CandyCreatures {
       this.held.push({ def, rig, walker, ring, home });
     });
 
+    /*
+     * The basket, off the corner of her porch. Far enough from the doorstep
+     * that the two never both answer a press: the door is offered within
+     * 1.8m and the basket within 2.4m, and these stand 5.2m apart. The
+     * builder's board is on the other side of the porch for the same reason.
+     */
+    const spots = candyHouseSpots();
+    this.basket.position.set(spots.door[0] + 5.0, 0, spots.door[1] + 1.6);
+    this.group.add(this.basket);
+
     this.mySolids = solids;
     this.worldColliders.push(...solids);
     scene.add(this.group);
@@ -404,7 +458,29 @@ export class CandyCreatures {
     return this.reachable(x, y, z) != null;
   }
 
+  /** At the basket, with something to put in it or something to call out of it. */
+  atBasket(x: number, y: number, z: number): "in" | "out" | null {
+    const st = useGame.getState();
+    if (!st.candyCreatures.length || y > 2) return null;
+    const b = this.basket.position;
+    if (Math.hypot(x - b.x, z - b.z) > BASKET_R) return null;
+    const out = st.candyCreatures.filter((c) => !st.creaturesHome.includes(c));
+    return out.length ? "in" : "out";
+  }
+
   tryInteract(x: number, y: number, z: number): boolean {
+    const basket = this.atBasket(x, y, z);
+    if (basket) {
+      sfx.click();
+      const st = useGame.getState();
+      for (const id of st.candyCreatures) st.setCreatureHome(id, basket === "in");
+      st.setEmmettNotice(
+        basket === "in"
+          ? "They live here now! You'll find them inside, by the rug."
+          : "They're coming with you again!",
+      );
+      return true;
+    }
     const h = this.reachable(x, y, z);
     if (!h) return false;
     sfx.win();
@@ -473,7 +549,14 @@ export class CandyCreatures {
         continue;
       }
       if (st.creaturesHome.includes(h.def.id)) {
-        h.rig.group.visible = false;
+        // living indoors: curled up round the rug in her bedroom, which is
+        // 150m above the house, so nothing of this shows out in the park
+        const room = candyHouseSpots().room;
+        const at = INDOORS[this.held.indexOf(h) % INDOORS.length]!;
+        h.rig.group.visible = true;
+        h.rig.group.position.set(room[0] + at[0], room[1] + at[1], room[2] + at[2]);
+        h.rig.group.rotation.y = Math.atan2(her.x - h.rig.group.position.x, her.z - h.rig.group.position.z);
+        animatePet(h.rig, "sit", 0, t, dt);
         continue;
       }
       h.rig.group.visible = true;

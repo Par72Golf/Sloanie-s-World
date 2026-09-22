@@ -107,6 +107,9 @@ export type GameStore = {
   /** she is standing next to a creature she could pick up */
   creatureNear: boolean;
   setCreatureNear: (v: boolean) => void;
+  /** she is at the basket by her door: "in" sends them to live there, "out" calls them back */
+  basketNear: "in" | "out" | null;
+  setBasketNear: (v: "in" | "out" | null) => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -750,6 +753,10 @@ export const useGame = create<GameStore>((set, get) => ({
   creatureNear: false,
   setCreatureNear: (creatureNear) => {
     if (get().creatureNear !== creatureNear) set({ creatureNear });
+  },
+  basketNear: null,
+  setBasketNear: (basketNear) => {
+    if (get().basketNear !== basketNear) set({ basketNear });
   },
   princessNear: false,
   setPrincessNear: (princessNear) => {

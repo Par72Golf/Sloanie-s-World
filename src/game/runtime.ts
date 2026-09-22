@@ -2459,6 +2459,7 @@ export class GameRuntime {
       useGame.getState().setTruckNear(this.playerTruck?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
       useGame.getState().setPrincessNear(this.candyQuest?.near(this.cap.x, this.cap.y, this.cap.z) === "princess");
       useGame.getState().setCreatureNear(this.creatures?.near(this.cap.x, this.cap.y, this.cap.z) ?? false);
+      useGame.getState().setBasketNear(this.creatures?.atBasket(this.cap.x, this.cap.y, this.cap.z) ?? null);
     }
     const d = this.nearestUnfound();
     if (!d) {

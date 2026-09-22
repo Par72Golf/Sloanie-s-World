@@ -29,6 +29,15 @@ const BOARD_AT: [number, number] = [CANDY_HOUSE_AT.x - 3.4, CANDY_HOUSE_AT.z + C
 const ROOM: [number, number, number] = [CANDY_HOUSE_AT.x, 150, CANDY_HOUSE_AT.z];
 const NEAR_SPOT = 1.7;
 
+/**
+ * Where her room is built, and where her doorstep is. The creatures she sends
+ * to live here need both: the basket stands by the step and they curl up in
+ * the room (candy-creatures.ts).
+ */
+export function candyHouseSpots() {
+  return { room: [ROOM[0], ROOM[1], ROOM[2]] as [number, number, number], door: [DOOR_OUT[0], DOOR_OUT[1]] as [number, number] };
+}
+
 export function setCandyHouseOrigin(o: { x: number; z: number } = { x: 130, z: -13 }) {
   CANDY_HOUSE_AT.x = o.x;
   CANDY_HOUSE_AT.z = o.z;
