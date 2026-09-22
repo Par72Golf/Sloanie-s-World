@@ -950,6 +950,8 @@ export const NO_PLANT: [number, number][] = [
   ...CREATURE_SPOTS,
   // whack-a-gummy's chocolate box, on the fairground's east side
   ...ringOf(SUGAR.fair.x + 8, SUGAR.fair.z + 3.75, 4.6),
+  // the sweet sorter's floor, the bay west of the wheel
+  ...ringOf(SUGAR.fair.x - 16, SUGAR.fair.z + 3.75, 5.0),
 ];
 
 export function boostSpots(

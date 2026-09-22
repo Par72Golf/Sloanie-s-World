@@ -20,6 +20,7 @@ import { CandyCreatures } from "./candy-creatures";
 import { SweetShop } from "./candy-shop";
 import { Flyover, flyoverFor } from "./flyover";
 import { WhackWorld } from "./whack-a-gummy";
+import { SorterWorld } from "./sweet-sorter";
 import { BowlsWorld } from "./bowls";
 import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
@@ -612,6 +613,9 @@ export class GameRuntime {
     // the candy princess and the three things her factory is missing
     this.candyQuest?.dispose();
     this.candyQuest = this.level.id === "sugar" ? new CandyQuest(this.scene) : null;
+    // the sweet sorter, in the bunting bay west of the wheel
+    this.sorter?.dispose();
+    this.sorter = this.level.id === "sugar" && this.world ? new SorterWorld(this.scene, this.world.colliders) : null;
     // whack-a-gummy, the fairground game with her feet in it
     this.whack?.dispose();
     this.whack = this.level.id === "sugar" && this.world ? new WhackWorld(this.scene, this.world.colliders) : null;
@@ -1054,6 +1058,7 @@ export class GameRuntime {
   creatures: CandyCreatures | null = null;
   sweetShop: SweetShop | null = null;
   whack: WhackWorld | null = null;
+  sorter: SorterWorld | null = null;
   playerTruck: PlayerTruck | null = null;
   /** the chocolate river's group, and how far the chocolate has flooded it */
   private river: THREE.Group | null = null;
@@ -1076,6 +1081,7 @@ export class GameRuntime {
     this.creatures?.dispose();
     this.sweetShop?.dispose();
     this.whack?.dispose();
+    this.sorter?.dispose();
     this.playerTruck?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
@@ -1623,6 +1629,7 @@ export class GameRuntime {
     }
     // a bear beside her beats everything else Collect could mean out here
     if (this.whack?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
+    if (this.sorter?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.creatures?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.sweetShop?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.candyQuest?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
@@ -2324,6 +2331,7 @@ export class GameRuntime {
       if (!paused) this.candyQuest?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.sweetShop?.update(this.clock);
       if (!paused) this.whack?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      if (!paused) this.sorter?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused && this.world) {
         this.creatures?.update(
           dt,
