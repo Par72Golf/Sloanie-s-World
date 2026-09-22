@@ -158,7 +158,10 @@ Her list, in her order:
 4. **Emmett and his monster truck, candy-themed** in this park.
 5. **Beat Emmett at his monster truck five times and she keeps the truck.** It
    parks beside her house and she can drive it; it goes as fast as a boost.
-6. **Inside the chocolate factory.**
+6. **Inside the chocolate factory.** Built: both front doors open, and the
+   inside is a hall of machinery — the mixing vat, the moulding line, the
+   gumball silos, a conveyor of sweets and a control desk — with a big lever
+   that runs the whole factory at double speed for eight seconds.
 7. **Cotton candy instead of juice boxes** for the speed boosts.
 
 Decided with her list:

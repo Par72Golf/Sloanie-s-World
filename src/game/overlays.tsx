@@ -3,6 +3,7 @@ import { ControlsRemap } from "./controls-remap";
 import { SPOTS } from "./furniture";
 import { HomePanel } from "./home-panel";
 import { HouseUpgradePanel } from "./house-upgrade";
+import { useChocFactory } from "./choc-factory-inside";
 import { useHome } from "./home-store";
 import { CHANNELS } from "./music";
 import { HELP_CARDS, HelpCard, type HelpId } from "./help-cards";
@@ -896,6 +897,7 @@ function HUD() {
   const emmettTalkNear = useGame((s) => s.emmettTalkNear);
   const homeOpen = useHome((s) => s.panel);
   const houseBuilding = useHome((s) => s.upgrading);
+  const factoryNear = useChocFactory((s) => s.near);
   const questOpen = useGame((s) => s.questPanel);
   const tickets = useGame((s) => s.tickets);
   const riding = useGame((s) => s.riding);
@@ -1137,9 +1139,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || factoryNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1149,6 +1151,12 @@ function HUD() {
                   : homeNear === "upgrade"
                     ? "Build your house bigger"
                     : `Decorate: ${SPOTS.find((s) => s.id === homeNear)?.name ?? homeNear}`
+              : factoryNear
+                ? factoryNear === "door"
+                  ? "Go inside the chocolate factory"
+                  : factoryNear === "exit"
+                    ? "Go outside"
+                    : "Pull the big lever!"
               : emmettTalkNear
                 ? "Play with Emmett"
                 : questNear
@@ -1167,7 +1175,7 @@ function HUD() {
                   ? "Ride the ferris wheel!"
                   : `Grab ${nearestName ?? "it"}!`
           }
-          icon={homeNear ? "home" : emmettTalkNear ? "truck" : golfNear != null || bowlsNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
+          icon={homeNear || factoryNear ? "home" : emmettTalkNear ? "truck" : golfNear != null || bowlsNear != null ? "golf" : carouselRing || carnivalNear ? "carnival" : "wheel"}
           gold={carouselRing === "gold"}
           onPress={requestInteract}
         />

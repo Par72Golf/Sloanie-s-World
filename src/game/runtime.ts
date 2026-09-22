@@ -12,6 +12,7 @@ import { GolfWorld } from "./minigolf";
 import { LavaWorld } from "./lava";
 import { LookingGlass } from "./looking-glass";
 import { candyStickers } from "./candy-stickers";
+import { ChocFactoryInside, useChocFactory } from "./choc-factory-inside";
 import { BowlsWorld } from "./bowls";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
@@ -596,6 +597,10 @@ export class GameRuntime {
           })
         : null;
     // floor is lava: its own platforms, rafts and colliders, like the house.
+    // inside the chocolate factory: its own room in the sky over the factory,
+    // built the way her house's room is
+    this.factoryInside?.dispose();
+    this.factoryInside = this.level.id === "sugar" && this.world ? new ChocFactoryInside(this.scene, this.world.colliders) : null;
     // the telescope on top of Ice Cream Mountain: it takes the camera for the
     // frames she is looking through it, and nothing else
     this.lookingGlass?.dispose();
@@ -973,6 +978,7 @@ export class GameRuntime {
   bowlsWorld: BowlsWorld | null = null;
   lavaWorld: LavaWorld | null = null;
   lookingGlass: LookingGlass | null = null;
+  factoryInside: ChocFactoryInside | null = null;
   stickerWorld: StickerWorld | null = null;
   homeWorld: HomeWorld | SugarHomeWorld | null = null;
   zooWorld: ZooWorld | null = null;
@@ -984,6 +990,7 @@ export class GameRuntime {
     this.bowlsWorld?.dispose();
     this.lavaWorld?.dispose();
     this.lookingGlass?.dispose();
+    this.factoryInside?.dispose();
     this.stickerWorld?.dispose();
     this.homeWorld?.dispose();
     this.zooWorld?.dispose();
@@ -1541,6 +1548,17 @@ export class GameRuntime {
       ];
       st.setEmmettNotice(lines[Math.floor(Math.random() * lines.length)]!);
       st.openRps(true);
+      return;
+    }
+    const factory = this.factoryInside?.tryInteract(this.cap.x, this.cap.y, this.cap.z);
+    if (factory) {
+      if (typeof factory === "object") {
+        [this.cap.x, this.cap.y, this.cap.z] = factory.teleport;
+        this.velY = 0;
+        this.yaw = factory.yaw;
+        this.cameraYaw = factory.yaw;
+        this.syncCamera(true);
+      }
       return;
     }
     const home = this.homeWorld?.tryInteract();
@@ -2159,6 +2177,7 @@ export class GameRuntime {
         st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       // the sails and the log turn whether or not anyone is playing
       this.golfWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.bowlsWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
@@ -2421,7 +2440,9 @@ export class GameRuntime {
     }
     this.wasInCave = inCave;
     // her house's room is small too: third person would jam against the walls
-    this.setFirstPerson((st.view === "first" || inCave || useHome.getState().inside) && st.phase !== "title");
+    this.setFirstPerson(
+      (st.view === "first" || inCave || useHome.getState().inside || useChocFactory.getState().inside) && st.phase !== "title",
+    );
 
     const collectedNow = st.collected[st.levelIndex] ?? [];
     if (this.world) {
