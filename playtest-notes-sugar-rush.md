@@ -132,6 +132,28 @@ the list lied.
 Whatever a throw does first is now its result, except going in, which always
 wins; only the contact that decides it puts a line on the HUD.
 
+### 13. Emmett's den was made of picnic park
+Two things. The tyre stacks, the kicker ramp and the toy box were drawn and not
+solid — park 1 has carried `yardProps()` since it was built and Sugar Rush never
+did, so she walked through all four. And the yard itself was still brown mud
+with tyre ruts sitting on spearmint, in a park where everything else including
+his truck had been candified.
+
+The pieces are solid now, and the yard is crushed biscuit dusted with cocoa,
+sprinkles where the pebbles were, licorice tyres, a wafer ramp, a candy chest,
+pink cones and a raspberry chequered flag. Making the pieces solid immediately
+failed `tools/gauntlet.ts` — the obstacle run's first ring stood on the toy box,
+which had never mattered while the toy box was not there. The ring moved.
+
+### 14. I moved the bubblegum into a fence
+Item 1's fix put it hard against the fairground fence, where the flood fill has
+nowhere to stand. `check-layout.ts` printed UNREACHABLE and exited 0 — it had no
+exit code at all, which is why the pass/fail loop I was running it in called it a
+pass, and why park 1's four have printed the same way for years. The sweet is out
+on the open apron now, and the tool fails on a spawn inside a solid, a boundary
+leak, a blocked accessory, and any unreachable collectible that is not on a
+written-down list of the four the fill cannot see on purpose.
+
 ## Checked and working
 
 - **All 16 sweets** collect, from a clean save, one after another.
