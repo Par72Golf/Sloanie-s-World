@@ -139,8 +139,8 @@ const BAGS: Record<string, BagDef> = {
   sugar: {
     id: "candypack",
     name: "candy satchel",
-    where: "by the sweet shops behind the start",
-    blocked: "You need a bag to carry that! There's a candy satchel by the sweet shops behind the start.",
+    where: "by the sweet stalls on the shop street, just north of the start",
+    blocked: "You need a bag to carry that! There's a candy satchel by the sweet stalls on the shop street, just north of the start.",
     found: "You found the candy satchel! Now you can carry things.",
   },
 };

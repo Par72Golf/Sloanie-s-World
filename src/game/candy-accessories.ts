@@ -175,7 +175,8 @@ export function isCandyAccessory(id: string): id is CandyAccessoryId {
  */
 export function candyAccessorySpots(): NonNullable<LevelDef["accessories"]> {
   return [
-    // behind the candy stall at the east end of the sweet shop street
+    // beside the candy stall at the west end of the sweet shop street, the
+    // first street north of where she starts
     {
       id: "candypack",
       pos: [SUGAR.plaza.x - 26, 0, SUGAR.plaza.z + 30],

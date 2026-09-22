@@ -610,7 +610,7 @@ function helpLines(levelIndex: number): string[] {
       "Find the sixteen sweets! Warm means close. Cold means far.",
       `Next to one? Press Collect (${bindingLabel("collect")}) and answer the math.`,
       "Miss twice and it runs off to hide somewhere new.",
-      "Find the candy satchel near the sweet shops. Then you can carry things.",
+      "Find the candy satchel by the sweet stalls, just north of the start. Then you can carry things.",
       `Open your bag and your jobs list with ${bindingLabel("journal")}.`,
       "The candy sticker book is near the start. 20 stickers are hiding in the park.",
       "Grab a cotton candy to run super fast for a little while.",
