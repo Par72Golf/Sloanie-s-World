@@ -69,6 +69,17 @@ juice box. The boost timer in the corner of the HUD was a juice carton draining,
 in a park with no juice in it. The notice names the park's own boost now, and
 the clock is a stick of candy floss whose cloud drains instead of a carton.
 
+### 3d. Losing to Emmett in Sugar Rush cost her nothing, and said nothing
+He rides up, beats her at rock paper scissors, and the panel tells her "He is
+taking one and hiding it." Then nothing happens: `emmettTakesOne` needs a
+landmark to hide it at, Sugar Rush had no list of them, and it gave up silently
+— no sweet lost, no line, no hint. He also offered "rock, paper, scissors for a
+dumpling".
+
+Sugar Rush has eight landmarks now, one per region, each on clear ground and
+clear of every button even after the spot is nudged. `tools/buttons.ts` checks
+the landmarks too, since a rehidden sweet is still a sweet she has to collect.
+
 ### 4. The world kept running behind the fair's result cards
 Whack-a-Gummy and Sweet Sorter put a results card up when the clock runs out.
 Unlike golf, bowls and the toss, those two were not in the runtime's "a panel is

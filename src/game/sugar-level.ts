@@ -189,6 +189,26 @@ const sugarCandies: DumplingDef[] = CANDIES.map((c) => {
   };
 });
 
+/**
+ * Where Emmett hides a sweet he has won. Without this list he wins the round,
+ * says he is taking one, and then nothing happens at all: `emmettTakesOne`
+ * needs somewhere to put it and gives up when there is nowhere.
+ *
+ * Eight landmarks, one per region, so the hint she gets back is a place she can
+ * picture. Each one is clear ground she can stand on, and far enough from every
+ * button that the nudge cannot drop a sweet inside one (tools/buttons.ts).
+ */
+const REHIDE: { name: string; say: string; pos: [number, number, number] }[] = [
+  { name: "Peppermint Plaza", say: "I left it on the plaza!", pos: [6, 0.55, 10] },
+  { name: "Gingerbread Village", say: "It's on the village square!", pos: [122, 0.55, 12] },
+  { name: "the Lollipop Forest", say: "I hid it in the lollipop woods!", pos: [-96, 0.55, 8] },
+  { name: "the fairground", say: "It's out at the fair!", pos: [-110, 0.55, 98] },
+  { name: "Marshmallow Fields", say: "I dropped it on the marshmallows!", pos: [-30, 0.55, 112] },
+  { name: "the foot of Ice Cream Mountain", say: "It's down at the ice cream mountain!", pos: [-106, 0.55, -110] },
+  { name: "Gumdrop Meadow", say: "I took it out to the meadow!", pos: [70, 0.55, 70] },
+  { name: "the chocolate lake", say: "It's by the chocolate lake!", pos: [114, 0.55, 132] },
+];
+
 export function sugarRushPark(): LevelDef {
   // every candy keeps a clear circle round it, so nothing is ever planted on top
   /*
@@ -263,5 +283,6 @@ export function sugarRushPark(): LevelDef {
     ride: WHEEL,
     // Emmett's den, east of the loop and south of the village
     emmettBase: true,
+    rehideSpots: REHIDE,
   };
 }

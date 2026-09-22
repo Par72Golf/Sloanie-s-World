@@ -892,7 +892,7 @@ export class GameRuntime {
 
     if (caught) {
       sfx.click();
-      st.setEmmettNotice("Rock, paper, scissors for a dumpling!");
+      st.setEmmettNotice(`Rock, paper, scissors for a ${this.level.id === "sugar" ? "sweet" : "dumpling"}!`);
       st.openRps();
     }
 

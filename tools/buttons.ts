@@ -110,7 +110,10 @@ function sugarButtons(): Button[] {
   return out;
 }
 
-type Thing = { name: string; x: number; y: number; z: number };
+type Thing = { name: string; x: number; y: number; z: number; pad?: number };
+
+/** runtime.ts: how far off a landmark's centre a rehidden sweet can land */
+const NUDGE = 3.5 / 2;
 
 /**
  * The sweets, and only the sweets. Everything else she picks up — the stickers,
@@ -121,7 +124,16 @@ type Thing = { name: string; x: number; y: number; z: number };
 function sweetsIn(index: number): Thing[] {
   const level = LEVELS[index]!;
   applyLevelOrigins(level);
-  return level.dumplings.map((d) => ({ name: d.name, x: d.pos[0], y: d.pos[1], z: d.pos[2] }));
+  const out: Thing[] = level.dumplings.map((d) => ({ name: d.name, x: d.pos[0], y: d.pos[1], z: d.pos[2] }));
+  /*
+   * And where Emmett puts one he has won. `emmettTakesOne` nudges the sweet up
+   * to 1.75m off the landmark's centre so repeats are not identical, so a
+   * landmark needs that much clearance on top of everything else.
+   */
+  for (const r of level.rehideSpots ?? []) {
+    out.push({ name: `a sweet rehidden at ${r.name}`, x: r.pos[0], y: r.pos[1], z: r.pos[2], pad: NUDGE });
+  }
+  return out;
 }
 
 let bad = 0;
@@ -136,7 +148,7 @@ for (const [index, buttons] of [
     if (reach === 0) continue;
     for (const b of buttons) {
       checks++;
-      const need = b.r + reach;
+      const need = b.r + reach + (t.pad ?? 0);
       const d = Math.hypot(t.x - b.x, t.z - b.z);
       if (d < need) {
         bad++;
