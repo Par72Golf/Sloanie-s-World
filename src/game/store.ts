@@ -116,6 +116,9 @@ export type GameStore = {
   /** she is on the jetty with the chocolate river boat moored at it */
   boatNear: boolean;
   setBoatNear: (v: boolean) => void;
+  /** she is at the cupcake carousel's way in */
+  cupcakesNear: boolean;
+  setCupcakesNear: (v: boolean) => void;
   sweetShop: boolean;
   setSweetShop: (v: boolean) => void;
   boostLeft: number;
@@ -786,6 +789,10 @@ export const useGame = create<GameStore>((set, get) => ({
   boatNear: false,
   setBoatNear: (boatNear) => {
     if (get().boatNear !== boatNear) set({ boatNear });
+  },
+  cupcakesNear: false,
+  setCupcakesNear: (cupcakesNear) => {
+    if (get().cupcakesNear !== cupcakesNear) set({ cupcakesNear });
   },
   sweetShop: false,
   setSweetShop: (sweetShop) => set({ sweetShop }),

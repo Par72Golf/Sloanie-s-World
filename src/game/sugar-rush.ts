@@ -952,6 +952,8 @@ export const NO_PLANT: [number, number][] = [
   ...ringOf(SUGAR.fair.x + 8, SUGAR.fair.z + 3.75, 4.6),
   // the sweet sorter's floor, the bay west of the wheel
   ...ringOf(SUGAR.fair.x - 16, SUGAR.fair.z + 3.75, 5.0),
+  // the cupcake carousel's green, north of the fairground arch
+  ...ringOf(SUGAR.fair.x, SUGAR.fair.z + 32, 7.4),
 ];
 
 export function boostSpots(
