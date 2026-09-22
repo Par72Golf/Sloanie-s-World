@@ -19,8 +19,8 @@ import { CandyQuest } from "./candy-quest";
 import { CandyCreatures } from "./candy-creatures";
 import { SweetShop } from "./candy-shop";
 import { Flyover, flyoverFor } from "./flyover";
-import { WhackWorld } from "./whack-a-gummy";
-import { SorterWorld } from "./sweet-sorter";
+import { WhackWorld, useWhack } from "./whack-a-gummy";
+import { SorterWorld, useSorter } from "./sweet-sorter";
 import { BoatRide } from "./boat-ride";
 import { CarouselRide } from "./carousel-ride";
 import { BowlsWorld } from "./bowls";
@@ -31,7 +31,7 @@ import * as THREE from "three";
 import { placeCamera } from "./camera";
 import { perf, recordFrame } from "./debug";
 import { applyWorn, bagFor, makePickup, type AccessoryId } from "./accessories";
-import { levelGondolas } from "./meshes";
+import { levelGondolas, WHEEL_BOARD } from "./meshes";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -507,6 +507,8 @@ export class GameRuntime {
         return costs;
       },
       store: () => useGame,
+      // her house keeps its own store, so a playtest can walk the upgrades
+      home: () => useHome,
       runtime: () => this,
     };
   }
@@ -783,7 +785,7 @@ export class GameRuntime {
         useGame.getState().findAccessory(p.id);
         if (p.id === bag.id) {
           useGame.getState().setEmmettNotice(bag.found);
-          useGame.getState().showHelp("backpack");
+          useGame.getState().showHelp(this.level.id === "sugar" ? "satchel" : "backpack");
         }
       } else {
         p.warned = false;
@@ -1550,7 +1552,7 @@ export class GameRuntime {
     if (!wheel || this.ride) return false;
     const bx = wheel.origin.x + wheel.boardLocal.x;
     const bz = wheel.origin.z + wheel.boardLocal.z;
-    return Math.hypot(this.cap.x - bx, this.cap.z - bz) <= 2.4 && this.cap.y <= 1.4;
+    return Math.hypot(this.cap.x - bx, this.cap.z - bz) <= WHEEL_BOARD.r && this.cap.y <= 1.4;
   }
 
   /** Standing on the boarding platform and pressing Collect starts a ride. */
@@ -2339,7 +2341,7 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || st.sweetShop || useHome.getState().panel != null || useHome.getState().upgrading;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || useWhack.getState().card != null || useSorter.getState().card != null || st.sweetShop || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
@@ -2476,7 +2478,9 @@ export class GameRuntime {
         !tossPose.active &&
         !st.riding;
       if (ticking) {
-        this.runAccum += dt;
+        // a frame can arrive with a negative delta (a tab waking up, a clock
+        // stepping back), and one of those used to put -1:-1 on her timer
+        this.runAccum = Math.max(0, this.runAccum + dt);
         if (Math.floor(this.runAccum) !== Math.floor(st.runSeconds)) {
           st.addRunTime(Math.floor(this.runAccum));
         }
@@ -2626,6 +2630,10 @@ export class GameRuntime {
       // while she is throwing, A fills the power meter and nothing else
       tossPose.active ||
       useToss.getState().card != null ||
+      // the fair's two 3D games leave a card up; the world waits behind it the
+      // way it waits behind golf's and bowls'
+      useWhack.getState().card != null ||
+      useSorter.getState().card != null ||
       useHome.getState().panel != null ||
       useHome.getState().upgrading ||
       st.sweetShop;
@@ -2754,6 +2762,7 @@ declare global {
       setBloom: (on: boolean, strength?: number) => void;
       frames: (n: number, dtMs?: number) => number[];
       store: () => typeof useGame;
+      home: () => typeof useHome;
       runtime: () => GameRuntime;
     };
   }
