@@ -122,8 +122,9 @@ within the park.
 
 Her list, in her order:
 
-1. **The floor is chocolate** — the lava course, re-themed: fall in the
-   chocolate and you go back to the start.
+1. **The floor is chocolate** — not park 1's course re-themed but **a new
+   layout, bigger**, with **two or three checkpoints**: fall in the chocolate
+   and she goes back to the last checkpoint she reached, not the start.
 2. **A tall candy mountain** to climb, with a **looking glass** at the top to
    look out over the park.
 3. **Her house bigger than the others**, and **upgradeable from the outside in
