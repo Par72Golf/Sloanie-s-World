@@ -86,3 +86,43 @@ fixed in the year of work since, so what follows is only what was still true.
   from the first eleven, which are meant to be easy.
 
 The Sugar Rush pass is in `playtest-notes-sugar-rush.md`.
+
+---
+
+## Mini golf and lawn bowls, driven live — 22 September 2026
+
+These two take their one button through the panel's own animation frame, the
+same shape that hid a hanging bug in the marshmallow toss. Now that those input
+records are on the test hooks, both were played end to end in the built game.
+
+**Both are clean.** A full round of golf: five holes, the scorecard, the ticket
+payout, and the friendly line for a bad round ("You finished all five holes.
+That's what counts!"). Quit mid-round puts her back beside the tee with the
+world prompt restored. A full game of bowls: three turns, two bowls a turn, the
+scorecard, and a perfect 27 — which a frame-perfect bot can get and a child
+cannot, see below.
+
+**They cannot hide the toss's bug, structurally.** That one survived because the
+bounce off a mug lived in `landed()`, a method on the world class that moved the
+marshmallow between physics steps, and no tool ever ran it — `throwOnce` looped
+`stepMarsh` alone. Golf and bowls have no such method. Every write to the ball
+goes through `teeBall`, `putt` or `stepBall`; every write to the bowl through
+`matBowl`, `roll` or `stepBowls`, with `contain` and `topple` called only from
+inside the stepper. `tools/minigolf.ts` and `tools/bowls.ts` drive those same
+steppers, so what they prove is what the game runs.
+
+**Both tools already measure what live play made me want to ask.** Bowls: a
+child who is really watching averages 19.1 of 27, a press 150ms late averages
+under 4 pins, and 3 of 400 watched games are perfect — so my bot's 27 every turn
+is the bot, and the economy (6 tickets for a bad game, 12 average, 19 perfect)
+is not a printer. Golf: no dead ends, every nasty spot finishes in 1–2 strokes,
+and a rough aimer's worst hole in 60 rounds took 8 strokes.
+
+**One observation, not a bug.** Mini golf is the only game in either park with
+no bound on a hole: the sole way out is sinking the ball. Bowls is three turns,
+the toss is three marshmallows, Whack-a-Gummy and Sweet Sorter are clocks. If
+Sloan cannot sink the dogleg, her choices are keep putting or Quit and lose the
+round. The numbers above say it should not bite — worst simulated hole 8 strokes
+— so this is left alone rather than changed under her. Worth a stroke cap with a
+kind line ("That one's tricky — take 6 and go to the next hole?") only if she
+actually gets stuck.
