@@ -58,6 +58,69 @@
       ],
       "url": "http://127.0.0.1:4175",
       "port": 4175
+    },
+    {
+      "name": "lan",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "4180",
+        "--strictPort"
+      ],
+      "url": "http://127.0.0.1:4180",
+      "port": 4180
+    },
+    {
+      "name": "xbox-lan",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "/private/tmp/claude-501/-Users-par72-mbp-Desktop-Sloanie-s-World/41ab7832-de66-4e14-ba23-2d75981ed108/scratchpad/xbox-wt",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "4190",
+        "--strictPort"
+      ],
+      "url": "http://127.0.0.1:4190",
+      "port": 4190
+    },
+    {
+      "name": "trailer-sink",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-par72-mbp-Desktop-Sloanie-s-World/41ab7832-de66-4e14-ba23-2d75981ed108/scratchpad/trailer/sink.mjs"
+      ],
+      "port": 4199
+    },
+    {
+      "name": "emmett-lan",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "4191",
+        "--strictPort"
+      ],
+      "url": "http://127.0.0.1:4191",
+      "port": 4191
+    },
+    {
+      "name": "shot-sink",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-par72-mbp-Desktop-Sloanie-s-World/41ab7832-de66-4e14-ba23-2d75981ed108/scratchpad/shotsink.mjs"
+      ],
+      "port": 4200,
+      "url": "http://127.0.0.1:4200"
     }
   ]
 }

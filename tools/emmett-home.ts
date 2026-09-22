@@ -35,7 +35,7 @@ import { EMMETT_BASE } from "../src/game/emmett-base";
 import { LEVELS } from "../src/game/levels";
 import { collidersFor } from "../src/game/colliders";
 import { navGridFor } from "../src/game/navgrid";
-import { EMMETT_WALKWAYS } from "../src/game/emmett";
+import { PARK_WALKWAYS } from "../src/game/features";
 
 /* ----------------------------------------------- headless browser stand-ins */
 const warn = console.warn; console.warn = (...a: unknown[]) => { if (typeof a[0] === "string" && a[0].includes("undefined")) return; warn(...a); };
@@ -74,7 +74,7 @@ const f2 = (n: number) => n.toFixed(2);
 
 console.log("the park as he sees it");
 // the same arguments emmett.ts passes, so this is the very grid he plans on
-const nav = navGridFor(lv.bounds, cols, keepOut, 0.8, 3.2, EMMETT_WALKWAYS);
+const nav = navGridFor(lv.bounds, cols, keepOut, 0.8, 3.2, PARK_WALKWAYS);
 {
   let open = 0;
   for (let i = 0; i < nav.cells; i++) if (!nav.blockedAt(nav.cellX(i), nav.cellZ(i))) open++;
@@ -95,7 +95,7 @@ const nav = navGridFor(lv.bounds, cols, keepOut, 0.8, 3.2, EMMETT_WALKWAYS);
 
 /* --------------------------------------------------- the round-trip harness */
 
-const e = new Emmett(scene, lv.bounds, keepOut, base);
+const e = new Emmett(scene, lv.bounds, keepOut, base, PARK_WALKWAYS);
 
 const inKeepOut = (x: number, z: number, pad = 0) =>
   keepOut.some((k) => x > k.minX - pad && x < k.maxX + pad && z > k.minZ - pad && z < k.maxZ + pad);
@@ -331,7 +331,7 @@ if (verbose) {
 
 console.log("\nthe routine: 15 minutes of his own timers");
 {
-  const e2 = new Emmett(scene, lv.bounds, keepOut, base);
+  const e2 = new Emmett(scene, lv.bounds, keepOut, base, PARK_WALKWAYS);
   // the browser can hand the first frame a zero or negative length; that once
   // made his lean NaN and hid him for the rest of the game
   e2.update(0, 0, 0, 22, 3, 16, cols, false);

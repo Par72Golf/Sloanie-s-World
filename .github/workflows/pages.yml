@@ -26,7 +26,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # park 1's layout, then park 2's
       - run: npx jiti tools/check-layout.ts
+      - run: LEVEL=1 npx jiti tools/check-layout.ts
+      # the things a park can quietly break: a collectible that cannot be
+      # reached, a jump that cannot be made, a ring inside a hedge
+      - run: npx jiti tools/collectibles.ts
+      - run: npx jiti tools/lava.ts
+      - run: LEVEL=1 npx jiti tools/lava.ts
+      - run: npx jiti tools/gauntlet.ts
+      - run: npx jiti tools/creatures.ts
+      - run: npx jiti tools/toss.ts
       - run: npm run build
       - uses: actions/upload-pages-artifact@v4
         with:
