@@ -93,6 +93,12 @@ export type GameStore = {
    */
   factoryFixed: boolean;
   fixFactory: () => void;
+  /** the three things the candy princess's factory is missing, as she finds them */
+  candyParts: string[];
+  findCandyPart: (id: string) => void;
+  /** she is standing close enough to the candy princess to talk to her */
+  princessNear: boolean;
+  setPrincessNear: (v: boolean) => void;
   boostLeft: number;
   emmettNotice: string | null;
   /** Name card shown while a freshly caught dumpling floats above her head. */
@@ -348,6 +354,7 @@ function persistSlice(s: GameStore) {
     truckWins: s.truckWins,
     truckOwned: s.truckOwned,
     factoryFixed: s.factoryFixed,
+    candyParts: s.candyParts,
     stickers: s.stickers,
     quest: s.quest,
     pets: s.pets,
@@ -718,6 +725,16 @@ export const useGame = create<GameStore>((set, get) => ({
   setTruckNear: (truckNear) => {
     if (get().truckNear !== truckNear) set({ truckNear });
   },
+  princessNear: false,
+  setPrincessNear: (princessNear) => {
+    if (get().princessNear !== princessNear) set({ princessNear });
+  },
+  candyParts: saved.candyParts,
+  findCandyPart: (id) => {
+    if (get().candyParts.includes(id)) return;
+    set({ candyParts: [...get().candyParts, id] });
+    persistSlice(get());
+  },
   factoryFixed: saved.factoryFixed,
   fixFactory: () => {
     if (get().factoryFixed) return;
@@ -980,6 +997,7 @@ export const useGame = create<GameStore>((set, get) => ({
       truckWins: 0,
       truckOwned: false,
       factoryFixed: false,
+      candyParts: [],
       truckRace: null,
       driving: false,
       stickers: [],

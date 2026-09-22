@@ -904,6 +904,7 @@ function HUD() {
   const truckWins = useGame((s) => s.truckWins);
   const truckOwned = useGame((s) => s.truckOwned);
   const truckRace = useGame((s) => s.truckRace);
+  const princessNear = useGame((s) => s.princessNear);
   const questOpen = useGame((s) => s.questPanel);
   const tickets = useGame((s) => s.tickets);
   const riding = useGame((s) => s.riding);
@@ -1152,9 +1153,9 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || factoryNear || truckNear || driving || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && (homeNear || factoryNear || truckNear || driving || princessNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
             homeNear
               ? homeNear === "door"
@@ -1170,6 +1171,8 @@ function HUD() {
                   : factoryNear === "exit"
                     ? "Go outside"
                     : "Pull the big lever!"
+              : princessNear
+                ? "Talk to the Candy Princess"
               : driving
                 ? "Park the monster truck"
               : truckNear

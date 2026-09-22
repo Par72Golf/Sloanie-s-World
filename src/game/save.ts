@@ -53,6 +53,8 @@ export type SaveData = {
   truckOwned: boolean;
   /** the chocolate factory has been started, so the river runs brown */
   factoryFixed: boolean;
+  /** the factory parts she has found for the candy princess */
+  candyParts: string[];
   stickers: string[];
   quest: QuestSave;
   /** Every pet she has adopted, in the order she chose them (up to three). */
@@ -93,6 +95,7 @@ const DEFAULT: SaveData = {
   truckWins: 0,
   truckOwned: false,
   factoryFixed: false,
+  candyParts: [],
   stickers: [],
   quest: { stage: "none", treats: [], chapter: 0, seek: null },
   pets: [],
@@ -145,6 +148,7 @@ function migrate(raw: SaveData): SaveData {
   s.truckWins = Math.min(5, Math.max(0, Math.round(Number(s.truckWins) || 0)));
   s.truckOwned = s.truckOwned === true;
   s.factoryFixed = s.factoryFixed === true;
+  s.candyParts = Array.isArray(s.candyParts) ? s.candyParts.filter((p) => typeof p === "string") : [];
   s.golfBest = Number.isFinite(s.golfBest) && (s.golfBest as number) > 0 ? Math.floor(s.golfBest as number) : null;
   s.bowlsBest = Number.isFinite(s.bowlsBest) && (s.bowlsBest as number) > 0 ? Math.floor(s.bowlsBest as number) : null;
   s.lavaBest = Number.isFinite(s.lavaBest) && (s.lavaBest as number) > 0 ? Math.round((s.lavaBest as number) * 10) / 10 : null;

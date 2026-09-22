@@ -4,6 +4,7 @@ import { sfx } from "./audio";
 import { beveledBox } from "./beveled";
 import type { AABB } from "./collision";
 import { cylGeo, lam, mesh, signBoard, sphereGeo } from "./meshes";
+import { CandyQuest } from "./candy-quest";
 import { SUGAR } from "./sugar-rush";
 import { useGame } from "./store";
 
@@ -795,9 +796,21 @@ export class ChocFactoryInside {
     }
     if (near === "lever") {
       const st = useGame.getState();
-      // the first pull is the one that matters: the factory has been stopped
-      // and the whole river has been running vanilla because of it
+      /*
+       * The first pull is the one that matters: the factory has been stopped
+       * and the whole river has been running white because of it. It will not
+       * start without the three things the princess is missing, and the lever
+       * says which ones are still out there rather than just refusing.
+       */
       if (!st.factoryFixed) {
+        const missing = CandyQuest.missing(st.candyParts);
+        if (missing.length) {
+          sfx.wrong();
+          st.setEmmettNotice(
+            `The machines will not start: ${missing.map((m) => m.name).join(", ")} ${missing.length === 1 ? "is" : "are"} still missing.`,
+          );
+          return true;
+        }
         sfx.win();
         st.fixFactory();
         st.setEmmettNotice("The factory is running again — look at the river!");
