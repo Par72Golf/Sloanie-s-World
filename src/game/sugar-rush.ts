@@ -926,6 +926,32 @@ export const CREATURE_SPOTS: [number, number][] = [
   [96, 96],
 ];
 
+/**
+ * Ground the park must leave bare because something is built on it at runtime
+ * — the creatures' predicaments, and the two fairground games that lay out a
+ * box and a floor of their own.
+ *
+ * `clearGround` keeps 4m plus its pad from each point, which is not enough on
+ * its own for anything wider than that, so a wide thing is written down as a
+ * centre and a ring: five points make a circle the planting stays out of. A
+ * lollipop growing through the middle of the gummy box is the sort of thing
+ * that only shows up in a photograph.
+ */
+function ringOf(x: number, z: number, r: number): [number, number][] {
+  const out: [number, number][] = [[x, z]];
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    out.push([x + Math.cos(a) * r, z + Math.sin(a) * r]);
+  }
+  return out;
+}
+
+export const NO_PLANT: [number, number][] = [
+  ...CREATURE_SPOTS,
+  // whack-a-gummy's chocolate box, on the fairground's east side
+  ...ringOf(SUGAR.fair.x + 8, SUGAR.fair.z + 3.75, 4.6),
+];
+
 export function boostSpots(
   keepOut: [number, number][],
   already: Prop[] = [],

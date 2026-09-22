@@ -7,7 +7,7 @@ import { gumdropHills, sugarBerms } from "./sugar-terrain";
 import type { DumplingDef, Hide, LevelDef } from "./types";
 import {
   CANDY,
-  CREATURE_SPOTS,
+  NO_PLANT,
   SUGAR,
   SUGAR_BOUNDS,
   WHEEL,
@@ -190,7 +190,7 @@ export function sugarRushPark(): LevelDef {
    * the princess's creatures are stuck. A lollipop tree she has to climb is
    * no use with three more lollipop trees grown round it.
    */
-  const spots = [...sugarCandies.map((d) => [d.pos[0], d.pos[2]] as [number, number]), ...CREATURE_SPOTS];
+  const spots = [...sugarCandies.map((d) => [d.pos[0], d.pos[2]] as [number, number]), ...NO_PLANT];
   // the frosting goes on last, because it has to see what is already down
   const props = [
     ...riverProps(),
