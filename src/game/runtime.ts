@@ -17,6 +17,7 @@ import { PlayerTruck, RPS_ROUNDS, TRUCK_STAGES, TruckGauntlet } from "./truck-ga
 import { setRiverFlow } from "./candy-river";
 import { CandyQuest } from "./candy-quest";
 import { BowlsWorld } from "./bowls";
+import { TossWorld, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
 import { BOOTHS, CAROUSEL, boothStand, carouselGate, type BoothGame } from "./carnival";
 import * as THREE from "three";
@@ -661,6 +662,21 @@ export class GameRuntime {
             this.world.grassField,
           )
         : null;
+    // the marshmallow toss on the fairground: its own booth, mugs and colliders
+    this.tossWorld?.dispose();
+    this.tossWorld =
+      this.level.id === "sugar" && this.world
+        ? new TossWorld(this.scene, this.world.colliders, (x, y, z, yaw) => {
+            this.cap.x = x;
+            this.cap.y = y;
+            this.cap.z = z;
+            this.velY = 0;
+            this.speed = 0;
+            this.yaw = yaw;
+            this.cameraYaw = yaw;
+            this.syncCamera(true);
+          })
+        : null;
     this.zooWorld?.dispose();
     this.zooWorld = this.level.zoo ? new ZooWorld(this.scene, (t) => useGame.getState().setEmmettNotice(t)) : null;
     this.ride = null;
@@ -825,6 +841,7 @@ export class GameRuntime {
       useHome.getState().inside ||
       st.golfPlaying ||
       st.bowlsPlaying ||
+      tossPose.active ||
       st.riding;
 
     const collected = st.collected[st.levelIndex] ?? [];
@@ -1012,6 +1029,7 @@ export class GameRuntime {
   questWorld: QuestWorld | null = null;
   golfWorld: GolfWorld | null = null;
   bowlsWorld: BowlsWorld | null = null;
+  tossWorld: TossWorld | null = null;
   lavaWorld: LavaWorld | null = null;
   lookingGlass: LookingGlass | null = null;
   factoryInside: ChocFactoryInside | null = null;
@@ -1030,6 +1048,7 @@ export class GameRuntime {
     this.questWorld?.dispose();
     this.golfWorld?.dispose();
     this.bowlsWorld?.dispose();
+    this.tossWorld?.dispose();
     this.lavaWorld?.dispose();
     this.lookingGlass?.dispose();
     this.factoryInside?.dispose();
@@ -1635,6 +1654,7 @@ export class GameRuntime {
     if (this.questWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.golfWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.bowlsWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
+    if (this.tossWorld?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.tryCarnival()) return;
     if (this.tryBoard()) return;
     const d = this.nearestUnfound();
@@ -1826,6 +1846,13 @@ export class GameRuntime {
     } else if (this.carouselRide) {
       // watch the carousel go round from outside the fence, by the ring arm
       desired.set(CAROUSEL.x + 10, 5, CAROUSEL.z - 11);
+    } else if (this.tossWorld?.playing) {
+      // the marshmallow toss: off the side of the lane, so a lob reads as an arc
+      this.tossWorld.camera(desired, this.lookAt);
+      if (snap) this.camera.position.copy(desired);
+      else this.camera.position.lerp(desired, 1 - Math.exp(-6 * FIXED));
+      this.camera.lookAt(this.lookAt);
+      return;
     } else if (this.bowlsWorld?.playing) {
       // bowling: behind the mat, looking straight down the rink
       this.bowlsWorld.camera(desired, this.lookAt);
@@ -1904,6 +1931,7 @@ export class GameRuntime {
       // putting takes her controls the way the carousel does
       !st.golfPlaying &&
       !st.bowlsPlaying &&
+      !tossPose.active &&
       // she stands still while she is looking through the glass
       !this.lookingGlass?.active;
     if (!live) {
@@ -2234,7 +2262,7 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || useHome.getState().panel != null || useHome.getState().upgrading;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
@@ -2269,6 +2297,7 @@ export class GameRuntime {
       // the sails and the log turn whether or not anyone is playing
       this.golfWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.bowlsWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      this.tossWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.lavaWorld?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused);
       // after syncCamera, which runs inside physics: the glass has the last
       // word on the camera for the frames she is looking through it
@@ -2353,6 +2382,7 @@ export class GameRuntime {
         st.helpCard == null &&
         !st.golfPlaying &&
         !st.bowlsPlaying &&
+        !tossPose.active &&
         !st.riding;
       if (ticking) {
         this.runAccum += dt;
@@ -2477,6 +2507,7 @@ export class GameRuntime {
     // anything that leaves the park (the title, a reset) also leaves the tee
     if (st.phase !== "playing" && this.golfWorld?.playing) this.golfWorld.quit();
     if (st.phase !== "playing" && this.bowlsWorld?.playing) this.bowlsWorld.quit();
+    if (st.phase !== "playing" && this.tossWorld?.playing) this.tossWorld.quit();
     if (st.carnival !== this.lastCarnival) {
       if (!st.carnival) this.carnivalBlock = 0.6;
       this.lastCarnival = st.carnival;
@@ -2496,6 +2527,9 @@ export class GameRuntime {
       st.golfCard != null ||
       st.bowlsPlaying ||
       st.bowlsCard != null ||
+      // while she is throwing, A fills the power meter and nothing else
+      tossPose.active ||
+      useToss.getState().card != null ||
       useHome.getState().panel != null ||
       useHome.getState().upgrading;
     const play = st.phase === "playing" && !panel;
