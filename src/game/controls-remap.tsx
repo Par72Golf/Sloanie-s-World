@@ -38,6 +38,21 @@ export function ControlsRemap() {
   const [flash, setFlash] = useState<Action | null>(null);
   const listenStart = useRef(0);
 
+  /*
+   * Escape closes the panel. It already cancelled a rebind while one was
+   * being listened for, but with nothing listening it did nothing at all and
+   * the only way out was the Got it button — which is a long way from where
+   * her hands are on a keyboard.
+   */
+  useEffect(() => {
+    if (listening) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Escape" && !e.repeat) close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [listening]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // show which buttons are down right now, so she can see what each one does
   useEffect(() => {
     let raf = 0;

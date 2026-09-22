@@ -14,7 +14,7 @@ import { useSorter } from "./sweet-sorter";
 import { TRUCK_STAGES } from "./truck-gauntlet";
 import { useHome } from "./home-store";
 import { CHANNELS } from "./music";
-import { HELP_CARDS, HelpCard, type HelpId } from "./help-cards";
+import { HELP_CARDS, HelpCard, helpIdsFor } from "./help-cards";
 import { currentVoiceName, rankedVoices, setSpeechEnabled, setVoiceName, speak } from "./speech";
 import { QuestPanel } from "./quest-panel";
 import { Journal } from "./journal";
@@ -621,6 +621,8 @@ function helpLines(levelIndex: number): string[] {
       "Your gingerbread house is on the village square. Build it bigger at the board by the gate.",
       "Beat Emmett five times at his den and his monster truck is yours to drive.",
       "Climb Ice Cream Mountain and look through the telescope at the top.",
+      "Things you find go in your wardrobe. Wear them from your bag or the start menu.",
+      `Press ${bindingLabel("view")} to look through her own eyes, and again to go back.`,
     ];
   }
   return [
@@ -632,6 +634,9 @@ function helpLines(levelIndex: number): string[] {
     "At the carnival, play games to win tickets. Spend them at the prize booth.",
     "Farmer Joe at the farm lost his pets. Can you bring them home?",
     "Find the big mountain and explore the cave inside.",
+    "Ride the ferris wheel on the east lawn — one dumpling only comes out at the top.",
+    "Things you find go in your wardrobe. Wear them from the backpack or the start menu.",
+    `Press ${bindingLabel("view")} to look through her own eyes, and again to go back.`,
   ];
 }
 
@@ -934,6 +939,9 @@ function TitleScreen() {
                 label="Controls"
                 onClick={() => {
                   sfx.click();
+                  // one card at a time: Controls used to open on top of an
+                  // open How to play and both sat there stacked
+                  setDetail(null);
                   setControls(true);
                 }}
               />
@@ -2259,6 +2267,7 @@ function Quiz() {
 
 function PauseScreen() {
   const resumePlay = useGame((s) => s.resumePlay);
+  const levelIndex = useGame((s) => s.levelIndex);
   const toTitle = useGame((s) => s.toTitle);
   const fullscreen = useFullscreen();
   const toggleWardrobe = useGame((s) => s.toggleWardrobe);
@@ -2307,7 +2316,7 @@ function PauseScreen() {
               Help cards
             </p>
             <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-              {(Object.keys(HELP_CARDS) as HelpId[]).map((id) => {
+              {helpIdsFor(levelIndex).map((id) => {
                 const CardIcon = HELP_CARDS[id].Icon;
                 return (
                   <Btn
