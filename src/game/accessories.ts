@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { beveledBox } from "./beveled";
+import { CANDY_ACCESSORIES, makeCandyAccessory, type CandyAccessoryId } from "./candy-accessories";
 import { lam } from "./meshes";
 
 /**
@@ -13,7 +14,12 @@ import { lam } from "./meshes";
  * hair top ~ 0.6) or the torso group's frame (shoulders ~ y 0.44).
  */
 
-export type AccessoryId =
+/**
+ * The ids park 1 owns. Sugar Rush's are in candy-accessories.ts, which this
+ * file folds in below so that the wardrobe, the pickups and the thumbnails
+ * never have to know which park an item came from.
+ */
+type PicnicAccessoryId =
   | "sunglasses"
   | "partyhat"
   | "bow"
@@ -40,6 +46,7 @@ export type AccessoryId =
   | "lollipop"
   | "cottoncandy"
   | "pinwheel";
+export type AccessoryId = PicnicAccessoryId | CandyAccessoryId;
 export type Slot = "head" | "hair" | "face" | "back" | "hand";
 
 export type AccessoryDef = {
@@ -79,6 +86,13 @@ export const ACCESSORIES: AccessoryDef[] = [
   { id: "pinwheel", name: "Pinwheel", slot: "hand", hint: "Buy it at the prize booth.", reward: "the prize booth shop" },
 ];
 
+/**
+ * Every accessory in the game, both parks. ACCESSORIES stays park 1's list —
+ * it is what the wardrobe card counts — and each park's pickups come from its
+ * own level, so nothing here changes what park 1 shows.
+ */
+export const ALL_ACCESSORIES: AccessoryDef[] = [...ACCESSORIES, ...CANDY_ACCESSORIES];
+
 export const SLOTS: Slot[] = ["head", "hair", "face", "back", "hand"];
 
 export type Worn = Record<Slot, AccessoryId | null>;
@@ -86,7 +100,38 @@ export type Worn = Record<Slot, AccessoryId | null>;
 export const NOTHING_WORN: Worn = { head: null, hair: null, face: null, back: null, hand: null };
 
 export function accessory(id: AccessoryId): AccessoryDef {
-  return ACCESSORIES.find((a) => a.id === id)!;
+  return ALL_ACCESSORIES.find((a) => a.id === id)!;
+}
+
+/**
+ * The bag a park makes her find before she can carry anything, and what she is
+ * told about it. Park 1's backpack is out on the ball field; Sugar Rush's is a
+ * box of chocolates on the sweet shop street.
+ */
+export type BagDef = {
+  id: AccessoryId;
+  /** said when she walks into something she cannot carry yet */
+  blocked: string;
+  /** said when she finds the bag itself */
+  found: string;
+};
+
+const BAGS: Record<string, BagDef> = {
+  picnic: {
+    id: "backpack",
+    blocked: "You need a backpack to carry that! Look for it out on the ball field.",
+    found: "You found the backpack! Now you can carry things.",
+  },
+  sugar: {
+    id: "candypack",
+    blocked: "You need a bag to carry that! There's a candy satchel by the sweet shops behind the start.",
+    found: "You found the candy satchel! Now you can carry things.",
+  },
+};
+
+/** The carrying bag for a level, falling back to park 1's. */
+export function bagFor(levelId: string): BagDef {
+  return BAGS[levelId] ?? BAGS.picnic!;
 }
 
 const flat = (c: string, roughness = 0.5) => lam(c, { flat: true, roughness });
@@ -236,9 +281,13 @@ const pinwheelBladeGeo = slab(bladeShape, 0.014, 8);
 
 /** The item as worn: built in the frame of the group it attaches to. */
 export function makeAccessory(id: AccessoryId): { mesh: THREE.Group; attach: "head" | "torso" | "hand" } {
+  // Sugar Rush's items are built in their own file; everything downstream of
+  // here (wearing, pickups, thumbnails) treats them the same as park 1's.
+  const candy = makeCandyAccessory(id);
+  if (candy) return candy;
   const g = new THREE.Group();
   g.userData.accessory = id;
-  switch (id) {
+  switch (id as PicnicAccessoryId) {
     case "sunglasses": {
       const dark = "#1a1a1e";
       for (const s of [-1, 1]) {

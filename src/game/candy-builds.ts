@@ -655,33 +655,89 @@ const TIERS = [{ r: 9.4, top: 4.2, color: "#ff9ec4" }]; // strawberry
 const DECK = { r: 5.0, top: 8.4, seam: 6.3, lower: "#6fd8bd", color: "#f4dc9e" };
 
 /**
- * Where each flight of twelve steps starts and how far round it sweeps.
+ * The two tiers above the deck, which are what make this a peak instead of a
+ * wide sundae. Radius is the whole budget: a tier has to hold a drum plus a
+ * flight that clears it, and a flight is not walkable under about 1.5m, so the
+ * deck's five metres pay for exactly two more: 5.0 -> 3.4 -> 1.8. A third
+ * would be a pole, not a place to stand on.
+ *
+ * Each one is also a scoop in its own right — bubblegum, then a lemon-and-
+ * raspberry horn — so from the grass the mountain is four sweets stacked, not
+ * one sweet with scaffolding on it.
+ */
+const SCOOP = { r: 3.4, top: 13.0, seam: 10.7, lower: "#8fd0ff", color: "#c9a2ff" };
+const PEAK = { r: 1.8, top: 16.8, seam: 15.0, lower: "#ffd24d", color: "#ff6f91" };
+
+/**
+ * Where each flight starts, how far round it sweeps and how many steps it
+ * takes. The lower two are twelve steps of 0.35m; the upper two are fewer and
+ * slightly taller (0.46m and 0.475m) because there is less radius to spiral
+ * round up there — both still well under her 0.62m step-up.
  *
  * Each radius keeps the treads clear of the drum they climb toward (a tread
  * buried in a 4m wall is a step she cannot take) and inside the lumpy rim of
- * the ring they stand on.
+ * the ring they stand on. The upper two overlap their drum by 5cm on purpose:
+ * up there the gap between the last tread and the ring would be the width of
+ * her foot, and a stair that stops short of the floor is a stair she falls
+ * off, so they are built to touch instead and need no landing.
  */
 const FLIGHTS = [
-  { fromY: 0, toY: TIERS[0]!.top, toR: TIERS[0]!.r, r: 10.6, tread: 2.0, a0: Math.PI / 2, span: 1.56 },
-  { fromY: TIERS[0]!.top, toY: DECK.top, toR: DECK.r, r: 6.6, tread: 1.7, a0: (260 * Math.PI) / 180, span: 1.7 },
+  { fromY: 0, toY: TIERS[0]!.top, toR: TIERS[0]!.r, r: 10.6, tread: 2.0, a0: Math.PI / 2, span: 1.56, n: 12, landing: 2.6 },
+  { fromY: TIERS[0]!.top, toY: DECK.top, toR: DECK.r, r: 6.6, tread: 1.7, a0: (260 * Math.PI) / 180, span: 1.7, n: 12, landing: 2.6 },
+  { fromY: DECK.top, toY: SCOOP.top, toR: SCOOP.r, r: 4.15, tread: 1.5, a0: 0.35, span: 2.7, n: 10, landing: 0 },
+  // starts where the flight below it arrives, so the two read as one spiral
+  { fromY: SCOOP.top, toY: PEAK.top, toR: PEAK.r, r: 2.55, tread: 1.5, a0: 3.1, span: 2.9, n: 8, landing: 0 },
 ];
 
+/** Where the looking glass stands on the summit, in the model's own frame. */
+const GLASS_ANGLE = 0.927; // toward Peppermint Plaza, from the mountain's corner
+const GLASS_RADIUS = 0.82;
+
 export const ICE_CREAM_MOUNTAIN = {
-  /** two flights of twelve, every step 0.35m */
-  steps: 24,
+  /** four flights: 12 + 12 of 0.35m, then 10 of 0.46m and 8 of 0.475m */
+  steps: FLIGHTS.reduce((n, f) => n + f.n, 0),
   rise: 0.35,
-  /** the flat top */
+  /** the mid terrace, which used to be the top */
   deckY: DECK.top,
   deckRadius: DECK.r,
   /** the walkable ring on top of the lower scoop */
   ringY: TIERS[0]!.top,
   ringRadius: TIERS[0]!.r,
+  /** the ring on top of the bubblegum scoop, between the last two flights */
+  scoopY: SCOOP.top,
+  scoopRadius: SCOOP.r,
+  /** the summit she climbs to, and how wide the floor up there is */
+  summitY: PEAK.top,
+  summitRadius: PEAK.r,
   /** the climb starts at ground level on the +z side and turns anticlockwise */
   startAngle: Math.PI / 2,
   startRadius: FLIGHTS[0]!.r,
+  /**
+   * The four flights, so a check can walk the route rather than guess at it.
+   * Anything walking the climb has to follow the spiral tread by tread: aim
+   * straight at the top of a flight instead and you cut the corner into the
+   * drum, which is what a child does not do and a straight-line test does.
+   */
+  flights: FLIGHTS as readonly { fromY: number; toY: number; r: number; a0: number; span: number; n: number }[],
   /** it arrives on the deck here, and the slide leaves opposite */
   arriveAngle: FLIGHTS[1]!.a0 + FLIGHTS[1]!.span - Math.PI * 2,
   slideAngle: (214 * Math.PI) / 180,
+  /** where the last flight steps onto the summit, so the rail leaves a gap */
+  summitArriveAngle: FLIGHTS[3]!.a0 + FLIGHTS[3]!.span - Math.PI * 2,
+  /**
+   * The looking glass, relative to the middle of the mountain. Anything that
+   * wants to know where she has to stand to use it adds the mountain's own
+   * position to this; the eyepiece is where her eye goes, not the tripod foot.
+   */
+  glass: {
+    x: Math.cos(GLASS_ANGLE) * GLASS_RADIUS,
+    y: PEAK.top,
+    z: Math.sin(GLASS_ANGLE) * GLASS_RADIUS,
+    /** the way the barrel points when nobody has turned it */
+    facing: GLASS_ANGLE,
+    /** her eye at the eyepiece, above the summit floor */
+    eyeY: PEAK.top + 1.31,
+  },
 };
 
 /**
@@ -696,9 +752,14 @@ export const ICE_CREAM_MOUNTAIN = {
  * the ring, which is why the bands are kept under a metre: the strip is then
  * narrower than the scoop's lumpy rim that stands on it, so she can never walk
  * onto the part with nothing underneath.
+ *
+ * The two tiers above the deck ask for a finer band than the default. They are
+ * small enough that a 0.8m band would leave most of a metre of drawn floor
+ * with nothing under it at the north and south tips, and up there the fall is
+ * the whole mountain.
  */
-function discBoxes(r: number, minY: number, maxY: number): CandyBox[] {
-  const bands = Math.max(6, Math.ceil((2 * r) / 0.8));
+function discBoxes(r: number, minY: number, maxY: number, band = 0.8): CandyBox[] {
+  const bands = Math.max(6, Math.ceil((2 * r) / band));
   const out: CandyBox[] = [];
   for (let i = 0; i < bands; i++) {
     const z0 = -r + (2 * r * i) / bands;
@@ -711,21 +772,94 @@ function discBoxes(r: number, minY: number, maxY: number): CandyBox[] {
 }
 
 /**
- * A twenty-metre sundae she can climb: a strawberry scoop with a three-metre
- * ring on top of it, mint and vanilla above that, a deck on the summit, and a
- * chocolate-sauce slide back down.
+ * The looking glass on the summit: a candy-cane tripod with a barrel of rock
+ * candy on it, aimed out across the park.
+ *
+ * None of it is solid. She has to be able to stand at the eyepiece, and on a
+ * floor three and a half metres across a collider round the tripod would be
+ * something to get wedged against with a sixteen-metre drop behind her.
+ *
+ * Built along +x and turned by the group, the way the slide is, so the caller
+ * gives it an angle rather than a direction vector.
+ */
+function makeLookingGlassMesh(x: number, y: number, z: number, facing: number) {
+  const t = new THREE.Group();
+  t.position.set(x, y, z);
+  t.rotation.y = -facing;
+
+  // a sugar roundel under it, so from the last step it is obvious this is a
+  // thing to stand at rather than a thing to look at
+  turned(t, mesh(cyl24, ICING, 1.5, 0.06, 1.5, 0, 0.11, 0, false));
+
+  // three candy-cane legs, splayed the way a tripod's are: each leans out at
+  // the foot and meets its neighbours at the hub
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
+    const leg = mesh(cylGeo, i === 0 ? RED : ICING, 0.09, 1.04, 0.09, Math.cos(a) * 0.2, 0.55, Math.sin(a) * 0.2, false);
+    leg.rotation.z = 0.36 * Math.cos(a);
+    leg.rotation.x = -0.36 * Math.sin(a);
+    t.add(leg);
+  }
+  t.add(mesh(sphereGeo, YELLOW, 0.34, 0.34, 0.34, 0, 1.07, 0, false));
+
+  // the barrel, tipped a little down: from sixteen metres up everything worth
+  // looking at is below the horizon
+  const arm = new THREE.Group();
+  arm.position.set(0, 1.22, 0);
+  arm.rotation.z = -0.13;
+  t.add(arm);
+  const along = (o: THREE.Object3D) => turned(arm, o, 0, 0, Math.PI / 2);
+  along(mesh(cyl16, PINK, 0.34, 1.2, 0.34, 0.12, 0, 0, false));
+  along(mesh(cyl16, LILAC, 0.29, 0.5, 0.29, -0.4, 0, 0, false));
+  along(mesh(cyl16, YELLOW, 0.37, 0.12, 0.37, 0.42, 0, 0, false));
+  along(mesh(cyl16, YELLOW, 0.37, 0.12, 0.37, -0.18, 0, 0, false));
+  // the wide end, with a mint lens in it, and the eyepiece at the near end
+  along(mesh(cyl16, YELLOW, 0.46, 0.16, 0.46, 0.78, 0, 0, false));
+  along(mesh(cyl16, MINT, 0.4, 0.04, 0.4, 0.86, 0, 0, false));
+  along(mesh(cyl16, LIQUORICE, 0.22, 0.26, 0.22, -0.72, 0, 0, false));
+  return t;
+}
+
+/**
+ * The angles a lumpy rim has to leave open for a flight that sweeps `span`
+ * radians from `a0`.
+ *
+ * lobeRing and the whipped-cream rim each open a half-radian window round a
+ * single angle, which is the right size for a stair arriving at a point. The
+ * two upper flights do not arrive at a point: they spiral round most of the
+ * ledge they stand on, and a rim of ice cream down the length of one is a rim
+ * she walks face-first into. Half-radian steps butt their windows together
+ * into one continuous opening.
+ */
+function arcGap(a0: number, span: number): number[] {
+  const out: number[] = [];
+  for (let a = a0; a < a0 + span; a += 0.5) out.push(a);
+  out.push(a0 + span);
+  return out;
+}
+
+/**
+ * The tallest thing in the park: four scoops she can climb, with a looking
+ * glass on the summit at 16.8m and a chocolate-sauce slide back down.
  *
  * Every tread is a block standing on what is under it, the way the lookout
- * stair in cave.ts is built, so there is no hole to fall into and the step up
- * is always 0.35m — a height she clears without jumping. A flight is kept
- * clear of the drum it climbs toward and a landing at the top bridges the last
- * step onto the ring, because a stair that stops twenty centimetres short of
- * the floor is a stair she falls off.
+ * stair in cave.ts is built, so there is no hole to fall into and every step
+ * is between 0.35m and 0.48m — heights she clears without jumping, with room
+ * under her 0.62m step-up. A flight is kept clear of the drum it climbs
+ * toward, and the lower two get a landing at the top to bridge the last step
+ * onto the ring, because a stair that stops twenty centimetres short of the
+ * floor is a stair she falls off. The upper two are built to touch their drum
+ * instead: that high up there is no radius to spare for a landing.
  *
  * Heights: the climb starts at ground level at local (0, 0, 10.6), on the +z
- * side facing the path; the ring is at 4.2 and the deck at 8.4. The cherry
- * tops out near 11.6 and the wafer leaning past it at about 12.4. The lumpy
- * rim round the ring and the whipped cream round the deck are the railings.
+ * side facing the path; then the ring at 4.2, the terrace at 8.4, the
+ * bubblegum ring at 13.0 and the summit at 16.8, with the cherry over it
+ * topping out near 19.7. Each tier's lumpy rim is its railing — except where
+ * a flight fills the ledge, where the flight itself is the edge.
+ *
+ * The four flights wind the same way all the way up, so from anywhere at the
+ * foot the route reads as one spiral: there is never a moment on the mountain
+ * where the next set of steps is behind her.
  *
  * The slide is decoration, not a collider: the game has no chute-riding code,
  * and a solid ramp would be a second way to the top that skips the climb.
@@ -801,9 +935,25 @@ export function makeIceCreamMountain(seed = 20260921) {
   sauce(DECK.r, DECK.seam, 5, 1.1);
   sauce(DECK.r, DECK.top, 5, 0.2);
 
-  // ---- the two flights, and the landing that joins each one to its ring
+  // ---- the bubblegum scoop on the terrace, and the horn above it. Both
+  // stand on what is already solid under them, so their colliders start at
+  // the floor they sit on rather than at the grass: a box from y 0 here would
+  // be a second, wider mountain hidden inside the first.
+  drum(SCOOP.r, DECK.top, SCOOP.seam, SCOOP.lower);
+  drum(SCOOP.r, SCOOP.seam, SCOOP.top, SCOOP.color);
+  for (const b of discBoxes(SCOOP.r, DECK.top, SCOOP.top, 0.45)) boxes.push(b);
+  lobeRing(SCOOP.r, SCOOP.seam, SCOOP.lower, false, 0.9);
+  lobeRing(SCOOP.r, SCOOP.top, SCOOP.color, true, 0.4, ...arcGap(FLIGHTS[3]!.a0, FLIGHTS[3]!.span));
+  sauce(SCOOP.r, SCOOP.top, 5, 0.7);
+
+  drum(PEAK.r, SCOOP.top, PEAK.seam, PEAK.lower);
+  drum(PEAK.r, PEAK.seam, PEAK.top, PEAK.color);
+  for (const b of discBoxes(PEAK.r, SCOOP.top, PEAK.top, 0.32)) boxes.push(b);
+  sauce(PEAK.r, PEAK.seam, 4, 1.4);
+
+  // ---- the flights, and the landing that joins the lower two to their ring
   for (const f of FLIGHTS) {
-    const n = 12;
+    const n = f.n;
     const base = f.fromY;
     for (let k = 1; k <= n; k++) {
       const top = base + ((f.toY - base) * k) / n;
@@ -811,7 +961,7 @@ export function makeIceCreamMountain(seed = 20260921) {
       const x = Math.cos(a) * f.r;
       const z = Math.sin(a) * f.r;
       // A tread is a block standing on whatever is under it — the ground for
-      // the first flight, the ring for the second. Running the second
+      // the first flight, the ledge below for the rest. Running the second
       // flight's blocks all the way down to the grass (which is what "a block
       // standing on the ground" reads as if you take it literally) left eight
       // wafer slabs up to eight metres tall standing on the strawberry scoop,
@@ -828,12 +978,15 @@ export function makeIceCreamMountain(seed = 20260921) {
       turned(g, mesh(boxGeo, CREAM, f.tread * 0.95, 0.12, 0.26, x + Math.cos(a) * (f.tread / 2 - 0.22), top + 0.06, z + Math.sin(a) * (f.tread / 2 - 0.22), false), 0, -a, 0);
     }
     // the landing: level with the ring, reaching from under the last tread to
-    // well inside the drum, so there is no gap to step over at the top
+    // well inside the drum, so there is no gap to step over at the top. The
+    // upper flights ask for none, because their treads already touch the drum
+    // and a landing up there would roof over the step below it.
+    if (f.landing <= 0) continue;
     const la = f.a0 + f.span;
     const lx = Math.cos(la) * (f.toR - 0.3);
     const lz = Math.sin(la) * (f.toR - 0.3);
-    g.add(mesh(boxGeo, CREAM, 2.6, 0.5, 2.6, lx, f.toY - 0.25, lz, false));
-    boxes.push(bx(lx, f.toY - 0.3, lz, 2.6, 0.6, 2.6));
+    g.add(mesh(boxGeo, CREAM, f.landing, 0.5, f.landing, lx, f.toY - 0.25, lz, false));
+    boxes.push(bx(lx, f.toY - 0.3, lz, f.landing, 0.6, f.landing));
   }
 
   // ---- the deck: whipped cream round the rim, with gaps where the flight
@@ -846,31 +999,75 @@ export function makeIceCreamMountain(seed = 20260921) {
     g.add(mesh(boxGeo, WAFER_DARK, 0.12, 0.05, dr * 1.6, i * (dr / 3.6), deckTop + 0.15, 0, false));
   }
   const rimN = 14;
+  // the cream rim is only wanted where she can actually reach the edge: over
+  // the third flight's sweep the stair fills the ledge from the drum to within
+  // a handspan of the drop, so the rim there would be decoration poking
+  // through the steps rather than anything she could fall past
+  const deckGaps = [M.arriveAngle, ...arcGap(FLIGHTS[2]!.a0, FLIGHTS[2]!.span)];
   for (let i = 0; i < rimN; i++) {
     const a = (i / rimN) * Math.PI * 2;
     const gap = (to: number) => Math.abs(Math.atan2(Math.sin(a - to), Math.cos(a - to)));
-    if (gap(M.arriveAngle) < 0.5 || gap(M.slideAngle) < 0.55) continue;
+    if (deckGaps.some((to) => gap(to) < 0.5) || gap(M.slideAngle) < 0.55) continue;
     const x = Math.cos(a) * (dr - 0.5);
     const z = Math.sin(a) * (dr - 0.5);
     g.add(mesh(sphereGeo, ICING, 0.85, 0.8, 0.85, x, deckTop + 0.4, z));
     g.add(mesh(sphereGeo, ICING, 0.6, 0.58, 0.6, x, deckTop + 1.0, z, false));
   }
-  sprinkles(dr - 1.6, 1.6, deckTop, 14);
-  g.add(mesh(sphereGeo, ICING, 1.4, 0.95, 1.4, 0, deckTop + 0.5, 0, false));
-  g.add(mesh(sphereGeo, ICING, 1.05, 0.8, 1.05, 0, deckTop + 1.15, 0, false));
-  g.add(mesh(sphere16, CHERRY, 1.0, 1.0, 1.0, 0, deckTop + 2.15, 0));
-  g.add(mesh(sphereGeo, "#ff7a86", 0.28, 0.28, 0.28, -0.32, deckTop + 2.68, 0.36, false));
-  const stalk = mesh(cylGeo, "#4e8a3c", 0.08, 1.1, 0.08, 0.22, deckTop + 3.35, 0, false);
-  stalk.rotation.z = -0.4;
-  g.add(stalk);
-  const wafer = mesh(boxGeo, WAFER, 0.6, 4.2, 0.2, -1.9, deckTop + 2.3, -1.0);
-  wafer.rotation.z = 0.34;
-  g.add(wafer);
-  for (let i = 0; i < 5; i++) {
-    const w = mesh(boxGeo, WAFER_DARK, 0.64, 0.07, 0.24, -1.9 + (i - 2) * 0.26, deckTop + 1.05 + i * 0.76, -1.0, false);
-    w.rotation.z = 0.34;
-    g.add(w);
+  // sprinkles only on the ring of terrace she can walk on; the middle of it is
+  // under the bubblegum scoop now
+  sprinkles(dr - 0.35, SCOOP.r + 0.1, deckTop, 12);
+
+  // ---- the bubblegum ring at 13.0: the same sprinkles, and a cream rim on
+  // the quarter of it the last flight does not stand on
+  sprinkles(SCOOP.r - 0.25, PEAK.r + 0.15, SCOOP.top, 9);
+
+  // ---- the summit. A wafer floor with a candy-cane rail round it, open where
+  // the stair arrives, and the cherry that used to sit on the terrace moved up
+  // here where it is the highest thing in the park.
+  const sy = PEAK.top;
+  turned(g, mesh(cyl24, WAFER, PEAK.r - 0.04, 0.14, PEAK.r - 0.04, 0, sy + 0.07, 0, false));
+  for (let i = -2; i <= 2; i++) {
+    g.add(mesh(boxGeo, WAFER_DARK, PEAK.r * 1.7, 0.05, 0.1, 0, sy + 0.15, i * (PEAK.r / 2.6), false));
+    g.add(mesh(boxGeo, WAFER_DARK, 0.1, 0.05, PEAK.r * 1.7, i * (PEAK.r / 2.6), sy + 0.15, 0, false));
   }
+  /*
+   * The rail, and it is solid, unlike every other rim on the mountain. Those
+   * stand on ledges three metres wide with the drum's own shoulder outside
+   * them; this one is a ring of candy canes round a floor she can cross in
+   * two steps, with sixteen metres under it. The posts are close enough
+   * together that she cannot fit between two of them, so the ring stops her
+   * even though it is made of separate boxes, and the gap where the stair
+   * arrives is the one way on and off.
+   */
+  const railN = 16;
+  const railR = PEAK.r - 0.2;
+  for (let i = 0; i < railN; i++) {
+    const a = (i / railN) * Math.PI * 2;
+    if (Math.abs(Math.atan2(Math.sin(a - M.summitArriveAngle), Math.cos(a - M.summitArriveAngle))) < 0.45) continue;
+    const x = Math.cos(a) * railR;
+    const z = Math.sin(a) * railR;
+    g.add(mesh(cylGeo, i % 2 ? RED : ICING, 0.17, 1.0, 0.17, x, sy + 0.5, z, false));
+    g.add(mesh(sphereGeo, i % 2 ? ICING : RED, 0.24, 0.24, 0.24, x, sy + 1.04, z, false));
+    boxes.push(bx(x, sy + 0.5, z, 0.34, 1.0, 0.34));
+  }
+  // the hoop across the tops of the canes, drawn only: it is above the boxes
+  // that already stop her, and a collider up there would only bump her head
+  turned(g, part(tube24, flat(ICING, 0.45), railR, 0.1, railR, 0, sy + 0.94, 0, false));
+
+  // the cherry, off to the side so the middle of the floor stays hers
+  const cx = Math.cos(M.summitArriveAngle + Math.PI) * 0.78;
+  const cz = Math.sin(M.summitArriveAngle + Math.PI) * 0.78;
+  g.add(mesh(sphereGeo, ICING, 0.95, 0.62, 0.95, cx, sy + 0.34, cz, false));
+  g.add(mesh(sphereGeo, ICING, 0.72, 0.5, 0.72, cx, sy + 0.72, cz, false));
+  g.add(mesh(sphere16, CHERRY, 0.95, 0.95, 0.95, cx, sy + 1.5, cz));
+  g.add(mesh(sphereGeo, "#ff7a86", 0.26, 0.26, 0.26, cx - 0.3, sy + 1.98, cz + 0.34, false));
+  const stalk = mesh(cylGeo, "#4e8a3c", 0.08, 1.4, 0.08, cx + 0.2, sy + 2.62, cz, false);
+  stalk.rotation.z = -0.36;
+  g.add(stalk);
+  g.add(mesh(sphereGeo, "#7ec86a", 0.5, 0.12, 0.28, cx + 0.62, sy + 3.2, cz, false));
+
+  // the looking glass itself
+  g.add(makeLookingGlassMesh(M.glass.x, sy, M.glass.z, M.glass.facing));
 
   // ---- The slide, in two stages with a landing on the ring between them.
   // One straight chute from the deck to the grass would have to fly over a

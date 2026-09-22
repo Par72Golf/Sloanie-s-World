@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { sfx } from "./audio";
 import { beveledBox } from "./beveled";
-import { makeAccessory } from "./accessories";
+import { makeAccessory, type AccessoryId } from "./accessories";
 import type { AABB, Capsule } from "./collision";
 import { mergeStatic } from "./merge";
 import { lam, signBoard } from "./meshes";
@@ -85,13 +85,6 @@ const RIM_T = 0.9;
 
 const BUBBLES = 22;
 
-const FALL_LINES = [
-  "Whoops! Hot floor! Start again.",
-  "Splat! Back to the start. You'll get it!",
-  "Too hot! Have another go.",
-  "Into the lava! Try again from the start.",
-];
-
 /* -------------------------------------------------------------- the pieces */
 
 export type Motion =
@@ -105,7 +98,20 @@ export type Motion =
   /** sinks out of reach and comes back up */
   | { kind: "sink"; drop: number; period: number; phase: number }
   /** gives way a moment after she stands on it, then comes back */
-  | { kind: "give" };
+  | { kind: "give" }
+  /**
+   * A ferry. It rests where the plan put it, carries her `travel` further
+   * along the route, and goes back empty for the next passenger. The route's
+   * cursor moves on by `travel` as well, so the piece after it is measured
+   * from where the ferry lets her off, not from where she got on.
+   */
+  | { kind: "shuttle"; travel: number; period: number; phase: number }
+  /**
+   * Sinks under her weight while she stands on it and floats back up when she
+   * is off it. The only motion driven by her rather than by the clock, so the
+   * pressure is "keep moving" rather than "wait for the rhythm".
+   */
+  | { kind: "squash"; drop: number; down: number; up: number };
 
 export type Kind = "deck" | "pad" | "beam" | "bridge" | "podium";
 
@@ -128,6 +134,20 @@ export type Piece = {
   /** which way the route runs across this piece */
   dir: Dir;
   motion: Motion;
+  /**
+   * What the piece is made of, in the theme's own words ("gumdrop", "wafer").
+   * `kind` is what the engine needs to know; this is what the dresser needs to
+   * know, and a theme that does not recognise a skin falls back to `kind`.
+   */
+  skin: string;
+  /** a checkpoint: fall in after reaching this and she comes back to it */
+  checkpoint: boolean;
+  /**
+   * Turns on the spot, in turns a second, for looks only. A box ignores
+   * rotation, and a disc's box is the same at every angle, so this is the one
+   * kind of turning that is not the lie rule 1 is about.
+   */
+  spin: number;
 };
 
 export type Dir = "E" | "W" | "N" | "S";
@@ -137,7 +157,7 @@ const DZ: Record<Dir, number> = { E: 0, W: 0, N: -1, S: 1 };
 const AX: Record<Dir, number> = { E: 0, W: 0, N: -1, S: 1 };
 const AZ: Record<Dir, number> = { E: 1, W: -1, N: 0, S: 0 };
 
-type PlanStep = {
+export type PlanStep = {
   id: string;
   kind?: Kind;
   /** size along the route, and across it */
@@ -154,6 +174,12 @@ type PlanStep = {
   section?: number;
   /** drawn as a slab this thick instead of a column from the ground */
   slab?: number;
+  /** what it is made of, for the theme that dresses it */
+  skin?: string;
+  /** she banks this one, and a fall after it brings her back here */
+  checkpoint?: boolean;
+  /** turns on the spot, in turns a second: decoration, never a carry */
+  spin?: number;
 };
 
 /**
@@ -164,11 +190,26 @@ type PlanStep = {
  * The difficulty curve is in the gaps and in the landing length: section 1 is
  * 2.2m gaps onto 5m pads; section 5 is 3.6m gaps onto 2.6m pads.
  */
-let START: { x: number; z: number; dir: Dir } = { x: 107.5, z: 124, dir: "W" };
-/** Where the course starts when a park does not say otherwise: park 1's. */
-const START_HOME: { x: number; z: number; dir: Dir } = { ...START };
+/**
+ * A whole course: where it starts, which way it sets off, the route, what the
+ * sections are called, and how it is all dressed. A park hands one of these to
+ * `setLavaStart` and gets that course; a park that hands nothing gets park 1's.
+ *
+ * The route is data because park 2 wanted a different course, not a repaint of
+ * this one: same engine, same five rules, its own problems.
+ */
+export type LavaCourse = {
+  x: number;
+  z: number;
+  dir: Dir;
+  plan?: readonly PlanStep[];
+  sections?: readonly string[];
+  theme?: LavaTheme;
+};
 
-const PLAN: PlanStep[] = [
+let START: { x: number; z: number; dir: Dir } = { x: 107.5, z: 124, dir: "W" };
+
+const PARK1_PLAN: PlanStep[] = [
   // ---- the start deck, on the lawn at the east end ----------------------
   { id: "deck", kind: "deck", len: 8.5, wide: 9.0, top: MID, section: 0 },
 
@@ -223,7 +264,7 @@ const PLAN: PlanStep[] = [
   { id: "podium", kind: "podium", len: 6.4, wide: 6.6, gap: 3.6, top: MID + 0.5, section: 5 },
 ];
 
-export const SECTION_NAMES = [
+const PARK1_SECTIONS = [
   "the start",
   "First Hops",
   "The Bridge and the Beams",
@@ -231,6 +272,12 @@ export const SECTION_NAMES = [
   "The Sinking Stones",
   "The Last Leap",
 ];
+
+/** Park 1's course, and what any park gets when it does not bring its own. */
+const PARK1: LavaCourse = { ...START, plan: PARK1_PLAN, sections: PARK1_SECTIONS };
+
+let PLAN: readonly PlanStep[] = PARK1_PLAN;
+export let SECTION_NAMES: readonly string[] = PARK1_SECTIONS;
 
 /** How far the give-way plank falls, and its timings. */
 const GIVE_ARM = 0.75;
@@ -283,11 +330,19 @@ function buildPieces(start: { x: number; z: number; dir: Dir }): Piece[] {
       gap,
       dir,
       motion: p.motion ?? { kind: "static" },
+      skin: p.skin ?? (p.kind ?? "pad"),
+      checkpoint: p.checkpoint ?? false,
+      spin: p.spin ?? 0,
     });
-    // an orbiting platform hands her off at the far side of its circle
+    // a platform that carries her hands her off further on than it picked her
+    // up: an orbit at the far side of its circle, a ferry at the end of its run
     if (p.motion?.kind === "orbit") {
       x += DX[dir] * p.motion.r * 2;
       z += DZ[dir] * p.motion.r * 2;
+    }
+    if (p.motion?.kind === "shuttle") {
+      x += DX[dir] * p.motion.travel;
+      z += DZ[dir] * p.motion.travel;
     }
   });
   return out;
@@ -301,7 +356,11 @@ export function piece(id: string): Piece {
 
 export let DECK = piece("deck");
 export let PODIUM = piece("podium");
-let BRIDGE = piece("bridge");
+/** The one give-way plank, and everything that sinks under her, if any. */
+let GIVER: Piece | undefined = PIECES.find((p) => p.motion.kind === "give");
+let SQUASHY: Piece[] = PIECES.filter((p) => p.motion.kind === "squash");
+/** The checkpoints she can bank, in the order she reaches them. */
+export let CHECKPOINTS: Piece[] = PIECES.filter((p) => p.checkpoint);
 
 /** The lava lake: everything the route crosses, with a margin all round. */
 function buildPool() {
@@ -321,25 +380,55 @@ function buildPool() {
   }
   // a margin of lava all round the route, kept tight: the lawn this sits on
   // is 86m x 34m and the course uses nearly all of it
-  return { minX: minX - 1.8, maxX: DECK.cx - DECK.w / 2, minZ: minZ - 1.8, maxZ: maxZ + 1.8 };
+  const pool = { minX: minX - 1.8, maxX: maxX + 1.8, minZ: minZ - 1.8, maxZ: maxZ + 1.8 };
+  // The lake stops dead at the face of the deck the course leaves by, so the
+  // deck stands on the bank with its steps on dry ground behind it. Which face
+  // that is depends on the way the course sets off, which is why it is asked
+  // rather than written as "the deck's west side".
+  const d = DECK.dir;
+  if (DX[d] > 0) pool.minX = DECK.cx + DECK.w / 2;
+  if (DX[d] < 0) pool.maxX = DECK.cx - DECK.w / 2;
+  if (DZ[d] > 0) pool.minZ = DECK.cz + DECK.d / 2;
+  if (DZ[d] < 0) pool.maxZ = DECK.cz - DECK.d / 2;
+  return pool;
 }
 
 export let LAVA_POOL = buildPool();
 
+/** How far a piece runs along its own direction, and how far across it. */
+const alongSize = (p: Piece) => (DX[p.dir] ? p.w : p.d);
+
 /** The whole site, for anything that wants to keep clear of it. */
 export function lavaFootprint(pad = 0) {
-  const flight = stepCount(DECK.top) * 0.8;
-  const exit = PODIUM.cx - PODIUM.w / 2 - PODIUM_EXIT;
-  return {
-    minX: Math.min(LAVA_POOL.minX - RIM_T, exit - 1) - pad,
-    maxX: DECK.cx + DECK.w / 2 + flight + pad,
-    minZ: LAVA_POOL.minZ - RIM_T - pad,
-    maxZ: LAVA_POOL.maxZ + RIM_T + pad,
+  const b = {
+    minX: LAVA_POOL.minX - RIM_T,
+    maxX: LAVA_POOL.maxX + RIM_T,
+    minZ: LAVA_POOL.minZ - RIM_T,
+    maxZ: LAVA_POOL.maxZ + RIM_T,
   };
+  // the way on and the way off both reach out past the kerb: the deck's flight
+  // of steps back down to the ground behind it, and the winner's stair off the
+  // far side of the podium, which carries on the way the course was going
+  const reach = (p: Piece, sign: number, out: number) => {
+    const x = p.cx + DX[p.dir] * sign * (alongSize(p) / 2 + out);
+    const z = p.cz + DZ[p.dir] * sign * (alongSize(p) / 2 + out);
+    b.minX = Math.min(b.minX, x);
+    b.maxX = Math.max(b.maxX, x);
+    b.minZ = Math.min(b.minZ, z);
+    b.maxZ = Math.max(b.maxZ, z);
+  };
+  reach(DECK, -1, stepCount(DECK.top) * 0.8);
+  reach(PODIUM, 1, PODIUM_EXIT + 1);
+  return { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad };
 }
 
-/** Where she walks in: the lawn at the foot of the steps up to the deck. */
-export let LAVA_START: [number, number] = [DECK.cx + DECK.w / 2 + 3.4, DECK.cz];
+/** Where she walks in: the ground at the foot of the steps up to the deck. */
+function walkInSpot(): [number, number] {
+  const back = alongSize(DECK) / 2 + 3.4;
+  return [DECK.cx - DX[DECK.dir] * back, DECK.cz - DZ[DECK.dir] * back];
+}
+
+export let LAVA_START: [number, number] = walkInSpot();
 
 /* ------------------------------------------------------- where things are */
 
@@ -354,16 +443,31 @@ export type LavaState = {
   held: number;
   /** seconds since it gave way; -1 while it is still up */
   away: number;
+  /**
+   * How far each squashy piece has sunk, 0..1, by piece index. Sparse, and
+   * absent on a course with none — which is every course that does not use
+   * them, park 1's included.
+   */
+  squash?: number[];
+  /** The checkpoint she has banked, by piece index; -1 for the start deck. */
+  banked?: number;
 };
 
 export function newLavaState(): LavaState {
-  return { t: 0, held: 0, away: -1 };
+  return { t: 0, held: 0, away: -1, squash: [], banked: -1 };
 }
 
-/** Advance the clock and the give-way plank. `on` is the piece she is on. */
+/** Advance the clock, the give-way plank and anything sinking under her. */
 export function stepLavaState(s: LavaState, dt: number, on: number | null) {
   s.t += dt;
-  const plank = piece("plank");
+  for (const p of SQUASHY) {
+    const m = p.motion as Extract<Motion, { kind: "squash" }>;
+    const sq = (s.squash ??= []);
+    const v = sq[p.index] ?? 0;
+    sq[p.index] = Math.max(0, Math.min(1, v + (on === p.index ? dt / m.down : -dt / m.up)));
+  }
+  const plank = GIVER;
+  if (!plank) return;
   if (s.away >= 0) {
     s.away += dt;
     if (s.away > GIVE_BACK) {
@@ -416,6 +520,17 @@ export function pieceAt(p: Piece, s: LavaState): { x: number; z: number; top: nu
   }
   if (m.kind === "sink") {
     return { x: p.cx, z: p.cz, top: p.top - m.drop * sinkFall(s.t, m.period, m.phase) };
+  }
+  if (m.kind === "shuttle") {
+    // it rests where the plan put it and runs forward along the route, so the
+    // moment to get on is the moment it is back beside the piece she is on
+    const o = m.travel * 0.5 * (1 - Math.cos((s.t / m.period) * TAU + m.phase));
+    return { x: p.cx + DX[p.dir] * o, z: p.cz + DZ[p.dir] * o, top: p.top };
+  }
+  if (m.kind === "squash") {
+    // eased, so it gives softly under her and does not read as a lift
+    const v = s.squash?.[p.index] ?? 0;
+    return { x: p.cx, z: p.cz, top: p.top - m.drop * v * v * (3 - 2 * v) };
   }
   return { x: p.cx, z: p.cz, top: p.top - giveDrop(s) };
 }
@@ -696,31 +811,46 @@ function boxOf(cx: number, cz: number, w: number, d: number, top: number, base =
  */
 export function lavaColliders(s: LavaState): AABB[] {
   const out: AABB[] = [];
-  for (const p of PIECES) if (p.motion.kind !== "static") out.push(pieceBox(p, s));
-  for (const p of PIECES) if (p.motion.kind === "static") out.push(pieceBox(p, s));
+  for (const p of PIECES) if (livePiece(p)) out.push(pieceBox(p, s));
+  for (const p of PIECES) if (!livePiece(p)) out.push(pieceBox(p, s));
   for (const st of [...deckSteps(), ...podiumSteps()]) out.push(boxOf(st.cx, st.cz, st.w, st.d, st.top));
   for (const w of parapets()) out.push(boxOf(w.cx, w.cz, w.w, w.d, w.top, w.base));
   for (const r of rimSegments()) out.push(boxOf(r.cx, r.cz, r.w, r.d, RIM_TOP));
   return out;
 }
 
-export let MOVING = PIECES.filter((p) => p.motion.kind !== "static");
+/**
+ * A piece that needs a mesh of its own every frame: anything that moves, and
+ * anything that turns on the spot. A spinner's box never changes, but its mesh
+ * cannot be baked into the park-wide merge with the rest of the scenery.
+ */
+const livePiece = (p: Piece) => p.motion.kind !== "static" || p.spin > 0;
+
+export let MOVING = PIECES.filter(livePiece);
 
 /**
- * Put the course on another park's lawn. Everything the route knows is
- * absolute, so the whole plan is walked again from the new start and each
- * derived table replaced; importers see the new values because these are
- * module bindings, not copies. Call it before anything builds the course.
+ * Put a course on a park's ground. Everything the route knows is absolute, so
+ * the whole plan is walked again from the new start and each derived table
+ * replaced; importers see the new values because these are module bindings,
+ * not copies. Call it before anything builds the course.
+ *
+ * A park that passes nothing gets park 1's course, which is what every park
+ * without its own has always got.
  */
-export function setLavaStart(s: { x: number; z: number; dir: Dir } = START_HOME) {
-  START = { ...s };
+export function setLavaStart(c: LavaCourse = PARK1) {
+  START = { x: c.x, z: c.z, dir: c.dir };
+  PLAN = c.plan ?? PARK1_PLAN;
+  SECTION_NAMES = c.sections ?? PARK1_SECTIONS;
+  THEME = c.theme ?? LAVA_THEME;
   PIECES = buildPieces(START);
   DECK = piece("deck");
   PODIUM = piece("podium");
-  BRIDGE = piece("bridge");
+  GIVER = PIECES.find((p) => p.motion.kind === "give");
+  SQUASHY = PIECES.filter((p) => p.motion.kind === "squash");
+  CHECKPOINTS = PIECES.filter((p) => p.checkpoint);
   LAVA_POOL = buildPool();
-  LAVA_START = [DECK.cx + DECK.w / 2 + 3.4, DECK.cz];
-  MOVING = PIECES.filter((p) => p.motion.kind !== "static");
+  LAVA_START = walkInSpot();
+  MOVING = PIECES.filter(livePiece);
 }
 
 /** Is (x, z) out over the lava? The kerb counts; the deck and podium do not. */
@@ -749,14 +879,25 @@ export function standingOn(x: number, y: number, z: number, s: LavaState): numbe
   return null;
 }
 
-/** Where a fall puts her: on the start deck, facing the first stone. */
-export function startSpot(): { x: number; y: number; z: number; yaw: number } {
-  const first = PIECES[1]!;
+/**
+ * Where a fall puts her: on the last checkpoint she banked, facing on down the
+ * course, and on the start deck when she has banked none — which is every fall
+ * on a course with no checkpoints in it.
+ *
+ * On the deck she stands at the back, so she has the whole deck to run up; on
+ * a checkpoint she stands in the middle of it, because a checkpoint is a
+ * landing as well as a launch pad and the far half is the run-up.
+ */
+export function startSpot(s?: LavaState): { x: number; y: number; z: number; yaw: number } {
+  const banked = s?.banked ?? -1;
+  const from = banked >= 0 ? PIECES[banked]! : DECK;
+  const next = PIECES[from.index + 1] ?? PIECES[1]!;
+  const back = from === DECK ? (alongSize(DECK) / 2) * 0.52 : 0;
   return {
-    x: DECK.cx + DECK.w * 0.26,
-    y: DECK.top + 0.08,
-    z: DECK.cz,
-    yaw: Math.atan2(-(first.cx - DECK.cx), -(first.cz - DECK.cz)),
+    x: from.cx - DX[from.dir] * back,
+    y: from.top + 0.08,
+    z: from.cz - DZ[from.dir] * back,
+    yaw: Math.atan2(-(next.cx - from.cx), -(next.cz - from.cz)),
   };
 }
 
@@ -769,24 +910,110 @@ export function lavaTickets(first: boolean) {
 
 export function lavaLine(seconds: number, best: number | null) {
   const t = `${seconds.toFixed(1)}s`;
-  if (best == null) return `You crossed the whole lava course in ${t}!`;
+  if (best == null) return `You crossed the whole ${THEME.noun} course in ${t}!`;
   if (seconds < best) return `New best time: ${t}!`;
   return `Across in ${t}. Your best is ${best.toFixed(1)}s.`;
 }
 
 /* -------------------------------------------------------------- the world */
 
-const ROCK = "#6f5a52";
-const ROCK_DARK = "#4f403c";
-const STONE = "#8d7a6e";
-const CAP = "#b9a58f";
-const WOOD = "#8a5a32";
-const ROPE = "#c8a66a";
-const GOLD = "#ffc53d";
-/** each section's cap colour, warming towards the podium */
-const SECTION_CAP = ["#b9a58f", "#c6ad8e", "#d3ab7e", "#dda06a", "#e58f56", "#ef7a3f"];
+/**
+ * How a course is dressed.
+ *
+ * Every colour and every word the course shows used to be a constant in this
+ * file, which was right while there was one course. Park 2 asked for the same
+ * engine in chocolate, so the dressing moved out into this: park 1's theme is
+ * the default and is these exact numbers, so nothing in park 1 moves a pixel.
+ *
+ * A theme may also take over the drawing of a piece. Whatever it draws has to
+ * obey rule 5 — the visible top face at the collider's top, nothing solid
+ * looking where there is no box — because the engine hands it the piece, not a
+ * free canvas.
+ */
+export type LavaTheme = {
+  /** the noun in "you crossed the whole lava course": lava, chocolate */
+  noun: string;
+  /** the board by the steps */
+  title: string;
+  /** the two lines in the bubble over the board */
+  bubble: [string, string];
+  /** what Emmett says the first time she walks up */
+  notice: string;
+  /** what he says when she falls in */
+  fallLines: readonly string[];
+  /** and when a checkpoint catches her, which is a different feeling */
+  checkpointFallLines?: readonly string[];
+  /** what she says to herself when she banks a checkpoint */
+  checkpointLine: string;
+  /**
+   * The accessory waiting on the podium, or null for a course that pays only
+   * tickets. Park 2 has none of its own yet: every hand accessory in
+   * accessories.ts is already a carnival prize. Give this theme an id and the
+   * podium hands it over exactly as park 1's does.
+   */
+  prize: AccessoryId | null;
+  /** the pool: a dark base, the light that comes out of it, and its crust */
+  liquid: { color: string; glow: string; glowIntensity: number; crust: string };
+  /** the solids */
+  rock: string;
+  rockDark: string;
+  stone: string;
+  cap: string;
+  wood: string;
+  woodDark: string;
+  rope: string;
+  /** the trim along a parapet and round the podium, and the winner's trophy */
+  trim: string;
+  gold: string;
+  /** the flash of colour round a moving piece, and round one about to go */
+  edge: string;
+  edgeGive: string;
+  /** each section's cap colour, warming towards the podium */
+  sectionCap: readonly string[];
+  /** take over a piece: return false and the rock course draws it */
+  drawStatic?: (g: THREE.Group, pc: Piece, cap: string) => boolean;
+  /** the same, in the mover's own frame: y = 0 is its top face */
+  drawMover?: (f: THREE.Group, pc: Piece, cap: string) => boolean;
+  /** anything else standing in or over the pool */
+  decor?: (g: THREE.Group) => void;
+  /** what floats over the podium when there is no accessory to win */
+  trophyMesh?: () => THREE.Object3D;
+};
 
-function slab(color: string, cx: number, cz: number, w: number, d: number, top: number, bottom = 0, repeat = 2) {
+export const LAVA_THEME: LavaTheme = {
+  noun: "lava",
+  title: "FLOOR IS LAVA",
+  bubble: ["Jump the whole course!", "Fall in and start over."],
+  notice: "The floor is lava! Jump the whole course to the prize. Fall in and you start again — it never hurts.",
+  fallLines: [
+    "Whoops! Hot floor! Start again.",
+    "Splat! Back to the start. You'll get it!",
+    "Too hot! Have another go.",
+    "Into the lava! Try again from the start.",
+  ],
+  checkpointLine: "Checkpoint!",
+  prize: "dragontail",
+  liquid: { color: "#3a0c02", glow: "#ff5a0a", glowIntensity: 1.25, crust: "#4f403c" },
+  rock: "#6f5a52",
+  rockDark: "#4f403c",
+  stone: "#8d7a6e",
+  cap: "#b9a58f",
+  wood: "#8a5a32",
+  woodDark: "#7a4f2c",
+  rope: "#c8a66a",
+  trim: "#ffc53d",
+  gold: "#ffc53d",
+  edge: "#ffd76a",
+  edgeGive: "#e8553a",
+  sectionCap: ["#b9a58f", "#c6ad8e", "#d3ab7e", "#dda06a", "#e58f56", "#ef7a3f"],
+};
+
+let THEME: LavaTheme = LAVA_THEME;
+
+/** The theme the course is wearing, for the file that dresses it. */
+export const lavaTheme = () => THEME;
+
+export function slab(color: string, cx: number, cz: number, w: number, d: number, top: number, bottom = 0, repeat = 2) {
   const h = Math.max(0.02, top - bottom);
   const m = new THREE.Mesh(beveledBox(w, h, d), lam(color, { repeat }));
   m.position.set(cx, bottom + h / 2, cz);
@@ -812,6 +1039,8 @@ export class LavaWorld {
   /** the moving pieces' boxes, mutated in place every physics step */
   private moveBoxes: AABB[] = [];
   private moveMesh: THREE.Group[] = [];
+  /** one flag per checkpoint: a dim half and a lit half, swapped when banked */
+  private flags: THREE.Group[] = [];
   private bubbles: THREE.InstancedMesh;
   private prize: THREE.Group;
   private trophy: THREE.Group;
@@ -828,6 +1057,8 @@ export class LavaWorld {
   private toldAbout = false;
   private wonAt = -10;
   private onPiece: number | null = null;
+  /** how many checkpoints are lit, so the flags are only re-set when it changes */
+  private shownBanked = -2;
 
   constructor(
     private scene: THREE.Scene,
@@ -841,9 +1072,9 @@ export class LavaWorld {
     // coming from the emissive is what reads as molten rock, and it is over the
     // bloom threshold (0.78) so it blooms.
     this.lavaMat = new THREE.MeshStandardMaterial({
-      color: "#3a0c02",
-      emissive: new THREE.Color("#ff5a0a"),
-      emissiveIntensity: 1.25,
+      color: THEME.liquid.color,
+      emissive: new THREE.Color(THEME.liquid.glow),
+      emissiveIntensity: THEME.liquid.glowIntensity,
       roughness: 0.95,
       metalness: 0,
     });
@@ -863,35 +1094,41 @@ export class LavaWorld {
       const cz = p.minZ + 1 + rnd() * (p.maxZ - p.minZ - 2);
       // never under a piece, where a dark island would read as somewhere to land
       if (PIECES.some((q) => Math.abs(cx - q.cx) < q.w / 2 + 3 && Math.abs(cz - q.cz) < q.d / 2 + 3)) continue;
-      g.add(slab(ROCK_DARK, cx, cz, w, d, LAVA_SURFACE + 0.07, LAVA_SURFACE - 0.12, 1));
+      g.add(slab(THEME.liquid.crust, cx, cz, w, d, LAVA_SURFACE + 0.07, LAVA_SURFACE - 0.12, 1));
     }
-    for (const r of rimSegments()) g.add(slab(ROCK, r.cx, r.cz, r.w, r.d, RIM_TOP, 0, 2));
+    for (const r of rimSegments()) g.add(slab(THEME.rock, r.cx, r.cz, r.w, r.d, RIM_TOP, 0, 2));
+
+    THEME.decor?.(g);
 
     // ---- the pieces ------------------------------------------------------
     for (const pc of PIECES) {
-      if (pc.motion.kind === "static") this.buildStatic(g, pc);
-      else this.buildMover(g, pc);
+      if (livePiece(pc)) this.buildMover(g, pc);
+      else this.buildStatic(g, pc);
     }
-    for (const st of [...deckSteps(), ...podiumSteps()]) g.add(slab(STONE, st.cx, st.cz, st.w, st.d, st.top, 0, 2));
+    for (const pc of CHECKPOINTS) this.buildCheckpoint(g, pc);
+    for (const st of [...deckSteps(), ...podiumSteps()]) g.add(slab(THEME.stone, st.cx, st.cz, st.w, st.d, st.top, 0, 2));
     for (const w of parapets()) {
-      g.add(slab(ROCK, w.cx, w.cz, w.w, w.d, w.top, w.base, 2));
-      g.add(slab(GOLD, w.cx, w.cz, w.w - 0.08, w.d - 0.08, w.top + 0.06, w.top - 0.05, 1));
+      g.add(slab(THEME.rock, w.cx, w.cz, w.w, w.d, w.top, w.base, 2));
+      g.add(slab(THEME.trim, w.cx, w.cz, w.w - 0.08, w.d - 0.08, w.top + 0.06, w.top - 0.05, 1));
     }
 
     // ---- the sign and the speech bubble at the start ---------------------
-    // beside the steps rather than beyond them: the park's east edge is close
-    const signX = DECK.cx + DECK.w / 2 + 2.2;
-    const signZ = DECK.cz - 5.2;
-    const sign = signBoard("FLOOR IS LAVA", 4.4, 1.0);
+    // beside the steps rather than beyond them: in park 1 the park's east edge
+    // is close, and it reads better from the path in both parks
+    const back = alongSize(DECK) / 2 + 2.2;
+    const signX = DECK.cx - DX[DECK.dir] * back + AX[DECK.dir] * 5.2;
+    const signZ = DECK.cz - DZ[DECK.dir] * back + AZ[DECK.dir] * 5.2;
+    const sign = signBoard(THEME.title, 4.4, 1.0);
     sign.position.set(signX, 2.8, signZ);
+    sign.rotation.y = DZ[DECK.dir] ? Math.PI / 2 : 0;
     g.add(sign);
     for (const s of [-1, 1]) {
-      const post = new THREE.Mesh(beveledBox(0.24, 2.6, 0.24), lam(WOOD, { repeat: 2 }));
-      post.position.set(signX + s * 1.9, 1.3, signZ);
+      const post = new THREE.Mesh(beveledBox(0.24, 2.6, 0.24), lam(THEME.wood, { repeat: 2 }));
+      post.position.set(signX + s * 1.9 * Math.abs(DX[DECK.dir]), 1.3, signZ + s * 1.9 * Math.abs(DZ[DECK.dir]));
       post.castShadow = true;
       g.add(post);
     }
-    this.speech = makeBubble(["Jump the whole course!", "Fall in and start over."]);
+    this.speech = makeBubble([...THEME.bubble]);
     this.speech.position.set(signX, 5.2, signZ);
     this.speech.scale.setScalar(1.7);
     this.speech.userData.signX = signX;
@@ -900,17 +1137,21 @@ export class LavaWorld {
 
     // ---- the prize on the podium ----------------------------------------
     this.prize = new THREE.Group();
-    const { mesh } = makeAccessory("dragontail");
-    const bb = new THREE.Box3().setFromObject(mesh);
-    mesh.position.sub(bb.getCenter(new THREE.Vector3()));
-    mesh.scale.setScalar(2.6);
-    this.prize.add(mesh);
+    if (THEME.prize) {
+      const { mesh } = makeAccessory(THEME.prize);
+      const bb = new THREE.Box3().setFromObject(mesh);
+      mesh.position.sub(bb.getCenter(new THREE.Vector3()));
+      mesh.scale.setScalar(2.6);
+      this.prize.add(mesh);
+    } else if (THEME.trophyMesh) {
+      this.prize.add(THEME.trophyMesh());
+    }
     bakeGroup(this.prize, this.geometries);
     this.prize.position.set(PODIUM.cx, PODIUM.top + 1.5, PODIUM.cz);
     g.add(this.prize);
 
     this.trophy = new THREE.Group();
-    const goldMat = lam(GOLD, { flat: true, roughness: 0.25 });
+    const goldMat = lam(THEME.gold, { flat: true, roughness: 0.25 });
     const cupGeo = new THREE.CylinderGeometry(0.36, 0.17, 0.52, 12);
     const stemGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.22, 10);
     this.geometries.push(cupGeo, stemGeo);
@@ -936,7 +1177,7 @@ export class LavaWorld {
 
     scene.add(g);
 
-    const live = new Set<THREE.Object3D>([...this.moveMesh, this.bubbles, this.prize, this.trophy, this.speech]);
+    const live = new Set<THREE.Object3D>([...this.moveMesh, ...this.flags, this.bubbles, this.prize, this.trophy, this.speech]);
     this.geometries.push(...mergeStatic(g, { live }).geometries);
 
     this.colliders = lavaColliders(this.state);
@@ -945,19 +1186,53 @@ export class LavaWorld {
     this.syncMeshes();
   }
 
+  /**
+   * A checkpoint's flag. It stands on the corner of the piece, clear of the
+   * landing and clear of the take-off, and it is two flags in the same place:
+   * a pale one and a bright one, with only one of them visible. Banking it is
+   * the bright one coming on, which is a thing she can see happen from where
+   * she is standing rather than a line of text she has to read.
+   */
+  private buildCheckpoint(g: THREE.Group, pc: Piece) {
+    const f = new THREE.Group();
+    // the corner behind her as she lands, so it never stands in a jump
+    const cx = pc.cx + DX[pc.dir] * (alongSize(pc) / 2 - 0.5) * -1;
+    const cz = pc.cz + DZ[pc.dir] * (alongSize(pc) / 2 - 0.5) * -1;
+    const pole = new THREE.Mesh(beveledBox(0.16, 2.6, 0.16), lam(THEME.wood, { repeat: 1 }));
+    pole.position.y = 1.3;
+    pole.castShadow = true;
+    f.add(pole);
+    for (const [lit, color] of [[0, THEME.stone], [1, THEME.trim]] as [number, string][]) {
+      const half = new THREE.Group();
+      const cloth = new THREE.Mesh(beveledBox(1.1, 0.7, 0.1), lam(color, { flat: true }));
+      cloth.position.set(0.62, 2.1, 0);
+      half.add(cloth);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), lam(color, { flat: true }));
+      ball.position.y = 2.7;
+      half.add(ball);
+      half.visible = lit === 0;
+      half.userData.lit = lit === 1;
+      f.add(half);
+    }
+    f.position.set(cx, pc.top, cz);
+    g.add(f);
+    this.flags.push(f);
+  }
+
   /** A piece that never moves: a rock column standing in the lava. */
   private buildStatic(g: THREE.Group, pc: Piece) {
-    const cap = SECTION_CAP[pc.section] ?? CAP;
+    const cap = THEME.sectionCap[pc.section] ?? THEME.cap;
+    if (THEME.drawStatic?.(g, pc, cap)) return;
     if (pc.kind === "podium") {
-      g.add(slab(STONE, pc.cx, pc.cz, pc.w, pc.d, pc.top, 0, 3));
-      g.add(slab(GOLD, pc.cx, pc.cz, pc.w - 0.5, pc.d - 0.5, pc.top + 0.04, pc.top - 0.08, 1));
+      g.add(slab(THEME.stone, pc.cx, pc.cz, pc.w, pc.d, pc.top, 0, 3));
+      g.add(slab(THEME.trim, pc.cx, pc.cz, pc.w - 0.5, pc.d - 0.5, pc.top + 0.04, pc.top - 0.08, 1));
       return;
     }
     if (pc.kind === "bridge" || pc.kind === "beam") {
       this.buildDeckPiece(g, pc, cap);
       return;
     }
-    g.add(slab(pc.kind === "deck" ? STONE : ROCK, pc.cx, pc.cz, pc.w, pc.d, pc.top, 0, 3));
+    g.add(slab(pc.kind === "deck" ? THEME.stone : THEME.rock, pc.cx, pc.cz, pc.w, pc.d, pc.top, 0, 3));
     g.add(slab(cap, pc.cx, pc.cz, pc.w - 0.36, pc.d - 0.36, pc.top + 0.03, pc.top - 0.1, 1));
     if (pc.kind === "pad" && pc.index > 0) {
       // boulders round the flanks, always below the top face, so they are
@@ -967,7 +1242,7 @@ export class LavaWorld {
         const r = 0.5 + (k % 3) * 0.16;
         g.add(
           slab(
-            ROCK_DARK,
+            THEME.rockDark,
             pc.cx + Math.cos(a) * (pc.w / 2 - 0.1),
             pc.cz + Math.sin(a) * (pc.d / 2 - 0.1),
             r * 2,
@@ -998,7 +1273,7 @@ export class LavaWorld {
       const cx = pc.cx + (along ? o : 0);
       const cz = pc.cz + (along ? 0 : o);
       g.add(
-        slab(i % 2 ? WOOD : "#7a4f2c", cx, cz, along ? pitch * 0.9 : wide, along ? wide : pitch * 0.9, pc.top, pc.top - thick, 1),
+        slab(i % 2 ? THEME.wood : THEME.woodDark, cx, cz, along ? pitch * 0.9 : wide, along ? wide : pitch * 0.9, pc.top, pc.top - thick, 1),
       );
     }
     // rope rails and posts: decoration, never solid, and clear of her head
@@ -1007,12 +1282,12 @@ export class LavaWorld {
       const rz = pc.cz + (along ? (s * wide) / 2 : 0);
       const rail = new THREE.Mesh(
         beveledBox(along ? len : 0.1, 0.1, along ? 0.1 : len),
-        lam(ROPE, { flat: true }),
+        lam(THEME.rope, { flat: true }),
       );
       rail.position.set(rx, pc.top + 1.0, rz);
       g.add(rail);
       for (const e of [-1, 1]) {
-        const post = new THREE.Mesh(beveledBox(0.22, 1.5, 0.22), lam(WOOD, { repeat: 1 }));
+        const post = new THREE.Mesh(beveledBox(0.22, 1.5, 0.22), lam(THEME.wood, { repeat: 1 }));
         post.position.set(
           rx + (along ? (e * len) / 2 - e * 0.15 : 0),
           pc.top + 0.5,
@@ -1032,8 +1307,14 @@ export class LavaWorld {
   private buildMover(g: THREE.Group, pc: Piece) {
     const f = new THREE.Group();
     const thick = pc.top - pc.base;
-    const cap = SECTION_CAP[pc.section] ?? CAP;
-    const body = new THREE.Mesh(beveledBox(pc.w, thick, pc.d), lam(ROCK, { repeat: 3 }));
+    const cap = THEME.sectionCap[pc.section] ?? THEME.cap;
+    if (THEME.drawMover?.(f, pc, cap)) {
+      bakeGroup(f, this.geometries);
+      g.add(f);
+      this.moveMesh.push(f);
+      return;
+    }
+    const body = new THREE.Mesh(beveledBox(pc.w, thick, pc.d), lam(THEME.rock, { repeat: 3 }));
     body.position.y = -thick / 2;
     body.castShadow = true;
     body.receiveShadow = true;
@@ -1044,7 +1325,7 @@ export class LavaWorld {
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
       const edge = new THREE.Mesh(
         beveledBox(dx ? 0.24 : pc.w - 0.3, 0.18, dz ? 0.24 : pc.d - 0.3),
-        lam(pc.motion.kind === "give" ? "#e8553a" : "#ffd76a", { flat: true }),
+        lam(pc.motion.kind === "give" ? THEME.edgeGive : THEME.edge, { flat: true }),
       );
       edge.position.set(dx * (pc.w / 2 - 0.12), 0.03, dz * (pc.d / 2 - 0.12));
       f.add(edge);
@@ -1135,7 +1416,7 @@ export class LavaWorld {
     // the first walk up to the sign explains it, once a session
     if (!this.toldAbout && Math.hypot(her.x - LAVA_START[0], her.z - LAVA_START[1]) < 9 && her.y < 1.2) {
       this.toldAbout = true;
-      st.setEmmettNotice("The floor is lava! Jump the whole course to the prize. Fall in and you start again — it never hurts.");
+      st.setEmmettNotice(THEME.notice);
     }
 
     const on = standingOn(her.x, her.y, her.z, this.state);
@@ -1146,9 +1427,19 @@ export class LavaWorld {
           this.shownT = -1;
           st.setLavaTime(null);
         }
+        this.state.banked = -1;
       } else if (this.runT == null && on !== PODIUM.index) {
         this.runT = 0;
         this.shownT = -1;
+      }
+      // banking one: only ever forwards, so walking back down the course
+      // cannot hand her an earlier checkpoint to fall back to
+      const here = PIECES[on]!;
+      if (here.checkpoint && on > (this.state.banked ?? -1)) {
+        this.state.banked = on;
+        sfx.collect();
+        const n = CHECKPOINTS.findIndex((c) => c.index === on) + 1;
+        st.setEmmettNotice(`${THEME.checkpointLine} ${n} of ${CHECKPOINTS.length} — fall in now and you come back here.`);
       }
     }
 
@@ -1162,19 +1453,28 @@ export class LavaWorld {
       }
     }
 
-    // fallen in: back to the start deck, ready to go again
+    // fallen in: back to the last checkpoint she banked, ready to go again.
+    // With none banked that is the start deck and the attempt is over, which
+    // is what a course without checkpoints does every time. With one banked
+    // the clock keeps running, because she has not started again — she has
+    // lost the time the fall cost her, which is the price of the mistake.
     if (overLava(her.x, her.z) && her.y < FALL_Y && this.state.t - this.lastFall > 0.8) {
       this.lastFall = this.state.t;
-      const s = startSpot();
+      const back = this.state.banked ?? -1;
+      const s = startSpot(this.state);
       this.place(s.x, s.y, s.z, s.yaw);
-      this.runT = null;
-      this.shownT = -1;
-      st.setLavaTime(null);
+      if (back < 0) {
+        this.runT = null;
+        this.shownT = -1;
+        st.setLavaTime(null);
+      }
       // the plank comes back for the next attempt
       this.state.held = 0;
       this.state.away = -1;
+      if (this.state.squash) this.state.squash.length = 0;
       sfx.splash(true);
-      st.setEmmettNotice(FALL_LINES[Math.floor(Math.random() * FALL_LINES.length)]!);
+      const lines = back < 0 ? THEME.fallLines : THEME.checkpointFallLines ?? THEME.fallLines;
+      st.setEmmettNotice(lines[Math.floor(Math.random() * lines.length)]!);
       return;
     }
 
@@ -1188,7 +1488,8 @@ export class LavaWorld {
       this.runT = null;
       this.shownT = -1;
       st.setLavaTime(null);
-      const first = !st.foundAccessories.includes("dragontail");
+      const prize = THEME.prize;
+      const first = prize ? !st.foundAccessories.includes(prize) : st.lavaBest == null;
       const tickets = lavaTickets(first);
       const line = lavaLine(seconds, st.lavaBest);
       if (st.lavaBest == null || seconds < st.lavaBest) st.setLavaBest(Math.round(seconds * 10) / 10);
@@ -1196,19 +1497,33 @@ export class LavaWorld {
       sfx.win();
       // winPrize writes its own notice and puts it on her, so the time goes first
       st.setEmmettNotice(`${line} +${tickets} tickets!`);
-      if (first) st.winPrize("dragontail");
+      if (first && prize) st.winPrize(prize);
     }
   }
 
-  /** The meshes onto the course state. Nothing here ever rotates. */
+  /**
+   * The meshes onto the course state. The only thing here that ever turns is a
+   * disc turning about its own middle, whose box is the same at every angle.
+   */
   private syncMeshes() {
     const s = this.state;
     for (let i = 0; i < MOVING.length; i++) {
       const p = MOVING[i]!;
       const a = pieceAt(p, s);
       this.moveMesh[i]!.position.set(a.x, a.top, a.z);
+      if (p.spin) this.moveMesh[i]!.rotation.y = s.t * p.spin * TAU;
     }
-    const won = useGame.getState().foundAccessories.includes("dragontail");
+    const banked = s.banked ?? -1;
+    if (banked !== this.shownBanked) {
+      this.shownBanked = banked;
+      for (let i = 0; i < this.flags.length; i++) {
+        const lit = CHECKPOINTS[i]!.index <= banked;
+        for (const half of this.flags[i]!.children) {
+          if (half.userData.lit !== undefined) half.visible = half.userData.lit === lit;
+        }
+      }
+    }
+    const won = THEME.prize != null && useGame.getState().foundAccessories.includes(THEME.prize);
     this.prize.visible = !won;
     this.trophy.visible = won;
     this.prize.rotation.y = s.t * 1.1;

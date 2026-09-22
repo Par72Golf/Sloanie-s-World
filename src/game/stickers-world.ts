@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { sfx } from "./audio";
-import { STICKER_BOOK, STICKER_SPOTS } from "./collectibles";
+import { STICKER_BOOK, STICKER_SPOTS, type StickerSpot } from "./collectibles";
 import { lam } from "./meshes";
 import { STICKER_ART, stickerTexture, type StickerId } from "./sticker-art";
 import { useGame } from "./store";
@@ -10,9 +10,41 @@ import { useGame } from "./store";
  * Stickers can only be kept once she has the book: walking into one before
  * that says where the book is and leaves the sticker where it is. Collected
  * stickers are gone for good (saved in the store).
+ *
+ * A park hands in its own set of spots, its own book and its own colours, so
+ * that a second park is a second StickerSet rather than a second copy of this.
  */
 
 const PICK_R = 1.7;
+
+type GameState = ReturnType<typeof useGame.getState>;
+
+/** One park's sticker hunt: where they are, its book, and how it is saved. */
+export type StickerSet = {
+  spots: StickerSpot[];
+  book: { pos: [number, number, number]; hint: string };
+  /** the book's own colours, so each park's book looks like its park */
+  bookColors: { cover: string; pages: string; badge: string; ring: string; glow: string };
+  /** id to display name, for the notice when one is picked up */
+  names: Map<string, string>;
+  hasBook: (st: GameState) => boolean;
+  findBook: (st: GameState) => void;
+  take: (st: GameState, id: string, name: string) => void;
+  /** what she is told when she touches a sticker without the book */
+  needBook: (name: string) => string;
+};
+
+/** Park 1's hunt: the thirty stickers in collectibles.ts and the purple book. */
+export const PICNIC_STICKERS: StickerSet = {
+  spots: STICKER_SPOTS,
+  book: STICKER_BOOK,
+  bookColors: { cover: "#8a4ad0", pages: "#fff8ec", badge: "#ffc53d", ring: "#d8b8ff", glow: "#a070ff" },
+  names: new Map(STICKER_ART.map((s) => [s.id as string, s.name])),
+  hasBook: (st) => st.stickerBook,
+  findBook: (st) => st.findStickerBook(),
+  take: (st, id, name) => st.findSticker(id, name),
+  needBook: (name) => `A ${name.toLowerCase()} sticker! You need a sticker book to keep it. There's one near the start.`,
+};
 
 export class StickerWorld {
   group = new THREE.Group();
@@ -20,12 +52,16 @@ export class StickerWorld {
   private stickers: { id: StickerId; name: string; sprite: THREE.Sprite; ring: THREE.Mesh; base: THREE.Vector3; warned: boolean; phase: number }[] = [];
   private bookWarned = false;
 
-  constructor(private scene: THREE.Scene) {
-    // the book: a chunky purple book on a glowing ring
+  constructor(
+    private scene: THREE.Scene,
+    private set: StickerSet = PICNIC_STICKERS,
+  ) {
+    // the book: a chunky book in this park's colours, on a glowing ring
+    const colors = set.bookColors;
     this.book = new THREE.Group();
     const item = new THREE.Group();
-    const cover = lam("#8a4ad0", { flat: true, roughness: 0.5 });
-    const pages = lam("#fff8ec", { flat: true, roughness: 0.8 });
+    const cover = lam(colors.cover, { flat: true, roughness: 0.5 });
+    const pages = lam(colors.pages, { flat: true, roughness: 0.8 });
     const back = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.8, 0.06), cover);
     back.position.z = -0.08;
     item.add(back);
@@ -35,18 +71,18 @@ export class StickerWorld {
     const leaves = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.74, 0.12), pages);
     leaves.position.x = 0.02;
     item.add(leaves);
-    const star = new THREE.Mesh(new THREE.CircleGeometry(0.16, 5), lam("#ffc53d", { flat: true, roughness: 0.3 }));
+    const star = new THREE.Mesh(new THREE.CircleGeometry(0.16, 5), lam(colors.badge, { flat: true, roughness: 0.3 }));
     star.position.z = 0.115;
     item.add(star);
     item.position.y = 1.05;
     this.book.add(item);
-    this.book.add(glowRing("#d8b8ff", "#a070ff"));
+    this.book.add(glowRing(colors.ring, colors.glow));
     this.book.userData.item = item;
-    this.book.position.set(STICKER_BOOK.pos[0], STICKER_BOOK.pos[1] - 0.9, STICKER_BOOK.pos[2]);
+    this.book.position.set(set.book.pos[0], set.book.pos[1] - 0.9, set.book.pos[2]);
     this.group.add(this.book);
 
-    const names = new Map(STICKER_ART.map((s) => [s.id, s.name]));
-    STICKER_SPOTS.forEach((spot, i) => {
+    const names = set.names;
+    set.spots.forEach((spot, i) => {
       const id = spot.id as StickerId;
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: stickerTexture(id), transparent: true, depthWrite: false }));
       sprite.scale.set(0.9, 0.9, 1);
@@ -68,15 +104,16 @@ export class StickerWorld {
   update(dt: number, t: number, her: { x: number; y: number; z: number; paused: boolean }) {
     const st = useGame.getState();
     // the book
-    this.book.visible = !st.stickerBook;
-    if (!st.stickerBook) {
+    const hasBook = this.set.hasBook(st);
+    this.book.visible = !hasBook;
+    if (!hasBook) {
       const item = this.book.userData.item as THREE.Object3D;
       item.rotation.y += dt * 1.3;
       item.position.y = 1.05 + Math.sin(t * 2) * 0.1;
       const d = Math.hypot(her.x - this.book.position.x, her.z - this.book.position.z);
       if (d < PICK_R && !her.paused) {
         sfx.win();
-        st.findStickerBook();
+        this.set.findBook(st);
       }
     }
     // stickers
@@ -89,17 +126,17 @@ export class StickerWorld {
       s.sprite.material.rotation = Math.sin(t * 1.4 + s.phase) * 0.15;
       const d = Math.hypot(her.x - s.base.x, her.z - s.base.z);
       if (d < PICK_R && Math.abs(her.y + 0.9 - s.base.y) < 2.2 && !her.paused) {
-        if (!st.stickerBook) {
+        if (!hasBook) {
           if (!s.warned && !this.bookWarned) {
             this.bookWarned = true;
             s.warned = true;
             sfx.wrong();
-            st.setEmmettNotice(`A ${s.name.toLowerCase()} sticker! You need a sticker book to keep it. There's one near the start.`);
+            st.setEmmettNotice(this.set.needBook(s.name));
           }
           continue;
         }
         sfx.collect();
-        st.findSticker(s.id, s.name);
+        this.set.take(st, s.id, s.name);
       } else if (d > PICK_R + 2) {
         s.warned = false;
         if (d > 30) this.bookWarned = false;

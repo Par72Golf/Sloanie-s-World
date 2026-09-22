@@ -211,16 +211,6 @@ type Hill = {
 /**
  * The strata, bottom to top. One ramp shared by all three hills, so they read
  * as one place cut from the same cake rather than three unrelated lumps: the
- * ground's own mint at the foot, a paler mint above it, sponge, blossom, and
- * every summit iced.
- *
- * Pastels, because a whole hillside of a saturated candy colour is what made
- * the first fairground look like a warning sign. The saturated colours arrive
- * as gumdrops, which is the point of the meadow.
- */
-/**
- * The strata, bottom to top. One ramp shared by all three hills, so they read
- * as one place cut from the same cake rather than three unrelated lumps: the
  * ground's own mint at the foot, lightening through sponge to blossom, and
  * every summit iced. A hill with fewer terraces than there are strata takes its
  * colours spread over the whole ramp rather than stopping halfway up it, which
@@ -251,9 +241,9 @@ const strataFor = (i: number, n: number) =>
  * can walk through between each pair.
  *
  * Every hill is the same shape twice over. A wide apron at the bottom — a
- * single 0.28m step, three metres deep — is the planted rim: it is the only
- * tread with room for a gumdrop of any size, and its corners are where the
- * giants stand. Above it the steps are 0.52m and the treads are barely a metre
+ * single 0.28m step, two or three metres deep — is the planted rim: it is the
+ * only tread with room for a gumdrop of any size, and its corners are where
+ * the giants stand. Above it the steps are 0.52m and the treads are barely a metre
  * and a half, because that is what makes the thing read as a hill instead of a
  * stack of plates. The first version of this file used three-metre treads all
  * the way up and looked like a running track.
@@ -300,8 +290,8 @@ const HILLS: Hill[] = [
     seed: 71043,
   },
   {
-    // the little one, at (61, 45.5): two shallow steps and a top at 0.90m, for
-    // the days when a seven-year-old wants to be on top of something
+    // the little one, at (61, 45.5): an apron, two shallow steps and a top at
+    // 0.90m, for the days when a seven-year-old wants to be on top of something
     // immediately
     name: "sugar button",
     dx: -13,
@@ -335,11 +325,12 @@ const stairLine = (h: Hill) => {
  * the crowning gumdrop behind it and the way up arriving beside it.
  *
  * Fair warning for whoever places one: tools/check-layout.ts floods a flat grid
- * and treats anything over 0.75m as a wall, so a candy on the big hill or the
- * north knoll reports as UNREACHABLE even though she can walk to it. That is
- * the checker being 2D, not the hill being wrong — walk it and see. The little
- * hill's top is under that line, so a candy there passes the checker as well.
- * A candy rests 0.55m over what holds it, so the y to use is `y + 0.55`.
+ * and treats anything over 0.75m as a wall, so a candy on any of these three
+ * summits reports as UNREACHABLE even though she walks up to it without
+ * jumping. That is the checker being 2D, not the hill being wrong — teleport
+ * her to the foot, hold a key and watch her rise, which is how these numbers
+ * were checked in the first place. A candy rests 0.55m over what holds it, so
+ * the y to hide one at is `y + 0.55`.
  */
 export const HILL_TOPS: { x: number; z: number; y: number }[] = HILLS.map((h) => {
   const top = rectFor(h, h.levels.length - 1);
@@ -631,37 +622,41 @@ export function gumdropHills(keepOut: [number, number][] = MEADOW_CANDIES): Prop
 /* ------------------------------------------------------------- the berms */
 
 /**
- * A long low mound: two steps, a crest at 0.58m, and the height is the point.
- * The layout checker's reachability flood-fill walks over anything under 0.75m,
+ * A long low mound: three shallow steps, a crest at 0.60m, and the height is
+ * the point. The layout checker's flood-fill walks over anything under 0.75m,
  * so a berm can never be the thing that cuts a candy off, however long it is,
  * and she runs over it without even slowing down. Anything taller belongs in
  * the meadow with the hills.
  *
- * Both slabs are thin enough (0.29m and 0.31m) to lap over whatever flat thing
- * they land on, and the bottom one is thin enough that the frosting keeps off
- * it altogether, for the reason APRON_RISE explains.
+ * Every slab is thin enough to lap over whatever flat thing it lands on, and
+ * the bottom one is thin enough that the frosting keeps off it altogether, for
+ * the reason APRON_RISE explains.
  */
-const BERM_STEPS: [number, number][] = [
-  // rise, how far this step stands back from the one below
-  [APRON_RISE, 0],
-  [0.3, 2.6],
-];
+const BERM_STEPS = [0.24, 0.2, 0.16];
+/** Each step pulls in a fifth of the width and an eighth of the length. */
+const BERM_ACROSS = 0.2;
+const BERM_ALONG = 0.13;
 
 /** The crest: what the planting down the ridge stands on. */
-const BERM_TOP = BERM_STEPS.reduce((y, [rise]) => y + rise, 0);
+const BERM_TOP = BERM_STEPS.reduce((y, rise) => y + rise, 0);
 
 function bermProps(x: number, z: number, w: number, d: number, seed: number): Prop[] {
   const out: Prop[] = [];
   const rand = rng(seed);
   const alongX = w > d;
+  const across = alongX ? d : w;
   let top = 0;
-  BERM_STEPS.forEach(([rise, back], step) => {
+  BERM_STEPS.forEach((rise, step) => {
     top += rise;
-    // the ends pull in further than the sides, so it tapers away rather than
-    // stopping dead: a mound with square ends reads as a wall
+    // The ends pull in much further than the sides each step, so it tapers away
+    // along its length rather than stopping dead: a mound with square ends is a
+    // wall. Three shallow steps rather than two
+    // deep ones, because two read as a plinth someone put there.
+    const back = across * BERM_ACROSS * step;
+    const end = (alongX ? w : d) * BERM_ALONG * step;
     out.push(
       terrace(
-        rectOf(x, z, w - back * (alongX ? 3 : 2), d - back * (alongX ? 2 : 3)),
+        rectOf(x, z, w - (alongX ? end : back) * 2, d - (alongX ? back : end) * 2),
         top,
         rise,
         STRATA[step]!,
@@ -674,11 +669,13 @@ function bermProps(x: number, z: number, w: number, d: number, seed: number): Pr
    * gumdrops at a steady spacing with a swirl mint between each pair, like
    * bulbs down a verge. The spacing matters as well as the look — a gumdrop is
    * over the flood fill's 0.75m, so a tight row of them would be a hedge.
+   *
+   * The crest is measured off the top slab, less a metre of shoulder at each
+   * end: a short berm then gets one sweet in the middle instead of two standing
+   * in each other.
    */
-  // the crest itself, less a metre of shoulder at each end: measuring the top
-  // slab rather than the berm means a short berm gets one sweet in the middle
-  // instead of two standing in each other
-  const crest = (alongX ? w : d) - BERM_STEPS[1]![1] * 3 - 2.4;
+  const along = alongX ? w : d;
+  const crest = along * (1 - BERM_ALONG * (BERM_STEPS.length - 1) * 2) - 2.4;
   const at = (t: number, id: string, extra: Record<string, number>) =>
     out.push(model(id, alongX ? x + t : x, alongX ? z : z + t, { y: BERM_TOP, ...extra }));
   if (crest < 2) return out;
@@ -712,10 +709,10 @@ const BERM_SITES: [number, number, number, number][] = [
   [30, 94, 30, 9],
   [-94, -60, 9, 32],
   [-94, 40, 9, 26],
-  [94, -42, 9, 28],
+  [94, -38, 9, 22],
   // along the spokes into the plaza, back from the tree avenue
   [-32, 32, 22, 8],
-  [76, 30, 18, 8],
+  [72, 30, 12, 8],
   // and the river's straight reach south of the plaza: a pair facing each
   // other across the water, which is how this park plants a river bank
   [8, -36, 7, 20],
@@ -725,9 +722,13 @@ const BERM_SITES: [number, number, number, number][] = [
 /**
  * Gentle relief for the rest of the park.
  *
- * `keepOut` is the hidden candies: a mound that swallowed one would make it
- * unfindable, so a site that cannot clear them all is simply dropped rather
- * than nudged — a berm is scenery, and scenery gives way.
+ * `keepOut` is everything hidden on the ground — the candies, and the soda cans
+ * if the level has picked them by the time it calls this. A mound that swallowed
+ * one would make it unfindable, so a site that cannot clear them all is simply
+ * dropped rather than nudged: a berm is scenery, and scenery gives way. The
+ * sites below are already clear of the spots as they stand, so passing only the
+ * candies costs nothing today; it is the soda cans moving that this argument is
+ * insurance against.
  */
 export function sugarBerms(keepOut: [number, number][]): Prop[] {
   const out: Prop[] = [];

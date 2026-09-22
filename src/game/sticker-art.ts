@@ -9,17 +9,23 @@
  * and the whole layer is then stamped onto the target with a soft shadow.
  */
 import * as THREE from "three";
+import type { CandyStickerId } from "./candy-stickers";
 
-export type StickerId =
+type PicnicStickerId =
   | "frog" | "dragonfly" | "goldfish" | "butterfly" | "ladybug" | "bee"
   | "apple" | "tractor" | "chicken" | "sunflower" | "horse" | "balloon"
   | "popcorn" | "ferriswheel" | "mushroom" | "crystal" | "bat" | "tent"
   | "marshmallow" | "owl" | "squirrel" | "baseball" | "tennisball" | "basketball"
   | "soccerball" | "golfflag" | "beachball" | "rainbow" | "sneaker" | "snail";
+/** Park 1's stickers plus Sugar Rush's, which live in candy-stickers.ts. */
+export type StickerId = PicnicStickerId | CandyStickerId;
 
 export type StickerRarity = "common" | "rare" | "shiny";
 
-export const STICKER_ART: { id: StickerId; name: string; rarity: StickerRarity }[] = [
+export type StickerArtDef = { id: StickerId; name: string; rarity: StickerRarity };
+
+/** Park 1's sticker book. A second park's book is its own list. */
+export const STICKER_ART: StickerArtDef[] = [
   { id: "frog", name: "Frog", rarity: "common" },
   { id: "dragonfly", name: "Dragonfly", rarity: "rare" },
   { id: "goldfish", name: "Goldfish", rarity: "common" },
@@ -56,12 +62,12 @@ export const STICKER_ART: { id: StickerId; name: string; rarity: StickerRarity }
 // Drawing kit (all coordinates in the 100x100 sticker space)
 // ---------------------------------------------------------------------------
 
-type G = CanvasRenderingContext2D;
+export type G = CanvasRenderingContext2D;
 type Fill = string | CanvasGradient;
 /** A path builder. `w` set means it is an open line of that width, not a filled area. */
-type Shape = ((g: G) => void) & { w?: number };
+export type Shape = ((g: G) => void) & { w?: number };
 
-interface Art {
+export interface Art {
   /** Shapes covering the whole sticker; stroked thick and white for the paper border. */
   sil: Shape[];
   draw: (g: G) => void;
@@ -1392,13 +1398,42 @@ const snail: Art = (() => {
   };
 })();
 
-const ART: Record<StickerId, Art> = {
+const ART: Record<PicnicStickerId, Art> = {
   frog, dragonfly, goldfish, butterfly, ladybug, bee, apple, tractor, chicken, sunflower,
   horse, balloon, popcorn, ferriswheel, mushroom, crystal, bat, tent, marshmallow, owl,
   squirrel, baseball, tennisball, basketball, soccerball, golfflag, beachball, rainbow, sneaker, snail,
 };
 
-const RARITY = new Map(STICKER_ART.map((s) => [s.id, s.rarity]));
+const RARITY = new Map<StickerId, StickerRarity>(STICKER_ART.map((s) => [s.id, s.rarity]));
+
+/**
+ * Art from another park's book, added at module load by the file that owns it
+ * (candy-stickers.ts). Everything that draws a sticker goes through artFor, so
+ * a park's art can live beside that park's spots rather than in here.
+ */
+const EXTRA_ART = new Map<string, Art>();
+
+export function registerStickerArt(defs: readonly (StickerArtDef & { art: Art })[]): void {
+  for (const d of defs) {
+    EXTRA_ART.set(d.id, d.art);
+    RARITY.set(d.id, d.rarity);
+  }
+}
+
+function artFor(id: StickerId): Art {
+  return (ART as Record<string, Art | undefined>)[id] ?? EXTRA_ART.get(id) ?? ART.frog;
+}
+
+/**
+ * The drawing kit, so a park's stickers can be drawn in that park's own file
+ * in the same language: 100x100 space, thick white die-cut border, chunky dark
+ * outlines. Nothing here is specific to a park.
+ */
+export const ART_KIT = {
+  TAU, INK, LW, WHITE,
+  shp, E, C, RR, P, LINE, PATH, MIR, star,
+  part, blob, clip, strokePath, lin, ball, dot, gloss, twinkle, eye, eyeBall, blush, smile,
+};
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -1486,7 +1521,7 @@ function paintHolo(g: G): void {
 
 /** The sticker (border + art + effects) drawn onto a transparent px-square canvas. */
 function renderLayer(id: StickerId, px: number, found: boolean): HTMLCanvasElement {
-  const a = ART[id];
+  const a = artFor(id);
   const c = makeCanvas(px, px);
   const g = ctx2d(c);
   toStickerSpace(g, px, a);

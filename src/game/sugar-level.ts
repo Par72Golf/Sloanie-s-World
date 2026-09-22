@@ -1,6 +1,7 @@
 import { CANDIES } from "./candies";
 import { SKY_LIGHTING, skyProps } from "./sugar-sky";
 import { bunting, regionGates, regionSigns } from "./sugar-signs";
+import { gumdropHills, sugarBerms } from "./sugar-terrain";
 import type { DumplingDef, Hide, LevelDef } from "./types";
 import {
   CANDY,
@@ -16,7 +17,6 @@ import {
   frostingProps,
   marshmallowProps,
   mazeProps,
-  meadowProps,
   pathProps,
   plantingProps,
   mountainProps,
@@ -192,7 +192,9 @@ export function sugarRushPark(): LevelDef {
     ...plazaProps(),
     ...plazaArches(),
     ...forestProps(spots),
-    ...meadowProps(spots),
+    // the meadow is terraced hills now, not a field of scattered domes
+    ...gumdropHills(spots),
+    ...sugarBerms(spots),
     ...marshmallowProps(spots),
     ...mazeProps(),
     ...factoryProps(),
