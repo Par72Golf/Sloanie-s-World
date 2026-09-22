@@ -1319,7 +1319,7 @@ function HUD() {
                     <p className="min-w-0 flex-1 truncate font-display text-xs font-semibold uppercase tracking-wider text-ink-soft sm:text-sm 2xl:text-lg">
                       {level.name}
                     </p>
-                    {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} />}
+                    {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} cotton={level.boost === "cotton"} />}
                   </div>
                 )}
                 {/* one diamond per dumpling: two rows on a phone, one on a TV */}
@@ -1724,10 +1724,11 @@ function HandIcon({ hand, size = 72 }: { hand: string; size?: number }) {
 const RPS_HANDS = ["rock", "paper", "scissors"] as const;
 
 /**
- * Boost timer drawn as a juice box with a sweeping second hand. The carton
- * drains as the clock runs down, so it reads at a glance from across a room.
+ * Boost timer drawn as whatever the park pours: a juice box in park 1, a stick
+ * of candy floss in Sugar Rush. Either one drains as the clock runs down, so it
+ * reads at a glance from across a room, and the dial on the front is the same.
  */
-function JuiceClock({ left, total }: { left: number; total: number }) {
+function JuiceClock({ left, total, cotton }: { left: number; total: number; cotton?: boolean }) {
   // The store only carries whole seconds so the HUD is not re-rendering every
   // frame. The hand interpolates locally between those updates.
   const [shown, setShown] = useState(left);
@@ -1764,13 +1765,36 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
   return (
     <div className="-my-1 flex shrink-0 items-center gap-1">
       <svg width="26" height="30" viewBox="0 0 52 60" className="shrink-0 2xl:h-11 2xl:w-9" aria-hidden>
-        <rect x="8" y="12" width="36" height="44" rx="3" fill="#c9442f" />
-        <rect x="8" y={12 + 44 * (1 - frac)} width="36" height={44 * frac} rx="3" fill="#e8613f" />
-        <rect x="8" y="12" width="36" height="44" rx="3" fill="none" stroke="#8f2d1f" strokeWidth="2" />
-        <rect x="6" y="9" width="40" height="5" rx="2" fill="#f2ead8" />
-        <rect x="30" y="0" width="4" height="11" rx="2" fill="#f7f3ee" />
-        <rect x="30" y="0" width="4" height="4" rx="2" fill="#4f93c4" />
-        <circle cx={cx} cy={cy} r={r + 2.5} fill="#fdf7ea" stroke="#8f2d1f" strokeWidth="1.5" />
+        {cotton ? (
+          <>
+            {/* the paper stick, then the cloud: pale all over, filled to the level left */}
+            <rect x="23" y="34" width="6" height="26" rx="2" fill="#f2ead8" stroke="#b9a98c" strokeWidth="1.5" />
+            {/* the cloud spans y 5..37, so the fill drains over exactly that */}
+            <clipPath id="floss-left">
+              <rect x="0" y={5 + 32 * (1 - frac)} width="52" height={32 * frac} />
+            </clipPath>
+            <g fill="#f7dfea" stroke="#c9648f" strokeWidth="2">
+              <circle cx="18" cy="26" r="11" />
+              <circle cx="34" cy="26" r="11" />
+              <circle cx="26" cy="16" r="11" />
+            </g>
+            <g clipPath="url(#floss-left)" fill="#ff9ec8" stroke="none">
+              <circle cx="18" cy="26" r="11" />
+              <circle cx="34" cy="26" r="11" />
+              <circle cx="26" cy="16" r="11" />
+            </g>
+          </>
+        ) : (
+          <>
+            <rect x="8" y="12" width="36" height="44" rx="3" fill="#c9442f" />
+            <rect x="8" y={12 + 44 * (1 - frac)} width="36" height={44 * frac} rx="3" fill="#e8613f" />
+            <rect x="8" y="12" width="36" height="44" rx="3" fill="none" stroke="#8f2d1f" strokeWidth="2" />
+            <rect x="6" y="9" width="40" height="5" rx="2" fill="#f2ead8" />
+            <rect x="30" y="0" width="4" height="11" rx="2" fill="#f7f3ee" />
+            <rect x="30" y="0" width="4" height="4" rx="2" fill="#4f93c4" />
+          </>
+        )}
+        <circle cx={cx} cy={cy} r={r + 2.5} fill="#fdf7ea" stroke={cotton ? "#c9648f" : "#8f2d1f"} strokeWidth="1.5" />
         {[0, 1, 2, 3].map((i) => {
           const a = ((i * 90 - 90) * Math.PI) / 180;
           return (
@@ -1780,7 +1804,7 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
               y1={cy + Math.sin(a) * (r - 2.5)}
               x2={cx + Math.cos(a) * r}
               y2={cy + Math.sin(a) * r}
-              stroke="#8f2d1f"
+              stroke={cotton ? "#c9648f" : "#8f2d1f"}
               strokeWidth="1.5"
               strokeLinecap="round"
             />
@@ -1790,7 +1814,7 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
           d={`M ${cx} ${cy} L ${cx} ${cy - r} A ${r} ${r} 0 ${angle > 180 ? 1 : 0} 1 ${
             cx + Math.cos(rad) * r
           } ${cy + Math.sin(rad) * r} Z`}
-          fill="#f6c98a"
+          fill={cotton ? "#ffd7ea" : "#f6c98a"}
           opacity="0.85"
         />
         <line
@@ -1798,7 +1822,7 @@ function JuiceClock({ left, total }: { left: number; total: number }) {
           y1={cy}
           x2={cx + Math.cos(rad) * (r - 1)}
           y2={cy + Math.sin(rad) * (r - 1)}
-          stroke={low ? "#c9442f" : "#3f3228"}
+          stroke={low ? (cotton ? "#c9648f" : "#c9442f") : "#3f3228"}
           strokeWidth="2"
           strokeLinecap="round"
         />

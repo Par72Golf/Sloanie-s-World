@@ -853,7 +853,11 @@ export class GameRuntime {
         // drinking a second one tops the timer back up rather than stacking
         this.boostLeft = BOOST_SECONDS;
         useGame.getState().setBoost(BOOST_SECONDS);
-        if (!boosted) useGame.getState().setEmmettNotice("Juice box! Zoom!");
+        // a park's boost has its own name: park 1 pours a juice box, Sugar Rush
+        // hands her a cloud of cotton candy
+        if (!boosted) {
+          useGame.getState().setEmmettNotice(this.level.boost === "cotton" ? "Cotton candy! Zoom!" : "Juice box! Zoom!");
+        }
       }
     }
   }

@@ -63,6 +63,12 @@ And the satchel: three places told her it was "behind the start", and the source
 comment put it at the east end of the sweet shop street. It is at the west end,
 and the street is sixteen metres *north* of where she spawns.
 
+### 3c. The boost is cotton candy, and it said "Juice box! Zoom!"
+Sugar Rush hands her a stick of candy floss, and picking one up announced a
+juice box. The boost timer in the corner of the HUD was a juice carton draining,
+in a park with no juice in it. The notice names the park's own boost now, and
+the clock is a stick of candy floss whose cloud drains instead of a carton.
+
 ### 4. The world kept running behind the fair's result cards
 Whack-a-Gummy and Sweet Sorter put a results card up when the clock runs out.
 Unlike golf, bowls and the toss, those two were not in the runtime's "a panel is
