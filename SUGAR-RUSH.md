@@ -229,7 +229,7 @@ the river running chocolate, the three creatures and the basket, the three house
 stages, Emmett's five challenges and the truck, the three games, the three rides,
 the chocolate course's checkpoints, the mountain's 42 treads and the telescope,
 the flyover and the grown-ups PIN. `playtest-notes-sugar-rush.md` is the record:
-six things were wrong and all six are fixed.
+ten things were wrong and all ten are fixed.
 
 The one that mattered: the bubblegum sat inside the ferris wheel's boarding
 circle, so pressing Collect at it boarded the wheel. `tools/buttons.ts` now

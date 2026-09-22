@@ -29,7 +29,8 @@ wheels, the fair's three games, the boat jetty, the sweet shop, the princess,
 her truck, her front door, the telescope, the three stuck creatures — and fails
 if the two circles can ever overlap. It knows that a sweet above her head (park
 1's Sky Dumpling, 15m up on the wheel) cannot be stolen by a button on the
-ground. 396 checks, and it runs in CI.
+ground, and it checks the landmarks Emmett rehides a sweet at too. 588 checks,
+and it runs in CI.
 
 ### 2. The gummy bear looked broken
 He is set in a puddle of toffee and will not come out until she jumps on it
@@ -39,7 +40,18 @@ all — no prompt, no line, no sound. A button that does nothing reads as a bug.
 Now the first time she stands on the toffee she is told: *"He is stuck fast in
 the toffee. Jump on it to crack it!"*, and the Jobs page says the same.
 
-### 3. Park 1's words all over park 2
+### 3. Losing to Emmett in Sugar Rush cost her nothing, and said nothing
+He rides up, beats her at rock paper scissors, and the panel tells her "He is
+taking one and hiding it." Then nothing happens: `emmettTakesOne` needs a
+landmark to hide it at, Sugar Rush had no list of them, and it gave up silently
+— no sweet lost, no line, no hint. He also offered "rock, paper, scissors for a
+dumpling".
+
+Sugar Rush has eight landmarks now, one per region, each on clear ground and
+clear of every button even after the spot is nudged. `tools/buttons.ts` checks
+the landmarks too, since a rehidden sweet is still a sweet she has to collect.
+
+### 4. Park 1's words all over park 2
 - The satchel help card was titled **"Your backpack"** and talked about a backpack.
 - The sticker card said **30 stickers** and sent her to "the farm, the woods, the cave, the pool and the carnival" — park 1's places. Sugar Rush has 20.
 - The journal's first page was **"Dumpling journal"**, its tab said **"Dumplings"**, and every sweet she had not found was an **"Unknown dumpling"**.
@@ -51,7 +63,7 @@ sticker card, and a new **factory card** that lays out the whole job the first
 time she meets the princess. The journal names the sweets, the satchel and the
 sweet shop when she is in Sugar Rush, and is byte-for-byte the same in park 1.
 
-### 3b. The quiz, the pause screen and the park-complete screen too
+### 5. The quiz, the pause screen and the park-complete screen too
 Every sweet she picks up opens a panel titled **"Solve it to keep the dumpling"**
 — sixteen times a park. Pausing said "The dumplings will wait." Rock paper
 scissors with Emmett offered to let her "keep your dumplings". And the screen she
@@ -63,43 +75,32 @@ And the satchel: three places told her it was "behind the start", and the source
 comment put it at the east end of the sweet shop street. It is at the west end,
 and the street is sixteen metres *north* of where she spawns.
 
-### 3c. The boost is cotton candy, and it said "Juice box! Zoom!"
+### 6. The boost is cotton candy, and it said "Juice box! Zoom!"
 Sugar Rush hands her a stick of candy floss, and picking one up announced a
 juice box. The boost timer in the corner of the HUD was a juice carton draining,
 in a park with no juice in it. The notice names the park's own boost now, and
 the clock is a stick of candy floss whose cloud drains instead of a carton.
 
-### 3d. Losing to Emmett in Sugar Rush cost her nothing, and said nothing
-He rides up, beats her at rock paper scissors, and the panel tells her "He is
-taking one and hiding it." Then nothing happens: `emmettTakesOne` needs a
-landmark to hide it at, Sugar Rush had no list of them, and it gave up silently
-— no sweet lost, no line, no hint. He also offered "rock, paper, scissors for a
-dumpling".
-
-Sugar Rush has eight landmarks now, one per region, each on clear ground and
-clear of every button even after the spot is nudged. `tools/buttons.ts` checks
-the landmarks too, since a rehidden sweet is still a sweet she has to collect.
-
-### 3e. The map was a green field with a blue river
+### 7. The map was a green field with a blue river
 The minimap and the full map are drawn from one hardcoded palette: park 1's.
 Opening the map in Sugar Rush gave her a green park with a blue river running
 through it — the right shapes in the wrong park's colours. Each park now has its
 own palette, and Sugar Rush's map is mint ground, pink sugar paths and a
 chocolate river. Park 1's map draws pixel-for-pixel what it always did.
 
-### 4. The world kept running behind the fair's result cards
+### 8. The world kept running behind the fair's result cards
 Whack-a-Gummy and Sweet Sorter put a results card up when the clock runs out.
 Unlike golf, bowls and the toss, those two were not in the runtime's "a panel is
 open" list, so Collect still fired into the world behind them — she could board
 a ride through her own scorecard. Both are now in the list, and the world waits
 behind them the way it waits behind every other card.
 
-### 5. Her timer could show -1:-1
+### 9. Her timer could show -1:-1
 A frame that arrives with a negative delta (a tab waking up, a clock stepping
 back) drove the run clock below zero and the HUD printed `-1:-1`. The
 accumulator is clamped at zero.
 
-### 6. Two old notes from `playtest-notes-claude.md`
+### 10. Two old notes from `playtest-notes-claude.md`
 Escape now closes the Controls panel when it is not waiting for a key, and
 "How to play" mentions the wardrobe, the ferris wheel and first person.
 
