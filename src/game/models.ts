@@ -49,6 +49,16 @@ export function modelBoxes(id: string): readonly ModelBox[] {
   return BOXES.get(id) ?? [];
 }
 
+/** Every registered model id, for the tools that sweep all of them. */
+export function modelIds(): string[] {
+  return [...FACTORIES.keys()];
+}
+
+/** The factory itself, whose own `userData.boxes` makeModel replaces. */
+export function modelFactory(id: string): ModelFactory | undefined {
+  return FACTORIES.get(id);
+}
+
 /**
  * The model's group, already carrying its boxes. An unregistered id draws
  * nothing rather than throwing: a missing model should leave a hole in the

@@ -722,6 +722,242 @@ const FLIGHTS = [
 const GLASS_ANGLE = 0.927; // toward Peppermint Plaza, from the mountain's corner
 const GLASS_RADIUS = 0.82;
 
+/**
+ * The candy-cane rail up the outside of the four flights, as collider posts in
+ * the mountain's own frame.
+ *
+ * The first real play of this park fell off the stairs going round them, and
+ * driving her off the outside of every tread at a run dropped her 119 times in
+ * 126 — the worst from the top flight, sixteen metres. The stairs were left
+ * unrailed on purpose, because a parapet built on a 1.5m tread leaves a walk
+ * she cannot fit along. This one stands just outside the tread instead, on the
+ * circle through its outer edge, so the whole tread stays walkable and only the
+ * square treads' corners, which poke out past that circle on the turns, are
+ * trimmed.
+ *
+ * Posts every RAIL_GAP along the curve, each RAIL_POST square: the gaps are too
+ * narrow for her to fit through, so separate boxes make one rail. Only the
+ * posts are solid; the drawing hangs a handrail across every third one. The
+ * bottom of the first flight is left open where the steps are still low, so
+ * she can walk straight on from the path.
+ */
+export const RAIL_GAP = 0.45;
+export const RAIL_POST = 0.3;
+/** The drawn handrail stands this far above the tread; the posts go a little higher. */
+export const RAIL_H = 1.05;
+const RAIL_SOLID = 1.3;
+/**
+ * The rim posts stand on the ledge, but the first steps of the flight beside
+ * them are already up to 0.9m above it: at 1.3m a rim post was only 0.38m above
+ * her feet on the second step, under her step-up, and she walked up on to it and
+ * over. So the rim is solid to well above anything she can step up from.
+ */
+const RIM_SOLID = 1.9;
+
+/** How far past the last tread a rail carries on, so she cannot run off the end of a flight. */
+const RAIL_CAP = 1.3;
+
+/** The radius a flight's rail stands at, and the angle it starts from (its first two steps are open). */
+function railRadius(f: (typeof FLIGHTS)[number]) {
+  return f.r + f.tread / 2 + RAIL_POST / 2;
+}
+function railStart(f: (typeof FLIGHTS)[number]) {
+  const t = Math.max(0, ((0.9 * f.n) / (f.toY - f.fromY) - 1) / (f.n - 1));
+  return f.a0 + f.span * t;
+}
+
+export function mountainRailPosts() {
+  const out: { x: number; z: number; foot: number; top: number; a: number; flight: number }[] = [];
+  FLIGHTS.forEach((f, fi) => {
+    const R = railRadius(f);
+    // past the last tread by RAIL_CAP along the curve: a child who reaches the
+    // top and keeps running round instead of turning on to the ring used to go
+    // straight off the end
+    const reach = f.span + RAIL_CAP / R;
+    const n = Math.max(2, Math.ceil((reach * R) / RAIL_GAP));
+    for (let i = 0; i <= n; i++) {
+      const t = (reach * i) / n / f.span;
+      const a = f.a0 + f.span * t;
+      // the top of the tread under this point of the curve (the last one's, past the end)
+      const walk = f.fromY + ((f.toY - f.fromY) * (1 + Math.min(1, t) * (f.n - 1))) / f.n;
+      // the first steps of every flight stay open: that is where she steps on,
+      // and the upper flights take her on from outside their own curve (the
+      // fourth starts beside the top of the third), so a rail there is a wall
+      // across the way up. A fall from them is onto the ledge, under a metre.
+      if (walk - f.fromY < 0.9) continue;
+      out.push({
+        x: Math.cos(a) * R,
+        z: Math.sin(a) * R,
+        foot: f.fromY > 0 ? f.fromY - 0.3 : 0,
+        top: walk,
+        a,
+        flight: fi,
+      });
+    }
+  });
+  return out;
+}
+
+/**
+ * The ice-cream rims round the three ledges, as colliders. They are drawn as a
+ * lumpy railing a metre and a half tall and were never solid, so walking round
+ * a ledge to the next flight she could go straight through one and drop: run at
+ * the edge, she went over 34 times in 41. Posts on the circle just inside the
+ * ledge's edge, under the lobes, with the same gaps the drawing leaves — except
+ * where the slide leaves the first ledge. The slide is not solid, so that gap
+ * was a hole to fall through; the collider closes it. Along the deck the third
+ * flight fills the ledge to its edge and carries its own rail, so the rim leaves
+ * that stretch to it.
+ */
+export function mountainRimBoxes() {
+  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+  const f = FLIGHTS;
+  // A gap is [angle, half-width in metres]: exactly as wide as the way on or
+  // off, not the half-radian the drawn lobes leave, which on the first ledge
+  // was nine metres of open edge beside a landing 2.6m wide.
+  const landing = (i: number) => [f[i]!.a0 + f[i]!.span, f[i]!.landing / 2 + 0.2] as [number, number];
+  const rims: { r: number; y: number; gaps: [number, number][]; skip: [number, number][] }[] = [
+    // the strawberry ring: open only where the first flight's landing comes in
+    { r: TIERS[0]!.r, y: TIERS[0]!.top, gaps: [landing(0)], skip: [] },
+    // the deck: open where the second flight lands; along the third flight,
+    // from where its own rail starts, the rail is the edge
+    { r: DECK.r, y: DECK.top, gaps: [landing(1)], skip: [[railStart(f[2]!), f[2]!.a0 + f[2]!.span + RAIL_CAP / railRadius(f[2]!)]] },
+    // the bubblegum ring: open where she steps across from the top of the
+    // third flight on to the fourth; from where the fourth's rail starts, it is
+    // the edge
+    { r: SCOOP.r, y: SCOOP.top, gaps: [[f[2]!.a0 + f[2]!.span, f[2]!.tread / 2 - 0.05]], skip: [[railStart(f[3]!), f[3]!.a0 + f[3]!.span + RAIL_CAP / railRadius(f[3]!)]] },
+  ];
+  const out: ReturnType<typeof bx>[] = [];
+  for (const rim of rims) {
+    const R = rim.r - RAIL_POST / 2 - 0.02;
+    const n = Math.ceil((Math.PI * 2 * R) / RAIL_GAP);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      if (rim.gaps.some(([g, half]) => Math.abs(wrap(a - g)) * R < half)) continue;
+      if (rim.skip.some(([s0, s1]) => wrap(a - s0) >= 0 && wrap(a - s0) <= s1 - s0)) continue;
+      const x = Math.cos(a) * R;
+      const z = Math.sin(a) * R;
+      // above the ledge by RIM_SOLID, or above the highest step beside it by
+      // the rail's own margin, whichever is higher
+      const top = Math.max(rim.y + RIM_SOLID, highestStepNear(x, z) + RAIL_SOLID);
+      out.push(bx(x, (rim.y - 0.3 + top) / 2, z, RAIL_POST, top - (rim.y - 0.3), RAIL_POST));
+    }
+  }
+  // An end wall across the top of every flight. The way off a flight is a
+  // turn inward, on to the ledge or the summit; carry straight on round the
+  // curve and she used to walk off the end of the last step, inside the rail.
+  for (const fl of f) {
+    const a = fl.a0 + fl.span + (fl.tread / 2 + 0.15) / fl.r;
+    const r0 = fl.r - fl.tread / 2;
+    const r1 = railRadius(fl);
+    const foot = fl.fromY > 0 ? fl.fromY - 0.3 : 0;
+    for (let r = r0; r <= r1 + 1e-6; r += RAIL_GAP) {
+      out.push(bx(Math.cos(a) * r, (foot + fl.toY + RAIL_SOLID) / 2, Math.sin(a) * r, RAIL_POST, fl.toY + RAIL_SOLID - foot, RAIL_POST));
+    }
+  }
+  return out;
+}
+
+/** The slide's two chutes, as the drawing lays them out: top height, bottom height, where each starts. */
+const SLIDE_TILT = 0.95;
+const SLIDE_W = 1.9;
+function slideStages() {
+  return [
+    { fromY: DECK.top, toY: TIERS[0]!.top, fromR: DECK.r - 0.4 },
+    { fromY: TIERS[0]!.top, toY: 0, fromR: TIERS[0]!.r - 0.2 },
+  ];
+}
+
+/**
+ * The slide, solid. It was decoration only, and at the foot of the mountain —
+ * and on the first ledge, where the upper chute comes down — she walked
+ * straight into it. It is solid now as a ramp under the chocolate, tiled from
+ * small upright squares because colliders cannot turn and the slide points at
+ * 214 degrees. Each square is a small step on from the one below it, so she can
+ * scramble up a slide the way every child does on a real one; she cannot get
+ * off at the top, because the rims there are closed. So it is still not a way
+ * up the mountain, which is what the stairs are for.
+ */
+export function mountainSlideBoxes() {
+  const CELL = 0.3;
+  const a = ICE_CREAM_MOUNTAIN.slideAngle;
+  // the chute's own frame: u out along the slide, v across it
+  const ux = Math.cos(a);
+  const uz = Math.sin(a);
+  const out: ReturnType<typeof bx>[] = [];
+  for (const st of slideStages()) {
+    const run = (st.fromY - st.toY) / Math.tan(SLIDE_TILT);
+    const u0 = st.fromR;
+    const u1 = st.fromR + run;
+    const corners = [
+      [u0, -SLIDE_W / 2],
+      [u0, SLIDE_W / 2],
+      [u1, -SLIDE_W / 2],
+      [u1, SLIDE_W / 2],
+    ].map(([u, v]) => [u! * ux - v! * uz, u! * uz + v! * ux]);
+    const xs = corners.map((c) => c[0]!);
+    const zs = corners.map((c) => c[1]!);
+    for (let x = Math.min(...xs); x < Math.max(...xs); x += CELL) {
+      for (let z = Math.min(...zs); z < Math.max(...zs); z += CELL) {
+        const cx = x + CELL / 2;
+        const cz = z + CELL / 2;
+        // back into the chute's frame: keep the cells whose middle is on it
+        const u = cx * ux + cz * uz;
+        const v = -cx * uz + cz * ux;
+        if (u < u0 || u > u1 || Math.abs(v) > SLIDE_W / 2 + 0.1) continue;
+        // under the surface at the cell's downhill edge, so nothing solid
+        // stands proud of the chocolate; the cells along each side stand as
+        // high as the lips drawn there, which keep her in the chute and which
+        // she could otherwise walk straight through at the bottom end
+        const lip = Math.abs(v) > SLIDE_W / 2 - 0.1 ? 0.55 : 0;
+        const top = st.fromY - (Math.min(u1, u + CELL * 0.71) - u0) * Math.tan(SLIDE_TILT) - 0.05 + lip;
+        if (top <= st.toY + 0.05) continue;
+        out.push(bx(cx, (st.toY + top) / 2, cz, CELL, top - st.toY, CELL));
+      }
+    }
+  }
+  // the seven cream lumps round the landing pad at the bottom, 0.85m tall: a
+  // square inside each, so the gaps between them stay a metre wide
+  const last = slideStages()[1]!;
+  const foot = last.fromR + (last.fromY - last.toY) / Math.tan(SLIDE_TILT);
+  for (let i = 0; i < 7; i++) {
+    const b = (i / 7) * Math.PI * 2;
+    const u = foot + 2.3 + Math.cos(b) * 2.2;
+    const v = Math.sin(b) * 2.2;
+    out.push(bx(u * ux - v * uz, 0.425, u * uz + v * ux, 0.92, 0.85, 0.92));
+  }
+  return out;
+}
+
+/**
+ * The rail's colliders: one box per post, from the flight's foot to well above
+ * the highest step she can be standing on beside it. On the tight upper spiral
+ * the square treads overlap so far that, next to a post, she can be two steps
+ * higher than the tread the post stands by; sized to that tread, the rail was
+ * within her step-up and she walked up on to it and over.
+ */
+export function mountainRailBoxes() {
+  return mountainRailPosts().map((p) => {
+    const stand = Math.max(p.top, highestStepNear(p.x, p.z));
+    return bx(p.x, (p.foot + stand + RAIL_SOLID) / 2, p.z, RAIL_POST, stand + RAIL_SOLID - p.foot, RAIL_POST);
+  });
+}
+
+/** The top of the highest tread she could be standing on beside a post at (x, z). */
+function highestStepNear(x: number, z: number) {
+  const reach = RAIL_POST / 2 + 0.5;
+  let top = 0;
+  for (const f of FLIGHTS) {
+    for (let k = 1; k <= f.n; k++) {
+      const a = f.a0 + (f.span * (k - 1)) / (f.n - 1);
+      if (Math.abs(x - Math.cos(a) * f.r) < f.tread / 2 + reach && Math.abs(z - Math.sin(a) * f.r) < f.tread / 2 + reach) {
+        top = Math.max(top, f.fromY + ((f.toY - f.fromY) * k) / f.n);
+      }
+    }
+  }
+  return top;
+}
+
 export const ICE_CREAM_MOUNTAIN = {
   /** four flights: 12 + 12 of 0.35m, then 10 of 0.46m and 8 of 0.475m */
   steps: FLIGHTS.reduce((n, f) => n + f.n, 0),
@@ -789,10 +1025,21 @@ export const ICE_CREAM_MOUNTAIN = {
  */
 function discBoxes(r: number, minY: number, maxY: number, band = 0.8): CandyBox[] {
   const bands = Math.max(6, Math.ceil((2 * r) / band));
+  const step = (2 * r) / bands;
+  // The two tip bands are cut into eighths: whole, the outermost one is
+  // narrower than 0.4m at its outer edge and was skipped, leaving most of a
+  // band of drawn drum at the far north and south she could walk into.
+  const edges: number[] = [];
+  for (let i = 0; i <= bands; i++) {
+    const z = -r + step * i;
+    if (i === 1 || i === bands) for (let q = 1; q < 8; q++) edges.push(z - step + (step * q) / 8);
+    edges.push(z);
+  }
+  edges.sort((a, b) => a - b);
   const out: CandyBox[] = [];
-  for (let i = 0; i < bands; i++) {
-    const z0 = -r + (2 * r * i) / bands;
-    const z1 = -r + (2 * r * (i + 1)) / bands;
+  for (let i = 0; i + 1 < edges.length; i++) {
+    const z0 = edges[i]!;
+    const z1 = edges[i + 1]!;
     const w = Math.sqrt(Math.max(0, r * r - Math.max(Math.abs(z0), Math.abs(z1)) ** 2));
     if (w < 0.4) continue;
     out.push({ minX: -w, maxX: w, minY, maxY, minZ: z0, maxZ: z1 });
@@ -897,8 +1144,9 @@ function arcGap(a0: number, span: number): number[] {
  * foot the route reads as one spiral: there is never a moment on the mountain
  * where the next set of steps is behind her.
  *
- * The slide is decoration, not a collider: the game has no chute-riding code,
- * and a solid ramp would be a second way to the top that skips the climb.
+ * The slide is solid but it is no way up: a ramp under the chocolate that she
+ * can scramble up, closed off at the top by the rims (see mountainSlideBoxes),
+ * because a slide she could climb off the top of would skip the stairs.
  */
 export function makeIceCreamMountain(seed = 20260921) {
   const g = new THREE.Group();
@@ -914,7 +1162,7 @@ export function makeIceCreamMountain(seed = 20260921) {
    * there is no invisible wall along the ring.
    */
   const drum = (r: number, fromY: number, toY: number, color: string) => {
-    const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.04, toY - fromY, 24), flat(color, 0.5));
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.025, toY - fromY, 24), flat(color, 0.5));
     d.position.y = (fromY + toY) / 2;
     d.castShadow = true;
     d.receiveShadow = true;
@@ -954,7 +1202,7 @@ export function makeIceCreamMountain(seed = 20260921) {
   // ---- the lower scoop: strawberry, with the ring on top
   const T0 = TIERS[0]!;
   drum(T0.r, 0, T0.top, T0.color);
-  for (const b of discBoxes(T0.r, 0, T0.top)) boxes.push(b);
+  for (const b of discBoxes(T0.r, 0, T0.top, 0.3)) boxes.push(b);
   lobeRing(T0.r, T0.top, T0.color, true, 0, FLIGHTS[0]!.a0 + FLIGHTS[0]!.span, M.slideAngle);
   // a second row halfway down the side: without it the drum is a drum, and the
   // whole mountain reads as a layer cake
@@ -965,7 +1213,7 @@ export function makeIceCreamMountain(seed = 20260921) {
   // ---- the upper drum: mint, then vanilla, with the deck on top
   drum(DECK.r, 0, DECK.seam, DECK.lower);
   drum(DECK.r, DECK.seam, DECK.top, DECK.color);
-  for (const b of discBoxes(DECK.r, 0, DECK.top)) boxes.push(b);
+  for (const b of discBoxes(DECK.r, 0, DECK.top, 0.3)) boxes.push(b);
   lobeRing(DECK.r, DECK.seam, DECK.lower, false, 0.5);
   lobeRing(DECK.r, DECK.top, DECK.color, true, 0.2, FLIGHTS[1]!.a0 + FLIGHTS[1]!.span);
   sauce(DECK.r, DECK.seam, 5, 1.1);
@@ -1011,7 +1259,14 @@ export function makeIceCreamMountain(seed = 20260921) {
       // A nosing on each tread, so the flight is legible from the grass. It is
       // cream, not icing white: a flat white strip in full sun blooms out into
       // a glowing bar and the stair looked like it was on fire.
-      turned(g, mesh(boxGeo, CREAM, f.tread * 0.95, 0.12, 0.26, x + Math.cos(a) * (f.tread / 2 - 0.22), top + 0.06, z + Math.sin(a) * (f.tread / 2 - 0.22), false), 0, -a, 0);
+      // It is turned to face down the flight and the tread's collider is not,
+      // so it is cut to what fits inside the square: full width, its ends hung
+      // half a metre out into the air past the corners of the steps.
+      const off = f.tread / 2 - 0.22;
+      const c = Math.abs(Math.cos(a));
+      const sn = Math.abs(Math.sin(a));
+      const nose = Math.min(f.tread * 0.95, (f.tread - 0.26 * c - 2 * off * c) / Math.max(sn, 1e-3), (f.tread - 0.26 * sn - 2 * off * sn) / Math.max(c, 1e-3));
+      turned(g, mesh(boxGeo, CREAM, Math.max(0.5, nose), 0.12, 0.26, x + Math.cos(a) * off, top + 0.06, z + Math.sin(a) * off, false), 0, -a, 0);
     }
     // the landing: level with the ring, reaching from under the last tread to
     // well inside the drum, so there is no gap to step over at the top. The
@@ -1024,6 +1279,31 @@ export function makeIceCreamMountain(seed = 20260921) {
     g.add(mesh(boxGeo, CREAM, f.landing, 0.5, f.landing, lx, f.toY - 0.25, lz, false));
     boxes.push(bx(lx, f.toY - 0.3, lz, f.landing, 0.6, f.landing));
   }
+
+  // ---- the rail up the outside of the flights (see mountainRailPosts)
+  const posts = mountainRailPosts();
+  for (const b of mountainRailBoxes()) boxes.push(b);
+  for (const b of mountainRimBoxes()) boxes.push(b);
+  const drawn = posts.filter((_, i) => i % 3 === 0 || posts[i + 1]?.flight !== posts[i]!.flight);
+  drawn.forEach((p, i) => {
+    const red = i % 2 === 0;
+    const h = p.top + RAIL_H - p.foot;
+    g.add(mesh(cylGeo, red ? RED : ICING, 0.08, h, 0.08, p.x, p.foot + h / 2, p.z, false));
+    g.add(mesh(sphereGeo, red ? ICING : RED, 0.11, 0.09, 0.11, p.x, p.top + RAIL_H + 0.02, p.z, false));
+    const q = drawn[i + 1];
+    if (!q || q.flight !== p.flight) return;
+    // the handrail and a rail at knee height, from this post to the next
+    for (const [lift, col, r] of [
+      [RAIL_H, PINK, 0.06],
+      [0.5, ICING, 0.045],
+    ] as const) {
+      const a = new THREE.Vector3(p.x, p.top + lift, p.z);
+      const b = new THREE.Vector3(q.x, q.top + lift, q.z);
+      const seg = mesh(cylGeo, col, r, a.distanceTo(b), r, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, false);
+      seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      g.add(seg);
+    }
+  });
 
   // ---- the deck: whipped cream round the rim, with gaps where the flight
   // arrives and where the slide leaves, and a cherry in the middle
@@ -1097,10 +1377,9 @@ export function makeIceCreamMountain(seed = 20260921) {
    * leave at a slant, which walked her past the end of the stair and off the
    * side of the mountain.
    *
-   * The stair itself gets no rail, here or lower down: a tread is 1.5m and
-   * she is 0.68m across, so a parapet on one would leave a gap she cannot
-   * walk through. The summit is railed because it is the one place up here
-   * she is meant to stand still in.
+   * The stair is railed too now, but from outside the treads rather than on
+   * them (see mountainRailPosts): a parapet on a 1.5m tread would leave a walk
+   * she cannot fit along.
    */
   for (const s of [-1, 1]) caneAt(sa + s * 0.38, railR + 0.15, sy, s > 0);
   // the hoop across the tops of the canes, drawn only: it is above the boxes
@@ -1128,18 +1407,21 @@ export function makeIceCreamMountain(seed = 20260921) {
   // rim five metres up and four out, which at any angle a child would ride
   // puts the bottom end nineteen metres from the middle of the mountain; the
   // first try just tunnelled through the strawberry scoop instead. Two short
-  // flights down the terraces is both shorter and more fun. Decoration only,
-  // as the doc comment says, so none of it is a collider.
+  // flights down the terraces is both shorter and more fun. Solid now, as a
+  // ramp under the chocolate (see mountainSlideBoxes).
   const slide = new THREE.Group();
   slide.rotation.y = -M.slideAngle;
   g.add(slide);
-  const tilt = 0.95;
+  const tilt = SLIDE_TILT;
+  for (const b of mountainSlideBoxes()) boxes.push(b);
   const stage = (fromY: number, toY: number, fromR: number) => {
     const drop = fromY - toY;
     const len = drop / Math.sin(tilt);
     const run = drop / Math.tan(tilt);
     const chute = new THREE.Group();
-    chute.position.set(fromR + run / 2, (fromY + toY) / 2, 0);
+    // the extra half metre is all at the top, tucked into the drum: hanging off
+    // the bottom it stood the lips up out of the grass past the end of the run
+    chute.position.set(fromR + run / 2 - 0.25 * Math.cos(tilt), (fromY + toY) / 2 + 0.25 * Math.sin(tilt), 0);
     chute.rotation.z = -tilt;
     chute.add(cm(boxGeo, "#5a3520", len + 0.5, 0.3, 1.9, 0, 0, 0));
     for (const sgn of [-1, 1]) chute.add(cm(boxGeo, CHOC_LIGHT, len + 0.5, 0.5, 0.2, 0, 0.34, sgn * 0.95, false));

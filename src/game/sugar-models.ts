@@ -24,6 +24,9 @@ import {
   makeGingerbreadHouse,
   makeGumballMachine,
   makeIceCreamMountain,
+  mountainRailBoxes,
+  mountainRimBoxes,
+  mountainSlideBoxes,
 } from "./candy-builds";
 import {
   BOAT,
@@ -180,8 +183,8 @@ export function model(id: string, x: number, z: number, extra?: Partial<ModelPro
 
 /**
  * The buildings. Their boxes live in sugar-model-boxes.ts, read out of the real
- * meshes: to refresh them, open the park in a browser and dump
- * `makeX().userData.boxes` the way that file's comment describes.
+ * meshes: that file's comment says how to read them out again, and
+ * tools/model-boxes.ts fails when one has fallen behind its drawing.
  */
 const rows = (list: Row[]): ModelBox[] =>
   list.map(([minX, maxX, minY, maxY, minZ, maxZ]) => box(minX, maxX, minY, maxY, minZ, maxZ));
@@ -206,7 +209,13 @@ registerModel(
   ],
   () => makeCandyFactory(),
 );
-registerModel("ice-cream-mountain", rows(MOUNTAIN), () => makeIceCreamMountain());
+// the captured shell, plus the stair rail from the one function that also
+// draws it — the snapshot cannot know about a rail added after it was taken
+registerModel(
+  "ice-cream-mountain",
+  [...rows(MOUNTAIN), ...mountainRailBoxes(), ...mountainRimBoxes(), ...mountainSlideBoxes()],
+  () => makeIceCreamMountain(),
+);
 registerModel("choc-boat", rows(BOAT), () => makeChocolateBoat());
 // built at 1: placeModel scales the group, and the factory scaling itself as
 // well drew the fairground's 1.6 machine at 2.56 — a metre bigger all round
