@@ -111,6 +111,8 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
     push(aabbFromCenter(x, 0.15, z + 5.2, 3.2, 0.3, 0.8), "wheel step", -1);
   }
 
+  // the candy princess's gown: she used to be walked straight through
+  if (feat.princess) push(aabbFromCenter(feat.princess.x, 1.0, feat.princess.z, 1.4, 2.0, 1.4), "the princess", -1);
   if (level.emmettBase) truckColliders(feat.emmettBase).forEach((b, i) => push(b, "monster truck", -1 - i));
   if (level.zoo) zooColliders(feat.zoo).forEach((b, i) => push(b, b.label, -1 - i));
 

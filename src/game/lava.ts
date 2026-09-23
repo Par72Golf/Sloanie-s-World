@@ -430,6 +430,29 @@ function walkInSpot(): [number, number] {
 
 export let LAVA_START: [number, number] = walkInSpot();
 
+/** Is she on the course, or on its way in or out? */
+export function onLavaCourse(x: number, z: number) {
+  const f = lavaFootprint(0.5);
+  return x > f.minX && x < f.maxX && z > f.minZ && z < f.maxZ;
+}
+
+/**
+ * Where the i-th pet or creature following her waits while she is on the
+ * course: back from the foot of the steps, either side of her way in.
+ *
+ * Followers used to follow her on, and a follower that falls behind is popped
+ * in right behind her, so every one of them dropped into the lava, popped back
+ * up behind her and dropped in again, the whole way round.
+ */
+export function lavaWaitSpot(i: number): [number, number] {
+  const ax = DX[DECK.dir];
+  const az = DZ[DECK.dir];
+  // past the bottom of the deck's steps, then out to either side of them
+  const back = alongSize(DECK) / 2 + stepCount(DECK.top) * 0.8 + 1.6;
+  const side = (i % 2 ? -1 : 1) * (2.2 + Math.floor(i / 2) * 1.3);
+  return [DECK.cx - ax * back - az * side, DECK.cz - az * back + ax * side];
+}
+
 /* ------------------------------------------------------- where things are */
 
 /**

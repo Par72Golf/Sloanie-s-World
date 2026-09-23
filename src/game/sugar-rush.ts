@@ -126,6 +126,15 @@ export const SUGAR = {
   fair: { x: -104, z: 104 },
   lake: { x: 130, z: 130, r: 15 },
   emmett: { x: 120, z: 45 },
+  /**
+   * The candy princess, who gives the park its errand. She stood in a clearing
+   * deep in the Lollipop Forest, a hundred metres from where Sloan arrives;
+   * the one who sets the errand belongs at the start. Now she is the first
+   * thing in view, a few steps ahead and to the left, clear of the walk down
+   * to the plaza and of the stand beside the spawn, which hid her from the
+   * camera behind Sloan.
+   */
+  princess: { x: -3, z: 28.5 },
 } as const;
 
 /**
@@ -490,7 +499,7 @@ function scatter(
 
 /* ------------------------------------------------------------- regions */
 
-/** The Lollipop Forest: this park's woods, and the princess's clearing. */
+/** The Lollipop Forest: this park's woods, and the clearing at its heart. */
 /**
  * The Lollipop Forest.
  *
@@ -500,10 +509,10 @@ function scatter(
  * over the region gave a solid mat of lollipops with no way in and nothing to
  * look at, which is what "sprinkled everywhere" meant.
  *
- * So: a trail from the park's west path to the princess's clearing, copses set
+ * So: a trail from the park's west path to the clearing, copses set
  * either side of it, the biggest trees in the middle of each copse and the
  * smallest at the rim, an understorey only where a copse is, and glades left
- * genuinely empty. The clearing at the heart of it stays open for the quest.
+ * genuinely empty. The clearing at the heart of it stays open.
  */
 /** The wood's paths, in world coordinates: one in from the east, one north. */
 export const FOREST_TRAIL: [number, number][] = [
@@ -873,14 +882,24 @@ export const WHEEL = { x: SUGAR.fair.x + 6, z: SUGAR.fair.z - 10 };
  * never touch. Without the blades of grass the ground is one flat colour, and
  * a park you cross in a minute needs the ground to change under you.
  */
-export function frostingProps(keepOut: [number, number][], already: Prop[]): Prop[] {
+export function frostingProps(
+  keepOut: [number, number][],
+  already: Prop[],
+  /** flat ground built outside the prop list, such as the truck yard's dirt */
+  bare: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [],
+): Prop[] {
   /*
    * Every other flat thing in the park — aprons, lawns, squares, the garden's
    * beds — sits at the same height as these patches, and two flat surfaces at
    * one height flicker. So a patch is only laid where the ground is genuinely
    * bare: this walks what has already been placed and keeps clear of it.
    */
-  const flats: { x: number; z: number; hw: number; hd: number }[] = [];
+  const flats: { x: number; z: number; hw: number; hd: number }[] = bare.map((b) => ({
+    x: (b.minX + b.maxX) / 2,
+    z: (b.minZ + b.maxZ) / 2,
+    hw: (b.maxX - b.minX) / 2,
+    hd: (b.maxZ - b.minZ) / 2,
+  }));
   for (const p of already) {
     if (p.kind === "box" && p.size[1] <= 0.3) {
       const rot = (p.ry ?? 0) !== 0;

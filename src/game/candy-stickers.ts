@@ -894,7 +894,7 @@ export function candyStickerSpots(): StickerSpot[] {
       id: "gummy",
       pos: at(SUGAR.forest.x - 7.5, SUGAR.forest.z + 9),
       area: "the Lollipop Forest",
-      hint: "A gummy bear is hiding in the lollipop woods, south of the princess's clearing.",
+      hint: "A gummy bear is hiding in the lollipop woods, south of the big clearing.",
     },
     {
       id: "swirlpop",

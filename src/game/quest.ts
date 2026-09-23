@@ -4,6 +4,7 @@ import { PET_QUEST } from "./collectibles";
 import { moveAndCollide, type AABB, type Capsule } from "./collision";
 import { animatePet, makePet, PETS, type PetKind, type PetMode, type PetRig } from "./pets";
 import { animateFarmer, makeFarmer, makeFeatherTrail, makeHidingMarker, makePawTrail, makeTreat, type FarmerRig } from "./quest-mesh";
+import { lavaWaitSpot, onLavaCourse } from "./lava";
 import { useGame } from "./store";
 import type { PetKindId } from "./types";
 
@@ -456,6 +457,8 @@ export class QuestWorld {
       } else if (w.happyT > 0) {
         w.speed = 0;
         w.mode = "happy";
+      } else if (onLavaCourse(her.x, her.z)) {
+        w.mode = waitOffLava(w, j, her, dt, colliders, groundY) ?? "sit";
       } else if (j === 0 && sniffAt) {
         // a dumpling nearby: the lead pet trots ahead of her, nose down
         const d = Math.hypot(sniffAt.x - her.x, sniffAt.z - her.z) || 1;
@@ -585,6 +588,31 @@ function separatePass(herd: Walker[], her: { x: number; y: number; z: number }) 
       b.cap.z += dz * k;
     }
   }
+}
+
+/**
+ * While she is on the floor-is-lava course, a follower waits beside the foot
+ * of its steps, sitting and watching her, and picks up following again when
+ * she comes off. Returns the mode, or null when she is not on the course.
+ */
+export function waitOffLava(
+  w: Walker,
+  slot: number,
+  her: { x: number; y: number; z: number; yaw: number; speed: number },
+  dt: number,
+  colliders: AABB[],
+  groundY: number,
+): PetMode | null {
+  if (!onLavaCourse(her.x, her.z)) return null;
+  const [sx, sz] = lavaWaitSpot(slot);
+  // walked to as if she were standing there, so a follower that is stuck or
+  // far behind is popped on to its spot, not on to the course behind her
+  const spot = { x: sx, y: groundY, z: sz, yaw: her.yaw, speed: 0 };
+  const left = walkTo(w, sx, sz, spot, dt, colliders, groundY);
+  if (left > 0.4) return "follow";
+  w.speed = 0;
+  w.heading = Math.atan2(her.x - w.cap.x, her.z - w.cap.z);
+  return "sit";
 }
 
 /** Follow a spot behind and beside her. Returns the animation mode. */

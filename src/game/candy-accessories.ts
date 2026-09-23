@@ -102,7 +102,7 @@ export const CANDY_ACCESSORIES: AccessoryDef[] = [
     id: "rainbowwings",
     name: "Rainbow candy wings",
     slot: "back",
-    hint: "In the princess's clearing, deep in the Lollipop Forest.",
+    hint: "In the big clearing, deep in the Lollipop Forest.",
   },
   {
     id: "canecrook",
@@ -206,7 +206,7 @@ export function candyAccessorySpots(): NonNullable<LevelDef["accessories"]> {
       pos: [SUGAR.mountain.x + 10, 0, SUGAR.mountain.z + 11],
       region: "Ice Cream Mountain",
     },
-    // the edge of the princess's clearing in the wood
+    // the edge of the clearing in the heart of the wood
     {
       id: "rainbowwings",
       pos: [SUGAR.forest.x + 9.5, 0, SUGAR.forest.z - 6],

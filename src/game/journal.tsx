@@ -406,7 +406,7 @@ function JobsTab() {
         <p className="text-sm font-semibold leading-snug text-ink-soft lg:text-base">
           {fixed
             ? "You started it again, and the river runs chocolate all the way to the lake."
-            : "It has stopped, so the river is running white. The candy princess in the Lollipop Forest knows what is missing."}
+            : "It has stopped, so the river is running white. The candy princess, right where you arrived, knows what is missing."}
         </p>
         {!fixed && (
           <ul className="grid gap-2">

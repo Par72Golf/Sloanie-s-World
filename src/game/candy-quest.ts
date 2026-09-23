@@ -74,8 +74,10 @@ export const FACTORY_PARTS: { id: PartId; name: string; pos: [number, number]; r
   },
 ];
 
-/** Her clearing in the Lollipop Forest. */
-export const PRINCESS = { x: SUGAR.forest.x + 3, z: SUGAR.forest.z + 4 };
+/** Where she stands: right by where Sloan arrives (SUGAR.princess). */
+export const PRINCESS = SUGAR.princess;
+/** facing the spot Sloan arrives at, so the first thing she sees is her face */
+const FACING = Math.atan2(SUGAR.spawn[0] - PRINCESS.x, SUGAR.spawn[2] - PRINCESS.z);
 /** how near she has to stand to be offered a word */
 export const TALK_R = 2.8;
 const PICK_R = 1.8;
@@ -241,12 +243,13 @@ export class CandyQuest {
 
   constructor(private scene: THREE.Scene) {
     this.princess.position.set(PRINCESS.x, 0, PRINCESS.z);
-    this.princess.rotation.y = Math.PI * 0.15;
+    this.princess.rotation.y = FACING;
     this.group.add(this.princess);
 
+    // her name over her head, a step behind her, read from where she is faced
     this.board = signBoard("The Candy Princess", 3.4, 0.7);
-    this.board.position.set(PRINCESS.x, 2.9, PRINCESS.z + 2.6);
-    this.board.rotation.y = Math.PI;
+    this.board.position.set(PRINCESS.x - Math.sin(FACING) * 0.9, 2.9, PRINCESS.z - Math.cos(FACING) * 0.9);
+    this.board.rotation.y = FACING;
     this.group.add(this.board);
 
     for (const def of FACTORY_PARTS) {

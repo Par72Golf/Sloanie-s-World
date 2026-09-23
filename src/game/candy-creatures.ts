@@ -6,7 +6,7 @@ import { boxGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 import { makePet, animatePet, type PetKind, type PetRig } from "./pets";
 import { candyHouseSpots } from "./sugar-home";
 import { CREATURE_SPOTS } from "./sugar-rush";
-import { makeWalker, placeWalker, followHer, followLead, separateHerd, LEAD_BACK, TRAIN_GAP, type Walker } from "./quest";
+import { makeWalker, placeWalker, followHer, followLead, separateHerd, waitOffLava, LEAD_BACK, TRAIN_GAP, type Walker } from "./quest";
 import { useGame } from "./store";
 
 /**
@@ -574,9 +574,9 @@ export class CandyCreatures {
       }
       h.rig.group.visible = true;
       // the first walks a slot behind her, the rest in its wake
-      h.walker.mode = lead
-        ? followLead(h.walker, lead, her, dt, colliders, this.groundY)
-        : followHer(h.walker, her, LEAD_BACK, 0, dt, colliders, this.groundY);
+      h.walker.mode =
+        waitOffLava(h.walker, train.length, her, dt, colliders, this.groundY) ??
+        (lead ? followLead(h.walker, lead, her, dt, colliders, this.groundY) : followHer(h.walker, her, LEAD_BACK, 0, dt, colliders, this.groundY));
       lead = h.walker;
       train.push(h.walker);
     }

@@ -177,6 +177,9 @@ export class BoatRide {
     return this.at != null;
   }
 
+  /** The way the boat is heading while she rides it, for her to face. */
+  facing: [number, number] | null = null;
+
   /** Standing on the jetty with the boat moored at it. */
   near(x: number, y: number, z: number) {
     if (this.riding) return false;
@@ -193,8 +196,8 @@ export class BoatRide {
   }
 
   /**
-   * Move the boat, and the passenger with it. Called after physics, so the
-   * capsule it stamps is the last word on where she is this frame.
+   * Move the boat, and the passenger with it. Called from the physics step,
+   * before she and the camera are placed from the capsule it stamps.
    */
   update(dt: number, cap: { x: number; y: number; z: number }) {
     // a frame can arrive with a negative delta when the page's own loop and a
@@ -217,6 +220,7 @@ export class BoatRide {
     const last = RIVER_PATH.length - 3;
     if (this.at >= last) {
       this.at = null;
+      this.facing = null;
       useGame.getState().setRiding(false);
       useGame.getState().setEmmettNotice("The chocolate lake! Off you hop.");
       cap.x = this.land.x;
@@ -229,7 +233,9 @@ export class BoatRide {
     this.boat.rotation.y = Math.atan2(p.dx, p.dz);
     this.boat.rotation.z = Math.sin(this.t * 1.6) * 0.035;
     cap.x = p.x;
-    cap.y = 1.05;
+    // on the seat, rising and falling with the boat rather than hanging still over it
+    cap.y = this.boat.position.y + 0.93;
     cap.z = p.z;
+    this.facing = [p.dx, p.dz];
   }
 }

@@ -57,6 +57,7 @@ import {
   podiumSteps,
   lavaColliders,
   lavaFootprint,
+  lavaWaitSpot,
   lavaTickets,
   newLavaState,
   overLava,
@@ -1146,6 +1147,21 @@ console.log("\nthe prize");
   check(lavaTickets(true) > lavaTickets(false), `the first crossing pays more (${lavaTickets(true)} tickets, then ${lavaTickets(false)})`);
   const { s, failed } = crossing(11.3);
   check(failed == null && s.on === PODIUM.index, "a crossing ends standing on the prize podium");
+}
+
+/* ------------------------------------------------- where followers wait */
+
+// Her pets (park 1) and the freed candy creatures (Sugar Rush) wait beside
+// the steps while she is on the course; the spot has to be open ground she
+// is not on her way through, not in the lava and not inside anything.
+const onLavaStairs = (x: number, z: number) => deckSteps().some((st) => Math.abs(x - st.cx) < st.w / 2 + 0.4 && Math.abs(z - st.cz) < st.d / 2 + 0.4);
+for (let i = 0; i < 4; i++) {
+  const [x, z] = lavaWaitSpot(i);
+  const inside = [...park, ...lavaColliders(newLavaState())].some(
+    (b) => x > b.minX - 0.3 && x < b.maxX + 0.3 && z > b.minZ - 0.3 && z < b.maxZ + 0.3 && b.maxY > 0.3 && b.minY < 1,
+  );
+  const [sx, sz] = LAVA_START;
+  check(!inside && !overLava(x, z) && Math.hypot(x - sx, z - sz) > 1.8 && !onLavaStairs(x, z), `follower ${i + 1} waits on open ground beside the way in (${f1(x)}, ${f1(z)})`);
 }
 
 /* ---------------------------------------------------------------- summary */

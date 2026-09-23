@@ -9,7 +9,7 @@ import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
 import { QuestWorld } from "./quest";
 import { GolfWorld, golfInput, golfPose } from "./minigolf";
-import { LavaWorld } from "./lava";
+import { LavaWorld, onLavaCourse } from "./lava";
 import { LookingGlass } from "./looking-glass";
 import { candyStickers } from "./candy-stickers";
 import { ChocFactoryInside, useChocFactory } from "./choc-factory-inside";
@@ -22,7 +22,7 @@ import { Flyover, flyoverFor } from "./flyover";
 import { WhackWorld, useWhack } from "./whack-a-gummy";
 import { SorterWorld, useSorter } from "./sweet-sorter";
 import { BoatRide } from "./boat-ride";
-import { CarouselRide } from "./carousel-ride";
+import { CAROUSEL as CUPCAKE_RIDE, CarouselRide } from "./carousel-ride";
 import { BowlsWorld, bowlsInput, bowlsPose } from "./bowls";
 import { TossWorld, tossInput, tossPose, useToss } from "./marshmallow-toss";
 import { StickerWorld } from "./stickers-world";
@@ -924,7 +924,17 @@ export class GameRuntime {
       st.golfPlaying ||
       st.bowlsPlaying ||
       tossPose.active ||
-      st.riding;
+      st.riding ||
+      // The other fairground games, the sweet shop, the telescope and the lava
+      // course: anywhere her hands are full with something else. Whack-a-Gummy
+      // was missing, and he tagged her while she was stamping on gummies.
+      useWhack.getState().playing ||
+      useWhack.getState().card != null ||
+      useSorter.getState().playing ||
+      useSorter.getState().card != null ||
+      st.sweetShop ||
+      !!this.lookingGlass?.active ||
+      (!!this.lavaWorld && onLavaCourse(this.cap.x, this.cap.z));
 
     const collected = st.collected[st.levelIndex] ?? [];
     const caught = this.emmett.update(
@@ -1278,7 +1288,7 @@ export class GameRuntime {
     const lz = this.cap.z - at.z;
     const near = lx * lx + lz * lz < 30 * 30;
     const st = useGame.getState();
-    const playing = st.phase === "playing" && !st.quiz && !st.rps && !st.carnival && !this.ride && !this.carouselRide;
+    const playing = st.phase === "playing" && !st.quiz && !st.rps && !st.carnival && !this.carried;
 
     const PERIOD = 7;
     s.jets.forEach((j, i) => {
@@ -1563,7 +1573,7 @@ export class GameRuntime {
    * she jumped from.
    */
   keepOffCheck() {
-    if (!this.grounded || this.ride || this.carouselRide) return;
+    if (!this.grounded || this.carried) return;
     const zone = this.level.noJump?.find(
       (z) =>
         z.keepOff != null &&
@@ -1669,7 +1679,7 @@ export class GameRuntime {
   /** At his truck while he's home: close to the talk spot, or close to him on his laps. */
   emmettTalkReady() {
     const e = this.emmett;
-    if (!e || !this.level.emmettBase || e.state !== "home" || this.ride || this.carouselRide || this.cap.y > 2) return false;
+    if (!e || !this.level.emmettBase || e.state !== "home" || this.carried || this.cap.y > 2) return false;
     // while he is resting between games there is nothing to press — but a
     // course is not a game he has to recover from, and a child who has just
     // missed a time by a second should be able to go again at once
@@ -1951,6 +1961,12 @@ export class GameRuntime {
     } else if (this.carouselRide) {
       // watch the carousel go round from outside the fence, by the ring arm
       desired.set(CAROUSEL.x + 10, 5, CAROUSEL.z - 11);
+    } else if (this.cupcakes?.riding) {
+      // The cupcakes, from outside and under the canopy's edge, off to the
+      // side of the way in so the ride's name board is not in the shot. The
+      // usual boom swung in behind her seat and sat inside the canopy or the
+      // next cupcake round, and the screen went solid pink.
+      desired.set(CUPCAKE_RIDE.x + 9, 2.4, CUPCAKE_RIDE.z + 6);
     } else if (this.tossWorld?.playing) {
       // the marshmallow toss: off the side of the lane, so a lob reads as an arc
       this.tossWorld.camera(desired, this.lookAt);
@@ -2016,6 +2032,11 @@ export class GameRuntime {
     this.camera.lookAt(this.lookAt);
   }
 
+  /** The wheel, either carousel or the boat: something else decides where she is. */
+  get carried() {
+    return !!this.ride || !!this.carouselRide || !!this.boat?.riding || !!this.cupcakes?.riding;
+  }
+
   physics(dt: number) {
     const st = useGame.getState();
     const qa = Boolean(window.__controlsTest && (isDown("KeyW") || isDown("KeyA") || isDown("KeyD") || isDown("KeyS")));
@@ -2032,8 +2053,7 @@ export class GameRuntime {
         !st.sweetShop &&
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
-      !this.ride &&
-      !this.carouselRide &&
+      !this.carried &&
       // putting takes her controls the way the carousel does
       !st.golfPlaying &&
       !st.bowlsPlaying &&
@@ -2137,8 +2157,25 @@ export class GameRuntime {
       sfx.jump();
     }
 
-    if (this.ride || this.carouselRide) {
-      // the wheel or the carousel carries her; their updates set the capsule
+    /*
+     * The rides move here, on the physics step, and before she and the camera
+     * are placed from the capsule. They used to move once per drawn frame,
+     * after this step had already placed her, so she was drawn where the ride
+     * had been a frame ago — less a frame of gravity, since the boat and the
+     * cupcakes did not stop it — while the ride itself was drawn where it is
+     * now. On any screen not drawing at exactly 60 a second that is a rider
+     * shuddering in her seat: the glitchy boat and cupcake rides.
+     */
+    this.updateRide(dt);
+    this.boat?.update(dt, this.cap);
+    this.cupcakes?.update(dt, this.cap);
+    this.updateCarousel(dt);
+    // she faces the way the boat or her cupcake is going (forward is -sin, -cos)
+    const facing = (this.boat?.riding && this.boat.facing) || (this.cupcakes?.riding && this.cupcakes.facing);
+    if (facing) this.yaw = Math.atan2(-facing[0], -facing[1]);
+
+    if (this.carried) {
+      // a ride carries her; its update has set the capsule
       this.velY = 0;
       this.grounded = true;
       this.speed = 0;
@@ -2478,7 +2515,7 @@ export class GameRuntime {
             z: this.cap.z,
             yaw: this.yaw,
             speed: this.speed,
-            carried: !!this.ride || !!this.carouselRide,
+            carried: this.carried,
             paused,
           },
           this.world.colliders,
@@ -2520,10 +2557,6 @@ export class GameRuntime {
     this.updateJuice(dt);
     this.updateDoors(dt);
     this.updatePickups(dt);
-    this.updateRide(dt);
-    this.boat?.update(dt, this.cap);
-    this.cupcakes?.update(dt, this.cap);
-    this.updateCarousel(dt);
     this.updateEmmett(dt);
     this.updateCelebration(dt);
 
@@ -2776,7 +2809,7 @@ export class GameRuntime {
     this.flyWas = st.fly;
     this.animateWorld(raw);
     this.hud(raw);
-    const carried = this.ride || this.carouselRide;
+    const carried = this.carried;
     if (this.firstPerson && !carried) this.updateHands();
     else this.hands.group.visible = false;
     if (this.firstPerson && !carried) this.hands.group.visible = true;

@@ -624,7 +624,7 @@ function helpLines(levelIndex: number): string[] {
       `Open your bag and your jobs list with ${bindingLabel("journal")}.`,
       "The candy sticker book is near the start. 20 stickers are hiding in the park.",
       "Grab a cotton candy to run super fast for a little while.",
-      "The candy princess is in the Lollipop Forest. Her factory has stopped — that is why the river is white.",
+      "The candy princess is waiting right where you arrive. Her factory has stopped — that is why the river is white.",
       "Her three creatures are stuck. One is up a tree, one is in the bog and one is set in toffee.",
       "At the fairground: Marshmallow Toss, Whack-a-Gummy, Sweet Sorter, and a sweet shop to spend your tickets in.",
       "Ride the gumdrop wheel, the chocolate river boat and the cupcake carousel.",

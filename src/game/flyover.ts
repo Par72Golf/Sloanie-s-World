@@ -37,7 +37,7 @@ function sugarLegs(): FlyLeg[] {
     // north-west to the factory, then the mountain behind it
     high(S.factory.x + 34, S.factory.z + 26, 26, S.factory.x, S.factory.z, 7),
     high(S.mountain.x + 48, S.mountain.z + 40, 34, S.mountain.x, S.mountain.z, 11),
-    // down the west side: the forest and the princess's clearing
+    // down the west side: the forest and its clearing
     high(S.forest.x + 30, S.forest.z - 26, 28, S.forest.x, S.forest.z, 5),
     // the fairground in the north-west corner
     high(S.fair.x + 36, S.fair.z + 34, 30, S.fair.x, S.fair.z, 6),

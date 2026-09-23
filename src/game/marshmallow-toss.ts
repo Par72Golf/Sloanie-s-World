@@ -408,7 +408,9 @@ function boothSlabs(): Slab[] {
   // the chocolate plinths
   for (const d of TOSS.mugD) {
     const [px, pz] = toWorld(d);
-    out.push({ x: px, y: TOSS.plinth / 2, z: pz, w: 1.1, h: TOSS.plinth, d: 1.1, color: "#6b4226" });
+    // stopping 2cm under the top slab, not flush with it: two tops at one
+    // height flicker through each other
+    out.push({ x: px, y: (TOSS.plinth - 0.02) / 2, z: pz, w: 1.1, h: TOSS.plinth - 0.02, d: 1.1, color: "#6b4226" });
     out.push({ x: px, y: TOSS.plinth - 0.03, z: pz, w: 1.18, h: 0.06, d: 1.18, color: "#8a5a34", flat: true });
   }
   return out;

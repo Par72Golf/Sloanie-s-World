@@ -215,6 +215,9 @@ export class CarouselRide {
     return this.seat != null;
   }
 
+  /** The way her cupcake is travelling round, for her to face. */
+  facing: [number, number] | null = null;
+
   near(x: number, y: number, z: number) {
     if (this.riding) return false;
     return y < 2.2 && Math.hypot(x - CAROUSEL.x, z - (CAROUSEL.z + CAROUSEL.standD)) < NEAR_R;
@@ -243,7 +246,7 @@ export class CarouselRide {
     return true;
   }
 
-  /** Turn the ride, and carry the passenger. Called after physics. */
+  /** Turn the ride, and carry the passenger. Called from the physics step, before she is placed. */
   update(dt: number, cap: { x: number; y: number; z: number }) {
     if (!(dt > 0)) return;
     this.t += dt;
@@ -270,8 +273,11 @@ export class CarouselRide {
     cap.x = p.x;
     cap.y = p.y + 0.55;
     cap.z = p.z;
+    // round the ride's centre, the way it turns
+    this.facing = [p.z - CAROUSEL.z, -(p.x - CAROUSEL.x)];
     if (this.left <= 0) {
       this.seat = null;
+      this.facing = null;
       useGame.getState().setRiding(false);
       useGame.getState().setEmmettNotice("Off you get! Ride again whenever you like.");
       cap.x = CAROUSEL.x;

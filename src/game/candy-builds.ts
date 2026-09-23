@@ -135,6 +135,12 @@ function part(
   return o;
 }
 
+/** Name a part, so the checks can tell the stair she stands on from what is beside it. */
+function named<T extends THREE.Object3D>(o: T, name: string): T {
+  o.name = name;
+  return o;
+}
+
 /** Add a child and turn it, without the `add()` returns-the-parent trap. */
 function turned<T extends THREE.Object3D>(parent: THREE.Object3D, o: T, rx = 0, ry = 0, rz = 0): T {
   o.rotation.set(rx, ry, rz);
@@ -709,14 +715,51 @@ const PEAK = { r: 1.8, top: 16.8, seam: 15.0, lower: "#ffd24d", color: "#ff6f91"
  * up there the gap between the last tread and the ring would be the width of
  * her foot, and a stair that stops short of the floor is a stair she falls
  * off, so they are built to touch instead and need no landing.
+ *
+ * The second flight touches its drum too. It used to stand at 6.6, leaving a
+ * slot 0.4-0.75m wide between the treads and the mint wall: wide enough for
+ * her to drop into from any step and too deep to climb out of, which the
+ * second real play did.
  */
 const FLIGHTS = [
   { fromY: 0, toY: TIERS[0]!.top, toR: TIERS[0]!.r, r: 10.6, tread: 2.0, a0: Math.PI / 2, span: 1.56, n: 12, landing: 2.6 },
-  { fromY: TIERS[0]!.top, toY: DECK.top, toR: DECK.r, r: 6.6, tread: 1.7, a0: (260 * Math.PI) / 180, span: 1.7, n: 12, landing: 2.6 },
+  { fromY: TIERS[0]!.top, toY: DECK.top, toR: DECK.r, r: DECK.r + 0.85, tread: 1.7, a0: (260 * Math.PI) / 180, span: 1.7, n: 12, landing: 2.6 },
   { fromY: DECK.top, toY: SCOOP.top, toR: SCOOP.r, r: 4.15, tread: 1.5, a0: 0.35, span: 2.7, n: 10, landing: 0 },
   // starts where the flight below it arrives, so the two read as one spiral
   { fromY: SCOOP.top, toY: PEAK.top, toR: PEAK.r, r: 2.55, tread: 1.5, a0: 3.1, span: 2.9, n: 8, landing: 0 },
 ];
+
+/** Every tread, in climbing order: its middle, the height of its top and its width. */
+export function mountainTreads() {
+  const out: { f: number; k: number; x: number; z: number; top: number; a: number; tread: number }[] = [];
+  FLIGHTS.forEach((f, fi) => {
+    for (let k = 1; k <= f.n; k++) {
+      const a = f.a0 + (f.span * (k - 1)) / (f.n - 1);
+      out.push({ f: fi, k, x: Math.cos(a) * f.r, z: Math.sin(a) * f.r, top: f.fromY + ((f.toY - f.fromY) * k) / f.n, a, tread: f.tread });
+    }
+  });
+  return out;
+}
+
+/**
+ * Would a blob of ice cream this size, here, stand in the air over a step?
+ *
+ * The lobes round each drum are a metre across and centred on its wall, so
+ * wherever a flight climbs beside a drum they stood half a metre out across
+ * the treads — decoration she walked straight into, head first, all the way
+ * up. Anything that would is left out; the rings open where the stairs pass.
+ */
+function overStairs(x: number, y: number, z: number, rx: number, ry: number, rz: number) {
+  for (const t of mountainTreads()) {
+    const h = t.tread / 2;
+    // the nearest point of the space over the tread to the blob's middle
+    const nx = Math.max(t.x - h, Math.min(x, t.x + h));
+    const ny = Math.max(t.top - 0.2, Math.min(y, t.top + 2.0));
+    const nz = Math.max(t.z - h, Math.min(z, t.z + h));
+    if (((nx - x) / rx) ** 2 + ((ny - y) / ry) ** 2 + ((nz - z) / rz) ** 2 < 1) return true;
+  }
+  return false;
+}
 
 /** Where the looking glass stands on the summit, in the model's own frame. */
 const GLASS_ANGLE = 0.927; // toward Peppermint Plaza, from the mountain's corner
@@ -761,8 +804,17 @@ const RAIL_CAP = 1.3;
 function railRadius(f: (typeof FLIGHTS)[number]) {
   return f.r + f.tread / 2 + RAIL_POST / 2;
 }
+/**
+ * How high a flight climbs before its rail starts. The lower two are walked
+ * on to from the front, so only the first step is left open: with two open,
+ * a push off the second or third step was a metre's fall. The upper two take
+ * her on from outside their own curve and keep their first two open.
+ */
+function railOpen(f: (typeof FLIGHTS)[number]) {
+  return f.landing > 0 ? 0.6 : 0.9;
+}
 function railStart(f: (typeof FLIGHTS)[number]) {
-  const t = Math.max(0, ((0.9 * f.n) / (f.toY - f.fromY) - 1) / (f.n - 1));
+  const t = Math.max(0, ((railOpen(f) * f.n) / (f.toY - f.fromY) - 1) / (f.n - 1));
   return f.a0 + f.span * t;
 }
 
@@ -784,7 +836,7 @@ export function mountainRailPosts() {
       // and the upper flights take her on from outside their own curve (the
       // fourth starts beside the top of the third), so a rail there is a wall
       // across the way up. A fall from them is onto the ledge, under a metre.
-      if (walk - f.fromY < 0.9) continue;
+      if (walk - f.fromY < railOpen(f)) continue;
       out.push({
         x: Math.cos(a) * R,
         z: Math.sin(a) * R,
@@ -1018,6 +1070,14 @@ export const ICE_CREAM_MOUNTAIN = {
  * narrower than the scoop's lumpy rim that stands on it, so she can never walk
  * onto the part with nothing underneath.
  *
+ * Bands along z alone are poor where the circle runs nearly parallel to them,
+ * east and west, where a band's two edges differ in width by up to the band
+ * itself: the drawn wall stood 0.3m outside the solid one, and on a flight
+ * that touches its drum that was a slot beside the treads to fall into. So
+ * the disc is sliced both ways and both sets kept. Each is inscribed, so
+ * together they still never reach past the drawing, and each is good exactly
+ * where the other is poor.
+ *
  * The two tiers above the deck ask for a finer band than the default. They are
  * small enough that a 0.8m band would leave most of a metre of drawn floor
  * with nothing under it at the north and south tips, and up there the fall is
@@ -1043,6 +1103,7 @@ function discBoxes(r: number, minY: number, maxY: number, band = 0.8): CandyBox[
     const w = Math.sqrt(Math.max(0, r * r - Math.max(Math.abs(z0), Math.abs(z1)) ** 2));
     if (w < 0.4) continue;
     out.push({ minX: -w, maxX: w, minY, maxY, minZ: z0, maxZ: z1 });
+    out.push({ minX: z0, maxX: z1, minY, maxY, minZ: -w, maxZ: w });
   }
   return out;
 }
@@ -1065,7 +1126,8 @@ function makeLookingGlassMesh(x: number, y: number, z: number, facing: number) {
 
   // a sugar roundel under it, so from the last step it is obvious this is a
   // thing to stand at rather than a thing to look at
-  turned(t, mesh(cyl24, ICING, 1.6, 0.06, 1.6, 0, 0.11, 0, false));
+  // 2cm proud of the summit's wafer floor, whose top it used to share and flicker through
+  turned(t, mesh(cyl24, ICING, 1.6, 0.06, 1.6, 0, 0.13, 0, false));
 
   // three candy-cane legs, splayed the way a tripod's are: each leans out at
   // the foot and meets its neighbours at the hub
@@ -1162,7 +1224,7 @@ export function makeIceCreamMountain(seed = 20260921) {
    * there is no invisible wall along the ring.
    */
   const drum = (r: number, fromY: number, toY: number, color: string) => {
-    const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.025, toY - fromY, 24), flat(color, 0.5));
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.01, toY - fromY, 32), flat(color, 0.5));
     d.position.y = (fromY + toY) / 2;
     d.castShadow = true;
     d.receiveShadow = true;
@@ -1177,16 +1239,19 @@ export function makeIceCreamMountain(seed = 20260921) {
       if (openAt.some((o) => Math.abs(Math.atan2(Math.sin(a - o), Math.cos(a - o))) < 0.5)) continue;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
+      if (overStairs(x, y, z, 1.05, 0.9, 1.05)) continue;
       g.add(mesh(sphereGeo, color, 1.05, 0.9, 1.05, x, y, z));
-      if (rise) g.add(mesh(sphereGeo, color, 0.72, 0.66, 0.72, x, y + 0.74, z, false));
+      if (rise && !overStairs(x, y + 0.74, z, 0.72, 0.66, 0.72)) g.add(mesh(sphereGeo, color, 0.72, 0.66, 0.72, x, y + 0.74, z, false));
     }
   };
   const sauce = (r: number, y: number, count: number, phase: number) => {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + phase;
       const len = 0.9 + rand() * 1.3;
-      g.add(cm(sphereGeo, "#5a3520", 1.0, 0.3, 1.0, Math.cos(a) * (r - 0.3), y + 0.12, Math.sin(a) * (r - 0.3), false));
-      g.add(cm(sphereGeo, "#5a3520", 0.45, len, 0.45, Math.cos(a) * (r + 0.02), y - len * 0.5, Math.sin(a) * (r + 0.02), false));
+      const [px, pz, dx, dz] = [Math.cos(a) * (r - 0.3), Math.sin(a) * (r - 0.3), Math.cos(a) * (r + 0.02), Math.sin(a) * (r + 0.02)];
+      if (overStairs(px, y + 0.12, pz, 1.0, 0.3, 1.0) || overStairs(dx, y - len * 0.5, dz, 0.45, len, 0.45)) continue;
+      g.add(cm(sphereGeo, "#5a3520", 1.0, 0.3, 1.0, px, y + 0.12, pz, false));
+      g.add(cm(sphereGeo, "#5a3520", 0.45, len, 0.45, dx, y - len * 0.5, dz, false));
     }
   };
   const sprinkles = (rOut: number, rIn: number, y: number, count: number) => {
@@ -1254,8 +1319,8 @@ export function makeIceCreamMountain(seed = 20260921) {
       boxes.push(bx(x, (foot + top) / 2, z, f.tread, top - foot, f.tread));
       // drawn as a slim riser under a full-width tread, because twelve
       // full-width blocks side by side are a wall, not a flight of stairs
-      g.add(mesh(boxGeo, WAFER_DARK, f.tread * 0.62, top - foot - 0.3, f.tread * 0.62, x, (foot + top - 0.3) / 2, z));
-      g.add(mesh(boxGeo, k % 2 ? WAFER : "#dcae62", f.tread, 0.34, f.tread, x, top - 0.17, z));
+      g.add(named(mesh(boxGeo, WAFER_DARK, f.tread * 0.62, top - foot - 0.3, f.tread * 0.62, x, (foot + top - 0.3) / 2, z), "stair"));
+      g.add(named(mesh(boxGeo, k % 2 ? WAFER : "#dcae62", f.tread, 0.34, f.tread, x, top - 0.17, z), "stair"));
       // A nosing on each tread, so the flight is legible from the grass. It is
       // cream, not icing white: a flat white strip in full sun blooms out into
       // a glowing bar and the stair looked like it was on fire.
@@ -1266,7 +1331,7 @@ export function makeIceCreamMountain(seed = 20260921) {
       const c = Math.abs(Math.cos(a));
       const sn = Math.abs(Math.sin(a));
       const nose = Math.min(f.tread * 0.95, (f.tread - 0.26 * c - 2 * off * c) / Math.max(sn, 1e-3), (f.tread - 0.26 * sn - 2 * off * sn) / Math.max(c, 1e-3));
-      turned(g, mesh(boxGeo, CREAM, Math.max(0.5, nose), 0.12, 0.26, x + Math.cos(a) * off, top + 0.06, z + Math.sin(a) * off, false), 0, -a, 0);
+      turned(g, named(mesh(boxGeo, CREAM, Math.max(0.5, nose), 0.12, 0.26, x + Math.cos(a) * off, top + 0.06, z + Math.sin(a) * off, false), "stair"), 0, -a, 0);
     }
     // the landing: level with the ring, reaching from under the last tread to
     // well inside the drum, so there is no gap to step over at the top. The
@@ -1276,7 +1341,9 @@ export function makeIceCreamMountain(seed = 20260921) {
     const la = f.a0 + f.span;
     const lx = Math.cos(la) * (f.toR - 0.3);
     const lz = Math.sin(la) * (f.toR - 0.3);
-    g.add(mesh(boxGeo, CREAM, f.landing, 0.5, f.landing, lx, f.toY - 0.25, lz, false));
+    // drawn 3cm proud of the ring and the last tread: flush with them, the
+    // two tops flickered through each other wherever they overlap
+    g.add(named(mesh(boxGeo, CREAM, f.landing, 0.53, f.landing, lx, f.toY - 0.235, lz, false), "stair"));
     boxes.push(bx(lx, f.toY - 0.3, lz, f.landing, 0.6, f.landing));
   }
 
@@ -1288,8 +1355,8 @@ export function makeIceCreamMountain(seed = 20260921) {
   drawn.forEach((p, i) => {
     const red = i % 2 === 0;
     const h = p.top + RAIL_H - p.foot;
-    g.add(mesh(cylGeo, red ? RED : ICING, 0.08, h, 0.08, p.x, p.foot + h / 2, p.z, false));
-    g.add(mesh(sphereGeo, red ? ICING : RED, 0.11, 0.09, 0.11, p.x, p.top + RAIL_H + 0.02, p.z, false));
+    g.add(named(mesh(cylGeo, red ? RED : ICING, 0.08, h, 0.08, p.x, p.foot + h / 2, p.z, false), "rail"));
+    g.add(named(mesh(sphereGeo, red ? ICING : RED, 0.11, 0.09, 0.11, p.x, p.top + RAIL_H + 0.02, p.z, false), "rail"));
     const q = drawn[i + 1];
     if (!q || q.flight !== p.flight) return;
     // the handrail and a rail at knee height, from this post to the next
@@ -1301,7 +1368,7 @@ export function makeIceCreamMountain(seed = 20260921) {
       const b = new THREE.Vector3(q.x, q.top + lift, q.z);
       const seg = mesh(cylGeo, col, r, a.distanceTo(b), r, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, false);
       seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-      g.add(seg);
+      g.add(named(seg, "rail"));
     }
   });
 

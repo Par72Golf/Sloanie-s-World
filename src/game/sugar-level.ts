@@ -1,7 +1,7 @@
 import { CANDIES } from "./candies";
 import { candyAccessorySpots } from "./candy-accessories";
 import { CHOC_SITE } from "./choc-course";
-import { yardProps } from "./emmett-base";
+import { yardFootprint, yardProps } from "./emmett-base";
 import { SKY_LIGHTING, skyProps } from "./sugar-sky";
 import { bunting, regionGates, regionSigns } from "./sugar-signs";
 import { gumdropHills, sugarBerms } from "./sugar-terrain";
@@ -255,7 +255,9 @@ export function sugarRushPark(): LevelDef {
     ...boundaryProps(),
     ...skyProps(),
   ];
-  props.unshift(...frostingProps(spots, props));
+  // The truck yard's dirt is drawn by the yard itself, not a prop, and at the
+  // patches' own height: one patch landed on it and the two flickered.
+  props.unshift(...frostingProps(spots, props, [yardFootprint(SUGAR_DEN)]));
 
   return {
     id: "sugar",

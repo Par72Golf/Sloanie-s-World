@@ -1,6 +1,6 @@
 import { PARK_DIRECTORIES, PARK_NAME_SIGNS, type Directory, type NameSign } from "./signs";
 import { CHOC_COURSE } from "./choc-course";
-import { SUGAR_DEN, loopRects } from "./sugar-rush";
+import { SUGAR, SUGAR_DEN, loopRects } from "./sugar-rush";
 import { walkwayRects } from "./walkways";
 import type { LavaCourse } from "./lava";
 import type { NavRect } from "./navgrid";
@@ -74,6 +74,8 @@ export type LevelFeatures = {
    * here because levels.ts describes the park and this describes the fittings.
    */
   landmarks?: readonly ModelProp[];
+  /** Sugar Rush's candy princess (candy-quest.ts), solid where she stands */
+  princess?: Origin;
   /**
    * The kite field, duck pond, flower garden, story circle and fairground
    * green (places.ts). Still authored at park 1's own coordinates inside that
@@ -146,6 +148,7 @@ function sugarFeatures(): LevelFeatures {
     house: "candy",
     // his den: east of the loop's north-east corner, facing the path
     emmettBase: SUGAR_DEN,
+    princess: SUGAR.princess,
   });
 }
 
