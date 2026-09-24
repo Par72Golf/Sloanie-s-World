@@ -135,6 +135,12 @@ export const SUGAR = {
    * camera behind Sloan.
    */
   princess: { x: -3, z: 28.5 },
+  /**
+   * The build yard (build-yard.ts): a 24m square of open ground between the
+   * plaza and the village, clear of every path, prop, hiding place, sticker
+   * and course in the park, where she builds whatever she likes.
+   */
+  buildYard: { x: 84, z: -8, cells: 24 },
 } as const;
 
 /**

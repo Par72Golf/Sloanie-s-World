@@ -58,6 +58,8 @@ export type SaveData = {
   /** her creatures: the ones she has freed, and the ones living in her house */
   candyCreatures: string[];
   creaturesHome: string[];
+  /** the day she last took the gumball machines' free turn */
+  gumballDay: string;
   stickers: string[];
   quest: QuestSave;
   /** Every pet she has adopted, in the order she chose them (up to three). */
@@ -101,6 +103,7 @@ const DEFAULT: SaveData = {
   candyParts: [],
   candyCreatures: [],
   creaturesHome: [],
+  gumballDay: "",
   stickers: [],
   quest: { stage: "none", treats: [], chapter: 0, seek: null },
   pets: [],
@@ -156,6 +159,7 @@ function migrate(raw: SaveData): SaveData {
   s.candyParts = Array.isArray(s.candyParts) ? s.candyParts.filter((p) => typeof p === "string") : [];
   s.candyCreatures = Array.isArray(s.candyCreatures) ? s.candyCreatures.filter((p) => typeof p === "string") : [];
   s.creaturesHome = Array.isArray(s.creaturesHome) ? s.creaturesHome.filter((p) => typeof p === "string") : [];
+  s.gumballDay = typeof s.gumballDay === "string" ? s.gumballDay : "";
   s.golfBest = Number.isFinite(s.golfBest) && (s.golfBest as number) > 0 ? Math.floor(s.golfBest as number) : null;
   s.bowlsBest = Number.isFinite(s.bowlsBest) && (s.bowlsBest as number) > 0 ? Math.floor(s.bowlsBest as number) : null;
   s.lavaBest = Number.isFinite(s.lavaBest) && (s.lavaBest as number) > 0 ? Math.round((s.lavaBest as number) * 10) / 10 : null;

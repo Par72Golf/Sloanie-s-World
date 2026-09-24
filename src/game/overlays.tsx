@@ -10,6 +10,10 @@ import { SweetShopPanel } from "./sweet-shop";
 import { WhackOverlay } from "./whack-a-gummy-ui";
 import { useWhack } from "./whack-a-gummy";
 import { SorterOverlay } from "./sweet-sorter-ui";
+import { BuildHud } from "./build-ui";
+import { useBuild } from "./build-store";
+import { GumballCardPanel } from "./gumball-ui";
+import { GUMBALL_PRICE, useGumball } from "./gumballs";
 import { useSorter } from "./sweet-sorter";
 import { TRUCK_STAGES } from "./truck-gauntlet";
 import { useHome } from "./home-store";
@@ -1160,6 +1164,11 @@ function HUD() {
   const glassNear = useGame((s) => s.glassNear);
   const cupcakesNear = useGame((s) => s.cupcakesNear);
   const sorterCard = useSorter((s) => s.card);
+  const gumballNear = useGumball((s) => s.near);
+  const gumballCard = useGumball((s) => s.card);
+  const inYard = useBuild((s) => s.inYard);
+  const building = useBuild((s) => s.building);
+  const yardNear = inYard && !building;
   const shopOpen = useGame((s) => s.sweetShop);
   const tossNear = useToss((s) => s.near);
   const tossPlaying = useToss((s) => s.playing);
@@ -1412,11 +1421,17 @@ function HUD() {
 
       <NowPlaying />
 
-      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && !shopOpen && !whackCard && !sorterCard && (glassNear || homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || basketNear || shopNear || whackNear || whackHit || sorterNear || boatNear || cupcakesNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
+      {phase === "playing" && !rps && !carnivalOpen && !questOpen && !homeOpen && !houseBuilding && !golfPlaying && !bowlsPlaying && !tossPlaying && !tossCard && !shopOpen && !whackCard && !sorterCard && !gumballCard && !building && (gumballNear || yardNear || glassNear || homeNear || factoryNear || truckNear || driving || princessNear || creatureNear || basketNear || shopNear || whackNear || whackHit || sorterNear || boatNear || cupcakesNear || tossNear || emmettTalkNear || questNear || carouselRing || carnivalNear || golfNear != null || bowlsNear != null || boardReady || (riding && nearCollect)) && (
         <BigAction
-          key={(glassNear ? `glass-${glassNear}` : null) ?? homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (basketNear ? `basket-${basketNear}` : null) ?? (shopNear ? "shop" : null) ?? (whackHit ? "whack-hit" : whackNear ? "whack" : null) ?? (sorterNear ? "sorter" : null) ?? (boatNear ? "boat" : null) ?? (cupcakesNear ? "cupcakes" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
+          key={(gumballNear ? `gumball-${gumballNear}` : null) ?? (yardNear ? "build" : null) ?? (glassNear ? `glass-${glassNear}` : null) ?? homeNear ?? (factoryNear ? `factory-${factoryNear}` : null) ?? (driving ? "drive-out" : truckNear ? "drive-in" : null) ?? (princessNear ? "princess" : null) ?? (tossNear ? "toss" : null) ?? (creatureNear ? "creature" : null) ?? (basketNear ? `basket-${basketNear}` : null) ?? (shopNear ? "shop" : null) ?? (whackHit ? "whack-hit" : whackNear ? "whack" : null) ?? (sorterNear ? "sorter" : null) ?? (boatNear ? "boat" : null) ?? (cupcakesNear ? "cupcakes" : null) ?? (emmettTalkNear ? "emmett" : null) ?? questNear ?? carouselRing ?? carnivalNear ?? (golfNear != null ? `golf${golfNear}` : null) ?? (bowlsNear != null ? `bowls${bowlsNear}` : null) ?? (boardReady ? "ride" : "grab")}
           label={
-            glassNear
+            gumballNear
+              ? gumballNear === "free"
+                ? "Daily Surprise! Free gumball"
+                : `Gumball: ${GUMBALL_PRICE} tickets`
+            : yardNear
+              ? "Build!"
+            : glassNear
               ? glassNear === "near"
                 ? "Look through the telescope!"
                 : "Stop looking"
@@ -2629,6 +2644,8 @@ export function Overlays() {
       {phase === "playing" && <SweetShopPanel />}
       {phase === "playing" && <WhackOverlay />}
       {phase === "playing" && <SorterOverlay />}
+      {phase === "playing" && <BuildHud />}
+      {phase === "playing" && <GumballCardPanel />}
       {(phase === "playing" || phase === "paused") && <HelpCard />}
       {controlsOpen && <ControlsRemap />}
       {showFps && phase !== "title" && <FpsCounter />}

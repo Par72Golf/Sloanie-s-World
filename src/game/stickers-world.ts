@@ -45,7 +45,7 @@ export const PICNIC_STICKERS: StickerSet = {
   texture: (id) => stickerTexture(id as StickerId),
   hasBook: (st) => st.stickerBook,
   findBook: (st) => st.findStickerBook(),
-  take: (st, id, name) => st.findSticker(id, name),
+  take: (st, id, name) => st.findSticker(id, name, STICKER_SPOTS.map((s) => s.id)),
   needBook: (name) => `A ${name.toLowerCase()} sticker! You need a sticker book to keep it. There's one near the start.`,
 };
 

@@ -107,6 +107,16 @@ function sugarButtons(): Button[] {
   ];
   for (const c of CREATURES) out.push({ name: c.name, x: c.at[0], z: c.at[1], r: FREE_R });
   out.push(wheelButton(1));
+  // the gumball machines' fronts (gumballs.ts), and anywhere in the build yard,
+  // where Collect starts building (a circle round the square's corners)
+  const level = LEVELS[1]!;
+  applyLevelOrigins(level);
+  for (const p of level.props) {
+    if (p.kind !== "model" || p.id !== "gumball-machine") continue;
+    const d = 1.1 * (p.scale ?? 1) + 0.9;
+    out.push({ name: "a gumball machine", x: p.x + Math.sin(p.ry ?? 0) * d, z: p.z + Math.cos(p.ry ?? 0) * d, r: 1.5 });
+  }
+  out.push({ name: "the build yard", x: SUGAR.buildYard.x, z: SUGAR.buildYard.z, r: (SUGAR.buildYard.cells / 2) * Math.SQRT2 + 0.5 });
   return out;
 }
 

@@ -2,6 +2,13 @@ import { CANDIES } from "./candies";
 import { candyAccessorySpots } from "./candy-accessories";
 import { CHOC_SITE } from "./choc-course";
 import { yardFootprint, yardProps } from "./emmett-base";
+
+/** The build yard's square (build-yard.ts draws it), padded by `pad` metres. */
+function buildYardSquare(pad: number) {
+  const b = SUGAR.buildYard;
+  const h = b.cells / 2 + pad;
+  return { minX: b.x - h, maxX: b.x + h, minZ: b.z - h, maxZ: b.z + h };
+}
 import { SKY_LIGHTING, skyProps } from "./sugar-sky";
 import { bunting, regionGates, regionSigns } from "./sugar-signs";
 import { gumdropHills, sugarBerms } from "./sugar-terrain";
@@ -257,7 +264,7 @@ export function sugarRushPark(): LevelDef {
   ];
   // The truck yard's dirt is drawn by the yard itself, not a prop, and at the
   // patches' own height: one patch landed on it and the two flickered.
-  props.unshift(...frostingProps(spots, props, [yardFootprint(SUGAR_DEN)]));
+  props.unshift(...frostingProps(spots, props, [yardFootprint(SUGAR_DEN), buildYardSquare(1)]));
 
   return {
     id: "sugar",
@@ -298,6 +305,8 @@ export function sugarRushPark(): LevelDef {
     ride: WHEEL,
     // Emmett's den, east of the loop and south of the village
     emmettBase: true,
+    // her build yard: her builds are not on his map, and she builds in peace
+    emmettKeepOut: [buildYardSquare(2)],
     rehideSpots: REHIDE,
   };
 }

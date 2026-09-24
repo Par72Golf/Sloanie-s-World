@@ -21,6 +21,9 @@ import { SweetShop } from "./candy-shop";
 import { Flyover, flyoverFor } from "./flyover";
 import { WhackWorld, useWhack } from "./whack-a-gummy";
 import { SorterWorld, useSorter } from "./sweet-sorter";
+import { BuildYard } from "./build-yard";
+import { useBuild } from "./build-store";
+import { GumballWorld, useGumball } from "./gumballs";
 import { BoatRide } from "./boat-ride";
 import { CAROUSEL as CUPCAKE_RIDE, CarouselRide } from "./carousel-ride";
 import { BowlsWorld, bowlsInput, bowlsPose } from "./bowls";
@@ -644,6 +647,11 @@ export class GameRuntime {
     // whack-a-gummy, the fairground game with her feet in it
     this.whack?.dispose();
     this.whack = this.level.id === "sugar" && this.world ? new WhackWorld(this.scene, this.world.colliders) : null;
+    // the build yard and the gumball machines she can use
+    this.buildYard?.dispose();
+    this.buildYard = this.level.id === "sugar" && this.world ? new BuildYard(this.scene, this.world.colliders) : null;
+    this.gumballs?.dispose();
+    this.gumballs = this.level.id === "sugar" ? new GumballWorld(this.scene, this.level) : null;
     // the sweet shop on the fairground, where her tickets go in this park
     this.sweetShop?.dispose();
     this.sweetShop = this.level.id === "sugar" ? new SweetShop(this.scene) : null;
@@ -1134,6 +1142,8 @@ export class GameRuntime {
   sweetShop: SweetShop | null = null;
   whack: WhackWorld | null = null;
   sorter: SorterWorld | null = null;
+  buildYard: BuildYard | null = null;
+  gumballs: GumballWorld | null = null;
   boat: BoatRide | null = null;
   cupcakes: CarouselRide | null = null;
   playerTruck: PlayerTruck | null = null;
@@ -1159,6 +1169,8 @@ export class GameRuntime {
     this.sweetShop?.dispose();
     this.whack?.dispose();
     this.sorter?.dispose();
+    this.buildYard?.dispose();
+    this.gumballs?.dispose();
     this.boat?.dispose();
     this.cupcakes?.dispose();
     this.playerTruck?.dispose();
@@ -1708,6 +1720,19 @@ export class GameRuntime {
       sfx.click();
       return;
     }
+    // building in the yard, Collect is Place
+    const build = useBuild.getState();
+    if (build.building) {
+      build.ask("place");
+      return;
+    }
+    if (this.gumballs?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
+    if (build.inYard) {
+      sfx.click();
+      build.setBuilding(true);
+      st.setEmmettNotice("Pick a piece, walk to where you want it and press Place!");
+      return;
+    }
     // a bear beside her beats everything else Collect could mean out here
     if (this.whack?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
     if (this.sorter?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
@@ -2068,6 +2093,7 @@ export class GameRuntime {
         useHome.getState().panel == null &&
         !useHome.getState().upgrading &&
         !st.sweetShop &&
+        useGumball.getState().card == null &&
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
       !this.carried &&
@@ -2459,7 +2485,7 @@ export class GameRuntime {
     {
       const st = useGame.getState();
       const paused =
-        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || useWhack.getState().card != null || useSorter.getState().card != null || st.sweetShop || useHome.getState().panel != null || useHome.getState().upgrading;
+        st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || useWhack.getState().card != null || useSorter.getState().card != null || useGumball.getState().card != null || st.sweetShop || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       // walking into her front door from inside takes her out, as pressing Collect there does
@@ -2477,6 +2503,8 @@ export class GameRuntime {
       this.sweetShop?.update(this.clock);
       if (!paused) this.whack?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.sorter?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      this.buildYard?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused);
+      this.gumballs?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused && this.world) {
         this.creatures?.update(
           dt,

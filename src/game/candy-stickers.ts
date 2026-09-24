@@ -997,7 +997,7 @@ export function candyStickers(): StickerSet {
     names: new Map(CANDY_STICKER_ART.map((s) => [s.id as string, s.name])),
     hasBook: (st) => bookStore(st).candyStickerBook === true,
     findBook: (st) => bookStore(st).findCandyStickerBook?.(),
-    take: (st, id, name) => st.findSticker(id, name),
+    take: (st, id, name) => st.findSticker(id, name, candyStickerSpots().map((s) => s.id)),
     needBook: (name) =>
       `A ${name.toLowerCase()} sticker! You need a candy sticker book to keep it. There's one near where you started.`,
   };

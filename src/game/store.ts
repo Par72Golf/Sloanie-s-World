@@ -104,6 +104,9 @@ export type GameStore = {
   creaturesHome: string[];
   freeCreature: (id: string) => void;
   setCreatureHome: (id: string, home: boolean) => void;
+  /** the day she last took the gumball machines' free turn (gumballs.ts), saved */
+  gumballDay: string;
+  claimGumballDay: (day: string) => void;
   /** she is standing next to a creature she could pick up */
   creatureNear: boolean;
   setCreatureNear: (v: boolean) => void;
@@ -206,7 +209,8 @@ export type GameStore = {
   stickers: string[];
   findStickerBook: () => void;
   findCandyStickerBook: () => void;
-  findSticker: (id: string, name: string) => void;
+  /** `book` is every sticker id in the book this one goes in, to tell when it is full */
+  findSticker: (id: string, name: string, book?: readonly string[]) => void;
   /**
    * Journal tab: her dumplings, the sticker book, the jobs she has on (Sugar
    * Rush only) or the backpack's contents.
@@ -365,6 +369,19 @@ export type BowlsCard = {
   line: string;
 };
 
+/**
+ * Tickets for the hunts: each sweet or dumpling found, each sticker, and a
+ * bonus for finishing a park or filling a sticker book. They used to come only
+ * from the fairground games, so an hour of hunting paid nothing towards the
+ * house, the shop or the gumball machines.
+ */
+export const FIND_TICKETS = 3;
+export const STICKER_TICKETS = 2;
+export const PARK_BONUS = 25;
+export const BOOK_BONUS = 20;
+/** finds already paid for this session, so one Emmett won back pays once */
+const paidFinds = new Set<string>();
+
 function persistSlice(s: GameStore) {
   persistSave({
     version: 1,
@@ -395,6 +412,7 @@ function persistSlice(s: GameStore) {
     candyParts: s.candyParts,
     candyCreatures: s.candyCreatures,
     creaturesHome: s.creaturesHome,
+    gumballDay: s.gumballDay,
     stickers: s.stickers,
     quest: s.quest,
     pets: s.pets,
@@ -560,13 +578,24 @@ export const useGame = create<GameStore>((set, get) => ({
     persistSlice(get());
     get().showHelp("candystickers");
   },
-  findSticker: (id, name) => {
+  findSticker: (id, name, book) => {
     const st = get();
     // either park's book will keep a sticker: the hunt that offered it has
     // already checked she has the right one
     if ((!st.stickerBook && !st.candyStickerBook) || st.stickers.includes(id)) return;
     const stickers = [...st.stickers, id];
-    set({ stickers, emmettNotice: `${name} sticker! That's ${stickers.length} in your book.` });
+    // every find pays, and filling a book pays a lot: the hunt is the thing
+    // she does most, and tickets are what the house, the shop and the
+    // gumball machines run on
+    const full = !!book?.length && book.every((b) => stickers.includes(b));
+    const pay = STICKER_TICKETS + (full ? BOOK_BONUS : 0);
+    set({
+      stickers,
+      tickets: st.tickets + pay,
+      emmettNotice: full
+        ? `${name} sticker — and that fills the whole book! +${pay} tickets!`
+        : `${name} sticker! That's ${stickers.length} in your book. +${STICKER_TICKETS} tickets.`,
+    });
     persistSlice(get());
   },
   journalTab: "dumplings",
@@ -767,6 +796,11 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   candyCreatures: saved.candyCreatures,
   creaturesHome: saved.creaturesHome,
+  gumballDay: saved.gumballDay,
+  claimGumballDay: (gumballDay) => {
+    set({ gumballDay });
+    persistSlice(get());
+  },
   freeCreature: (id) => {
     if (get().candyCreatures.includes(id)) return;
     set({ candyCreatures: [...get().candyCreatures, id] });
@@ -890,13 +924,25 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   markCollected: (dumplingId) => {
-    const { levelIndex, collected } = get();
+    const { levelIndex, collected, tickets } = get();
     const next = collected.map((row, i) =>
       i === levelIndex
         ? Array.from(new Set([...row, dumplingId]))
         : row.slice(),
     );
-    set({ collected: next, quiz: null, phase: "playing", nearCollect: false });
+    // Every find is worth tickets, once a run: one Emmett took back and she
+    // won again does not pay twice.
+    const key = `${levelIndex}:${dumplingId}`;
+    const pays = !(collected[levelIndex] ?? []).includes(dumplingId) && !paidFinds.has(key);
+    if (pays) paidFinds.add(key);
+    set({
+      collected: next,
+      quiz: null,
+      phase: "playing",
+      nearCollect: false,
+      tickets: tickets + (pays ? FIND_TICKETS : 0),
+      ...(pays ? { emmettNotice: `You found it! +${FIND_TICKETS} tickets.` } : {}),
+    });
     persistSlice(get());
   },
   completeLevel: () => {
@@ -937,6 +983,8 @@ export const useGame = create<GameStore>((set, get) => ({
       foundAccessories,
       worn,
       wornGen: st.wornGen + (crowned ? 0 : 1),
+      // the bonus for finishing the whole hunt
+      tickets: st.tickets + PARK_BONUS,
       phase: last ? "victory" : "complete",
       unlocked: nextUnlock,
       quiz: null,
