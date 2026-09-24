@@ -16,7 +16,8 @@ import { SPOTS, type FurnitureId, type SpotId } from "./furniture";
  *
  * Starter furniture is always owned. Reward furniture is granted by the runtime
  * when its condition is met (the crown, all 30 stickers, adopting a pet). Shop
- * furniture is bought with the main store's tickets.
+ * furniture is bought with the main store's tickets. Prize furniture (only
+ * the candy house has any) is granted when a gumball machine gives it out.
  *
  * The gingerbread house also has a `stage`: she upgrades the outside with
  * tickets, cottage to candy house to candy castle, and each stage opens another
