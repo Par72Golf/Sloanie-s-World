@@ -5,6 +5,9 @@ import { glowMaterial } from "./furniture";
 import { boxGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 import { makePet, animatePet, type PetKind, type PetRig } from "./pets";
 import { candyHouseSpots } from "./sugar-home";
+import { CANDY_HOME_SPOTS } from "./sugar-home-mesh";
+import { anyFurnitureSolid, HOUSE_KITS } from "./furniture-kits";
+import { useHome } from "./home-store";
 import { CREATURE_SPOTS } from "./sugar-rush";
 import { makeWalker, placeWalker, followHer, followLead, separateHerd, waitOffLava, LEAD_BACK, TRAIN_GAP, type Walker } from "./quest";
 import { useGame } from "./store";
@@ -104,6 +107,18 @@ const INDOORS: [number, number, number][] = [
   [-1.9, 0, 1.7],
   [1.5, 0, 2.0],
   [2.4, 0, -0.6],
+];
+
+/**
+ * And while she is outside, which is nearly always: in and round the basket by
+ * her door, the one she left them at, relative to the basket. The first real
+ * play left them at home and never saw them again — the room is 150m up, so
+ * a creature that only lives there has simply vanished from the park.
+ */
+const BY_BASKET: [number, number, number][] = [
+  [0, 0.38, 0],
+  [1.35, 0, 0.5],
+  [-1.3, 0, 0.6],
 ];
 
 /* ------------------------------------------------------------- the rigs */
@@ -562,12 +577,28 @@ export class CandyCreatures {
         continue;
       }
       if (st.creaturesHome.includes(h.def.id)) {
-        // living indoors: curled up round the rug in her bedroom, which is
-        // 150m above the house, so nothing of this shows out in the park
+        // Living at home. Inside (her room is 150m above the house) they are
+        // round the rug, the first of them in the pet bed once she has one;
+        // outside they are curled up in and beside the basket by her door.
+        const slot = st.creaturesHome.indexOf(h.def.id);
         const room = candyHouseSpots().room;
-        const at = INDOORS[this.held.indexOf(h) % INDOORS.length]!;
         h.rig.group.visible = true;
-        h.rig.group.position.set(room[0] + at[0], room[1] + at[1], room[2] + at[2]);
+        if (her.y > room[1] - 20) {
+          const home = useHome.getState();
+          const bed = CANDY_HOME_SPOTS.petbed;
+          if (slot === 0 && home.stage >= bed.stage) {
+            const id = home.placed.petbed ?? HOUSE_KITS.candy.starters().petbed;
+            const top = (id && anyFurnitureSolid(id)?.h) || 0.3;
+            h.rig.group.position.set(room[0] + bed.pos[0], room[1] + Math.min(top, 0.5), room[2] + bed.pos[2]);
+          } else {
+            const at = INDOORS[slot % INDOORS.length]!;
+            h.rig.group.position.set(room[0] + at[0], room[1] + at[1], room[2] + at[2]);
+          }
+        } else {
+          const b = this.basket.position;
+          const at = BY_BASKET[slot % BY_BASKET.length]!;
+          h.rig.group.position.set(b.x + at[0], at[1], b.z + at[2]);
+        }
         h.rig.group.rotation.y = Math.atan2(her.x - h.rig.group.position.x, her.z - h.rig.group.position.z);
         animatePet(h.rig, "sit", 0, t, dt);
         continue;

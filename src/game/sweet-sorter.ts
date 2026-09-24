@@ -406,8 +406,12 @@ export class SorterWorld {
       l.group.rotation.y += dt * 0.8;
     }
     if (this.carried) {
-      this.carried.position.set(her.x, her.y + 2.1 + Math.sin(this.t * 3) * 0.05, her.z);
-      this.carried.rotation.y += dt * 2.2;
+      // Held up over her head, arms raised (the carry pose in meshes.ts).
+      // Her head is big — its top is 2.4m up, higher than her hands reach —
+      // so the sweet sits on top of it, between her hands: at 2.1m, where it
+      // used to float, it was drawn inside her head.
+      this.carried.position.set(her.x, her.y + 2.66, her.z);
+      this.carried.rotation.y = 0;
     }
 
     if (this.live) useSorter.getState().setRound(true, this.left, this.score, this.carrying);

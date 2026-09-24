@@ -725,7 +725,7 @@ export function animateGirl(
   onGround: boolean,
   t: number,
   dt: number,
-  opts?: { speed01?: number; turn?: number; mood?: GirlMood; moodT?: number },
+  opts?: { speed01?: number; turn?: number; mood?: GirlMood; moodT?: number; carry?: boolean },
 ) {
   const u = root.userData;
   const torso = u.torso as THREE.Group;
@@ -791,6 +791,16 @@ export function animateGirl(
     lArm.rotation.z = 0.5;
     rArm.rotation.z = -0.5;
     torso.rotation.x = 0.1;
+  }
+
+  // carrying something over her head (the Sweet Sorter's sweets): both arms
+  // straight up with the hands together, whatever her legs are doing
+  if (opts?.carry) {
+    const bob = moving ? Math.sin(own * 9) * 0.05 : 0;
+    lArm.rotation.x = -2.95 + bob;
+    rArm.rotation.x = -2.95 - bob;
+    lArm.rotation.z = -0.22;
+    rArm.rotation.z = 0.22;
   }
 
   // ---- reactions --------------------------------------------------------

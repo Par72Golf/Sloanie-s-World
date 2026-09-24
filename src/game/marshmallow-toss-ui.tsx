@@ -4,7 +4,7 @@ import { sfx } from "./audio";
 import { ModalFrame, PadKey, PanelRibbon, useInput } from "./carnival-games";
 import { HearButton } from "./help-cards";
 import { claimPad } from "./input";
-import { TOSS, tossInput, tossPose, useToss } from "./marshmallow-toss";
+import { THROWS, TOSS, tossInput, tossPose, useToss } from "./marshmallow-toss";
 import { Btn } from "./overlays";
 import { speak } from "./speech";
 import { cn } from "@/lib/utils";
@@ -163,7 +163,7 @@ function ThrowingHud() {
           </span>
           {/* the marshmallows she has left */}
           <span className="ui-chip gloss flex items-center gap-1.5 bg-surface px-3 py-1 text-base text-ink 2xl:text-xl">
-            {[0, 1, 2].map((i) => (
+            {Array.from({ length: THROWS }, (_, i) => (
               <span
                 key={i}
                 ref={(el) => {
@@ -173,7 +173,7 @@ function ThrowingHud() {
               />
             ))}
             <b ref={leftT} className="ml-1">
-              3
+              {THROWS}
             </b>
           </span>
           <span className="ui-chip gloss bg-sun px-3 py-1 text-base text-ink 2xl:text-xl">
@@ -278,7 +278,7 @@ function Tray() {
       <PanelRibbon color="#ff6aa8" Icon={Coffee} title="Hot chocolate!" onClose={done} closeLabel="Done" padSkip pattern="gingham" />
       <div className="ui-dots grid gap-4 p-4 sm:p-6">
         <div className="animate-ui-rise grid grid-cols-3 gap-2 sm:gap-3">
-          {[0, 1, 2].map((i) => {
+          {Array.from({ length: THROWS }, (_, i) => i).map((i) => {
             const t = card.throws[i];
             return (
               <div key={i} className="grid justify-items-center gap-1">

@@ -2266,6 +2266,7 @@ export class GameRuntime {
       turn: this.turnRate,
       mood,
       moodT,
+      carry: useSorter.getState().playing && useSorter.getState().carrying >= 0,
     });
 
     this.updateDance(dt);

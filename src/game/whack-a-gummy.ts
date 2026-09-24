@@ -183,8 +183,17 @@ function makeBear(color: string): THREE.Group {
   return g;
 }
 
+/** The burst a whack makes: gold stars flying out of the hole and a ring spreading across it. */
+const STAR_GEO = new THREE.OctahedronGeometry(0.11, 0);
+const STAR_MAT = glowMaterial("#ffd84a", 1.4, 0.2);
+const POW_GEO = new THREE.RingGeometry(0.55, 0.75, 28);
+type Spark = { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number };
+type Pow = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; life: number };
+
 export class WhackWorld {
   private group = new THREE.Group();
+  private sparks: Spark[] = [];
+  private pows: Pow[] = [];
   private holes: Hole[] = [];
   private solids: (AABB & { label: string })[] = [];
   private board: THREE.Mesh;
@@ -305,14 +314,67 @@ export class WhackWorld {
     const hit = this.hittable(x, z);
     if (hit) {
       sfx.boing();
+      sfx.correct();
       hit.whacked = 0.35;
       hit.timer = 0;
       this.score++;
+      this.burst(hit);
       return true;
     }
     if (!this.near(x, y, z)) return false;
     this.start();
     return true;
+  }
+
+  /**
+   * A hit you can see: eight gold stars thrown up out of the hole and a white
+   * ring spreading across it. The bear used to just drop, which from behind
+   * her looked the same as it going down on its own.
+   */
+  private burst(h: Hole) {
+    const y = WHACK.deckTop + 0.9;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.random() * 0.4;
+      const m = new THREE.Mesh(STAR_GEO, STAR_MAT);
+      m.position.set(h.x, y, h.z);
+      this.group.add(m);
+      this.sparks.push({ mesh: m, vx: Math.cos(a) * 2.6, vy: 3.2 + Math.random() * 1.5, vz: Math.sin(a) * 2.6, life: 0.6 });
+    }
+    const mat = new THREE.MeshBasicMaterial({ color: "#fff6d8", transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
+    const ring = new THREE.Mesh(POW_GEO, mat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(h.x, WHACK.deckTop + 0.12, h.z);
+    this.group.add(ring);
+    this.pows.push({ mesh: ring, mat, life: 0.4 });
+  }
+
+  private updateBursts(dt: number) {
+    this.sparks = this.sparks.filter((p) => {
+      p.life -= dt;
+      if (p.life <= 0) {
+        this.group.remove(p.mesh);
+        return false;
+      }
+      p.vy -= 12 * dt;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.mesh.position.z += p.vz * dt;
+      p.mesh.rotation.y += dt * 9;
+      p.mesh.scale.setScalar(Math.min(1, p.life / 0.25));
+      return true;
+    });
+    this.pows = this.pows.filter((p) => {
+      p.life -= dt;
+      if (p.life <= 0) {
+        this.group.remove(p.mesh);
+        p.mat.dispose();
+        return false;
+      }
+      const k = 1 - p.life / 0.4;
+      p.mesh.scale.setScalar(1 + k * 1.6);
+      p.mat.opacity = 0.95 * (1 - k);
+      return true;
+    });
   }
 
   start() {
@@ -389,12 +451,15 @@ export class WhackWorld {
       }
     }
 
+    this.updateBursts(dt);
     for (const h of this.holes) {
       if (h.whacked > 0) {
         h.whacked = Math.max(0, h.whacked - dt);
-        // squashed flat, then gone
-        h.up = Math.max(0, h.up - dt * 5);
-        h.bear.scale.set(1.25, 0.55, 1.25);
+        // squashed flat with a wobble, then gone
+        h.up = Math.max(0, h.up - dt * 4);
+        const k = h.whacked / 0.35;
+        const wob = Math.sin((1 - k) * 18) * 0.12 * k;
+        h.bear.scale.set(1.3 + wob, 0.5 - wob, 1.3 + wob);
       } else {
         if (h.timer > 0) {
           h.timer = Math.max(0, h.timer - dt);

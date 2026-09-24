@@ -101,7 +101,19 @@ const SIN2 = Math.sin(2 * ANGLE);
  */
 export const MIN_V = 6.6;
 export const MAX_V = 11.4;
-export const CHARGE_TIME = 2.8;
+/**
+ * 3.4s, from 2.8: the first real play found the windows (a quarter to two
+ * fifths of a second) too tight to learn in three goes. A slower meter widens
+ * every window by the same fifth.
+ */
+export const CHARGE_TIME = 3.4;
+/**
+ * Marshmallows in a go. Three for three mugs meant one miss and the tray was
+ * gone, and a go was over in half a minute; six gives her room to miss, learn
+ * the meter and still fill the tray, and the ones she has left when the tray
+ * is full are worth tickets.
+ */
+export const THROWS = 6;
 /** a tap rather than a hold throws at the near mug */
 export const TAP_POWER = 0.155;
 
@@ -113,16 +125,16 @@ export const MARSH_R = 0.16;
  * edge rolls in. The same reasoning as mini golf's cup being wider than its
  * ball.
  */
-export const CATCH_R = 0.56;
+export const CATCH_R = 0.59;
 /**
  * The last of the help: on the way down, a marshmallow inside this much of a
  * mug is drawn towards it, hard enough to turn a rim-clip into a splash and no
  * harder. Capped in metres per second squared, so it reads as the marshmallow
  * catching the rim rather than steering.
  */
-const ASSIST_R = 0.95;
+const ASSIST_R = 1.3;
 const ASSIST_K = 7;
-const ASSIST_MAX = 4.5;
+const ASSIST_MAX = 6.5;
 /** Hit a mug at this speed or more and it goes over. */
 export const TIP_V = 8.4;
 
@@ -280,11 +292,13 @@ export function freshMugs(): MugState[] {
 
 /* --------------------------------------------------------------- scoring */
 
-export function tossTickets(mugs: number) {
-  return 2 + mugs * 3 + (mugs >= 3 ? 5 : 0);
+/** Tickets for a go: the mugs, and when the tray is full, two for each marshmallow still in hand. */
+export function tossTickets(mugs: number, spare = 0) {
+  return 2 + mugs * 3 + (mugs >= 3 ? 5 + spare * 2 : 0);
 }
 
-export function tossLine(mugs: number) {
+export function tossLine(mugs: number, spare = 0) {
+  if (mugs >= 3 && spare > 0) return `All three mugs with ${spare} marshmallow${spare === 1 ? "" : "s"} to spare! Bonus tickets!`;
   if (mugs >= 3) return "All three mugs! That is the whole tray, cocoa everywhere!";
   if (mugs === 2) return "Two out of three! One more and the tray is yours.";
   if (mugs === 1) return "One in! Watch the arc and let go a touch sooner or later.";
@@ -321,7 +335,7 @@ export const tossPose: TossPose = {
   state: "ready",
   power: 0,
   thrown: 0,
-  left: 3,
+  left: THROWS,
   target: 0,
   targetPower: powerFor(TOSS.mugD[0]!),
   targetBand: 0.05,
@@ -602,10 +616,10 @@ export class TossWorld {
     this.marsh.visible = false;
     this.group.add(this.marsh);
 
-    // the three waiting on the counter
-    for (let i = 0; i < 3; i++) {
-      const m = new THREE.Mesh(marshGeo, lam(i === 1 ? "#f6f1e8" : "#ff93c4", GLOSS));
-      const [sx, sz] = toWorld(TOSS.counterD, -0.75 + i * 0.75);
+    // the six waiting on the counter, in two rows of three
+    for (let i = 0; i < THROWS; i++) {
+      const m = new THREE.Mesh(marshGeo, lam(i % 2 === 1 ? "#f6f1e8" : "#ff93c4", GLOSS));
+      const [sx, sz] = toWorld(TOSS.counterD + (i < 3 ? -0.2 : 0.2), -0.75 + (i % 3) * 0.75);
       m.position.set(sx, 0.6 + MARSH_R * 0.85, sz);
       m.castShadow = true;
       this.group.add(m);
@@ -684,7 +698,7 @@ export class TossWorld {
     tossPose.state = "ready";
     tossPose.power = 0;
     tossPose.thrown = 0;
-    tossPose.left = 3;
+    tossPose.left = THROWS;
     tossPose.filled = [false, false, false];
     tossPose.throws = [];
     tossPose.preview = 0;
@@ -703,7 +717,7 @@ export class TossWorld {
     for (const s of this.supply) s.visible = true;
     const st = useGame.getState();
     useToss.getState().setPlaying(true);
-    st.setEmmettNotice("Three marshmallows, three mugs. Hold to fill the meter!");
+    st.setEmmettNotice("Six marshmallows, three mugs. Hold to fill the meter!");
     const [sx, sz] = toWorld(TOSS.standD);
     // facing east, down the lane: yaw 0 looks -z, so a quarter turn the other way
     this.place(sx, 0.05, sz, -Math.PI / 2);
@@ -726,9 +740,10 @@ export class TossWorld {
     const st = useGame.getState();
     if (card) {
       const mugs = this.mugs.filter((m) => m.state.filled).length;
-      const tickets = tossTickets(mugs);
+      const spare = tossPose.left;
+      const tickets = tossTickets(mugs, spare);
       st.addTickets(tickets);
-      useToss.getState().setCard({ mugs, throws: tossPose.throws.slice(), tickets, line: tossLine(mugs) });
+      useToss.getState().setCard({ mugs, throws: tossPose.throws.slice(), tickets, line: tossLine(mugs, spare) });
       if (mugs > 0) sfx.win();
     }
     tossPose.active = false;
@@ -940,10 +955,11 @@ export class TossWorld {
       this.settle -= dt;
       if (this.settle <= 0) {
         tossPose.thrown++;
-        tossPose.left = 3 - tossPose.thrown;
+        tossPose.left = THROWS - tossPose.thrown;
         this.marsh.visible = false;
         this.aimAtNext();
-        if (tossPose.thrown >= 3) {
+        // out of marshmallows, or the tray is full with some still in hand
+        if (tossPose.thrown >= THROWS || tossPose.target < 0) {
           this.end(true);
           return;
         }
