@@ -24,7 +24,15 @@ const HOW_TO_EARN: Record<string, string> = {
   crown: "Find all 16 dumplings to earn this.",
   stickers30: "Collect all 30 stickers to earn this.",
   pet: "Adopt a pet to earn this.",
+  prize: "Win this from a gumball machine!",
 };
+
+/**
+ * Columns on a wide screen. One row reads best while it fits, but the candy
+ * house has six or seven pieces a spot and seven in a row squeezes each name
+ * onto three lines, so past six the options wrap into two even rows.
+ */
+const wideColumns = (n: number) => (n <= 6 ? n : Math.ceil(n / 2));
 
 export function HomePanel() {
   const spot = useHome((s) => s.panel);
@@ -130,7 +138,7 @@ function Decorate() {
           <div
             ref={tiles}
             className="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(var(--n),minmax(0,1fr))] sm:gap-3"
-            style={{ "--n": options.length } as CSSProperties}
+            style={{ "--n": wideColumns(options.length) } as CSSProperties}
           >
             {options.map((f, i) => {
               const have = owns(f);
@@ -181,7 +189,7 @@ function Decorate() {
                       </span>
                     ) : (
                       <span className="ui-chip bg-surface text-sm text-ink-soft shadow-none">
-                        <Lock className="size-3.5" strokeWidth={3} /> Earn it
+                        <Lock className="size-3.5" strokeWidth={3} /> {f.source === "prize" ? "Prize" : "Earn it"}
                       </span>
                     )}
                   </span>

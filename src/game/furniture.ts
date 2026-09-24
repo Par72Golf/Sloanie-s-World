@@ -33,8 +33,12 @@ export type FurnitureDef = {
   id: FurnitureId;
   name: string;
   spot: SpotId;
-  /** how she gets it: "starter" (owned from the start), "shop" (tickets), or a reward key */
-  source: "starter" | "shop" | "crown" | "stickers30" | "pet";
+  /**
+   * how she gets it: "starter" (owned from the start), "shop" (tickets), a
+   * reward key, or "prize" (won from a gumball machine; only the candy house
+   * has any)
+   */
+  source: "starter" | "shop" | "crown" | "stickers30" | "pet" | "prize";
   price?: number;
 };
 
