@@ -12,3 +12,4 @@ icons/
 
 # the built snapshot a playtest runs against, rebuilt whenever it is needed
 house-dist/
+.claude/worktrees/
