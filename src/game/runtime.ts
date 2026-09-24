@@ -3,7 +3,7 @@ import { makeBoostRing, makeCottonCandyPuff } from "./candy-scenery";
 import { EMMETT_BASE } from "./emmett-base";
 import { animateMonsterTruck } from "./monster-truck";
 import { HomeWorld } from "./home";
-import { SugarHomeWorld } from "./sugar-home";
+import { SugarHomeWorld, candyHouseSpots } from "./sugar-home";
 import { useHome } from "./home-store";
 import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
@@ -22,6 +22,8 @@ import { Flyover, flyoverFor } from "./flyover";
 import { WhackWorld, useWhack } from "./whack-a-gummy";
 import { SorterWorld, useSorter } from "./sweet-sorter";
 import { BuildYard } from "./build-yard";
+import { Placer } from "./placer";
+import { houseArea, useHouseBuild } from "./house-items";
 import { useBuild } from "./build-store";
 import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
 import { candyPrizeFurniture } from "./candy-furniture";
@@ -615,6 +617,12 @@ export class GameRuntime {
           ? new SugarHomeWorld(this.scene, this.world.colliders)
           : new HomeWorld(this.scene, this.world.colliders)
         : null;
+    // the things she puts round the candy house, anywhere in its rooms
+    this.housePlacer?.dispose();
+    this.housePlacer =
+      this.homeWorld instanceof SugarHomeWorld && this.world
+        ? new Placer(this.scene, this.world.colliders, houseArea(candyHouseSpots().room))
+        : null;
     // mini golf: its own ball, sails and log, like the quest and the house
     this.golfWorld?.dispose();
     this.golfWorld =
@@ -1160,6 +1168,7 @@ export class GameRuntime {
   whack: WhackWorld | null = null;
   sorter: SorterWorld | null = null;
   buildYard: BuildYard | null = null;
+  housePlacer: Placer | null = null;
   gumballs: GumballWorld | null = null;
   /** when to remind her that today's free gumball is waiting, or -1 */
   dailyNoticeAt = -1;
@@ -1189,6 +1198,7 @@ export class GameRuntime {
     this.whack?.dispose();
     this.sorter?.dispose();
     this.buildYard?.dispose();
+    this.housePlacer?.dispose();
     this.gumballs?.dispose();
     this.boat?.dispose();
     this.cupcakes?.dispose();
@@ -1739,10 +1749,18 @@ export class GameRuntime {
       sfx.click();
       return;
     }
-    // building in the yard, Collect is Place
+    // building in the yard, or arranging her house, Collect is Place
     const build = useBuild.getState();
-    if (build.building) {
-      build.ask("place");
+    const houseBuild = useHouseBuild.getState();
+    if (build.building || houseBuild.building) {
+      (build.building ? build : houseBuild).ask("place");
+      return;
+    }
+    // indoors and not at a decorate spot or the door: put things out
+    if (this.housePlacer && useHome.getState().inside && useHome.getState().near == null) {
+      sfx.click();
+      houseBuild.setBuilding(true);
+      st.setEmmettNotice("Pick something, face where you want it and press Place!");
       return;
     }
     if (this.gumballs?.tryInteract(this.cap.x, this.cap.y, this.cap.z)) return;
@@ -2523,6 +2541,11 @@ export class GameRuntime {
       if (!paused) this.whack?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.sorter?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.buildYard?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused);
+      if (this.housePlacer) {
+        const hb = useHouseBuild.getState();
+        if (hb.building && !useHome.getState().inside) hb.setBuilding(false);
+        this.housePlacer.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, hb.building && !paused);
+      }
       this.gumballs?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       // once, a little after she arrives: the reason to come back tomorrow is
       // only a reason if she knows about it

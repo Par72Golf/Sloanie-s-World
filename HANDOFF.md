@@ -778,3 +778,15 @@ Review <file> and tell me what is weakest about it. Be honest, do not be nice.
    the checklist.
 
 The birthday build only needs park one to be good. The finished game needs all three.
+
+## Making things, and coming back tomorrow (Sugar Rush)
+
+Added after the third round of real play, towards an Animal Crossing feel.
+
+- **Placing on a grid** (`placer.ts`): one system for both the build yard and her house. A see-through copy of the chosen piece sits on the 1m square in front of her, stacked on hers already there (half-metre levels, so block stairs are climbable). Place / Remove / Turn / Undo. Refuses a piece that would go into her, a wall or furniture. A piece with a `price` is bought the first time she places it. Stacked columns merge into one collider each.
+- **Build yard** (`build-yard.ts`, `build-pieces.ts`): a 24m square at `SUGAR.buildYard`, 17 starter pieces plus 10 gumball prizes. Emmett keeps out (`emmettKeepOut` in sugar-level.ts).
+- **Things in the house** (`house-items.ts`): 24 items she puts anywhere in the rooms she has built: 8 free, 10 bought with tickets, 6 gumball-only. This is also how the playroom and studio get furnished.
+- **Saves**: each has its own slot (`makeBuildStore` in build-store.ts), apart from the main save.
+- **Gumball machines** (`gumballs.ts`): the first turn each day is free (`gumballDay` in the main save), later turns cost 5 tickets. Prizes are tickets, the golden gumball, build pieces, house items or gumball-only furniture (`candyPrizeFurniture`).
+- **Tickets for hunting** (store.ts): 3 per find (once a run), 2 per sticker, 25 per park cleared and 20 per sticker book filled.
+- **House stages 4 and 5** (candy-house.ts, sugar-home-mesh.ts): the Candy palace (playroom) and the Rainbow palace (studio).

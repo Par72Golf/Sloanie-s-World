@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { sfx } from "./audio";
 import { PIECE, PRIZE_PIECES } from "./build-pieces";
 import { useBuild } from "./build-store";
+import { HOUSE_ITEM, HOUSE_PRIZE_ITEMS, useHouseBuild } from "./house-items";
 import { glowMaterial } from "./furniture";
 import { sphereGeo } from "./meshes";
 import { useGame } from "./store";
@@ -22,10 +23,9 @@ import type { LevelDef, ModelProp } from "./types";
 
 export const GUMBALL_PRICE = 5;
 
-export type GumballPrize =
-  | { kind: "tickets"; n: number; golden?: boolean }
-  | { kind: "piece"; id: string; name: string }
-  | { kind: "furniture"; id: string; name: string };
+/** Something to keep: a build yard piece, a thing for the house, or a piece of furniture. */
+export type PrizeItem = { kind: "piece" | "houseItem" | "furniture"; id: string; name: string };
+export type GumballPrize = { kind: "tickets"; n: number; golden?: boolean } | PrizeItem;
 
 export type GumballCard = { prize: GumballPrize; color: string; daily: boolean };
 
@@ -64,14 +64,10 @@ export function setFurniturePrizes(list: typeof furniturePrizes, grant: typeof g
 
 const BALL_COLORS = ["#ff93c4", "#6fe3c4", "#ffe36b", "#b98cff", "#7ec8ff", "#ffae5c", "#ff6b6b"];
 
-/** What is in the gumball. Pure apart from the random numbers, so it can be tried headlessly. */
-export function rollPrize(daily: boolean, lockedPieces: string[], lockedFurniture: { id: string; name: string }[], rand = Math.random): GumballPrize {
+/** What is in the gumball, from the things she has not won yet. Pure apart from the random numbers. */
+export function rollPrize(daily: boolean, items: PrizeItem[], rand = Math.random): GumballPrize {
   // one in thirty is the golden gumball
   if (rand() < 1 / 30) return { kind: "tickets", n: daily ? 60 : 40, golden: true };
-  const items = [
-    ...lockedPieces.map((id) => ({ kind: "piece" as const, id, name: PIECE.get(id)?.name ?? id })),
-    ...lockedFurniture.map((f) => ({ kind: "furniture" as const, id: f.id, name: f.name })),
-  ];
   // the daily one is more often a thing to keep than a handful of tickets
   if (items.length && rand() < (daily ? 0.55 : 0.3)) return items[Math.floor(rand() * items.length)]!;
   const roll = rand();
@@ -83,6 +79,7 @@ export function rollPrize(daily: boolean, lockedPieces: string[], lockedFurnitur
 export function prizeLine(p: GumballPrize) {
   if (p.kind === "tickets") return p.golden ? `The GOLDEN gumball! ${p.n} tickets!` : `${p.n} tickets!`;
   if (p.kind === "piece") return `A new building piece: the ${p.name}! Find it in the Build Yard.`;
+  if (p.kind === "houseItem") return `The ${p.name}! Put it anywhere in your house.`;
   return `New furniture: the ${p.name}! It's waiting in your house.`;
 }
 
@@ -134,11 +131,14 @@ export class GumballWorld {
     }
     if (daily) st.claimGumballDay(today());
     const build = useBuild.getState();
-    const prize = rollPrize(
-      daily,
-      PRIZE_PIECES.filter((id) => !build.unlocked.includes(id)),
-      furniturePrizes().filter((f) => !f.owned),
-    );
+    const house = useHouseBuild.getState();
+    const prize = rollPrize(daily, [
+      ...PRIZE_PIECES.filter((id) => !build.unlocked.includes(id)).map((id) => ({ kind: "piece" as const, id, name: PIECE.get(id)?.name ?? id })),
+      ...HOUSE_PRIZE_ITEMS.filter((id) => !house.unlocked.includes(id)).map((id) => ({ kind: "houseItem" as const, id, name: HOUSE_ITEM.get(id)?.name ?? id })),
+      ...furniturePrizes()
+        .filter((f) => !f.owned)
+        .map((f) => ({ kind: "furniture" as const, id: f.id, name: f.name })),
+    ]);
     const color = prize.kind === "tickets" && prize.golden ? "#ffd84a" : BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)]!;
     sfx.click();
     // the gumball drops out of the chute and rolls to her feet, then opens
@@ -185,6 +185,7 @@ export class GumballWorld {
     const p = card.prize;
     if (p.kind === "tickets") st.addTickets(p.n);
     else if (p.kind === "piece") useBuild.getState().unlock(p.id);
+    else if (p.kind === "houseItem") useHouseBuild.getState().unlock(p.id);
     else grantFurniture(p.id);
     sfx.win();
     useGumball.getState().setCard(card);
