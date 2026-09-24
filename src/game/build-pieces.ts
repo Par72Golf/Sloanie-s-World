@@ -70,7 +70,8 @@ function once(key: string, make: () => THREE.BufferGeometry) {
 
 const g = (...parts: THREE.Object3D[]) => {
   const out = new THREE.Group();
-  out.add(...parts);
+  // add() with nothing in it warns, and a group is often started empty
+  if (parts.length) out.add(...parts);
   return out;
 };
 const lit = (color: string, strength = 1.2) => glowMaterial(color, strength, 0.3);
@@ -202,10 +203,10 @@ export const PIECES: PieceDef[] = [
     boxes: [{ x0: -0.1, x1: 0.1, z0: -0.1, z1: 0.1, y0: 0, y1: 2.5 }],
     make: (c) => {
       // the sweet stands on edge, like a real lollipop, not flat like a plate
-      const disc = mesh(cylGeo, c, 0.5, 0.14, 0.5, 0, 2.15, 0);
-      const swirl = mesh(cylGeo, "#ffffff", 0.3, 0.15, 0.3, 0, 2.15, 0, false);
+      const disc = mesh(cylGeo, c, 0.48, 0.14, 0.48, 0, 2.0, 0);
+      const swirl = mesh(cylGeo, "#ffffff", 0.3, 0.15, 0.3, 0, 2.0, 0, false);
       disc.rotation.x = swirl.rotation.x = Math.PI / 2;
-      return g(mesh(cylGeo, "#fff4e0", 0.06, 1.9, 0.06, 0, 0.95, 0), disc, swirl);
+      return g(mesh(cylGeo, "#fff4e0", 0.06, 1.7, 0.06, 0, 0.85, 0), disc, swirl);
     },
   },
   {
@@ -431,7 +432,8 @@ export const PIECES: PieceDef[] = [
     h: 4,
     prize: true,
     turns: true,
-    solid: 0.4,
+    // long and narrow: solid along its body, not as a square
+    boxes: [{ x0: -0.22, x1: 0.22, z0: -0.45, z1: 0.45, y0: 0, y1: 1.4 }],
     make: () =>
       g(
         mesh(boxGeo, "#fff4ff", 0.5, 0.4, 0.8, 0, 0.75, 0),
@@ -570,10 +572,25 @@ export const PIECES: PieceDef[] = [
 export const PIECE = new Map(PIECES.map((p) => [p.id, p]));
 export const PRIZE_PIECES = PIECES.filter((p) => p.prize).map((p) => p.id);
 
+/**
+ * How tall a piece is drawn, measured once. A rounded piece (a gumdrop, a
+ * donut, a statue) is drawn shorter than the height the next piece stacks at,
+ * and a collider to the full height left her standing in the air above it.
+ */
+const drawnTops = new Map<string, number>();
+function drawnTop(p: PieceDef) {
+  let t = drawnTops.get(p.id);
+  if (t == null) {
+    const box = new THREE.Box3().setFromObject(p.make("#ffffff"), true);
+    t = box.isEmpty() ? p.h * LEVEL : Math.min(p.h * LEVEL, box.max.y);
+    drawnTops.set(p.id, t);
+  }
+  return t;
+}
+
 /** A piece's colliders in metres, in its square's frame, turned by `r` quarter turns. */
 export function pieceBoxes(p: PieceDef, r: number): Box[] {
-  const top = p.h * LEVEL;
-  const raw: Box[] = p.boxes ?? (p.solid ? [{ x0: -p.solid, x1: p.solid, z0: -p.solid, z1: p.solid, y0: 0, y1: top }] : []);
+  const raw: Box[] = p.boxes ?? (p.solid ? [{ x0: -p.solid, x1: p.solid, z0: -p.solid, z1: p.solid, y0: 0, y1: drawnTop(p) }] : []);
   // quarter turns, exactly: x,z -> z,-x each time
   return raw.map((b) => {
     let { x0, x1, z0, z1 } = b;

@@ -1,5 +1,6 @@
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 import { PIECES, type PieceDef } from "./build-pieces";
+import { SIDE_SAVES } from "./save";
 
 /**
  * What she has placed, and the placing controls: one store for the build yard
@@ -138,4 +139,4 @@ export function makeBuildStore(key: string, catalogue: PieceDef[]): BuildStoreHo
 }
 
 /** The build yard's. */
-export const useBuild = makeBuildStore("sloanies-world-builds-v1", PIECES);
+export const useBuild = makeBuildStore(SIDE_SAVES.builds, PIECES);

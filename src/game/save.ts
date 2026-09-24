@@ -247,10 +247,27 @@ export function persistSave(data: SaveData) {
   }
 }
 
+/**
+ * Saves kept in their own slots, so a big build never bloats the main save:
+ * the build yard (build-store.ts) and the things round her house
+ * (house-items.ts). Named here so a fresh start can clear them too.
+ */
+export const SIDE_SAVES = { builds: "sloanies-world-builds-v1", houseItems: "sloanies-world-house-items-v1" } as const;
+
+export function clearSideSave(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Everything: the main save and every side slot. The houses clear themselves (home-store reset). */
 export function clearSave() {
   try {
     localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }
+  for (const k of Object.values(SIDE_SAVES)) clearSideSave(k);
 }

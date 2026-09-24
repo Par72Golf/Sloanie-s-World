@@ -89,6 +89,8 @@ type HomeStore = {
   place: (spot: SpotId, id: FurnitureId) => void;
   grant: (id: FurnitureId) => boolean;
   reset: () => void;
+  /** Empty one house, for starting one park over. */
+  resetKit: (id: HouseKitId) => void;
 };
 
 const firstKit = HOUSE_KITS.clubhouse;
@@ -140,6 +142,10 @@ export const useHome = create<HomeStore>((set, get) => ({
     set({ owned: [...get().owned, id] });
     persist(get().kit, { placed: get().placed, owned: get().owned, stage: get().stage });
     return true;
+  },
+  resetKit: (id) => {
+    persist(HOUSE_KITS[id], { placed: {}, owned: [], stage: 1 });
+    if (get().kit.id === id) set({ placed: starters(get().kit), owned: [], stage: 1, inside: false, panel: null, near: null, upgrading: false });
   },
   /** a new game empties both houses, not only the one she is standing in */
   reset: () => {

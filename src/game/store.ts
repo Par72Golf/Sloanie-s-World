@@ -290,6 +290,14 @@ export type GameStore = {
   /** Wipe all progress. Best times are kept unless asked; settings always are. */
   resetAll: (opts?: { bestTimes?: boolean }) => void;
   /**
+   * Start one park over: its sweets, its stickers and book, and its own story
+   * (Farmer Joe and the pets in the first park; the princess's factory, the
+   * creatures and Emmett's truck in Sugar Rush). Her clothes, her tickets, her
+   * best times and the other park are kept. The caller clears that park's house
+   * and builds, and passes the park's sticker and sweet ids.
+   */
+  resetPark: (index: number, ids: { stickers: string[]; sweets: string[] }) => void;
+  /**
    * The grown-ups' menu has been unlocked with the PIN this session. Never
    * saved: it is off again every time the game is opened, so nothing she does
    * can leave the tools switched on.
@@ -1077,6 +1085,39 @@ export const useGame = create<GameStore>((set, get) => ({
     });
     persistSlice(get());
   },
+  resetPark: (index, ids) => {
+    const st = get();
+    const stickers = new Set(ids.stickers);
+    const sweets = new Set(ids.sweets);
+    set({
+      collected: st.collected.map((row, i) => (i === index ? [] : row.slice())),
+      stickers: st.stickers.filter((id) => !stickers.has(id)),
+      movedSpots: Object.fromEntries(Object.entries(st.movedSpots).filter(([id]) => !sweets.has(id))),
+      runSeconds: 0,
+      runActive: false,
+      lastRun: null,
+      phase: "title",
+      ...(index === 0
+        ? {
+            stickerBook: false,
+            quest: { stage: "none" as const, treats: [], chapter: 0, seek: null },
+            pets: [],
+            pet: null,
+          }
+        : {
+            candyStickerBook: false,
+            truckWins: 0,
+            truckOwned: false,
+            truckRace: null,
+            driving: false,
+            factoryFixed: false,
+            candyParts: [],
+            candyCreatures: [],
+            creaturesHome: [],
+          }),
+    });
+    persistSlice(get());
+  },
   resetAll: (opts) => {
     const keptBoard = opts?.bestTimes ? get().leaderboard.map(() => []) : get().leaderboard.map((r) => r.slice());
     clearSave();
@@ -1126,6 +1167,7 @@ export const useGame = create<GameStore>((set, get) => ({
       candyParts: [],
       candyCreatures: [],
       creaturesHome: [],
+      gumballDay: "",
       truckRace: null,
       driving: false,
       stickers: [],

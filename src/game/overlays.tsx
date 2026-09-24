@@ -87,6 +87,9 @@ import { HITCH_MS, debugEnabled, perf } from "./debug";
 import { accessory, allAccessories } from "./accessories";
 import { ItemThumb } from "./item-thumbs";
 import { LEVELS } from "./levels";
+import { STICKER_SPOTS } from "./collectibles";
+import { candyStickerSpots } from "./candy-stickers";
+import { SIDE_SAVES, clearSideSave } from "./save";
 import { MiniMap } from "./minimap";
 import { PadMenu } from "./pad-menu";
 import { useGame } from "./store";
@@ -763,6 +766,21 @@ function TitleScreen() {
     setDetail(null);
     window.setTimeout(() => window.location.reload(), 150);
   };
+  /** Start one park over: its hunt, its stickers, its story, its house and its builds. */
+  const startOverPark = (index: number) => {
+    sfx.click();
+    const stickers = (index === 0 ? STICKER_SPOTS : candyStickerSpots()).map((sp) => sp.id);
+    const sweets = LEVELS[index]!.dumplings.map((d) => d.id);
+    useGame.getState().resetPark(index, { stickers, sweets });
+    useHome.getState().resetKit(index === 0 ? "clubhouse" : "candy");
+    if (index === 1) {
+      // her build yard and the things round her candy house are Sugar Rush's
+      clearSideSave(SIDE_SAVES.builds);
+      clearSideSave(SIDE_SAVES.houseItems);
+    }
+    setDetail(null);
+    window.setTimeout(() => window.location.reload(), 150);
+  };
 
   const toggle = (d: Exclude<TitleDetail, null>) => {
     sfx.click();
@@ -1068,17 +1086,36 @@ function TitleScreen() {
                 {detail === "reset" && (
                   <>
                     <p className="text-base font-semibold text-ink 2xl:text-xl">
-                      Start a brand new adventure? Dumplings, stickers, tickets, pets, prizes and the house all go back
-                      to the beginning.
+                      Start one park over, or the whole adventure?
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2.5">
-                      <Btn onClick={() => startOver(false)}>Yes, start over</Btn>
-                      <Btn variant="secondary" onClick={() => startOver(true)}>
-                        Start over and clear best times
-                      </Btn>
-                      <Btn variant="ghost" onClick={() => setDetail(null)}>
-                        Cancel
-                      </Btn>
+                    <div className="mt-3 grid gap-2.5">
+                      {LEVELS.slice(0, 2).map((lv, i) =>
+                        i > unlocked ? null : (
+                          <div key={lv.id} className="grid gap-1">
+                            <Btn variant="secondary" onClick={() => startOverPark(i)}>
+                              Start {lv.name} over
+                            </Btn>
+                            <p className="px-1 text-sm text-ink-soft">
+                              {i === 0
+                                ? "Its dumplings, stickers, Farmer Joe's pets and the clubhouse start again."
+                                : "Its sweets, stickers, the princess, the creatures, Emmett's truck, your candy house and your builds start again."}{" "}
+                              Your clothes, tickets and the other park stay.
+                            </p>
+                          </div>
+                        ),
+                      )}
+                      <p className="mt-1 text-base font-semibold text-ink 2xl:text-xl">
+                        Or everything: dumplings, stickers, tickets, pets, prizes, houses and builds all go back to the beginning.
+                      </p>
+                      <div className="flex flex-wrap gap-2.5">
+                        <Btn onClick={() => startOver(false)}>Start everything over</Btn>
+                        <Btn variant="secondary" onClick={() => startOver(true)}>
+                          Everything, and clear best times
+                        </Btn>
+                        <Btn variant="ghost" onClick={() => setDetail(null)}>
+                          Cancel
+                        </Btn>
+                      </div>
                     </div>
                   </>
                 )}

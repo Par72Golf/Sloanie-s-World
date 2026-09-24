@@ -41,6 +41,7 @@ jobs:
       - run: npx jiti tools/mountain.ts
       - run: LEVEL=1 npx jiti tools/solid.ts
       - run: npx jiti tools/model-boxes.ts
+      - run: npx jiti tools/placement.ts
       - run: npm run build
       - uses: actions/upload-pages-artifact@v4
         with:

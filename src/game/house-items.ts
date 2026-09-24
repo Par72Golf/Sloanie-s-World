@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { glowMaterial } from "./furniture";
 import type { PieceDef } from "./build-pieces";
 import { makeBuildStore } from "./build-store";
+import { SIDE_SAVES } from "./save";
 import { useHome } from "./home-store";
 import { boxGeo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 import type { PlaceArea } from "./placer";
@@ -25,7 +26,8 @@ const ARCS = [0, 1, 2, 3, 4].map((i) => new THREE.TorusGeometry(0.42 - i * 0.05,
 
 const g = (...parts: THREE.Object3D[]) => {
   const out = new THREE.Group();
-  out.add(...parts);
+  // add() with nothing in it warns, and a group is often started empty
+  if (parts.length) out.add(...parts);
   return out;
 };
 const glow = (geo: THREE.BufferGeometry, color: string, s: number, x: number, y: number, z: number, k = 1.2) => {
@@ -56,7 +58,7 @@ export const HOUSE_ITEMS: PieceDef[] = [
     id: "beanbag",
     name: "Beanbag",
     icon: "🛋️",
-    h: 1,
+    h: 2,
     colored: true,
     solid: 0.42,
     make: (c) => g(mesh(sphereGeo, c, 0.46, 0.3, 0.46, 0, 0.3, 0), mesh(sphereGeo, c, 0.36, 0.3, 0.2, 0, 0.5, -0.24)),
@@ -152,7 +154,7 @@ export const HOUSE_ITEMS: PieceDef[] = [
     h: 3,
     price: 40,
     turns: true,
-    solid: 0.4,
+    solid: 0.36,
     make: () => {
       const roof = mesh(coneGeo, "#e8384f", 0.52, 0.45, 0.52, 0, 1.05, 0);
       roof.rotation.y = Math.PI / 4;
@@ -274,7 +276,7 @@ export const HOUSE_ITEMS: PieceDef[] = [
     h: 3,
     price: 55,
     turns: true,
-    solid: 0.22,
+    boxes: [{ x0: -0.13, x1: 0.13, z0: -0.18, z1: 0.18, y0: 0, y1: 1.0 }],
     make: () => {
       const tube = mesh(cylGeo, "#7ec8ff", 0.09, 0.8, 0.09, 0, 1.1, 0.1);
       tube.rotation.x = -0.7;
@@ -326,7 +328,7 @@ export const HOUSE_ITEMS: PieceDef[] = [
     icon: "🦄",
     h: 2,
     prize: true,
-    solid: 0.28,
+    boxes: [{ x0: -0.28, x1: 0.28, z0: -0.19, z1: 0.19, y0: 0, y1: 0.95 }],
     make: () => {
       const b = bear("#fff4ff", "#ffb7d5");
       b.add(mesh(coneGeo, "#ffd84a", 0.04, 0.2, 0.04, 0, 0.92, 0.06, false));
@@ -354,7 +356,7 @@ export const HOUSE_ITEMS: PieceDef[] = [
     id: "playhouse",
     name: "Castle playhouse",
     icon: "🏰",
-    h: 4,
+    h: 5,
     prize: true,
     colored: true,
     turns: true,
@@ -432,7 +434,7 @@ export const HOUSE_ITEM = new Map(HOUSE_ITEMS.map((p) => [p.id, p]));
 export const HOUSE_PRIZE_ITEMS = HOUSE_ITEMS.filter((p) => p.prize).map((p) => p.id);
 
 /** What she has put round her house, saved in its own slot. */
-export const useHouseBuild = makeBuildStore("sloanies-world-house-items-v1", HOUSE_ITEMS);
+export const useHouseBuild = makeBuildStore(SIDE_SAVES.houseItems, HOUSE_ITEMS);
 
 /**
  * Her rooms as a placing grid: every whole square inside a room she has built,
