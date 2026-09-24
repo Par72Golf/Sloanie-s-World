@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { sfx } from "./audio";
 import { BUILD_COLORS, LEVEL, pieceBoxes, type PieceDef } from "./build-pieces";
-import type { BuildStoreHook, Placed } from "./build-store";
+import { MAX_PIECES, type BuildStoreHook, type Placed } from "./build-store";
 import type { AABB } from "./collision";
 import { mergeStatic } from "./merge";
 import { useGame } from "./store";
@@ -84,10 +84,18 @@ export function targetSquare(a: PlaceArea, x: number, z: number, yaw: number): [
   return [gx, gz];
 }
 
+/** squares per side of a redraw chunk */
+const CHUNK = 6;
+type Chunk = { sig: string; group: THREE.Group; geos: THREE.BufferGeometry[]; spinning: THREE.Object3D[] };
+
 export class Placer {
-  private built: THREE.Group | null = null;
-  private builtGeos: THREE.BufferGeometry[] = [];
-  private spinning: THREE.Object3D[] = [];
+  /**
+   * The drawing is kept in chunks of CHUNK x CHUNK squares, each merged on its
+   * own, and a press redraws only the chunk it changed. Merging the whole build
+   * again on every press cost 300ms at twelve hundred pieces — a hitch on each
+   * Place, and worse on a tablet.
+   */
+  private chunks = new Map<string, Chunk>();
   private colliders: AABB[] = [];
   private ghost: THREE.Group | null = null;
   private ghostKey = "";
@@ -103,32 +111,50 @@ export class Placer {
 
   dispose() {
     this.setColliders([]);
-    this.clearBuilt();
+    for (const key of [...this.chunks.keys()]) this.dropChunk(key);
     if (this.ghost) this.scene.remove(this.ghost);
   }
 
   private setColliders(next: AABB[]) {
-    for (const c of this.colliders) {
-      const i = this.worldColliders.indexOf(c);
-      if (i >= 0) this.worldColliders.splice(i, 1);
-    }
+    // out of the park's list in one pass, in place: other code holds the array,
+    // and an indexOf per box was millions of steps a press for a big build
+    const drop = new Set(this.colliders);
+    const all = this.worldColliders;
+    let w = 0;
+    for (let i = 0; i < all.length; i++) if (!drop.has(all[i]!)) all[w++] = all[i]!;
+    all.length = w;
     this.colliders = next;
     this.worldColliders.push(...next);
   }
 
-  private clearBuilt() {
-    if (!this.built) return;
-    this.scene.remove(this.built);
-    for (const geo of this.builtGeos) geo.dispose();
-    this.builtGeos = [];
-    this.built = null;
+  private dropChunk(key: string) {
+    const c = this.chunks.get(key);
+    if (!c) return;
+    this.scene.remove(c.group);
+    for (const geo of c.geos) geo.dispose();
+    this.chunks.delete(key);
   }
 
-  /** Draw every piece again and merge them: after each change, which is a press, not a frame. */
+  /** Redraw the chunks whose pieces changed, after a press; the colliders all at once. */
   private rebuild(pieces: readonly Placed[]) {
-    this.clearBuilt();
+    const byChunk = new Map<string, Placed[]>();
+    for (const q of pieces) {
+      const key = `${Math.floor(q.x / CHUNK)},${Math.floor(q.z / CHUNK)}`;
+      (byChunk.get(key) ?? byChunk.set(key, []).get(key)!).push(q);
+    }
+    for (const key of [...this.chunks.keys()]) if (!byChunk.has(key)) this.dropChunk(key);
+    for (const [key, list] of byChunk) {
+      const sig = list.map((q) => `${q.p},${q.x},${q.z},${q.y},${q.c},${q.r}`).join(";");
+      if (this.chunks.get(key)?.sig === sig) continue;
+      this.dropChunk(key);
+      this.chunks.set(key, { sig, ...this.drawChunk(list) });
+    }
+    this.setColliders(areaColliders(this.area, pieces));
+  }
+
+  private drawChunk(pieces: readonly Placed[]) {
     const g = new THREE.Group();
-    this.spinning = [];
+    const spinning: THREE.Object3D[] = [];
     for (const q of pieces) {
       const def = this.area.catalogue.get(q.p);
       if (!def) continue;
@@ -141,15 +167,13 @@ export class Placer {
           m.castShadow = true;
           m.receiveShadow = true;
         }
-        if (m.userData.spin) this.spinning.push(m);
+        if (m.userData.spin) spinning.push(m);
       });
       g.add(o);
     }
-    const { geometries } = mergeStatic(g, { live: new Set(this.spinning) });
-    this.builtGeos = geometries;
-    this.built = g;
+    const { geometries } = mergeStatic(g, { live: new Set(spinning) });
     this.scene.add(g);
-    this.setColliders(areaColliders(this.area, pieces));
+    return { group: g, geos: geometries, spinning };
   }
 
   private makeGhost(def: PieceDef, color: string) {
@@ -175,7 +199,7 @@ export class Placer {
       this.lastPieces = store.pieces;
       this.rebuild(store.pieces);
     }
-    for (const s of this.spinning) s.rotation.y = this.t * 1.5;
+    for (const c of this.chunks.values()) for (const s of c.spinning) s.rotation.y = this.t * 1.5;
 
     const target = active ? targetSquare(this.area, her.x, her.z, her.yaw) : null;
     const def = this.area.catalogue.get(store.piece);
@@ -249,6 +273,11 @@ export class Placer {
     if (clash) {
       sfx.wrong();
       say("There's no room for it there!");
+      return;
+    }
+    if (store.pieces.length >= MAX_PIECES) {
+      sfx.wrong();
+      say(`That's ${MAX_PIECES} pieces — it's full! Take some away to build something new.`);
       return;
     }
     // a piece that is sold: the first one is bought as she puts it down

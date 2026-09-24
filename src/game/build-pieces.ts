@@ -1,6 +1,7 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { glowMaterial } from "./furniture";
-import { boxGeo, cone4Geo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
+import { cone4Geo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
 
 /**
  * The pieces she builds with in the build yard (build-yard.ts).
@@ -68,6 +69,22 @@ function once(key: string, make: () => THREE.BufferGeometry) {
   return geo;
 }
 
+/**
+ * A box for build pieces: the same moulded edge as everywhere else in the park,
+ * but one segment round it instead of two. A build is hundreds of these, and
+ * at two segments a block was 300 triangles and a big afternoon's building
+ * doubled the triangles on screen.
+ */
+function blk(color: string, sx: number, sy: number, sz: number, x: number, y: number, z: number, shadow = true) {
+  const key = `blk|${sx.toFixed(3)}|${sy.toFixed(3)}|${sz.toFixed(3)}`;
+  const geo = once(key, () => new RoundedBoxGeometry(sx, sy, sz, 1, Math.min(0.06, Math.min(sx, sy, sz) / 3)));
+  const m = new THREE.Mesh(geo, lam(color));
+  m.position.set(x, y, z);
+  m.castShadow = shadow;
+  m.receiveShadow = true;
+  return m;
+}
+
 const g = (...parts: THREE.Object3D[]) => {
   const out = new THREE.Group();
   // add() with nothing in it warns, and a group is often started empty
@@ -97,7 +114,7 @@ export const PIECES: PieceDef[] = [
     h: 1,
     colored: true,
     solid: 0.5,
-    make: (c) => g(mesh(boxGeo, c, 1, LEVEL, 1, 0, LEVEL / 2, 0)),
+    make: (c) => g(blk(c, 1, LEVEL, 1, 0, LEVEL / 2, 0)),
   },
   {
     id: "tall",
@@ -106,7 +123,7 @@ export const PIECES: PieceDef[] = [
     h: 2,
     colored: true,
     solid: 0.5,
-    make: (c) => g(mesh(boxGeo, c, 1, 1, 1, 0, 0.5, 0)),
+    make: (c) => g(blk(c, 1, 1, 1, 0, 0.5, 0)),
   },
   {
     id: "window",
@@ -116,15 +133,17 @@ export const PIECES: PieceDef[] = [
     colored: true,
     solid: 0.5,
     make: (c) => {
-      const out = g(mesh(boxGeo, c, 1, 0.16, 1, 0, 0.08, 0), mesh(boxGeo, c, 1, 0.16, 1, 0, 0.92, 0));
+      const out = g(blk(c, 1, 0.16, 1, 0, 0.08, 0), blk(c, 1, 0.16, 1, 0, 0.92, 0));
       for (const [x, z] of [
         [-0.42, -0.42],
         [0.42, -0.42],
         [-0.42, 0.42],
         [0.42, 0.42],
       ] as const)
-        out.add(mesh(boxGeo, c, 0.16, 0.7, 0.16, x, 0.5, z));
-      const glass = new THREE.Mesh(once("glass", () => new THREE.BoxGeometry(0.86, 0.68, 0.86)), lam("#dff4ff", { transparent: true, opacity: 0.35, flat: true, roughness: 0.05 }));
+        out.add(blk(c, 0.16, 0.7, 0.16, x, 0.5, z));
+      // solid pale glass, not see-through: transparent parts cannot be merged,
+      // so every window in a build was a draw call of its own
+      const glass = new THREE.Mesh(once("glass", () => new THREE.BoxGeometry(0.86, 0.68, 0.86)), lam("#cfeeff", { flat: true, roughness: 0.05, emissive: "#9fd8ff" }));
       glass.position.y = 0.5;
       out.add(glass);
       return out;
@@ -146,9 +165,9 @@ export const PIECES: PieceDef[] = [
     ],
     make: (c) =>
       g(
-        mesh(boxGeo, c, 0.12, 2.5, 1, -0.44, 1.25, 0),
-        mesh(boxGeo, c, 0.12, 2.5, 1, 0.44, 1.25, 0),
-        mesh(boxGeo, c, 1, 0.45, 1, 0, 2.275, 0),
+        blk(c, 0.12, 2.5, 1, -0.44, 1.25, 0),
+        blk(c, 0.12, 2.5, 1, 0.44, 1.25, 0),
+        blk(c, 1, 0.45, 1, 0, 2.275, 0),
         mesh(sphereGeo, "#ffffff", 0.1, 0.1, 0.1, 0, 2.0, 0.5, false),
       ),
   },
@@ -188,8 +207,8 @@ export const PIECES: PieceDef[] = [
     boxes: [{ x0: -0.5, x1: 0.5, z0: -0.08, z1: 0.08, y0: 0, y1: 0.9 }],
     make: () =>
       g(
-        mesh(boxGeo, "#fff4e0", 1, 0.12, 0.08, 0, 0.75, 0),
-        mesh(boxGeo, "#fff4e0", 1, 0.12, 0.08, 0, 0.35, 0),
+        blk("#fff4e0", 1, 0.12, 0.08, 0, 0.75, 0),
+        blk("#fff4e0", 1, 0.12, 0.08, 0, 0.35, 0),
         mesh(cylGeo, "#e8384f", 0.07, 0.9, 0.07, -0.44, 0.45, 0),
         mesh(cylGeo, "#e8384f", 0.07, 0.9, 0.07, 0.44, 0.45, 0),
       ),
@@ -295,10 +314,10 @@ export const PIECES: PieceDef[] = [
     boxes: [{ x0: -0.48, x1: 0.48, z0: -0.25, z1: 0.25, y0: 0, y1: 0.45 }],
     make: () =>
       g(
-        mesh(boxGeo, "#c98a4b", 0.96, 0.1, 0.5, 0, 0.42, 0),
-        mesh(boxGeo, "#c98a4b", 0.96, 0.4, 0.08, 0, 0.72, -0.22),
-        mesh(boxGeo, "#7a4a2e", 0.08, 0.4, 0.4, -0.4, 0.2, 0),
-        mesh(boxGeo, "#7a4a2e", 0.08, 0.4, 0.4, 0.4, 0.2, 0),
+        blk("#c98a4b", 0.96, 0.1, 0.5, 0, 0.42, 0),
+        blk("#c98a4b", 0.96, 0.4, 0.08, 0, 0.72, -0.22),
+        blk("#7a4a2e", 0.08, 0.4, 0.4, -0.4, 0.2, 0),
+        blk("#7a4a2e", 0.08, 0.4, 0.4, 0.4, 0.2, 0),
       ),
   },
   {
@@ -436,16 +455,16 @@ export const PIECES: PieceDef[] = [
     boxes: [{ x0: -0.22, x1: 0.22, z0: -0.45, z1: 0.45, y0: 0, y1: 1.4 }],
     make: () =>
       g(
-        mesh(boxGeo, "#fff4ff", 0.5, 0.4, 0.8, 0, 0.75, 0),
+        blk("#fff4ff", 0.5, 0.4, 0.8, 0, 0.75, 0),
         mesh(cylGeo, "#fff4ff", 0.07, 0.55, 0.07, -0.16, 0.28, -0.28),
         mesh(cylGeo, "#fff4ff", 0.07, 0.55, 0.07, 0.16, 0.28, -0.28),
         mesh(cylGeo, "#fff4ff", 0.07, 0.55, 0.07, -0.16, 0.28, 0.28),
         mesh(cylGeo, "#fff4ff", 0.07, 0.55, 0.07, 0.16, 0.28, 0.28),
-        mesh(boxGeo, "#fff4ff", 0.28, 0.5, 0.3, 0, 1.15, 0.38),
-        mesh(boxGeo, "#fff4ff", 0.28, 0.24, 0.4, 0, 1.36, 0.58),
+        blk("#fff4ff", 0.28, 0.5, 0.3, 0, 1.15, 0.38),
+        blk("#fff4ff", 0.28, 0.24, 0.4, 0, 1.36, 0.58),
         mesh(coneGeo, "#ffd84a", 0.06, 0.34, 0.06, 0, 1.62, 0.62),
-        mesh(boxGeo, "#ff93c4", 0.06, 0.5, 0.22, 0, 1.2, 0.2),
-        mesh(boxGeo, "#b98cff", 0.06, 0.4, 0.2, 0, 0.8, -0.46),
+        blk("#ff93c4", 0.06, 0.5, 0.22, 0, 1.2, 0.2),
+        blk("#b98cff", 0.06, 0.4, 0.2, 0, 0.8, -0.46),
       ),
   },
   {
@@ -525,14 +544,14 @@ export const PIECES: PieceDef[] = [
     prize: true,
     solid: 0.5,
     make: (c) => {
-      const out = g(mesh(boxGeo, c, 1, 2.6, 1, 0, 1.3, 0));
+      const out = g(blk(c, 1, 2.6, 1, 0, 1.3, 0));
       for (const [x, z] of [
         [-0.38, -0.38],
         [0.38, -0.38],
         [-0.38, 0.38],
         [0.38, 0.38],
       ] as const)
-        out.add(mesh(boxGeo, c, 0.24, 0.3, 0.24, x, 2.75, z));
+        out.add(blk(c, 0.24, 0.3, 0.24, x, 2.75, z));
       return out;
     },
   },
@@ -562,8 +581,8 @@ export const PIECES: PieceDef[] = [
       g(
         mesh(cylGeo, "#f6f1e8", 0.3, 1.8, 0.3, 0, 1.1, 0),
         mesh(coneGeo, c, 0.3, 0.6, 0.3, 0, 2.3, 0),
-        mesh(boxGeo, c, 0.9, 0.5, 0.08, 0, 0.45, 0),
-        mesh(boxGeo, c, 0.08, 0.5, 0.9, 0, 0.45, 0),
+        blk(c, 0.9, 0.5, 0.08, 0, 0.45, 0),
+        blk(c, 0.08, 0.5, 0.9, 0, 0.45, 0),
         mesh(sphereGeo, "#7ec8ff", 0.12, 0.12, 0.06, 0, 1.5, 0.29, false),
       ),
   },

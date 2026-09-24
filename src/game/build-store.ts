@@ -14,8 +14,12 @@ import { SIDE_SAVES } from "./save";
 /** One piece in the yard: grid square (x, z), level y (half metres), colour and quarter turns. */
 export type Placed = { p: string; x: number; z: number; y: number; c: number; r: number };
 
-/** a generous cap: past this the yard is full, not the save */
-export const MAX_PIECES = 2500;
+/**
+ * How many pieces a yard holds. Measured, not guessed: twelve hundred mixed
+ * pieces took a fast laptop from 60 frames a second to under 40, and a tablet
+ * has less to spare. A thousand is still a village.
+ */
+export const MAX_PIECES = 1000;
 
 type BuildSave = { pieces: Placed[]; unlocked: string[] };
 

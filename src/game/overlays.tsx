@@ -1946,10 +1946,11 @@ function BigAction({
   // Say what the button does as it pops up (it remounts per action) — except
   // indoors, where every piece of furniture has a Decorate button and walking
   // across her room read out a list of the furniture.
-  // Nor for Whack-a-Gummy's "Whack it!", which comes up for every bear: said
-  // once it is an instruction, said forty times a round it is a nag.
+  // Nor for Whack-a-Gummy's "Whack it!", which comes up for every bear, or the
+  // house's "Put out toys", which comes back every time she steps off a
+  // decorate spot: said once it is an instruction, said forty times a nag.
   useEffect(() => {
-    if (!label.startsWith("Decorate:") && label !== "Whack it!") speak(label.replace(/!$/, ""));
+    if (!label.startsWith("Decorate:") && label !== "Whack it!" && !label.startsWith("Put out toys")) speak(label.replace(/!$/, ""));
   }, [label]);
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[34%] z-20 flex flex-col items-center gap-3 px-4 md:bottom-[26%] [@media(max-height:520px)]:bottom-[22%] [@media(max-height:520px)]:gap-2">
