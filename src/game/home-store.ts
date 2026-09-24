@@ -42,7 +42,7 @@ function load(kit: HouseKit): HomeSave {
       return {
         placed: Object.fromEntries(Object.entries(raw.placed ?? {}).filter(([, id]) => known.has(id as string))),
         owned: Array.isArray(raw.owned) ? raw.owned.filter((id) => known.has(id)) : [],
-        stage: typeof raw.stage === "number" ? Math.min(3, Math.max(1, Math.round(raw.stage))) : 1,
+        stage: typeof raw.stage === "number" ? Math.min(5, Math.max(1, Math.round(raw.stage))) : 1,
       };
     }
   } catch {

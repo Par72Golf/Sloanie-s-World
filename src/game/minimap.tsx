@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Map as MapIcon, X } from "lucide-react";
-import { CANDY } from "./sugar-rush";
+import { CANDY, SUGAR } from "./sugar-rush";
 import { LEVELS } from "./levels";
 import { modelColliders } from "./models";
 import { worldPose } from "./pose";
@@ -197,6 +197,19 @@ function drawStatic(level: LevelDef, px: number): HTMLCanvasElement {
     g.beginPath();
     g.arc(wx(w.x), wz(w.z), w.r * s, 0, Math.PI * 2);
     g.fill();
+  }
+
+  // the build yard (build-yard.ts draws it, not a prop), in its own waffle colour
+  if (level.id === "sugar") {
+    const b = SUGAR.buildYard;
+    g.fillStyle = "#f3d3a8";
+    g.strokeStyle = "#ff93c4";
+    g.lineWidth = Math.max(1, s * 0.6);
+    // the map runs both axes backwards, so the square's top-left is its far corner
+    const x = wx(b.x + b.cells / 2);
+    const z = wz(b.z + b.cells / 2);
+    g.fillRect(x, z, b.cells * s, b.cells * s);
+    g.strokeRect(x, z, b.cells * s, b.cells * s);
   }
 
   return c;

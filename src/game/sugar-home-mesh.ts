@@ -49,6 +49,10 @@ export const CANDY_ROOMS: { name: string; stage: HouseStage; rect: Rect }[] = [
   { name: "Bedroom", stage: 1, rect: { x0: -5, x1: 5, z0: -4, z1: 4 } },
   { name: "Sweet kitchen", stage: 2, rect: { x0: 5.4, x1: 12.4, z0: -3, z1: 3 } },
   { name: "Tower room", stage: 3, rect: { x0: -12.4, x1: -5.4, z0: -3, z1: 3 } },
+  // the palace's two: behind the kitchen, and in front of the tower room, each
+  // through an archway in that room's end wall (the one without a window)
+  { name: "Playroom", stage: 4, rect: { x0: 5.4, x1: 12.4, z0: -10.4, z1: -3.4 } },
+  { name: "Sweet studio", stage: 5, rect: { x0: -12.4, x1: -5.4, z0: 3.4, z1: 10.4 } },
 ];
 
 const WINDOW = { x0: 0, x1: 1.6, y0: 1.15, y1: 2.35 };
@@ -63,6 +67,8 @@ const DOOR = { hw: 0.6, h: 2.3 };
 export const CANDY_FRONT_DOOR = { hw: DOOR.hw, z: CANDY_ROOMS[0]!.rect.z1 };
 /** the doorways through to the kitchen and the tower, along z on the shared walls */
 const ARCH = { hw: 0.8, h: 2.4 };
+/** where the kitchen's archway through to the playroom is, clear of the counter */
+const KITCHEN_ARCH_X = 6.3;
 
 export const CANDY_HOME_SPOTS: Record<SpotId, { pos: [number, number, number]; yaw: number; stage: HouseStage }> = {
   bed: { pos: [-3.9, 0, -3.35], yaw: 0, stage: 1 },
@@ -72,7 +78,8 @@ export const CANDY_HOME_SPOTS: Record<SpotId, { pos: [number, number, number]; y
   wallpaper: { pos: [5, 1.6, -2.7], yaw: -Math.PI / 2, stage: 1 },
   floor: { pos: [-2.6, 0, 2.4], yaw: 0, stage: 1 },
   table: { pos: [10.4, 0, 0.4], yaw: -Math.PI / 2, stage: 2 },
-  plant: { pos: [6.3, 0, -2.4], yaw: 0, stage: 2 },
+  // in the kitchen's front corner: its old place by the counter is the way to the playroom now
+  plant: { pos: [6.2, 0, 2.3], yaw: Math.PI, stage: 2 },
   picture: { pos: [-12.4, 1.65, 0.4], yaw: Math.PI / 2, stage: 3 },
   petbed: { pos: [-11.2, 0, -2.2], yaw: 0, stage: 3 },
 };
@@ -152,13 +159,35 @@ function runsFor(stage: number): Run[] {
     const z0 = r.z0 - T / 2;
     const z1 = r.z1 + T / 2;
     const w = x1 - x0;
-    // the far wall (the shared one is already up as the bedroom's side)
-    const far = room.stage === 2 ? x1 : x0;
-    out.push({ a: [far, z0], b: [far, z1] });
-    // and the two ends, one of them with this room's own window
     const win = { from: w / 2 - 0.8, to: w / 2 + 0.8, y0: 1.15, y1: 2.35 };
-    out.push({ a: [x0, z0], b: [x1, z0], open: room.stage === 3 ? win : undefined });
-    out.push({ a: [x0, z1], b: [x1, z1], open: room.stage === 2 ? win : undefined });
+    // the kitchen's archway is at the left end of its back wall: the chocolate
+    // counter fills the rest, and a doorway behind a counter is not a doorway
+    const archAt = room.stage === 2 ? KITCHEN_ARCH_X - x0 : w / 2;
+    const through = { from: archAt - ARCH.hw, to: archAt + ARCH.hw, y0: 0, y1: ARCH.h };
+    if (room.stage <= 3) {
+      // the far wall (the shared one is already up as the bedroom's side)
+      const far = room.stage === 2 ? x1 : x0;
+      out.push({ a: [far, z0], b: [far, z1] });
+      // and the two ends: one with this room's own window, the other an
+      // archway once the palace room beyond it is built
+      out.push({ a: [x0, z0], b: [x1, z0], open: room.stage === 3 ? win : stage >= 4 ? through : undefined });
+      out.push({ a: [x0, z1], b: [x1, z1], open: room.stage === 2 ? win : stage >= 5 ? through : undefined });
+      continue;
+    }
+    // A palace room, off the end of the kitchen (4) or the tower room (5). Its
+    // shared wall is that room's end, already up with the archway in it; the
+    // side nearer the bedroom stops where the bedroom's own wall takes over, so
+    // no stretch of wall is ever built twice in one place.
+    const bed = CANDY_ROOMS[0]!.rect;
+    if (room.stage === 4) {
+      out.push({ a: [x0, z0], b: [x1, z0], open: win });
+      out.push({ a: [x1, z0], b: [x1, z1] });
+      out.push({ a: [x0, z0], b: [x0, bed.z0 - T / 2] });
+    } else {
+      out.push({ a: [x0, z1], b: [x1, z1], open: win });
+      out.push({ a: [x0, z0], b: [x0, z1] });
+      out.push({ a: [x1, bed.z1 + T / 2], b: [x1, z1] });
+    }
   }
   return out;
 }
@@ -177,6 +206,26 @@ const FITTINGS: { stage: HouseStage; solid: AABB[] }[] = [
   {
     stage: 3,
     solid: [{ minX: -10.4, maxX: -7.2, minY: 0, maxY: 0.52, minZ: -2.95, maxZ: -2.15 }],
+  },
+  {
+    // the playroom: a toy shelf on the back wall, and the gumball pit's rim (the
+    // balls in it are soft: she wades in among them)
+    stage: 4,
+    solid: [
+      { minX: 6.0, maxX: 8.8, minY: 0, maxY: 1.3, minZ: -10.4, maxZ: -9.85 },
+      { minX: 9.0, maxX: 11.9, minY: 0, maxY: 0.45, minZ: -8.9, maxZ: -8.7 },
+      { minX: 9.0, maxX: 11.9, minY: 0, maxY: 0.45, minZ: -6.1, maxZ: -5.9 },
+      { minX: 9.0, maxX: 9.2, minY: 0, maxY: 0.45, minZ: -8.9, maxZ: -5.9 },
+      { minX: 11.7, maxX: 11.9, minY: 0, maxY: 0.45, minZ: -8.9, maxZ: -5.9 },
+    ],
+  },
+  {
+    // the studio: a craft table and an easel
+    stage: 5,
+    solid: [
+      { minX: -11.9, maxX: -9.9, minY: 0, maxY: 0.78, minZ: 9.35, maxZ: 10.35 },
+      { minX: -7.4, maxX: -6.4, minY: 0, maxY: 1.7, minZ: 8.6, maxZ: 9.2 },
+    ],
   },
 ];
 
@@ -566,6 +615,65 @@ export function makeCandyHome(stage: HouseStage, initial: Partial<Record<SpotId,
       cushion.castShadow = true;
       group.add(cushion);
     }
+  }
+
+  // the playroom: a toy shelf of sweets and teddies, and a gumball pit
+  if (stage >= 4) {
+    const wafer = flat("#e8b86a", 0.6);
+    slab(group, flat("#c98a4b", 0.7), [6.0, 0, -10.4], [8.8, 1.3, -9.85]);
+    for (const y of [0.45, 0.9]) slab(group, wafer, [6.05, y, -10.35], [8.75, y + 0.06, -9.8]);
+    const toys = [CANDY.pink, CANDY.mint, CANDY.yellow, CANDY.lilac, CANDY.orange, CANDY.red];
+    toys.forEach((c, i) => {
+      const t = new THREE.Mesh(cached("sph", () => new THREE.SphereGeometry(1, 10, 8)), flat(c, 0.3));
+      t.scale.setScalar(0.16);
+      t.position.set(6.4 + (i % 3) * 0.95, i < 3 ? 0.67 : 1.12, -10.05);
+      group.add(t);
+    });
+    // the pit: a wafer rim, and a hundred gumballs as one instanced mesh
+    for (const [a, b] of [
+      [[9.0, 0, -8.9], [11.9, 0.45, -8.7]],
+      [[9.0, 0, -6.1], [11.9, 0.45, -5.9]],
+      [[9.0, 0, -8.9], [9.2, 0.45, -5.9]],
+      [[11.7, 0, -8.9], [11.9, 0.45, -5.9]],
+    ] as const)
+      slab(group, flat(CANDY.pink, 0.45), [...a] as [number, number, number], [...b] as [number, number, number]);
+    const balls = new THREE.InstancedMesh(cached("sph", () => new THREE.SphereGeometry(1, 10, 8)), flat("#ffffff", 0.25), 110);
+    const m4 = new THREE.Matrix4();
+    const col = new THREE.Color();
+    for (let i = 0; i < 110; i++) {
+      const x = 9.35 + ((i * 37) % 23) * 0.106;
+      const z = -8.55 + ((i * 53) % 25) * 0.1;
+      const y = 0.12 + ((i * 17) % 3) * 0.1;
+      m4.makeScale(0.12, 0.12, 0.12);
+      m4.setPosition(x, y, z);
+      balls.setMatrixAt(i, m4);
+      balls.setColorAt(i, col.set(GUMDROP_COLOURS[i % 6]!));
+    }
+    group.add(balls);
+  }
+
+  // the studio: a craft table with paints on it, and an easel
+  if (stage >= 5) {
+    slab(group, flat("#fff6fb", 0.7), [-11.9, 0.7, 9.35], [-9.9, 0.78, 10.35]);
+    for (const [x, z] of [
+      [-11.8, 9.45],
+      [-10.0, 9.45],
+      [-11.8, 10.25],
+      [-10.0, 10.25],
+    ] as const)
+      slab(group, flat("#c98a4b", 0.7), [x - 0.05, 0, z - 0.05], [x + 0.05, 0.7, z + 0.05]);
+    [CANDY.red, CANDY.yellow, CANDY.mint, "#7ec8ff"].forEach((c, i) => {
+      const pot = new THREE.Mesh(cached("jar", () => new THREE.CylinderGeometry(1, 1, 1, 14)), flat(c, 0.3));
+      pot.scale.set(0.08, 0.12, 0.08);
+      pot.position.set(-11.5 + i * 0.4, 0.84, 9.8);
+      group.add(pot);
+    });
+    slab(group, flat("#c98a4b", 0.7), [-7.3, 0, 8.85], [-7.2, 1.7, 8.95]);
+    slab(group, flat("#c98a4b", 0.7), [-6.6, 0, 8.85], [-6.5, 1.7, 8.95]);
+    const canvas = slab(group, flat("#ffffff", 0.9), [-7.35, 0.8, 8.95], [-6.45, 1.55, 9.0]);
+    canvas.castShadow = true;
+    // a painting on it, on the side facing into the room: a rainbow, of course
+    ["#ff6b6b", "#ffe36b", "#7ec8ff"].forEach((c, i) => slab(group, flat(c, 0.6), [-7.2, 1.0 + i * 0.15, 8.94], [-6.6, 1.1 + i * 0.15, 8.95]));
   }
 
   // an icing arch round the front door, and a liquorice doormat inside it

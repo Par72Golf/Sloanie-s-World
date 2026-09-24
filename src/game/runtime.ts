@@ -23,7 +23,10 @@ import { WhackWorld, useWhack } from "./whack-a-gummy";
 import { SorterWorld, useSorter } from "./sweet-sorter";
 import { BuildYard } from "./build-yard";
 import { useBuild } from "./build-store";
-import { GumballWorld, useGumball } from "./gumballs";
+import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
+import { candyPrizeFurniture } from "./candy-furniture";
+import { HOUSE_KITS } from "./furniture-kits";
+import type { FurnitureId } from "./furniture";
 import { BoatRide } from "./boat-ride";
 import { CAROUSEL as CUPCAKE_RIDE, CarouselRide } from "./carousel-ride";
 import { BowlsWorld, bowlsInput, bowlsPose } from "./bowls";
@@ -652,6 +655,20 @@ export class GameRuntime {
     this.buildYard = this.level.id === "sugar" && this.world ? new BuildYard(this.scene, this.world.colliders) : null;
     this.gumballs?.dispose();
     this.gumballs = this.level.id === "sugar" ? new GumballWorld(this.scene, this.level) : null;
+    // the house's gumball-only furniture goes in the prize pool; the machines
+    // are only in Sugar Rush, so the house loaded is always the candy house
+    setFurniturePrizes(
+      () =>
+        candyPrizeFurniture().map((id) => ({
+          id,
+          name: HOUSE_KITS.candy.def(id)?.name ?? id,
+          owned: useHome.getState().kit.id === "candy" && useHome.getState().owns(id),
+        })),
+      (id) => {
+        if (useHome.getState().kit.id === "candy") useHome.getState().grant(id as FurnitureId);
+      },
+    );
+    this.dailyNoticeAt = this.gumballs ? this.clock + 8 : -1;
     // the sweet shop on the fairground, where her tickets go in this park
     this.sweetShop?.dispose();
     this.sweetShop = this.level.id === "sugar" ? new SweetShop(this.scene) : null;
@@ -1144,6 +1161,8 @@ export class GameRuntime {
   sorter: SorterWorld | null = null;
   buildYard: BuildYard | null = null;
   gumballs: GumballWorld | null = null;
+  /** when to remind her that today's free gumball is waiting, or -1 */
+  dailyNoticeAt = -1;
   boat: BoatRide | null = null;
   cupcakes: CarouselRide | null = null;
   playerTruck: PlayerTruck | null = null;
@@ -2505,6 +2524,12 @@ export class GameRuntime {
       if (!paused) this.sorter?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       this.buildYard?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused);
       this.gumballs?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      // once, a little after she arrives: the reason to come back tomorrow is
+      // only a reason if she knows about it
+      if (this.dailyNoticeAt >= 0 && this.clock > this.dailyNoticeAt && !paused) {
+        this.dailyNoticeAt = -1;
+        if (st.gumballDay !== today()) st.setEmmettNotice("Your Daily Surprise is ready! Every gumball machine gives one free gumball a day.");
+      }
       if (!paused && this.world) {
         this.creatures?.update(
           dt,

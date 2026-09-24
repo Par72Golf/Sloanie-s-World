@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * The builder's board outside her gingerbread house.
  *
  * She asked to be able to upgrade the outside of her house in stages with
- * tickets, so this shows all three at once — the one she has, the one she is
+ * tickets, so this shows every stage at once — the one she has, the one she is
  * saving for, and the one after that — because half the fun of saving up is
  * seeing what is coming. Only the very next stage can be bought: the house is
  * built up, not skipped through.
@@ -66,7 +66,7 @@ function Build() {
 
   const line = next
     ? `${next.name} costs ${next.price} tickets. ${tickets >= next.price ? "Press A to build it!" : `You need ${next.price - tickets} more.`}`
-    : "Your candy castle is finished. Every room is open!";
+    : "Your rainbow palace is finished. Every room is open!";
   useEffect(() => speak(line), [line]);
 
   return (
@@ -90,7 +90,7 @@ function Build() {
           </button>
         </div>
         <div className="ui-dots min-h-0 overflow-y-auto px-3 pb-3 pt-3.5 sm:px-4 sm:pb-4">
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
             {HOUSE_STAGES.map((s, i) => {
               const have = s.stage <= stage;
               const isNext = s.stage === stage + 1;

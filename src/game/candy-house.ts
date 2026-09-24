@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { beveledBox } from "./beveled";
 import { CANDY } from "./candy-scenery";
 import { makeCandyDoor } from "./candy-builds";
-import { boxGeo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
+import { boxGeo, cone4Geo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
+import { glowMaterial } from "./furniture";
 import type { AABB } from "./collision";
 
 /**
@@ -21,6 +22,13 @@ import type { AABB } from "./collision";
  *                             chocolate chimney, and a fenced sugar garden
  *   3  Candy castle         + two round towers with swirl roofs, sugar-cube
  *                             battlements, a banner and bunting
+ *   4  Candy palace         + a wafer wing across the back with a golden dome
+ *   5  Rainbow palace       + gold crowns on the towers, a rainbow over the
+ *                             garden gate and fairy lights along the fence
+ *
+ * Four and five came after the first real play: with tickets now paid for
+ * every find, she had the castle inside an afternoon and nothing left to save
+ * up for.
  *
  * Conventions, the same as candy-builds.ts: origin on the ground in the middle
  * of the footprint, +z is the front, everything solid puts its AABB on
@@ -61,7 +69,9 @@ export const CANDY_HOUSE = {
   step: 6.2,
 } as const;
 
-export type HouseStage = 1 | 2 | 3;
+export type HouseStage = 1 | 2 | 3 | 4 | 5;
+/** the biggest the house gets */
+export const TOP_STAGE = 5;
 
 /** What each stage is called, what it costs, and what she gets for it. */
 export const HOUSE_STAGES: { stage: HouseStage; name: string; price: number; adds: string; room: string }[] = [
@@ -86,10 +96,24 @@ export const HOUSE_STAGES: { stage: HouseStage; name: string; price: number; add
     adds: "Two candy towers, battlements and your own flag — and a tower room inside.",
     room: "Tower room",
   },
+  {
+    stage: 4,
+    name: "Candy palace",
+    price: 150,
+    adds: "A wafer wing across the back with a golden dome — and a playroom inside.",
+    room: "Playroom",
+  },
+  {
+    stage: 5,
+    name: "Rainbow palace",
+    price: 300,
+    adds: "Gold crowns on your towers, a rainbow over the gate and fairy lights — and a sweet studio inside.",
+    room: "Sweet studio",
+  },
 ];
 
 export function stageInfo(stage: number) {
-  return HOUSE_STAGES[Math.min(3, Math.max(1, Math.round(stage))) - 1]!;
+  return HOUSE_STAGES[Math.min(TOP_STAGE, Math.max(1, Math.round(stage))) - 1]!;
 }
 
 /* ------------------------------------------------------------- small helpers */
@@ -418,6 +442,76 @@ function garden(g: THREE.Group) {
   }
 }
 
+/** The palace wing: a wafer hall across the back of the house under a golden dome. */
+function palaceWing(g: THREE.Group, boxes: AABB[]) {
+  const { w, d } = CANDY_HOUSE;
+  const ww = w - 2;
+  const wd = 7;
+  const wh = 5.4;
+  const z = -d / 2 - wd / 2 + 0.2;
+  g.add(part(null, baked(WAFER, 4), ww, wh, wd, 0, wh / 2, z));
+  // wafer grid pressed into the walls, so it reads as a wafer and not a box
+  for (let i = 1; i < 6; i++) {
+    const x = -ww / 2 + (ww / 6) * i;
+    g.add(part(null, flat("#d49a4a", 0.6), 0.08, wh - 0.4, 0.06, x, wh / 2, z - wd / 2 - 0.03, false));
+  }
+  icingRun(g, [-ww / 2, wh, z - wd / 2], [ww / 2, wh, z - wd / 2], 0.26);
+  icingRun(g, [-ww / 2, wh, z + wd / 2], [ww / 2, wh, z + wd / 2], 0.26);
+  // round candy windows down each side
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 2; i++) {
+      const pane = part(cylGeo, flat(i ? CANDY.mint : CANDY.pink, 0.14), 0.6, 0.1, 0.6, sx * (ww / 2 + 0.02), 3.1, z - 1.5 + i * 3);
+      pane.rotation.z = Math.PI / 2;
+      g.add(pane);
+    }
+  }
+  // the golden dome, and a cherry on it
+  const dome = part(sphereGeo, lam("#ffd84a", { flat: true, roughness: 0.25, emissive: "#8a6a10" }), 2.6, 2.2, 2.6, 0, wh, z);
+  g.add(dome);
+  g.add(part(sphereGeo, flat(CHERRY, 0.2), 0.45, 0.45, 0.45, 0, wh + 2.4, z, false));
+  boxes.push(bx(0, wh / 2, z, ww, wh, wd));
+}
+
+/** Rainbow palace: crowns on the towers, a rainbow over the gate, lights along the fence. */
+function rainbowTrim(g: THREE.Group) {
+  const { w, d } = CANDY_HOUSE;
+  const gold = lam("#ffd84a", { flat: true, roughness: 0.25, emissive: "#8a6a10" });
+  for (const s of [-1, 1]) {
+    const x = s * (w / 2 + 1.1);
+    const z = d / 2 - 1.6;
+    const top = 10.2 + 3.1;
+    g.add(part(cylGeo, gold, 0.5, 0.35, 0.5, x, top + 0.1, z, false));
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      g.add(part(cone4Geo, gold, 0.14, 0.4, 0.14, x + Math.cos(a) * 0.42, top + 0.45, z + Math.sin(a) * 0.42, false));
+    }
+  }
+  // the rainbow over the garden gate
+  const gateZ = d / 2 + 5.4;
+  ["#ff6b6b", "#ffae5c", "#ffe36b", "#6fe3c4", "#7ec8ff", "#b98cff"].forEach((c, i) => {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(2.4 - i * 0.16, 0.09, 8, 36, Math.PI), flat(c, 0.3));
+    arc.position.set(0, 0, gateZ);
+    arc.castShadow = true;
+    g.add(arc);
+  });
+  // fairy lights along the fence tops
+  const cols = ["#ff93c4", "#ffe36b", "#7ec8ff", "#6fe3c4", "#b98cff"];
+  const x0 = -w / 2 - 1.2;
+  const x1 = w / 2 + 1.2;
+  let k = 0;
+  const bulb = (x: number, z: number) => {
+    const m = new THREE.Mesh(sphereGeo, glowMaterial(cols[k++ % cols.length]!, 1.3, 0.3));
+    m.scale.setScalar(0.09);
+    m.position.set(x, 1.05, z);
+    g.add(m);
+  };
+  for (let x = x0; x <= x1 + 0.01; x += 0.75) if (Math.abs(x) >= 1.8) bulb(x, gateZ);
+  for (let z = d / 2 + 0.6; z <= gateZ; z += 0.75) {
+    bulb(x0, z);
+    bulb(x1, z);
+  }
+}
+
 /**
  * Her house at the given stage. Solid parts are on `userData.boxes`; the
  * doorway is left open, because the doorstep in front of it is what takes her
@@ -432,9 +526,11 @@ export function makeCandyHouse(stage: HouseStage): THREE.Group {
   if (stage === 1) {
     gable(g, CANDY_HOUSE.w, CANDY_HOUSE.d, CANDY_HOUSE.h, 1.7);
   } else {
-    upperStorey(g, stage === 3);
+    upperStorey(g, stage >= 3);
     garden(g);
-    if (stage === 3) towers(g, boxes);
+    if (stage >= 3) towers(g, boxes);
+    if (stage >= 4) palaceWing(g, boxes);
+    if (stage >= 5) rainbowTrim(g);
   }
   g.userData.boxes = boxes;
   return g;

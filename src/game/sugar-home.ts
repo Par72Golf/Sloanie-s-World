@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { sfx } from "./audio";
-import { CANDY_HOUSE, makeCandyHouse, stageInfo, type HouseStage } from "./candy-house";
+import { CANDY_HOUSE, TOP_STAGE, makeCandyHouse, stageInfo, type HouseStage } from "./candy-house";
 import { CANDY_FRONT_DOOR, CANDY_HOME_ENTRY, CANDY_HOME_SPOTS, CANDY_ROOMS, candyHomeColliders, makeCandyHome, spotsForStage, type CandyHomeRig } from "./sugar-home-mesh";
 import { glowMaterial, type SpotId } from "./furniture";
 import { signBoard } from "./meshes";
@@ -49,9 +49,9 @@ export function setCandyHouseOrigin(o: { x: number; z: number } = { x: 130, z: -
   ROOM[2] = o.z;
 }
 
-/** The ticket price of the next stage, or null when the castle is finished. */
+/** The ticket price of the next stage, or null when the palace is finished. */
 export function nextStage(stage: number): { stage: HouseStage; price: number; name: string; room: string } | null {
-  if (stage >= 3) return null;
+  if (stage >= TOP_STAGE) return null;
   const next = stageInfo(stage + 1);
   return { stage: next.stage, price: next.price, name: next.name, room: next.room };
 }
@@ -76,7 +76,7 @@ export class SugarHomeWorld {
     private worldColliders: AABB[],
   ) {
     const home = useHome.getState();
-    this.stage = Math.min(3, Math.max(1, home.stage)) as HouseStage;
+    this.stage = Math.min(TOP_STAGE, Math.max(1, home.stage)) as HouseStage;
     this.rig = makeCandyHome(this.stage, home.placed);
     this.rig.group.position.set(...ROOM);
     scene.add(this.rig.group);
@@ -183,7 +183,7 @@ export class SugarHomeWorld {
   /** Update markers and what Collect would do. Returns true while she's inside. */
   update(t: number, her: { x: number; y: number; z: number }) {
     const home = useHome.getState();
-    if (home.stage !== this.stage) this.build(Math.min(3, Math.max(1, home.stage)) as HouseStage);
+    if (home.stage !== this.stage) this.build(Math.min(TOP_STAGE, Math.max(1, home.stage)) as HouseStage);
 
     const key = JSON.stringify(home.placed);
     if (key !== this.lastPlaced) {

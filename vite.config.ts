@@ -11,6 +11,9 @@ export default defineConfig({
   base,
   plugins: [tailwindcss(), viteReact()],
   resolve: { tsconfigPaths: true },
+  // agents work in copies of the repo under .claude/worktrees; an edit there
+  // must not reload the game running from this one
+  server: { watch: { ignored: ["**/.claude/**"] } },
   build: {
     target: "es2022",
     chunkSizeWarningLimit: 1500,
