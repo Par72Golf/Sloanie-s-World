@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { sfx } from "./audio";
 import { CANDY_HOUSE, makeCandyHouse, stageInfo, type HouseStage } from "./candy-house";
-import { CANDY_HOME_ENTRY, CANDY_HOME_SPOTS, CANDY_ROOMS, candyHomeColliders, makeCandyHome, spotsForStage, type CandyHomeRig } from "./sugar-home-mesh";
+import { CANDY_FRONT_DOOR, CANDY_HOME_ENTRY, CANDY_HOME_SPOTS, CANDY_ROOMS, candyHomeColliders, makeCandyHome, spotsForStage, type CandyHomeRig } from "./sugar-home-mesh";
 import { glowMaterial, type SpotId } from "./furniture";
 import { signBoard } from "./meshes";
 import { useHome } from "./home-store";
@@ -65,6 +65,11 @@ export class SugarHomeWorld {
   private doorGlow: THREE.Mesh;
   private lastPlaced = "";
   private stage: HouseStage;
+  /** how long she has been pressed up against the inside of the front door */
+  private atDoor = 0;
+  private lastT = 0;
+  /** She walked into the front door from inside: the runtime takes her out. */
+  walkedOut = false;
 
   constructor(
     private scene: THREE.Scene,
@@ -195,6 +200,12 @@ export class SugarHomeWorld {
     if (inside !== home.inside) home.setInside(inside);
 
     let near: "door" | "exit" | "upgrade" | SpotId | null = null;
+    const dt = Math.min(0.1, Math.max(0, t - this.lastT));
+    this.lastT = t;
+    // up against the shut door, square on, for a moment: she means to go out
+    const againstDoor = inside && Math.abs(lx) < CANDY_FRONT_DOOR.hw && lz > CANDY_FRONT_DOOR.z - 0.45;
+    this.atDoor = againstDoor ? this.atDoor + dt : 0;
+    this.walkedOut = this.atDoor > 0.3;
     if (inside) {
       const [ex, , ez] = CANDY_HOME_ENTRY.door;
       if (Math.hypot(lx - ex, lz - ez) < 0.8) near = "exit";
@@ -230,6 +241,14 @@ export class SugarHomeWorld {
     return inside;
   }
 
+  /** Out through the front door, on to the path in front of the house. */
+  leave(): { teleport: [number, number, number]; yaw: number } {
+    sfx.click();
+    this.atDoor = 0;
+    this.walkedOut = false;
+    return { teleport: [DOOR_OUT[0], 0.1, DOOR_OUT[1] + 2.4], yaw: Math.PI };
+  }
+
   /** Collect pressed: go in, go out, decorate, or open the builder's board. */
   tryInteract(): { teleport: [number, number, number]; yaw: number } | boolean {
     const home = useHome.getState();
@@ -239,10 +258,7 @@ export class SugarHomeWorld {
       useGame.getState().setEmmettNotice("Welcome home! Walk up to a glowing spot to decorate.");
       return { teleport: [ROOM[0] + sx, ROOM[1] + sy + 0.05, ROOM[2] + sz], yaw: CANDY_HOME_ENTRY.yaw };
     }
-    if (home.near === "exit") {
-      sfx.click();
-      return { teleport: [DOOR_OUT[0], 0.1, DOOR_OUT[1] + 2.4], yaw: Math.PI };
-    }
+    if (home.near === "exit") return this.leave();
     if (home.near === "upgrade") {
       sfx.click();
       home.setUpgrading(true);

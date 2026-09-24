@@ -1871,8 +1871,12 @@ function BigAction({
   gold?: boolean;
 }) {
   const Icon = icon === "wheel" ? FerrisWheel : icon === "home" ? House : icon === "truck" ? Truck : icon === "golf" ? Flag : PartyPopper;
-  // say what the button does as it pops up (it remounts per action)
-  useEffect(() => speak(label.replace(/!$/, "")), [label]);
+  // Say what the button does as it pops up (it remounts per action) — except
+  // indoors, where every piece of furniture has a Decorate button and walking
+  // across her room read out a list of the furniture.
+  useEffect(() => {
+    if (!label.startsWith("Decorate:")) speak(label.replace(/!$/, ""));
+  }, [label]);
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[34%] z-20 flex flex-col items-center gap-3 px-4 md:bottom-[26%] [@media(max-height:520px)]:bottom-[22%] [@media(max-height:520px)]:gap-2">
       <button

@@ -628,7 +628,7 @@ export class GameRuntime {
     // Emmett's five challenges for his monster truck, and the truck once she
     // has won it
     this.gauntlet?.dispose();
-    this.gauntlet = this.level.id === "sugar" ? new TruckGauntlet(this.scene) : null;
+    this.gauntlet = this.level.id === "sugar" && this.world ? new TruckGauntlet(this.scene, this.world.colliders) : null;
     // the candy princess and the three things her factory is missing
     this.candyQuest?.dispose();
     this.candyQuest = this.level.id === "sugar" ? new CandyQuest(this.scene) : null;
@@ -925,6 +925,9 @@ export class GameRuntime {
       st.bowlsPlaying ||
       tossPose.active ||
       st.riding ||
+      // his own challenges: he watches rather than rides off after her
+      st.truckRace != null ||
+      !!this.gauntlet?.racing ||
       // The other fairground games, the sweet shop, the telescope and the lava
       // course: anywhere her hands are full with something else. Whack-a-Gummy
       // was missing, and he tagged her while she was stamping on gummies.
@@ -1730,7 +1733,21 @@ export class GameRuntime {
       // in Sugar Rush the last two of his five challenges are courses, not
       // games of hands: once she has the three wins, his truck is what is on
       // offer at his truck
-      if (this.gauntlet && st.truckWins >= RPS_ROUNDS && !st.truckOwned && this.gauntlet.start()) return;
+      if (this.gauntlet && st.truckWins >= RPS_ROUNDS && !st.truckOwned && this.gauntlet.start()) {
+        // on to the start line, facing the first ring, and Emmett off the
+        // course to watch: his laps round the truck cross both lanes
+        const c = this.gauntlet.course!;
+        [this.cap.x, this.cap.y, this.cap.z] = [c.start.x, 0.1, c.start.z];
+        this.velY = 0;
+        this.yaw = c.startYaw;
+        this.cameraYaw = c.startYaw;
+        this.syncCamera(true);
+        if (this.emmett?.state === "home") {
+          this.emmett.group.position.set(c.watch.x, 0, c.watch.z);
+          this.emmett.group.rotation.y = Math.atan2(c.start.x - c.watch.x, c.start.z - c.watch.z);
+        }
+        return;
+      }
       const lines = [
         "Welcome to my monster truck! Want to play?",
         "This is my house! Rock, paper, scissors?",
@@ -2054,6 +2071,8 @@ export class GameRuntime {
         !st.journalOpen) ||
         (st.phase === "title" && qa)) &&
       !this.carried &&
+      // on the start line while Emmett counts her in
+      !this.gauntlet?.countingDown &&
       // putting takes her controls the way the carousel does
       !st.golfPlaying &&
       !st.bowlsPlaying &&
@@ -2442,6 +2461,15 @@ export class GameRuntime {
         st.phase !== "playing" || !!st.quiz || !!st.rps || !!st.carnival || !!st.questPanel || !!st.helpCard || st.journalOpen || st.golfPlaying || st.bowlsPlaying || tossPose.active || useWhack.getState().card != null || useSorter.getState().card != null || st.sweetShop || useHome.getState().panel != null || useHome.getState().upgrading;
       if (this.stickerWorld) this.stickerWorld.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z, paused });
       this.homeWorld?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
+      // walking into her front door from inside takes her out, as pressing Collect there does
+      if (this.homeWorld instanceof SugarHomeWorld && this.homeWorld.walkedOut && !paused) {
+        const out = this.homeWorld.leave();
+        [this.cap.x, this.cap.y, this.cap.z] = out.teleport;
+        this.velY = 0;
+        this.yaw = out.yaw;
+        this.cameraYaw = out.yaw;
+        this.syncCamera(true);
+      }
       this.factoryInside?.update(this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.gauntlet?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.candyQuest?.update(dt, this.clock, { x: this.cap.x, y: this.cap.y, z: this.cap.z });

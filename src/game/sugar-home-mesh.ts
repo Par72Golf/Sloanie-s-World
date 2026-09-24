@@ -4,6 +4,7 @@ import { CANDY } from "./candy-scenery";
 import { canvasMaterial, glowMaterial, type FurnitureId, type SpotId } from "./furniture";
 import { HOUSE_KITS } from "./furniture-kits";
 import { lam } from "./meshes";
+import { makeCandyDoor } from "./candy-builds";
 import type { AABB } from "./collision";
 import type { HouseStage } from "./candy-house";
 
@@ -52,6 +53,14 @@ export const CANDY_ROOMS: { name: string; stage: HouseStage; rect: Rect }[] = [
 
 const WINDOW = { x0: 0, x1: 1.6, y0: 1.15, y1: 2.35 };
 const DOOR = { hw: 0.6, h: 2.3 };
+/**
+ * The front door, seen from inside: half its width and the plane of the wall's
+ * inner face. It is shut and solid. The room is built 150m up, over the house,
+ * and the doorway used to be an open gap in the wall: she walked out through
+ * it into the sky, fell on to her own roof and was stuck. Walking into the door
+ * now takes her outside instead (sugar-home.ts).
+ */
+export const CANDY_FRONT_DOOR = { hw: DOOR.hw, z: CANDY_ROOMS[0]!.rect.z1 };
 /** the doorways through to the kitchen and the tower, along z on the shared walls */
 const ARCH = { hw: 0.8, h: 2.4 };
 
@@ -209,6 +218,9 @@ export function candyHomeColliders(stage: number, furniture?: Partial<Record<Spo
     out.push({ minX: r.x0 - T, maxX: r.x1 + T, minY: -0.4, maxY: 0, minZ: r.z0 - T, maxZ: r.z1 + T });
     out.push({ minX: r.x0, maxX: r.x1, minY: BEAM_BOTTOM, maxY: top, minZ: r.z0, maxZ: r.z1 });
   }
+  // the front door, shut, filling the doorway through the wall's thickness
+  const front = CANDY_ROOMS[0]!.rect.z1;
+  out.push({ minX: -DOOR.hw, maxX: DOOR.hw, minY: 0, maxY: DOOR.h, minZ: front, maxZ: front + T });
   for (const f of FITTINGS) if (f.stage <= stage) out.push(...f.solid);
   const starters = kit.starters();
   for (const spot of spotsForStage(stage)) {
@@ -566,6 +578,11 @@ export function makeCandyHome(stage: HouseStage, initial: Partial<Record<SpotId,
   const head = new THREE.Mesh(beveledBox(DOOR.hw * 2 + 0.28, 0.14, 0.3), trim);
   head.position.set(0, DOOR.h + 0.07, az1 + 0.02);
   group.add(head);
+  // and the door itself, shut, set a little way into the doorway: the same
+  // wafer door as the one outside, so in and out read as one door
+  const door = makeCandyDoor(DOOR.hw * 2 - 0.04, DOOR.h - 0.02, "#d6253f");
+  door.position.set(-DOOR.hw + 0.02, 0.01, az1 + 0.08);
+  group.add(door);
   const matTop = canvasMaterial("candy-home-mat", "#ff9ec8", 256, 140, (c, w, h) => {
     c.fillStyle = "#ff9ec8";
     c.fillRect(0, 0, w, h);
