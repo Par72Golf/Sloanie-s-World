@@ -1374,12 +1374,25 @@ function HUD() {
                     {boostLeft > 0 && <JuiceClock left={boostLeft} total={20} cotton={level.boost === "cotton"} />}
                   </div>
                 )}
-                {/* one diamond per dumpling: two rows on a phone, one on a TV */}
+                {/* How far through the hunt she is, as one candy-striped bar. It
+                    was a diamond per find, which at twenty-five sweets was two
+                    rows of diamonds; the gem beside it already says the number. */}
                 {hudFull && (
-                  <div className="mt-1 grid gap-x-1 gap-y-1 [grid-template-columns:repeat(8,minmax(0,1fr))] sm:gap-x-[3px] sm:[grid-template-columns:repeat(16,minmax(0,1fr))] 2xl:gap-x-1.5">
-                    {level.dumplings.map((_, i) => (
-                      <span key={i} className="ui-pip" data-on={i < found ? "" : undefined} />
-                    ))}
+                  <div
+                    role="progressbar"
+                    aria-label="Found so far"
+                    aria-valuemin={0}
+                    aria-valuemax={level.dumplings.length}
+                    aria-valuenow={found}
+                    className="mt-1.5 h-3 overflow-hidden rounded-full border-2 border-edge bg-surface-3 2xl:h-4"
+                  >
+                    <div
+                      className="h-full rounded-full bg-accent transition-[width] duration-500"
+                      style={{
+                        width: `${(100 * found) / Math.max(1, level.dumplings.length)}%`,
+                        backgroundImage: "repeating-linear-gradient(135deg, rgb(255 255 255 / 0.35) 0 6px, transparent 6px 12px)",
+                      }}
+                    />
                   </div>
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:gap-1.5 2xl:mt-2.5 2xl:gap-2">

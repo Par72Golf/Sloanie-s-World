@@ -166,6 +166,18 @@ check(reached === treads.length - 1, `climbs all ${treads.length} treads to ${tr
 const glass = { x: O.x + M.glass.x, z: O.z + M.glass.z };
 walkTo(glass.x, glass.z, 6);
 check(Math.abs(cap.y - M.summitY) < 0.3 && Math.hypot(cap.x - glass.x, cap.z - glass.z) < 1.2, `and walks to the telescope on the summit (${cap.y.toFixed(2)}m)`);
+// the sugar star is hidden up here: it has to be on the summit floor, inside
+// the rail, and somewhere she can walk to from where she arrived
+{
+  const star = level.dumplings.find((d) => d.id === "sugarstar");
+  if (star) {
+    const [sx, sy, sz] = star.pos;
+    const r = Math.hypot(sx - O.x, sz - O.z);
+    check(Math.abs(sy - 0.55 - M.summitY) < 0.05 && r < M.summitRadius - 0.4, `the sugar star is on the summit floor (${r.toFixed(2)}m from the middle)`);
+    walkTo(sx, sz, 6);
+    check(Math.hypot(cap.x - sx, cap.z - sz) < 1.0 && Math.abs(cap.y - M.summitY) < 0.3, "and she can walk to it on the summit");
+  }
+}
 
 // ---- 2. driven off every edge
 console.log("\ndriven off every tread at full speed");

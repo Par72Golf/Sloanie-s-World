@@ -411,6 +411,7 @@ const CLIMBED: Record<string, string> = {
   cocoa: "up on the climbing tower's roof at the playground",
   moon: "on the ledge in the mountain cave, reached through the tunnels",
   maple: "on a table under the pavilion roof",
+  sugarstar: "on the summit of Ice Cream Mountain, climbed tread by tread in tools/mountain.ts",
 };
 
 let hardFails = 0;

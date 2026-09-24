@@ -53,7 +53,7 @@ import {
  */
 
 /**
- * The sixteen candies. Ids have to be unique across the whole game, not just
+ * The twenty-five candies. Ids have to be unique across the whole game, not just
  * this park: a dumpling that runs off is remembered in one flat record keyed by
  * id, so a clash would move park 1's collectible when this one moved.
  */
@@ -183,6 +183,78 @@ const SPOTS: Record<string, { id: string; pos: [number, number, number]; hide: H
     hide: "hard",
     region: "the chocolate river",
     hint: "Beside the river, east of the plaza.",
+  },
+  /*
+   * The nine more, added when Dalton asked for twenty-five: into the parts of
+   * the park the first sixteen left empty — the summit, the lake's far shore,
+   * behind the factory, the north by the maze, and out along the candy wall —
+   * so the longer hunt is a hunt round more of the park, not more sweets in
+   * the same places.
+   */
+  "sugar star": {
+    id: "sugarstar",
+    // on the summit, on the floor clear of the telescope, the cherry and the
+    // way in from the stairs: the climb's reward
+    pos: [-112.2, 17.35, -124.93],
+    hide: "hard",
+    region: "the top of Ice Cream Mountain",
+    hint: "Right at the very top of Ice Cream Mountain, by the telescope.",
+  },
+  gumdrop: {
+    id: "gumdome",
+    pos: [30, 0.55, -110],
+    hide: "medium",
+    region: "the Licorice Maze",
+    hint: "By the Licorice Maze sign, on the path up to the maze.",
+  },
+  "candy corn": {
+    id: "candycorn",
+    pos: [-135, 0.55, -60],
+    hide: "hard",
+    region: "the west wall",
+    hint: "Out by the candy wall on the west side, between the forest and the mountain.",
+  },
+  donut: {
+    id: "sprinkledonut",
+    pos: [30, 0.55, 140],
+    hide: "hard",
+    region: "the south wall",
+    hint: "Past Marshmallow Fields, right out by the candy wall to the south.",
+  },
+  cupcake: {
+    id: "minicupcake",
+    pos: [-96, 0.55, 132],
+    hide: "medium",
+    region: "the fairground",
+    hint: "Next to the Cupcake Carousel, at the back of the fairground.",
+  },
+  macaron: {
+    id: "macaron",
+    pos: [-58, 0.55, 104],
+    hide: "easy",
+    region: "Marshmallow Fields",
+    hint: "Among the marshmallows, on the side nearest the forest.",
+  },
+  "ice pop": {
+    id: "icepop",
+    pos: [-18, 0.55, -80],
+    hide: "medium",
+    region: "the candy factory",
+    hint: "Round the back of the candy factory.",
+  },
+  "choco coin": {
+    id: "chococoin",
+    pos: [146, 0.55, 118],
+    hide: "medium",
+    region: "the chocolate lake",
+    hint: "On the far side of the chocolate lake, near the candy wall.",
+  },
+  cookie: {
+    id: "chipcookie",
+    pos: [145, 0.55, -50],
+    hide: "hard",
+    region: "the east wall",
+    hint: "Along the candy wall to the east, north of Gingerbread Village.",
   },
 };
 

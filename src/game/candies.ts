@@ -3,7 +3,8 @@ import { beveledBox } from "./beveled";
 import { boxGeo, coneGeo, cylGeo, lam, sphereGeo, type FaceRig } from "./meshes";
 
 /**
- * The sixteen hidden candies of Sugar Rush Park.
+ * The twenty-five hidden candies of Sugar Rush Park (sixteen to begin with;
+ * nine more after Dalton asked for a longer hunt).
  *
  * These stand in for the dumplings of the first park, so `makeCandy` is a
  * drop-in replacement for `makeDumpling`: same root scale, same userData keys,
@@ -39,7 +40,16 @@ export type CandyKind =
   | "cotton candy"
   | "caramel"
   | "fudge"
-  | "jawbreaker";
+  | "jawbreaker"
+  | "gumdrop"
+  | "candy corn"
+  | "donut"
+  | "cupcake"
+  | "macaron"
+  | "ice pop"
+  | "choco coin"
+  | "sugar star"
+  | "cookie";
 
 /**
  * Names, colours and journal blurbs.
@@ -174,6 +184,69 @@ export const CANDIES: readonly {
     accent: "#ffe14d",
     blurb: "The biggest one. Striped in layers, and far too big for a mouth.",
   },
+  {
+    kind: "gumdrop",
+    name: "Gum Drop",
+    color: "#1fa84f",
+    accent: "#eafff0",
+    blurb: "A green dome rolled in sugar that sparkles when it turns.",
+  },
+  {
+    kind: "candy corn",
+    name: "Candy Corn",
+    color: "#ff8a1f",
+    accent: "#fff3d6",
+    blurb: "Yellow at the bottom, orange in the middle and white at the tip.",
+  },
+  {
+    kind: "donut",
+    name: "Sprinkle Donut",
+    color: "#5ec8ff",
+    accent: "#f0c07a",
+    blurb: "A ring of dough with blue icing and sprinkles on top.",
+  },
+  {
+    kind: "cupcake",
+    name: "Mini Cupcake",
+    color: "#8ff0c8",
+    accent: "#ff86b3",
+    blurb: "Mint frosting in a pink paper case, with a cherry on top.",
+  },
+  {
+    kind: "macaron",
+    name: "Macaron",
+    color: "#2ec4b6",
+    accent: "#fff4e0",
+    blurb: "Two little shells with a cream filling squashed between them.",
+  },
+  {
+    kind: "ice pop",
+    name: "Ice Pop",
+    color: "#3a6bff",
+    accent: "#ffffff",
+    blurb: "A frozen blue lolly on a wooden stick, with a bite out of the corner.",
+  },
+  {
+    kind: "choco coin",
+    name: "Choco Coin",
+    color: "#ffcc33",
+    accent: "#6b4226",
+    blurb: "Chocolate money in shiny gold foil, peeled back a little.",
+  },
+  {
+    kind: "sugar star",
+    name: "Sugar Star",
+    color: "#ffe23a",
+    accent: "#fffbe0",
+    blurb: "A five-pointed star of sugar that twinkles. It lives up high.",
+  },
+  {
+    kind: "cookie",
+    name: "Choc Chip Cookie",
+    color: "#d9a066",
+    accent: "#4a2e1c",
+    blurb: "Crunchy round the edges, soft in the middle, chocolate chips everywhere.",
+  },
 ];
 
 /**
@@ -192,6 +265,21 @@ export const CANDIES: readonly {
 const smileGeo = new THREE.TorusGeometry(1, 0.16, 6, 14, Math.PI);
 const puffGeo = new THREE.SphereGeometry(1, 8, 6);
 const shardGeo = new THREE.OctahedronGeometry(1, 0);
+/** the donut's ring, and the sugar star's star: once, for the whole park */
+const ringGeo = new THREE.TorusGeometry(1, 0.46, 10, 24);
+const starGeo = (() => {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
+    const r = i % 2 ? 0.42 : 1;
+    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  shape.closePath();
+  const e = new THREE.ExtrudeGeometry(shape, { depth: 0.5, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08, bevelSegments: 2 });
+  e.translate(0, 0, -0.25);
+  return e;
+})();
 
 /** Sweets are wet-looking. The park's default roughness reads as chalk. */
 const GLOSS = 0.16;
@@ -836,6 +924,166 @@ function jawbreaker(color: string, accent: string) {
   return g;
 }
 
+// ------------------------------------------------------------ the nine more
+
+function gumdrop(color: string, accent: string) {
+  const g = new THREE.Group();
+  const body = part(sphereGeo, color, 0.37, 0.4, 0.37, 0, -0.04, 0);
+  g.add(body);
+  g.add(part(cylGeo, color, 0.37, 0.2, 0.37, 0, -0.22, 0));
+  // the sugar coat: a scatter of crystals, which is what says gumdrop and not jelly
+  const r = rng(11);
+  for (let i = 0; i < 14; i++) {
+    const a = r() * Math.PI * 2;
+    const up = 0.15 + r() * 0.8;
+    const rad = 0.37 * Math.cos(up * 0.9) + 0.01;
+    g.add(keepColour(part(puffGeo, accent, 0.035, 0.035, 0.035, Math.cos(a) * rad, -0.04 + Math.sin(up) * 0.38, Math.sin(a) * rad, false)));
+  }
+  g.add(sheen(0.09, 0.07, 0.16, 0.16, 0.26));
+  g.userData.body = body;
+  addFace(g, { y: -0.08, out: 0.36, s: 0.95, eyeX: 0.15 });
+  return g;
+}
+
+function candyCorn(color: string, accent: string) {
+  const g = new THREE.Group();
+  // three bands, and the order is the whole candy: yellow, orange, white tip
+  const body = part(coneGeo, color, 0.36, 0.86, 0.36, 0, 0.0, 0);
+  g.add(body);
+  g.add(keepColour(part(cylGeo, "#ffd23f", 0.35, 0.2, 0.35, 0, -0.33, 0)));
+  g.add(part(coneGeo, accent, 0.13, 0.28, 0.13, 0, 0.3, 0, false));
+  g.userData.body = body;
+  addFace(g, { y: -0.14, out: 0.27, s: 0.8, eyeX: 0.12 });
+  return g;
+}
+
+function donut(color: string, accent: string) {
+  const g = new THREE.Group();
+  // lying flat, as a donut does, with the icing on top and the dough showing
+  // round the edge
+  const dough = part(ringGeo, accent, 0.32, 0.32, 0.32, 0, -0.1, 0);
+  dough.rotation.x = Math.PI / 2;
+  g.add(keepColour(dough));
+  const icing = part(ringGeo, color, 0.31, 0.31, 0.2, 0, -0.03, 0, false);
+  icing.rotation.x = Math.PI / 2;
+  g.add(icing);
+  const r = rng(5);
+  const bits = ["#ff5a8a", "#ffe14d", "#ffffff", "#9b5cff"];
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + r() * 0.2;
+    const s = part(boxGeo, bits[i % bits.length]!, 0.08, 0.025, 0.025, Math.cos(a) * 0.32, 0.06, Math.sin(a) * 0.32, false);
+    s.rotation.y = r() * 3;
+    g.add(keepColour(s));
+  }
+  g.userData.body = icing;
+  addFace(g, { y: -0.1, out: 0.47, s: 0.75, eyeX: 0.12 });
+  return g;
+}
+
+function cupcake(color: string, accent: string) {
+  const g = new THREE.Group();
+  // the paper case, ridged, then a swirl of frosting and a cherry
+  g.add(keepColour(part(cylGeo, accent, 0.3, 0.32, 0.3, 0, -0.22, 0)));
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    g.add(keepColour(part(boxGeo, accent, 0.05, 0.3, 0.03, Math.cos(a) * 0.3, -0.22, Math.sin(a) * 0.3, false)));
+  }
+  const body = part(sphereGeo, color, 0.36, 0.26, 0.36, 0, 0.02, 0);
+  g.add(body);
+  g.add(part(sphereGeo, color, 0.24, 0.2, 0.24, 0, 0.2, 0));
+  g.add(keepColour(part(sphereGeo, "#e8203c", 0.08, 0.08, 0.08, 0, 0.36, 0)));
+  g.add(sheen(0.08, 0.06, 0.14, 0.1, 0.26));
+  g.userData.body = body;
+  addFace(g, { y: -0.2, out: 0.31, s: 0.75, eyeX: 0.12 });
+  return g;
+}
+
+function macaron(color: string, accent: string) {
+  const g = new THREE.Group();
+  const body = part(cylGeo, color, 0.36, 0.17, 0.36, 0, 0.12, 0);
+  g.add(body);
+  g.add(part(sphereGeo, color, 0.36, 0.08, 0.36, 0, 0.2, 0));
+  g.add(part(cylGeo, color, 0.36, 0.17, 0.36, 0, -0.14, 0));
+  // the filling, a little proud of the shells, is the tell
+  g.add(keepColour(part(cylGeo, accent, 0.33, 0.09, 0.33, 0, -0.01, 0, false)));
+  g.add(sheen(0.1, 0.04, 0.12, 0.17, 0.3));
+  g.userData.body = body;
+  addFace(g, { y: -0.14, out: 0.37, s: 0.72, eyeX: 0.12 });
+  return g;
+}
+
+function icePop(color: string, accent: string) {
+  const g = new THREE.Group();
+  const f = facing(g);
+  const body = part(boxGeo, color, 0.4, 0.62, 0.17, 0, 0.08, 0);
+  f.add(body);
+  // two white stripes, and a bite out of the top corner
+  f.add(part(boxGeo, accent, 0.41, 0.06, 0.18, 0, 0.18, 0, false));
+  f.add(part(boxGeo, accent, 0.41, 0.06, 0.18, 0, -0.06, 0, false));
+  f.add(keepColour(part(sphereGeo, "#fff8f0", 0.1, 0.1, 0.1, 0.19, 0.38, 0, false)));
+  f.add(keepColour(part(boxGeo, "#e8c28a", 0.09, 0.3, 0.05, 0, -0.34, 0)));
+  g.userData.body = body;
+  addFace(g, { y: 0.02, out: 0.14, s: 0.75, eyeX: 0.11 });
+  return g;
+}
+
+function chocoCoin(color: string, accent: string) {
+  const g = new THREE.Group();
+  const f = facing(g);
+  const body = part(cylGeo, color, 0.36, 0.14, 0.36, 0, 0.02, 0, true, 0.1);
+  body.rotation.x = Math.PI / 2;
+  f.add(body);
+  // a raised rim on both faces, and the foil peeled back at the top to show
+  // the chocolate: that peel is what says it is a sweet and not money
+  for (const side of [1, -1]) {
+    const rim = part(ringGeo, color, 0.3, 0.3, 0.05, 0, 0.02, side * 0.07, false, 0.1);
+    f.add(rim);
+  }
+  f.add(keepColour(part(sphereGeo, accent, 0.2, 0.1, 0.075, 0, 0.3, 0, false)));
+  f.add(sheen(0.12, 0.08, -0.12, 0.14, 0.09));
+  g.userData.body = body;
+  addFace(g, { y: -0.02, out: 0.12, s: 0.72, eyeX: 0.11 });
+  return g;
+}
+
+function sugarStar(color: string, accent: string) {
+  const g = new THREE.Group();
+  const f = facing(g);
+  const body = part(starGeo, color, 0.42, 0.42, 0.3, 0, 0.02, 0);
+  f.add(body);
+  // twinkles round it
+  for (const [x, y] of [
+    [0.36, 0.34],
+    [-0.4, 0.2],
+    [0.3, -0.34],
+  ] as const) {
+    f.add(keepColour(part(shardGeo, accent, 0.05, 0.08, 0.05, x, y, 0.05, false)));
+  }
+  g.userData.body = body;
+  addFace(g, { y: -0.04, out: 0.13, s: 0.7, eyeX: 0.1 });
+  return g;
+}
+
+function cookie(color: string, accent: string) {
+  const g = new THREE.Group();
+  const f = facing(g);
+  const body = part(cylGeo, color, 0.37, 0.14, 0.37, 0, 0.02, 0, true, 0.6);
+  body.rotation.x = Math.PI / 2;
+  f.add(body);
+  // chips on both faces, set in rather than stuck on
+  const r = rng(3);
+  for (const side of [1, -1]) {
+    for (let i = 0; i < 7; i++) {
+      const a = r() * Math.PI * 2;
+      const d = 0.08 + r() * 0.22;
+      f.add(part(puffGeo, accent, 0.05, 0.05, 0.03, Math.cos(a) * d, 0.02 + Math.sin(a) * d, side * 0.07, false, 0.4));
+    }
+  }
+  g.userData.body = body;
+  addFace(g, { y: -0.02, out: 0.12, s: 0.72, eyeX: 0.11 });
+  return g;
+}
+
 /**
  * One hidden candy.
  *
@@ -893,6 +1141,33 @@ export function makeCandy(kind: CandyKind, color: string, accent: string): THREE
       break;
     case "jawbreaker":
       g = jawbreaker(color, accent);
+      break;
+    case "gumdrop":
+      g = gumdrop(color, accent);
+      break;
+    case "candy corn":
+      g = candyCorn(color, accent);
+      break;
+    case "donut":
+      g = donut(color, accent);
+      break;
+    case "cupcake":
+      g = cupcake(color, accent);
+      break;
+    case "macaron":
+      g = macaron(color, accent);
+      break;
+    case "ice pop":
+      g = icePop(color, accent);
+      break;
+    case "choco coin":
+      g = chocoCoin(color, accent);
+      break;
+    case "sugar star":
+      g = sugarStar(color, accent);
+      break;
+    case "cookie":
+      g = cookie(color, accent);
       break;
   }
   // the celebration hard-codes this number when it puts the candy back, so it
