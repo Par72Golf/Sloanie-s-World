@@ -1126,7 +1126,7 @@ function TitleScreen() {
                       ...helpLines(levelIndex),
                       `Press ${bindingLabel("music")} to play music on your iPod. Stand still and you will dance!`,
                       `Walk with W A S D or the left stick. Jump with ${bindingLabel("jump")}.`,
-                      "Turn the camera with the shoulder buttons, or by dragging the screen.",
+                      "Look around with the right stick, or by dragging the screen. The controller works like Minecraft's.",
                     ].map((line) => (
                       <li key={line} className="flex gap-2.5">
                         <span className="mt-1.5 size-2.5 shrink-0 rotate-45 rounded-[2px] border-2 border-edge bg-rose" />

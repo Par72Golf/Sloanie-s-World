@@ -84,6 +84,83 @@ export function targetSquare(a: PlaceArea, x: number, z: number, yaw: number): [
   return [gx, gz];
 }
 
+/** A ray from the camera through the crosshair, in world metres. */
+export type Aim = { ox: number; oy: number; oz: number; dx: number; dy: number; dz: number };
+/** how far she can reach to place or break, like Minecraft's five blocks or so */
+const REACH = 6;
+
+/** Is a piece already standing anywhere in levels [y, y+h) of this square? */
+function occupied(a: PlaceArea, pieces: readonly Placed[], x: number, z: number, y: number, h: number) {
+  return pieces.some((q) => q.x === x && q.z === z && q.y < y + h && q.y + (a.catalogue.get(q.p)?.h ?? 1) > y);
+}
+
+/**
+ * What the crosshair is on: the piece it hits (to break) and where a new piece
+ * would go (to place), the Minecraft way. Every piece counts as the whole of
+ * its square for aiming, so a lollipop is as easy to hit as a block. Hitting
+ * the top of a piece puts the new one on it; hitting a side puts it in the
+ * next square at that height, so she can build sideways, bridge and wall;
+ * hitting the floor puts it there.
+ */
+export function aimAt(a: PlaceArea, pieces: readonly Placed[], ray: Aim, newH: number) {
+  let best = REACH;
+  let hit = -1;
+  let face: [number, number, number] = [0, 1, 0];
+  const inv = [1 / ray.dx, 1 / ray.dy, 1 / ray.dz];
+  pieces.forEach((q, i) => {
+    const def = a.catalogue.get(q.p);
+    if (!def) return;
+    const lo = [a.x0 + q.x, a.y0 + q.y * LEVEL, a.z0 + q.z];
+    const hi = [lo[0]! + 1, lo[1]! + def.h * LEVEL, lo[2]! + 1];
+    const o = [ray.ox, ray.oy, ray.oz];
+    let tmin = 0;
+    let tmax = best;
+    let axis = -1;
+    let sign = 0;
+    for (let k = 0; k < 3; k++) {
+      let t0 = (lo[k]! - o[k]!) * inv[k]!;
+      let t1 = (hi[k]! - o[k]!) * inv[k]!;
+      let s0 = -1;
+      if (t0 > t1) {
+        [t0, t1] = [t1, t0];
+        s0 = 1;
+      }
+      if (t0 > tmin) {
+        tmin = t0;
+        axis = k;
+        sign = s0;
+      }
+      tmax = Math.min(tmax, t1);
+      if (tmin > tmax) return;
+    }
+    if (axis < 0 || tmin >= best) return;
+    best = tmin;
+    hit = i;
+    face = [axis === 0 ? sign : 0, axis === 1 ? sign : 0, axis === 2 ? sign : 0];
+  });
+
+  let place: { x: number; z: number; y: number } | null = null;
+  if (hit >= 0) {
+    const q = pieces[hit]!;
+    const h = a.catalogue.get(q.p)?.h ?? 1;
+    if (face[1] > 0) place = { x: q.x, z: q.z, y: q.y + h };
+    else if (face[1] < 0) place = { x: q.x, z: q.z, y: q.y - newH };
+    else {
+      const t = best;
+      const hy = ray.oy + ray.dy * t;
+      const lvl = Math.min(q.y + h - 1, Math.max(q.y, Math.floor((hy - a.y0) / LEVEL)));
+      place = { x: q.x + face[0], z: q.z + face[2], y: lvl };
+    }
+  } else if (ray.dy < -1e-3) {
+    // the floor
+    const t = (a.y0 - ray.oy) / ray.dy;
+    if (t > 0 && t < REACH) place = { x: Math.floor(ray.ox + ray.dx * t - a.x0), z: Math.floor(ray.oz + ray.dz * t - a.z0), y: 0 };
+  }
+  if (place && (place.y < 0 || place.x < 0 || place.z < 0 || place.x >= a.cols || place.z >= a.rows || !a.fits(place.x, place.z))) place = null;
+  if (place && occupied(a, pieces, place.x, place.z, place.y, newH)) place = null;
+  return { hit, place };
+}
+
 /** squares per side of a redraw chunk */
 const CHUNK = 6;
 type Chunk = { sig: string; group: THREE.Group; geos: THREE.BufferGeometry[]; spinning: THREE.Object3D[] };
@@ -100,6 +177,11 @@ export class Placer {
   private ghost: THREE.Group | null = null;
   private ghostKey = "";
   private ghostMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.45, depthWrite: false });
+  /** Minecraft's outline round the piece the crosshair is on */
+  private outline = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
+    new THREE.LineBasicMaterial({ color: "#2a2230", transparent: true, opacity: 0.8 }),
+  );
   private lastPieces: readonly Placed[] | null = null;
   private t = 0;
 
@@ -113,6 +195,7 @@ export class Placer {
     this.setColliders([]);
     for (const key of [...this.chunks.keys()]) this.dropChunk(key);
     if (this.ghost) this.scene.remove(this.ghost);
+    this.scene.remove(this.outline);
   }
 
   private setColliders(next: AABB[]) {
@@ -190,8 +273,12 @@ export class Placer {
     this.scene.add(g);
   }
 
-  /** Every frame: redraw after a change, and while `active`, the ghost and her presses. */
-  update(dt: number, her: { x: number; y: number; z: number; yaw: number }, active: boolean) {
+  /**
+   * Every frame: redraw after a change, and while `active`, the ghost and her
+   * presses. With `aim` (the crosshair's ray) she places on and breaks what she
+   * is looking at; without one, the square in front of her.
+   */
+  update(dt: number, her: { x: number; y: number; z: number; yaw: number }, active: boolean, aim?: Aim) {
     if (!(dt > 0)) return;
     this.t += dt;
     const store = this.area.store.getState();
@@ -201,8 +288,10 @@ export class Placer {
     }
     for (const c of this.chunks.values()) for (const s of c.spinning) s.rotation.y = this.t * 1.5;
 
-    const target = active ? targetSquare(this.area, her.x, her.z, her.yaw) : null;
     const def = this.area.catalogue.get(store.piece);
+    if (active && aim && def) return this.updateAimed(def, her, aim);
+    this.outline.visible = false;
+    const target = active ? targetSquare(this.area, her.x, her.z, her.yaw) : null;
     if (!target || !def) {
       if (this.ghost) this.ghost.visible = false;
       const ask = store.take();
@@ -231,6 +320,54 @@ export class Placer {
     if (ask === "place") this.place(def, gx, gz, top, her);
     else if (ask === "remove") this.remove(gx, gz);
     else if (ask === "undo") {
+      sfx.click();
+      store.undo();
+    }
+  }
+
+  private showGhost(def: PieceDef) {
+    const store = this.area.store.getState();
+    const color = BUILD_COLORS[store.color]!.hex;
+    const key = `${def.id}|${def.colored ? color : ""}`;
+    if (key !== this.ghostKey || !this.ghost) {
+      this.ghostKey = key;
+      this.makeGhost(def, def.colored ? color : "#ffffff");
+    }
+    return this.ghost!;
+  }
+
+  /** The Minecraft way: the crosshair picks the piece to break and the face to build on. */
+  private updateAimed(def: PieceDef, her: { x: number; y: number; z: number; yaw: number }, aim: Aim) {
+    const store = this.area.store.getState();
+    const { hit, place } = aimAt(this.area, store.pieces, aim, def.h);
+    if (!this.outline.parent) this.scene.add(this.outline);
+    if (hit >= 0) {
+      const q = store.pieces[hit]!;
+      const h = (this.area.catalogue.get(q.p)?.h ?? 1) * LEVEL;
+      const at = origin(this.area, q);
+      this.outline.visible = true;
+      this.outline.scale.set(1.01, h + 0.01, 1.01);
+      this.outline.position.set(at.x, at.y + h / 2, at.z);
+    } else this.outline.visible = false;
+    const ghost = this.showGhost(def);
+    if (place) {
+      const at = origin(this.area, place);
+      ghost.visible = true;
+      ghost.position.set(at.x, at.y + 0.01, at.z);
+      ghost.rotation.y = (store.rot * Math.PI) / 2;
+      this.ghostMat.opacity = 0.35 + Math.sin(this.t * 5) * 0.12;
+    } else ghost.visible = false;
+
+    const ask = store.take();
+    if (ask === "place") {
+      if (place) this.place(def, place.x, place.z, place.y, her);
+      else sfx.wrong();
+    } else if (ask === "remove") {
+      if (hit >= 0) {
+        sfx.boing();
+        store.removeAt(hit);
+      }
+    } else if (ask === "undo") {
       sfx.click();
       store.undo();
     }

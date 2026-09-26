@@ -12,14 +12,65 @@ export let padInteract = false;
 export let padHint = false;
 export let padPause = false;
 export let padJournal = false;
-/** Big map toggle: B on the pad, M on the keyboard. */
+/** Big map toggle: View on the pad, M on the keyboard. */
 export let padMap = false;
-/** First-person toggle: left trigger on the pad, V on the keyboard. */
+/** Camera view: D-pad up, V on the keyboard. */
 export let padView = false;
-/** RT on the pad, N on the keyboard: next iPod channel. */
+/** Dance: D-pad left (Minecraft's emote), N on the keyboard. */
 export let padMusic = false;
 let padCamQ = false;
 let padCamE = false;
+
+/*
+ * Minecraft's Break, Build (its crafting button), Undo and Sprint, and while
+ * building, the hotbar and colour presses. Building swaps some buttons'
+ * meaning: LB/RB step through the pieces instead of turning the camera, and
+ * the D-pad picks the colour (left, right) and turns the piece (up).
+ */
+let padBreak = false;
+let padBuild = false;
+let padUndo = false;
+let padSprint = false;
+let buildMode = false;
+export type BuildPress = "prev" | "next" | "colorPrev" | "colorNext" | "turn" | "done";
+const buildPresses: BuildPress[] = [];
+
+/** The runtime says when she is building, so the pad knows which layout it is. */
+export function setBuildControls(on: boolean) {
+  buildMode = on;
+}
+export function consumeBuildPresses(): BuildPress[] {
+  return buildPresses.splice(0);
+}
+export function consumePadBreak() {
+  const v = padBreak;
+  padBreak = false;
+  return v;
+}
+export function consumePadBuild() {
+  const v = padBuild;
+  padBuild = false;
+  return v;
+}
+export function consumePadUndo() {
+  const v = padUndo;
+  padUndo = false;
+  return v;
+}
+export function consumePadSprint() {
+  const v = padSprint;
+  padSprint = false;
+  return v;
+}
+/** Held: A (or Space) to fly up, B (or Shift) to fly down, while building. */
+export function flyUpHeld() {
+  const pad = usablePad();
+  return isDown("Space") || (!!pad && !padBusy() && Boolean(pad.buttons[useBindings.getState().pad.jump]?.pressed));
+}
+export function flyDownHeld() {
+  const pad = usablePad();
+  return isDown("ShiftLeft") || isDown("ShiftRight") || (!!pad && !padBusy() && Boolean(pad.buttons[1]?.pressed));
+}
 const PAD_BUTTONS = 20;
 const padPrev = new Uint8Array(PAD_BUTTONS);
 
@@ -44,6 +95,21 @@ const GAME_CODES = new Set([
   "KeyM",
   "KeyV",
   "KeyN",
+  "KeyX",
+  "KeyB",
+  "KeyZ",
+  "KeyR",
+  "BracketLeft",
+  "BracketRight",
+  "Digit1",
+  "Digit2",
+  "Digit3",
+  "Digit4",
+  "Digit5",
+  "Digit6",
+  "Digit7",
+  "Digit8",
+  "Digit9",
 ]);
 
 function activeSet(): Set<string> {
@@ -232,6 +298,10 @@ export function swallowHeldPad() {
     else if (i === b.music) padMusic = false;
     else if (i === b.journal) padJournal = false;
     else if (i === b.pause) padPause = false;
+    else if (i === b.break) padBreak = false;
+    else if (i === b.build) padBuild = false;
+    else if (i === b.undo) padUndo = false;
+    else if (i === b.sprint) padSprint = false;
   }
 }
 
@@ -261,6 +331,16 @@ export function bindInput() {
     else if (action === "pause") padPause = true;
     else if (action === "view") padView = true;
     else if (action === "music") padMusic = true;
+    else if (action === "break") padBreak = true;
+    else if (action === "build") padBuild = true;
+    else if (action === "undo") padUndo = true;
+    else if (action === "sprint") padSprint = true;
+    // Minecraft's keyboard hotbar, while building: [ and ] step, R turns
+    if (buildMode) {
+      if (e.code === "BracketLeft") buildPresses.push("prev");
+      else if (e.code === "BracketRight") buildPresses.push("next");
+      else if (e.code === "KeyR") buildPresses.push("turn");
+    }
     if (GAME_CODES.has(e.code) || action) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
@@ -325,10 +405,7 @@ export function pollGamepad(axes: { x: number; z: number }) {
       look.dy += rs.y * 7;
     }
 
-    if (pad.buttons[14]?.pressed) axes.x -= 1;
-    if (pad.buttons[15]?.pressed) axes.x += 1;
-    if (pad.buttons[12]?.pressed) axes.z += 1;
-    if (pad.buttons[13]?.pressed) axes.z -= 1;
+    // the D-pad is buttons now, as in Minecraft: the sticks do the walking
 
     const down = (i: number) => Boolean(pad.buttons[i]?.pressed);
     const edge = (i: number) => !busy && down(i) && !padPrev[i];
@@ -336,14 +413,31 @@ export function pollGamepad(axes: { x: number; z: number }) {
     const b = useBindings.getState().pad;
     if (edge(b.jump)) jumpTap = true;
     if (edge(b.map)) padMap = true;
-    if (edge(b.view)) padView = true;
-    if (edge(b.music)) padMusic = true;
     if (edge(b.collect)) padInteract = true;
-    if (edge(b.hint)) padHint = true;
     if (edge(b.journal)) padJournal = true;
     if (edge(b.pause)) padPause = true;
-    padCamQ = !busy && down(b.camLeft);
-    padCamE = !busy && down(b.camRight);
+    if (edge(b.break)) padBreak = true;
+    if (edge(b.build)) padBuild = true;
+    if (edge(b.undo)) padUndo = true;
+    if (edge(b.sprint)) padSprint = true;
+    if (buildMode) {
+      // building: the hotbar on LB/RB, colour on the D-pad, turn on D-pad up,
+      // B to stop (it flies her down while she is flying; the runtime decides)
+      if (edge(b.camLeft)) buildPresses.push("prev");
+      if (edge(b.camRight)) buildPresses.push("next");
+      if (edge(b.music)) buildPresses.push("colorPrev");
+      if (edge(b.hint)) buildPresses.push("colorNext");
+      if (edge(b.view)) buildPresses.push("turn");
+      if (edge(1)) buildPresses.push("done");
+      padCamQ = false;
+      padCamE = false;
+    } else {
+      if (edge(b.view)) padView = true;
+      if (edge(b.music)) padMusic = true;
+      if (edge(b.hint)) padHint = true;
+      padCamQ = !busy && down(b.camLeft);
+      padCamE = !busy && down(b.camRight);
+    }
     for (let i = 0; i < PAD_BUTTONS; i++) padPrev[i] = down(i) ? 1 : 0;
   } else {
     padPrev.fill(0);

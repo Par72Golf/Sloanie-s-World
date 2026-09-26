@@ -3,7 +3,7 @@ import { LEVEL, PIECE } from "./build-pieces";
 import { useBuild } from "./build-store";
 import type { AABB } from "./collision";
 import { lam, signBoard } from "./meshes";
-import { Placer, type PlaceArea } from "./placer";
+import { Placer, type Aim, type PlaceArea } from "./placer";
 import { SUGAR } from "./sugar-rush";
 
 /**
@@ -106,13 +106,13 @@ export class BuildYard {
     useBuild.getState().setInYard(false);
   }
 
-  update(dt: number, her: { x: number; y: number; z: number; yaw: number }, paused: boolean) {
+  update(dt: number, her: { x: number; y: number; z: number; yaw: number }, paused: boolean, aim?: Aim) {
     if (!(dt > 0)) return;
     const store = useBuild.getState();
     const r = buildYardRect(0.5);
     const inYard = her.x > r.minX && her.x < r.maxX && her.z > r.minZ && her.z < r.maxZ && her.y < MAX_LEVEL * LEVEL + 2;
     store.setInYard(inYard);
     if (!inYard && store.building) store.setBuilding(false);
-    this.placer.update(dt, her, store.building && !paused);
+    this.placer.update(dt, her, store.building && !paused, aim);
   }
 }

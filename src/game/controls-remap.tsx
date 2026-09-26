@@ -227,7 +227,7 @@ export function ControlsRemap() {
               <Lock className="size-4" /> Always the same
             </p>
             <ul className="grid gap-x-4 gap-y-1 text-base font-semibold text-ink-soft sm:grid-cols-2">
-              <li>Move: left stick, d-pad, WASD or arrow keys</li>
+              <li>Move: left stick, WASD or arrow keys. Look: right stick. The layout is Minecraft's.</li>
               <li>Look around: right stick or drag</li>
               <li>In menus: A to choose, B to go back</li>
               <li>Keyboard menus: Enter to choose, Esc to go back</li>

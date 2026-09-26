@@ -2,44 +2,83 @@ import { create } from "zustand";
 
 /**
  * Remappable controls. Each play action has one controller button and one or
- * more keyboard keys. Moving (sticks, d-pad, WASD, arrows) and the menu
- * buttons (A to choose, B to go back, Escape) are fixed, so nobody can remap
- * themselves out of a menu. Saved in its own slot so a reset of the game's
- * progress keeps a grown-up's button layout.
+ * more keyboard keys. Moving (sticks, WASD, arrows) and the menu buttons (A to
+ * choose, B to go back, Escape) are fixed, so nobody can remap themselves out
+ * of a menu. Saved in its own slot so a reset of the game's progress keeps a
+ * grown-up's button layout.
+ *
+ * The controller layout is Minecraft's (Bedrock, Xbox), because that is the
+ * game the kids already know with these controllers — 8BitDo Ultimates, which
+ * report themselves as Xbox pads: A jump, LT use and place, RT break, LB/RB
+ * through the hotbar, Y the inventory (her backpack), X the crafting button
+ * (start and finish building), D-pad up the camera, D-pad left the emote (her
+ * dance), D-pad right the chat (a hint), D-pad down to undo, left stick in to
+ * sprint, Menu to pause. The D-pad no longer walks her, as in Minecraft.
  */
 
-export type Action = "jump" | "collect" | "hint" | "map" | "journal" | "pause" | "music" | "view" | "camLeft" | "camRight";
+export type Action =
+  | "jump"
+  | "collect"
+  | "break"
+  | "build"
+  | "undo"
+  | "sprint"
+  | "hint"
+  | "map"
+  | "journal"
+  | "pause"
+  | "music"
+  | "view"
+  | "camLeft"
+  | "camRight";
 
 export const ACTIONS: { id: Action; label: string; detail: string }[] = [
-  { id: "jump", label: "Jump", detail: "Hop, and bounce big on trampolines" },
-  { id: "collect", label: "Collect", detail: "Grab, talk, ride and play" },
-  { id: "hint", label: "Hint", detail: "Ask where a dumpling is" },
-  { id: "journal", label: "Backpack", detail: "Dumplings, stickers and your things" },
+  { id: "jump", label: "Jump", detail: "Hop — and double-tap while building to fly" },
+  { id: "collect", label: "Use / Place", detail: "Grab, talk, ride and play — and place a piece when building" },
+  { id: "break", label: "Break", detail: "Take a piece away when building (and grabs things too)" },
+  { id: "build", label: "Build", detail: "Start or finish building, in the Build Yard or your house" },
+  { id: "camLeft", label: "Hotbar left", detail: "The piece before, when building; turns the camera otherwise" },
+  { id: "camRight", label: "Hotbar right", detail: "The next piece, when building; turns the camera otherwise" },
+  { id: "undo", label: "Undo", detail: "Take back the last piece you placed" },
+  { id: "journal", label: "Backpack", detail: "Sweets, stickers and your things" },
   { id: "map", label: "Big map", detail: "Open or close the map" },
-  { id: "music", label: "iPod music", detail: "Next music channel" },
-  { id: "view", label: "First person", detail: "See through her eyes" },
-  { id: "camLeft", label: "Turn camera left", detail: "Hold to turn" },
-  { id: "camRight", label: "Turn camera right", detail: "Hold to turn" },
+  { id: "hint", label: "Hint", detail: "Ask where a sweet is" },
+  { id: "music", label: "Dance", detail: "Music on your iPod, and a dance" },
+  { id: "view", label: "Camera view", detail: "See through her eyes, or from behind" },
+  { id: "sprint", label: "Sprint", detail: "Run faster until you stop" },
   { id: "pause", label: "Pause", detail: "Pause menu" },
 ];
 
-/** Standard gamepad mapping: 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 Back, 9 Start. */
+/**
+ * Standard gamepad mapping: 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT,
+ * 8 View, 9 Menu, 10 left stick in, 11 right stick in, 12-15 D-pad up, down,
+ * left, right. B is left free: it is Back in every menu, and while building
+ * it flies her down.
+ */
 export const DEFAULT_PAD: Record<Action, number> = {
   jump: 0,
-  map: 1,
-  collect: 2,
-  hint: 3,
+  collect: 6,
+  break: 7,
+  build: 2,
+  journal: 3,
   camLeft: 4,
   camRight: 5,
-  view: 6,
-  music: 7,
-  journal: 8,
+  view: 12,
+  undo: 13,
+  music: 14,
+  hint: 15,
+  map: 8,
+  sprint: 10,
   pause: 9,
 };
 
 export const DEFAULT_KEYS: Record<Action, string[]> = {
   jump: ["Space"],
   collect: ["KeyE", "KeyF"],
+  break: ["KeyX"],
+  build: ["KeyB"],
+  undo: ["KeyZ"],
+  sprint: ["ControlLeft"],
   hint: ["KeyH"],
   map: ["KeyM"],
   journal: ["KeyJ"],
@@ -50,8 +89,8 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   camRight: ["KeyC"],
 };
 
-/** Buttons that can't be given to an action: the d-pad moves her. */
-export const PAD_RESERVED = new Set([12, 13, 14, 15]);
+/** Buttons that can't be given to an action: B is Back, in every menu and while building. */
+export const PAD_RESERVED = new Set([1]);
 /** Keys that can't be given to an action: moving, and the keys menus need. */
 export const KEY_RESERVED = new Set([
   "KeyW",
@@ -79,10 +118,14 @@ export const PAD_NAMES: Record<number, string> = {
   5: "RB",
   6: "LT",
   7: "RT",
-  8: "Select",
-  9: "Start",
+  8: "View",
+  9: "Menu",
   10: "L-stick press",
   11: "R-stick press",
+  12: "D-pad up",
+  13: "D-pad down",
+  14: "D-pad left",
+  15: "D-pad right",
   16: "Home",
 };
 
@@ -117,7 +160,9 @@ export function keyName(code: string) {
   return named[code] ?? code;
 }
 
-const KEY = "sloanies-world-controls-v1";
+// v2: the Minecraft layout. An older saved layout is left behind rather than
+// mixed into it, since half its buttons now mean something else.
+const KEY = "sloanies-world-controls-v2";
 
 type Saved = { pad: Record<Action, number>; keys: Record<Action, string[]> };
 

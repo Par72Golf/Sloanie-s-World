@@ -23,7 +23,8 @@ import { WhackWorld, useWhack } from "./whack-a-gummy";
 import { SorterWorld, useSorter } from "./sweet-sorter";
 import { BuildYard } from "./build-yard";
 import { Placer } from "./placer";
-import { houseArea, useHouseBuild } from "./house-items";
+import { HOUSE_ITEMS, houseArea, useHouseBuild } from "./house-items";
+import { BUILD_COLORS, PIECES } from "./build-pieces";
 import { useBuild } from "./build-store";
 import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
 import { candyPrizeFurniture } from "./candy-furniture";
@@ -58,6 +59,14 @@ import {
   consumeLook,
   consumePadHint,
   consumePadInteract,
+  consumePadBreak,
+  consumePadBuild,
+  consumePadUndo,
+  consumePadSprint,
+  consumeBuildPresses,
+  setBuildControls,
+  flyUpHeld,
+  flyDownHeld,
   consumePadJournal,
   consumePadMap,
   consumePadMusic,
@@ -1169,6 +1178,12 @@ export class GameRuntime {
   sorter: SorterWorld | null = null;
   buildYard: BuildYard | null = null;
   housePlacer: Placer | null = null;
+  /** Minecraft's creative flying, while building: double-tap jump to start */
+  flying = false;
+  private aimDir = new THREE.Vector3();
+  private lastJumpTapAt = -1;
+  /** left stick in (Minecraft's sprint): faster until she stops */
+  sprinting = false;
   gumballs: GumballWorld | null = null;
   /** when to remind her that today's free gumball is waiting, or -1 */
   dailyNoticeAt = -1;
@@ -2111,6 +2126,33 @@ export class GameRuntime {
     this.camera.lookAt(this.lookAt);
   }
 
+  /** The placing store she is building with, the yard's or the house's, or null. */
+  buildStore() {
+    const yard = useBuild.getState();
+    if (yard.building) return { store: yard, palette: PIECES.filter((p) => !p.prize || yard.unlocked.includes(p.id)) };
+    const house = useHouseBuild.getState();
+    if (house.building) return { store: house, palette: HOUSE_ITEMS.filter((p) => !p.prize || house.unlocked.includes(p.id)) };
+    return null;
+  }
+
+  /** Minecraft's crafting button: start building where she can, or finish. */
+  toggleBuilding() {
+    const st = useGame.getState();
+    const on = this.buildStore();
+    if (on) {
+      on.store.setBuilding(false);
+      this.flying = false;
+      return;
+    }
+    if (useBuild.getState().inYard) {
+      useBuild.getState().setBuilding(true);
+      st.setEmmettNotice("Aim with the + and press LT to place, RT to break. LB and RB pick the piece. Double-tap A to fly!");
+    } else if (this.housePlacer && useHome.getState().inside) {
+      useHouseBuild.getState().setBuilding(true);
+      st.setEmmettNotice("Aim with the + and press LT to put it down, RT to take it away. LB and RB pick what.");
+    } else st.setEmmettNotice("You can build in the Build Yard, or inside your house.");
+  }
+
   /** The wheel, either carousel or the boat: something else decides where she is. */
   get carried() {
     return !!this.ride || !!this.carouselRide || !!this.boat?.riding || !!this.cupcakes?.riding;
@@ -2209,7 +2251,9 @@ export class GameRuntime {
       this.cap.y < WADE_TOP &&
       (this.level.water ?? []).some((w) => inCircle(this.cap.x, this.cap.z, w.x, w.z, w.r));
     // his truck goes as fast as a cotton-candy boost: that was the deal
-    const speedMul = (inWater ? 0.48 : 1) * (this.boostLeft > 0 || st.driving ? BOOST_MULTIPLIER : 1);
+    // sprint stops when she does, as in Minecraft
+    if (wishLen < 0.1) this.sprinting = false;
+    const speedMul = (inWater ? 0.48 : 1) * (this.boostLeft > 0 || st.driving ? BOOST_MULTIPLIER : 1) * (this.sprinting ? 1.35 : 1);
     if (wishLen > 0.05) {
       vx = this.wish.x * WALK * speedMul;
       vz = this.wish.z * WALK * speedMul;
@@ -2225,10 +2269,20 @@ export class GameRuntime {
       (z) => this.cap.x >= z.minX && this.cap.x <= z.maxX && this.cap.z >= z.minZ && this.cap.z <= z.maxZ,
     );
     const tap = live && consumeJumpTap();
+    // building, a double tap of jump flies her, the way creative Minecraft does
+    const buildingNow = !!this.buildStore();
+    if (!buildingNow) this.flying = false;
+    if (tap && buildingNow) {
+      if (this.clock - this.lastJumpTapAt < 0.35) {
+        this.flying = !this.flying;
+        this.jumpBuffer = 0;
+        this.lastJumpTapAt = -1;
+      } else this.lastJumpTapAt = this.clock;
+    }
     // a tap a moment before she lands still counts, so she can hop again the
     // instant her feet touch down instead of the press being swallowed mid-air
     this.jumpBuffer = tap ? JUMP_BUFFER : Math.max(0, this.jumpBuffer - dt);
-    const jump = this.jumpBuffer > 0 && !noJump;
+    const jump = this.jumpBuffer > 0 && !noJump && !this.flying;
     // a tap just before landing on a trampoline turns the bounce into a big one
     this.bounceBuffer = tap ? 0.35 : Math.max(0, this.bounceBuffer - dt);
     if (jump && this.coyote > 0) {
@@ -2262,7 +2316,13 @@ export class GameRuntime {
       this.grounded = true;
       this.speed = 0;
     } else {
-      this.velY -= GRAVITY * dt;
+      if (this.flying) {
+        // A (or Space) up, B (or Shift) down, and she hangs where she is
+        // otherwise; high enough to build the tallest tower, and no higher
+        const up = flyUpHeld() && this.cap.y < 13 ? 1 : 0;
+        const down = flyDownHeld() ? 1 : 0;
+        this.velY = (up - down) * 5;
+      } else this.velY -= GRAVITY * dt;
       const moved = moveAndCollide(
         this.cap,
         vx,
@@ -2274,6 +2334,8 @@ export class GameRuntime {
       );
       this.velY = moved.vy;
       this.grounded = moved.grounded;
+      // flying down on to the ground lands her, as it does in Minecraft
+      if (this.flying && moved.grounded && flyDownHeld()) this.flying = false;
       // trampolines: landing on the mat launches her again
       if (this.grounded && Math.abs(this.cap.y - TRAMPOLINE_TOP) < 0.08) {
         const onMat = this.world?.bouncers.some(
@@ -2540,11 +2602,16 @@ export class GameRuntime {
       this.sweetShop?.update(this.clock);
       if (!paused) this.whack?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       if (!paused) this.sorter?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
-      this.buildYard?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused);
+      // the crosshair's ray, in first person, for placing the Minecraft way
+      const aimDir = this.camera.getWorldDirection(this.aimDir);
+      const aim = this.firstPerson
+        ? { ox: this.camera.position.x, oy: this.camera.position.y, oz: this.camera.position.z, dx: aimDir.x, dy: aimDir.y, dz: aimDir.z }
+        : undefined;
+      this.buildYard?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused, aim);
       if (this.housePlacer) {
         const hb = useHouseBuild.getState();
         if (hb.building && !useHome.getState().inside) hb.setBuilding(false);
-        this.housePlacer.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, hb.building && !paused);
+        this.housePlacer.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, hb.building && !paused, aim);
       }
       this.gumballs?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z });
       // once, a little after she arrives: the reason to come back tomorrow is
@@ -2845,6 +2912,40 @@ export class GameRuntime {
     if (play && (wantsInteract() || consumePadInteract())) this.tryCollect();
     else consumePadInteract();
 
+    // Minecraft's buttons: RT breaks (and grabs, outside building), X builds,
+    // D-pad down undoes, the left stick sprints; while building, LB/RB step the
+    // hotbar and the D-pad picks the colour and turns the piece
+    const building = this.buildStore();
+    setBuildControls(!!building && play);
+    if (play && consumePadBreak()) {
+      if (building) building.store.ask("remove");
+      else this.tryCollect();
+    } else consumePadBreak();
+    if (play && consumePadBuild()) this.toggleBuilding();
+    else consumePadBuild();
+    if (play && consumePadUndo()) building?.store.ask("undo");
+    else consumePadUndo();
+    if (play && consumePadSprint()) this.sprinting = !this.sprinting;
+    else consumePadSprint();
+    for (const press of consumeBuildPresses()) {
+      if (!play || !building) continue;
+      const { store, palette } = building;
+      const at = Math.max(0, palette.findIndex((p) => p.id === store.piece));
+      if (press === "prev" || press === "next") {
+        sfx.click();
+        store.select(palette[(at + (press === "next" ? 1 : palette.length - 1)) % palette.length]!.id);
+      } else if (press === "colorPrev" || press === "colorNext") {
+        sfx.click();
+        store.setColor((store.color + (press === "colorNext" ? 1 : BUILD_COLORS.length - 1)) % BUILD_COLORS.length);
+      } else if (press === "turn") {
+        sfx.click();
+        store.turn();
+      } else if (press === "done" && !this.flying) {
+        // B flies her down while she is flying; standing, it is "I'm done"
+        this.toggleBuilding();
+      }
+    }
+
     const pauseEdge = consumePadPause();
     // Back steps out of the looking glass before it opens the pause menu
     if (play && pauseEdge && this.lookingGlass?.active) this.lookingGlass.exit();
@@ -2873,8 +2974,9 @@ export class GameRuntime {
     }
     this.wasInCave = inCave;
     // her house's room is small too: third person would jam against the walls
+    // and building is first person, with the crosshair, as it is in Minecraft
     this.setFirstPerson(
-      (st.view === "first" || inCave || useHome.getState().inside || useChocFactory.getState().inside) && st.phase !== "title",
+      (st.view === "first" || inCave || useHome.getState().inside || useChocFactory.getState().inside || !!building) && st.phase !== "title",
     );
 
     const collectedNow = st.collected[st.levelIndex] ?? [];
@@ -2914,7 +3016,8 @@ export class GameRuntime {
     this.flyWas = st.fly;
     this.animateWorld(raw);
     this.hud(raw);
-    const carried = this.carried;
+    // no hands while building: the crosshair and the piece are what she looks at
+    const carried = this.carried || !!this.buildStore();
     if (this.firstPerson && !carried) this.updateHands();
     else this.hands.group.visible = false;
     if (this.firstPerson && !carried) this.hands.group.visible = true;
