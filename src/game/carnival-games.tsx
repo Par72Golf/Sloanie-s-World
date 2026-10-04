@@ -914,6 +914,7 @@ function WhackAMole({ booth }: { booth: Booth }) {
       s.score = Math.max(0, s.score - 1);
       s.msg = "Oops! Not the bunny!";
       sfx.wrong();
+      speak(s.msg);
     } else {
       s.score += c.kind === "gold" ? 3 : 1;
       s.msg = c.kind === "gold" ? "Golden mole! +3" : "";
