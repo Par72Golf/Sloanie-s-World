@@ -1,0 +1,1712 @@
+[
+ {
+  "n": 1,
+  "who": "Sloan",
+  "text": "Okay!"
+ },
+ {
+  "n": 2,
+  "who": "Sloan",
+  "text": "I'll help!"
+ },
+ {
+  "n": 3,
+  "who": "Sloan",
+  "text": "Let's look!"
+ },
+ {
+  "n": 4,
+  "who": "Sloan",
+  "text": "She's mine?!"
+ },
+ {
+  "n": 5,
+  "who": "Sloan",
+  "text": "Ready or not!"
+ },
+ {
+  "n": 6,
+  "who": "Sloan",
+  "text": "Choose a pet!"
+ },
+ {
+  "n": 7,
+  "who": "Emmett",
+  "text": "Ha! Next time."
+ },
+ {
+  "n": 8,
+  "who": "Emmett",
+  "text": "Same thing! Go again!"
+ },
+ {
+  "n": 9,
+  "who": "Farmer Joe",
+  "text": "Thank you again!"
+ },
+ {
+  "n": 10,
+  "who": "Game Voice",
+  "text": "GO!"
+ },
+ {
+  "n": 11,
+  "who": "Game Voice",
+  "text": "Build!"
+ },
+ {
+  "n": 12,
+  "who": "Game Voice",
+  "text": "Music off"
+ },
+ {
+  "n": 13,
+  "who": "Game Voice",
+  "text": "Go outside!"
+ },
+ {
+  "n": 14,
+  "who": "Game Voice",
+  "text": "Stop looking"
+ },
+ {
+  "n": 15,
+  "who": "Game Voice",
+  "text": "Champion again!"
+ },
+ {
+  "n": 16,
+  "who": "Game Voice",
+  "text": "Play Whack-a-Gummy!"
+ },
+ {
+  "n": 17,
+  "who": "Game Voice",
+  "text": "Pick it up!"
+ },
+ {
+  "n": 18,
+  "who": "Game Voice",
+  "text": "What a ride!"
+ },
+ {
+  "n": 19,
+  "who": "Game Voice",
+  "text": "HOLE IN ONE!!"
+ },
+ {
+  "n": 20,
+  "who": "Game Voice",
+  "text": "The big race!"
+ },
+ {
+  "n": 21,
+  "who": "Game Voice",
+  "text": "Juice box! Zoom!"
+ },
+ {
+  "n": 22,
+  "who": "Game Voice",
+  "text": "Play lawn bowls!"
+ },
+ {
+  "n": 23,
+  "who": "Game Voice",
+  "text": "Play with Emmett!"
+ },
+ {
+  "n": 24,
+  "who": "Game Voice",
+  "text": "The obstacle run!"
+ },
+ {
+  "n": 25,
+  "who": "Game Voice",
+  "text": "Play Sweet Sorter!"
+ },
+ {
+  "n": 26,
+  "who": "Game Voice",
+  "text": "Cotton candy! Zoom!"
+ },
+ {
+  "n": 27,
+  "who": "Game Voice",
+  "text": "Rock paper scissors!"
+ },
+ {
+  "n": 28,
+  "who": "Game Voice",
+  "text": "Play Marshmallow Toss!"
+ },
+ {
+  "n": 29,
+  "who": "Game Voice",
+  "text": "You win 3 tickets!"
+ },
+ {
+  "n": 30,
+  "who": "Game Voice",
+  "text": "Talk to Farmer Joe!"
+ },
+ {
+  "n": 31,
+  "who": "Game Voice",
+  "text": "Pull the big lever!"
+ },
+ {
+  "n": 32,
+  "who": "Game Voice",
+  "text": "Let them live here!"
+ },
+ {
+  "n": 33,
+  "who": "Game Voice",
+  "text": "Take them with you!"
+ },
+ {
+  "n": 34,
+  "who": "Game Voice",
+  "text": "Oops! Not the bunny!"
+ },
+ {
+  "n": 35,
+  "who": "Game Voice",
+  "text": "Wheee! Hold on tight!"
+ },
+ {
+  "n": 36,
+  "who": "Game Voice",
+  "text": "Give them the treats!"
+ },
+ {
+  "n": 37,
+  "who": "Game Voice",
+  "text": "Visit the sweet shop!"
+ },
+ {
+  "n": 38,
+  "who": "Game Voice",
+  "text": "Go inside your house!"
+ },
+ {
+  "n": 39,
+  "who": "Game Voice",
+  "text": "Ride the ferris wheel!"
+ },
+ {
+  "n": 40,
+  "who": "Game Voice",
+  "text": "SPLASH! You got soaked!"
+ },
+ {
+  "n": 41,
+  "who": "Game Voice",
+  "text": "Park the monster truck!"
+ },
+ {
+  "n": 42,
+  "who": "Game Voice",
+  "text": "Drive the monster truck!"
+ },
+ {
+  "n": 43,
+  "who": "Game Voice",
+  "text": "Build your house bigger!"
+ },
+ {
+  "n": 44,
+  "who": "Game Voice",
+  "text": "All nine down! Brilliant!"
+ },
+ {
+  "n": 45,
+  "who": "Game Voice",
+  "text": "Ride the cupcake carousel!"
+ },
+ {
+  "n": 46,
+  "who": "Game Voice",
+  "text": "Look through the telescope!"
+ },
+ {
+  "n": 47,
+  "who": "Game Voice",
+  "text": "ALL THREE! Cocoa everywhere!"
+ },
+ {
+  "n": 48,
+  "who": "Game Voice",
+  "text": "Daily Surprise! Free gumball!"
+ },
+ {
+  "n": 49,
+  "who": "Emmett",
+  "text": "Aw, you win! Keep it."
+ },
+ {
+  "n": 50,
+  "who": "Emmett",
+  "text": "It's out at the fair!"
+ },
+ {
+  "n": 51,
+  "who": "Emmett",
+  "text": "It's at the splash pad!"
+ },
+ {
+  "n": 52,
+  "who": "Emmett",
+  "text": "It's at the story circle!"
+ },
+ {
+  "n": 53,
+  "who": "Emmett",
+  "text": "It's on the village square!"
+ },
+ {
+  "n": 54,
+  "who": "Emmett",
+  "text": "It's by the chocolate lake!"
+ },
+ {
+  "n": 55,
+  "who": "Emmett",
+  "text": "It's under the pavilion roof!"
+ },
+ {
+  "n": 56,
+  "who": "Emmett",
+  "text": "I left it on the plaza!"
+ },
+ {
+  "n": 57,
+  "who": "Emmett",
+  "text": "I put it by the gazebo!"
+ },
+ {
+  "n": 58,
+  "who": "Emmett",
+  "text": "I took it to the campfire!"
+ },
+ {
+  "n": 59,
+  "who": "Emmett",
+  "text": "I win! Play again any time."
+ },
+ {
+  "n": 60,
+  "who": "Emmett",
+  "text": "I dropped it on the marshmallows!"
+ },
+ {
+  "n": 61,
+  "who": "Emmett",
+  "text": "I took it out to the meadow!"
+ },
+ {
+  "n": 62,
+  "who": "Emmett",
+  "text": "I hid it in the lollipop woods!"
+ },
+ {
+  "n": 63,
+  "who": "Emmett",
+  "text": "It's down at the ice cream mountain!"
+ },
+ {
+  "n": 64,
+  "who": "Emmett",
+  "text": "You found my truck! Play for tickets?"
+ },
+ {
+  "n": 65,
+  "who": "Emmett",
+  "text": "This is my house! Rock, paper, scissors?"
+ },
+ {
+  "n": 66,
+  "who": "Emmett",
+  "text": "Vroom vroom! Best truck ever. Let's play!"
+ },
+ {
+  "n": 67,
+  "who": "Farmer Joe",
+  "text": "There she is! Well done!"
+ },
+ {
+  "n": 68,
+  "who": "Farmer Joe",
+  "text": "Bring her right over to me."
+ },
+ {
+  "n": 69,
+  "who": "Farmer Joe",
+  "text": "You found all the treats! Wonderful!"
+ },
+ {
+  "n": 70,
+  "who": "Game Voice",
+  "text": "Off the rim! So close."
+ },
+ {
+  "n": 71,
+  "who": "Game Voice",
+  "text": "You can't buy this one."
+ },
+ {
+  "n": 72,
+  "who": "Game Voice",
+  "text": "Put out toys and things!"
+ },
+ {
+  "n": 73,
+  "who": "Game Voice",
+  "text": "You found it! +3 tickets."
+ },
+ {
+  "n": 74,
+  "who": "Game Voice",
+  "text": "Too hot! Have another go."
+ },
+ {
+  "n": 75,
+  "who": "Game Voice",
+  "text": "Talk to the Candy Princess!"
+ },
+ {
+  "n": 76,
+  "who": "Game Voice",
+  "text": "They're coming with you again!"
+ },
+ {
+  "n": 77,
+  "who": "Game Voice",
+  "text": "Ride the chocolate river boat!"
+ },
+ {
+  "n": 78,
+  "who": "Game Voice",
+  "text": "Whoops! Hot floor! Start again."
+ },
+ {
+  "n": 79,
+  "who": "Game Voice",
+  "text": "Go inside the chocolate factory!"
+ },
+ {
+  "n": 80,
+  "who": "Game Voice",
+  "text": "Wow! You cleared nearly everything!"
+ },
+ {
+  "n": 81,
+  "who": "Game Voice",
+  "text": "Whoops! Chocolate everywhere. Start again!"
+ },
+ {
+  "n": 82,
+  "who": "Game Voice",
+  "text": "That's as tall as it goes!"
+ },
+ {
+  "n": 83,
+  "who": "Game Voice",
+  "text": "There's no room for it there!"
+ },
+ {
+  "n": 84,
+  "who": "Game Voice",
+  "text": "Level par! Right on the number!"
+ },
+ {
+  "n": 85,
+  "who": "Game Voice",
+  "text": "Great putting! So close to par."
+ },
+ {
+  "n": 86,
+  "who": "Game Voice",
+  "text": "The chocolate lake! Off you hop."
+ },
+ {
+  "n": 87,
+  "who": "Game Voice",
+  "text": "Round and round on the cupcakes!"
+ },
+ {
+  "n": 88,
+  "who": "Game Voice",
+  "text": "Splosh! Back to your candy flag."
+ },
+ {
+  "n": 89,
+  "who": "Game Voice",
+  "text": "ALL NINE with one bowl! Amazing!"
+ },
+ {
+  "n": 90,
+  "who": "Game Voice",
+  "text": "Whoops! Your flag brought you back."
+ },
+ {
+  "n": 91,
+  "who": "Game Voice",
+  "text": "Brilliant bowling! That's a proper score."
+ },
+ {
+  "n": 92,
+  "who": "Game Voice",
+  "text": "Unbelievable! You're a mini golf champion!"
+ },
+ {
+  "n": 93,
+  "who": "Game Voice",
+  "text": "Vroom! You're driving Emmett's monster truck."
+ },
+ {
+  "n": 94,
+  "who": "Game Voice",
+  "text": "Come back to the tee any time!"
+ },
+ {
+  "n": 95,
+  "who": "Game Voice",
+  "text": "Come back to the mat any time!"
+ },
+ {
+  "n": 96,
+  "who": "Game Voice",
+  "text": "What a view! Ride again any time."
+ },
+ {
+  "n": 97,
+  "who": "Game Voice",
+  "text": "You found Farmer Joe! Talk to him."
+ },
+ {
+  "n": 98,
+  "who": "Game Voice",
+  "text": "Nice round! Play again and beat it."
+ },
+ {
+  "n": 99,
+  "who": "Game Voice",
+  "text": "Just short! Hold it a moment longer."
+ },
+ {
+  "n": 100,
+  "who": "Game Voice",
+  "text": "You won every game. Claim your teddy!"
+ },
+ {
+  "n": 101,
+  "who": "Game Voice",
+  "text": "Into the cave! Look around to explore."
+ },
+ {
+  "n": 102,
+  "who": "Game Voice",
+  "text": "The toffee cracked! Grab the gummy bear."
+ },
+ {
+  "n": 103,
+  "who": "Game Voice",
+  "text": "Into the chocolate! The flag caught you!"
+ },
+ {
+  "n": 104,
+  "who": "Game Voice",
+  "text": "Chocolatey! Have another go from the start."
+ },
+ {
+  "n": 105,
+  "who": "Emmett",
+  "text": "I left it out at the ball field!"
+ },
+ {
+  "n": 106,
+  "who": "Emmett",
+  "text": "Welcome to my monster truck! Want to play?"
+ },
+ {
+  "n": 107,
+  "who": "Emmett",
+  "text": "Vroom! I'm fixing my truck. Come back soon to play!"
+ },
+ {
+  "n": 108,
+  "who": "Emmett",
+  "text": "My truck is the best, right? Let's play again soon!"
+ },
+ {
+  "n": 109,
+  "who": "Emmett",
+  "text": "I need a snack break. Play again in a little bit!"
+ },
+ {
+  "n": 110,
+  "who": "Candy Princess",
+  "text": "Down by the chocolate lake, where the river finishes."
+ },
+ {
+  "n": 111,
+  "who": "Candy Princess",
+  "text": "She is stuck out in the middle of the marshmallow bog."
+ },
+ {
+  "n": 112,
+  "who": "Candy Princess",
+  "text": "Somewhere round the black and red hedges of the Licorice Maze."
+ },
+ {
+  "n": 113,
+  "who": "Farmer Joe",
+  "text": "That's all three of them safe and sound!"
+ },
+ {
+  "n": 114,
+  "who": "Farmer Joe",
+  "text": "You brought her all the way back to me!"
+ },
+ {
+  "n": 115,
+  "who": "Farmer Joe",
+  "text": "You brought them all back to me! Thank you!"
+ },
+ {
+  "n": 116,
+  "who": "Farmer Joe",
+  "text": "Don't forget, you need the backpack to carry them."
+ },
+ {
+  "n": 117,
+  "who": "Farmer Joe",
+  "text": "You've been so brave. You can keep one of them."
+ },
+ {
+  "n": 118,
+  "who": "Game Voice",
+  "text": "A bit far! Let go a moment sooner."
+ },
+ {
+  "n": 119,
+  "who": "Game Voice",
+  "text": "Step back a little, you're in the way!"
+ },
+ {
+  "n": 120,
+  "who": "Game Voice",
+  "text": "Found you! Take her back to Farmer Joe."
+ },
+ {
+  "n": 121,
+  "who": "Game Voice",
+  "text": "Splat! Back to the start. You'll get it!"
+ },
+ {
+  "n": 122,
+  "who": "Game Voice",
+  "text": "Into the lava! Try again from the start."
+ },
+ {
+  "n": 123,
+  "who": "Game Voice",
+  "text": "Off you get! Ride again whenever you like."
+ },
+ {
+  "n": 124,
+  "who": "Game Voice",
+  "text": "Good rolling! Have another go and beat it."
+ },
+ {
+  "n": 125,
+  "who": "Game Voice",
+  "text": "Nice bowling! The pins never saw it coming."
+ },
+ {
+  "n": 126,
+  "who": "Game Voice",
+  "text": "Full speed! The whole factory is running fast."
+ },
+ {
+  "n": 127,
+  "who": "Game Voice",
+  "text": "Splosh! Into the chocolate. Back to the start!"
+ },
+ {
+  "n": 128,
+  "who": "Game Voice",
+  "text": "You finished all five holes. That's what counts!"
+ },
+ {
+  "n": 129,
+  "who": "Game Voice",
+  "text": "Turn to face an empty spot, then press Place."
+ },
+ {
+  "n": 130,
+  "who": "Game Voice",
+  "text": "The factory is running again! Look at the river!"
+ },
+ {
+  "n": 131,
+  "who": "Game Voice",
+  "text": "All aboard! Down the chocolate river to the lake."
+ },
+ {
+  "n": 132,
+  "who": "Game Voice",
+  "text": "Whoa, that knocked the mug over! A little softer."
+ },
+ {
+  "n": 133,
+  "who": "Game Voice",
+  "text": "A perfect game! Every single pin, every single turn!"
+ },
+ {
+  "n": 134,
+  "who": "Game Voice",
+  "text": "Six marshmallows, three mugs. Hold to fill the meter!"
+ },
+ {
+  "n": 135,
+  "who": "Game Voice",
+  "text": "Another gold ring! +5 tickets. You're a carousel champion."
+ },
+ {
+  "n": 136,
+  "who": "Game Voice",
+  "text": "Parked! Walk up to it any time to drive again."
+ },
+ {
+  "n": 137,
+  "who": "Game Voice",
+  "text": "Bonk! A touch too far. Let go a moment sooner."
+ },
+ {
+  "n": 138,
+  "who": "Game Voice",
+  "text": "The gold ring got away! Ride again for another go."
+ },
+ {
+  "n": 139,
+  "who": "Game Voice",
+  "text": "The belt won that one. Go again. It costs nothing."
+ },
+ {
+  "n": 140,
+  "who": "Game Voice",
+  "text": "The mugs will be here whenever you want another go!"
+ },
+ {
+  "n": 141,
+  "who": "Game Voice",
+  "text": "Welcome home! Walk up to a glowing spot to decorate."
+ },
+ {
+  "n": 142,
+  "who": "Game Voice",
+  "text": "Off she went! Follow the white feathers from the farm."
+ },
+ {
+  "n": 143,
+  "who": "Game Voice",
+  "text": "You found a sticker book! Now you can collect stickers."
+ },
+ {
+  "n": 144,
+  "who": "Game Voice",
+  "text": "Pick something, face where you want it and press Place!"
+ },
+ {
+  "n": 145,
+  "who": "Game Voice",
+  "text": "All three mugs! That is the whole tray, cocoa everywhere!"
+ },
+ {
+  "n": 146,
+  "who": "Game Voice",
+  "text": "You knocked some over! Try stopping the arrow dead straight."
+ },
+ {
+  "n": 147,
+  "who": "Game Voice",
+  "text": "One or two got away. Have another go. It is free."
+ },
+ {
+  "n": 148,
+  "who": "Game Voice",
+  "text": "Two out of three! One more and the tray is yours."
+ },
+ {
+  "n": 149,
+  "who": "Game Voice",
+  "text": "Bonk! Just short of the mug. Hold it a moment longer."
+ },
+ {
+  "n": 150,
+  "who": "Game Voice",
+  "text": "You can build in the Build Yard, or inside your house."
+ },
+ {
+  "n": 151,
+  "who": "Game Voice",
+  "text": "They live here now! You'll find them inside, by the rug."
+ },
+ {
+  "n": 152,
+  "who": "Candy Princess",
+  "text": "They have decided you are theirs now. Take good care of them."
+ },
+ {
+  "n": 153,
+  "who": "Candy Princess",
+  "text": "He is up a lollipop tree in the woods and cannot get down."
+ },
+ {
+  "n": 154,
+  "who": "Candy Princess",
+  "text": "Out on the soft white fields in the north, where the ground is bouncy."
+ },
+ {
+  "n": 155,
+  "who": "Candy Princess",
+  "text": "You have all three! Take them inside the factory and pull the big lever."
+ },
+ {
+  "n": 156,
+  "who": "Farmer Joe",
+  "text": "You've got a backpack, so you can carry them. Off you go!"
+ },
+ {
+  "n": 157,
+  "who": "Farmer Joe",
+  "text": "Go and look in all three. She'll pop out when you find her!"
+ },
+ {
+  "n": 158,
+  "who": "Farmer Joe",
+  "text": "You brought every one of them back to me. Come and visit any time."
+ },
+ {
+  "n": 159,
+  "who": "Farmer Joe",
+  "text": "Follow the paw prints, find my pets, and walk them back here to me."
+ },
+ {
+  "n": 160,
+  "who": "Farmer Joe",
+  "text": "Take one of those treats in with you, then bring her back here to me."
+ },
+ {
+  "n": 161,
+  "who": "Zookeeper",
+  "text": "Welcome to Sloanie's Zoo! Walk up to a sign to meet the animals."
+ },
+ {
+  "n": 162,
+  "who": "Game Voice",
+  "text": "A treat and a cuddle! Now take her back to Farmer Joe."
+ },
+ {
+  "n": 163,
+  "who": "Game Voice",
+  "text": "Giddy up! Grab the gold ring as you ride past the arm."
+ },
+ {
+  "n": 164,
+  "who": "Game Voice",
+  "text": "Pick a piece, walk to where you want it and press Place!"
+ },
+ {
+  "n": 165,
+  "who": "Game Voice",
+  "text": "Run round the box and whack every gummy bear that pops up!"
+ },
+ {
+  "n": 166,
+  "who": "Game Voice",
+  "text": "A silver ring! +1 ticket. Keep riding, the gold one is coming."
+ },
+ {
+  "n": 167,
+  "who": "Game Voice",
+  "text": "Giant Teddy. Win every carnival game and the Giant Teddy is yours."
+ },
+ {
+  "n": 168,
+  "who": "Game Voice",
+  "text": "You found a candy sticker book! Now you can collect candy stickers."
+ },
+ {
+  "n": 169,
+  "who": "Game Voice",
+  "text": "That's 1000 pieces. It's full! Take some away to build something new."
+ },
+ {
+  "n": 170,
+  "who": "Game Voice",
+  "text": "He is stuck fast in the toffee. Jump on it to crack it!"
+ },
+ {
+  "n": 171,
+  "who": "Game Voice",
+  "text": "One in! Watch the arc and let go a touch sooner or later."
+ },
+ {
+  "n": 172,
+  "who": "Game Voice",
+  "text": "Inside the chocolate factory! Pull the big lever to speed it all up."
+ },
+ {
+  "n": 173,
+  "who": "Game Voice",
+  "text": "3 tickets, and that's three wins! Talk to Emmett for the obstacle run."
+ },
+ {
+  "n": 174,
+  "who": "Game Voice",
+  "text": "Tricky one! Watch the arrow swing and press the moment it points straight."
+ },
+ {
+  "n": 175,
+  "who": "Game Voice",
+  "text": "The park is all yours! Carnival, pets, stickers and your house are waiting."
+ },
+ {
+  "n": 176,
+  "who": "Game Voice",
+  "text": "Whack-a-Mole. Bonk the moles! Golden moles are worth 3. Don't bonk the bunny!"
+ },
+ {
+  "n": 177,
+  "who": "Game Voice",
+  "text": "All 5 treats! Now find the paw prints by the farm and follow them."
+ },
+ {
+  "n": 178,
+  "who": "Game Voice",
+  "text": "You gave them the treats. They trust you! Take them back to Farmer Joe."
+ },
+ {
+  "n": 179,
+  "who": "Game Voice",
+  "text": "Your Daily Surprise is ready! Every gumball machine gives one free gumball a day."
+ },
+ {
+  "n": 180,
+  "who": "Game Voice",
+  "text": "A pet treat! You need a backpack to carry it. Look on the ball field."
+ },
+ {
+  "n": 181,
+  "who": "Game Voice",
+  "text": "So close! Hold the button until the arrow sits on the mug, then let go."
+ },
+ {
+  "n": 182,
+  "who": "Game Voice",
+  "text": "You beat Emmett five times. The monster truck is yours! It's parked by your house."
+ },
+ {
+  "n": 183,
+  "who": "Candy Princess",
+  "text": "Look at the river: chocolate all the way to the lake. And look who is following you!"
+ },
+ {
+  "n": 184,
+  "who": "Candy Princess",
+  "text": "Oh no! The chocolate factory has stopped! That is why the river is running white. Three things are missing."
+ },
+ {
+  "n": 185,
+  "who": "Candy Princess",
+  "text": "He is set fast in a puddle of toffee out on the meadow. Jump on the toffee to crack it."
+ },
+ {
+  "n": 186,
+  "who": "Candy Princess",
+  "text": "You fixed my factory and you found all three. You are the best thing that ever happened to this park."
+ },
+ {
+  "n": 187,
+  "who": "Farmer Joe",
+  "text": "You'll need a backpack to carry the treats. I saw one out on the ball field."
+ },
+ {
+  "n": 188,
+  "who": "Farmer Joe",
+  "text": "There are little white feathers all across the grass. Which one shall we go and look for?"
+ },
+ {
+  "n": 189,
+  "who": "Farmer Joe",
+  "text": "I spotted little paw prints leading away from the barn, all the way to the rocky mountain."
+ },
+ {
+  "n": 190,
+  "who": "Farmer Joe",
+  "text": "They go all the way to the flower maze. I reckon she's hiding right in the middle of it."
+ },
+ {
+  "n": 191,
+  "who": "Farmer Joe",
+  "text": "My puppy, my kitten and my bunny slipped out of the barn and ran off! They must be scared."
+ },
+ {
+  "n": 192,
+  "who": "Farmer Joe",
+  "text": "They love treats. If you can find 5 pet treats around the park, I bet they'll come to you."
+ },
+ {
+  "n": 193,
+  "who": "Farmer Joe",
+  "text": "One of the two still here pushed the barn door open and dragged my feather pillow right out of the yard."
+ },
+ {
+  "n": 194,
+  "who": "Game Voice",
+  "text": "Run over a sweet to pick it up, then run into the bin that matches it!"
+ },
+ {
+  "n": 195,
+  "who": "Game Voice",
+  "text": "Ring Toss. Drop the ring when it's over the glowing bottle. Ring 3 of 5 to win!"
+ },
+ {
+  "n": 196,
+  "who": "Game Voice",
+  "text": "Duck Pond. Every duck hides a picture. Flip two at a time and find all the matching pairs."
+ },
+ {
+  "n": 197,
+  "who": "Game Voice",
+  "text": "The floor is lava! Jump the whole course to the prize. Fall in and you start again. It never hurts."
+ },
+ {
+  "n": 198,
+  "who": "Game Voice",
+  "text": "Aim with the plus and press LT to put it down, RT to take it away. LB and RB pick what."
+ },
+ {
+  "n": 199,
+  "who": "Game Voice",
+  "text": "Aim with the plus and press LT to place, RT to break. LB and RB pick the piece. Double-tap A to fly!"
+ },
+ {
+  "n": 200,
+  "who": "Game Voice",
+  "text": "The floor is chocolate! Jump the whole course to the prize. Light a candy flag and falling in only sends you back to the flag."
+ },
+ {
+  "n": 201,
+  "who": "Game Voice",
+  "text": "By the village square."
+ },
+ {
+  "n": 202,
+  "who": "Game Voice",
+  "text": "Out on the soft white fields."
+ },
+ {
+  "n": 203,
+  "who": "Game Voice",
+  "text": "North end of the lollipop woods."
+ },
+ {
+  "n": 204,
+  "who": "Game Voice",
+  "text": "On the far side of the meadow."
+ },
+ {
+  "n": 205,
+  "who": "Game Voice",
+  "text": "Near the river, north of the plaza."
+ },
+ {
+  "n": 206,
+  "who": "Game Voice",
+  "text": "Beside the river, east of the plaza."
+ },
+ {
+  "n": 207,
+  "who": "Game Voice",
+  "text": "Round the back of the candy factory."
+ },
+ {
+  "n": 208,
+  "who": "Game Voice",
+  "text": "In the clearing in the lollipop woods."
+ },
+ {
+  "n": 209,
+  "who": "Game Voice",
+  "text": "At the foot of the mountain of scoops."
+ },
+ {
+  "n": 210,
+  "who": "Game Voice",
+  "text": "Out in the meadow with the gumdrop hills."
+ },
+ {
+  "n": 211,
+  "who": "Game Voice",
+  "text": "On the fairground, west of the big wheel."
+ },
+ {
+  "n": 212,
+  "who": "Game Voice",
+  "text": "Up among the gumdrop hills in the meadow."
+ },
+ {
+  "n": 213,
+  "who": "Game Voice",
+  "text": "Outside the Licorice Maze, by the way in."
+ },
+ {
+  "n": 214,
+  "who": "Game Voice",
+  "text": "Among the gingerbread houses, by the village square."
+ },
+ {
+  "n": 215,
+  "who": "Game Voice",
+  "text": "Buy it at the sweet shop on the fairground."
+ },
+ {
+  "n": 216,
+  "who": "Game Voice",
+  "text": "Just off the plaza, where the path runs east."
+ },
+ {
+  "n": 217,
+  "who": "Game Voice",
+  "text": "In the big clearing, deep in the Lollipop Forest."
+ },
+ {
+  "n": 218,
+  "who": "Game Voice",
+  "text": "By the factory doors, where the chocolate comes out."
+ },
+ {
+  "n": 219,
+  "who": "Game Voice",
+  "text": "Among the marshmallows, on the side nearest the forest."
+ },
+ {
+  "n": 220,
+  "who": "Game Voice",
+  "text": "Right in the middle of the black and red hedges."
+ },
+ {
+  "n": 221,
+  "who": "Game Voice",
+  "text": "Just outside Emmett's den, where he keeps his monster truck."
+ },
+ {
+  "n": 222,
+  "who": "Game Voice",
+  "text": "A donut is behind the candy shop on the village square."
+ },
+ {
+  "n": 223,
+  "who": "Game Voice",
+  "text": "On the bank where the river swings round toward the lake."
+ },
+ {
+  "n": 224,
+  "who": "Game Voice",
+  "text": "Next to the Cupcake Carousel, at the back of the fairground."
+ },
+ {
+  "n": 225,
+  "who": "Game Voice",
+  "text": "Along the candy wall to the east, north of Gingerbread Village."
+ },
+ {
+  "n": 226,
+  "who": "Game Voice",
+  "text": "On the edge of the village square, beside the gingerbread houses."
+ },
+ {
+  "n": 227,
+  "who": "Game Voice",
+  "text": "Cotton candy floated to the north-east corner of the gumdrop meadow."
+ },
+ {
+  "n": 228,
+  "who": "Game Voice",
+  "text": "By the Licorice Maze sign, on the path up to the maze."
+ },
+ {
+  "n": 229,
+  "who": "Game Voice",
+  "text": "On the far side of the chocolate lake, near the candy wall."
+ },
+ {
+  "n": 230,
+  "who": "Game Voice",
+  "text": "A chocolate bar is round the west side of the candy factory."
+ },
+ {
+  "n": 231,
+  "who": "Game Voice",
+  "text": "A cupcake is in front of the candy stalls at the fairground."
+ },
+ {
+  "n": 232,
+  "who": "Game Voice",
+  "text": "At the foot of Ice Cream Mountain, where the walk up begins."
+ },
+ {
+  "n": 233,
+  "who": "Game Voice",
+  "text": "Right at the very top of Ice Cream Mountain, by the telescope."
+ },
+ {
+  "n": 234,
+  "who": "Game Voice",
+  "text": "Past Marshmallow Fields, right out by the candy wall to the south."
+ },
+ {
+  "n": 235,
+  "who": "Game Voice",
+  "text": "Marshmallows are stacked on the bouncy white fields, far to the south."
+ },
+ {
+  "n": 236,
+  "who": "Game Voice",
+  "text": "At the fairground, past the east end of the row of candy stalls."
+ },
+ {
+  "n": 237,
+  "who": "Game Voice",
+  "text": "A gingerbread man ran off to the south side of the village square."
+ },
+ {
+  "n": 238,
+  "who": "Game Voice",
+  "text": "A candy cane is lying just outside the plaza, on its north-west side."
+ },
+ {
+  "n": 239,
+  "who": "Game Voice",
+  "text": "An ice lolly is melting on the north-east side of Ice Cream Mountain."
+ },
+ {
+  "n": 240,
+  "who": "Game Voice",
+  "text": "A peppermint swirl is on the grass north-east of the big peppermint plaza."
+ },
+ {
+  "n": 241,
+  "who": "Game Voice",
+  "text": "A licorice wheel is deep in the licorice maze, in the south-west of it."
+ },
+ {
+  "n": 242,
+  "who": "Game Voice",
+  "text": "A gummy bear is hiding in the lollipop woods, south of the big clearing."
+ },
+ {
+  "n": 243,
+  "who": "Game Voice",
+  "text": "A swirl lollipop is at the east edge of the lollipop woods, off the trail."
+ },
+ {
+  "n": 244,
+  "who": "Game Voice",
+  "text": "A toffee apple is by the gingerbread house at the north end of the village."
+ },
+ {
+  "n": 245,
+  "who": "Game Voice",
+  "text": "Out by the candy wall on the west side, between the forest and the mountain."
+ },
+ {
+  "n": 246,
+  "who": "Game Voice",
+  "text": "A gumdrop is sitting among the gumdrop hills, on the west side of the meadow."
+ },
+ {
+  "n": 247,
+  "who": "Game Voice",
+  "text": "A macaron rolled past the last cottage, at the west end of the sweet shop street."
+ },
+ {
+  "n": 248,
+  "who": "Game Voice",
+  "text": "Rock candy is growing on the west side of Ice Cream Mountain, far to the north-west."
+ },
+ {
+  "n": 249,
+  "who": "Game Voice",
+  "text": "Jelly beans are spilled in the walled garden with the chocolate fountain, west of the plaza."
+ },
+ {
+  "n": 250,
+  "who": "Game Voice",
+  "text": "A sour worm is wiggling on the shore of the chocolate lake, in the far south-east corner."
+ },
+ {
+  "n": 251,
+  "who": "Game Voice",
+  "text": "Behind the candy stall on the far side of the sweet shop street, south of where you start."
+ },
+ {
+  "n": 252,
+  "who": "Game Voice",
+  "text": "Your candy sticker book is just east of where you start, past the end of the sweet shop street."
+ },
+ {
+  "n": 253,
+  "who": "Game Voice",
+  "text": "An ice cream cone is on the grass east of Ice Cream Mountain, near the top of the chocolate river."
+ },
+ {
+  "n": 254,
+  "who": "Game Voice",
+  "text": "Gumballs spilled in front of the candy stall on the north side of the sweet shop street, just south of where you start."
+ },
+ {
+  "n": 255,
+  "who": "Sloan",
+  "text": "Hi {your name}! This is how I sound."
+ },
+ {
+  "n": 256,
+  "who": "Emmett",
+  "text": "Rock, paper, scissors for a {sweet or dumpling}!"
+ },
+ {
+  "n": 257,
+  "who": "Candy Princess",
+  "text": "Find {the big whisk}. {where it is}"
+ },
+ {
+  "n": 258,
+  "who": "Candy Princess",
+  "text": "{2} to go. {The big cog}: {where it is}"
+ },
+ {
+  "n": 259,
+  "who": "Candy Princess",
+  "text": "{2} of my creatures still need you. {where one is}"
+ },
+ {
+  "n": 260,
+  "who": "Candy Princess",
+  "text": "Now, my three creatures ran off while the factory was quiet. {where one is}"
+ },
+ {
+  "n": 261,
+  "who": "Farmer Joe",
+  "text": "Here's a tip: {where a treat is}"
+ },
+ {
+  "n": 262,
+  "who": "Farmer Joe",
+  "text": "Oh no, {your name}, not again!"
+ },
+ {
+  "n": 263,
+  "who": "Farmer Joe",
+  "text": "You've looked in {2} of 3 so far."
+ },
+ {
+  "n": 264,
+  "who": "Farmer Joe",
+  "text": "You've found {3} of 5 treats. Keep looking!"
+ },
+ {
+  "n": 265,
+  "who": "Farmer Joe",
+  "text": "Howdy, {your name}! Oh, I'm so glad you're here."
+ },
+ {
+  "n": 266,
+  "who": "Farmer Joe",
+  "text": "This {kitten} clearly loves you. You keep her too."
+ },
+ {
+  "n": 267,
+  "who": "Farmer Joe",
+  "text": "You've earned her, {your name}. This one's yours as well."
+ },
+ {
+  "n": 268,
+  "who": "Farmer Joe",
+  "text": "Keep looking! She's behind one of the three: {the three places}."
+ },
+ {
+  "n": 269,
+  "who": "Farmer Joe",
+  "text": "{pet names}, all three of them, and they all adore you!"
+ },
+ {
+  "n": 270,
+  "who": "Farmer Joe",
+  "text": "Follow the white feathers, {your name}. They start right here by my tractor."
+ },
+ {
+  "n": 271,
+  "who": "Farmer Joe",
+  "text": "She's somewhere right here on the farm. There are three good hiding places: {the three places}."
+ },
+ {
+  "n": 272,
+  "who": "Farmer Joe",
+  "text": "My {bunny} is the very last one, and she isn't lost at all. She's playing hide and seek!"
+ },
+ {
+  "n": 273,
+  "who": "Game Voice",
+  "text": "Grab {it}!"
+ },
+ {
+  "n": 274,
+  "who": "Game Voice",
+  "text": "{10} tickets!"
+ },
+ {
+  "n": 275,
+  "who": "Game Voice",
+  "text": "Putt hole {1}!"
+ },
+ {
+  "n": 276,
+  "who": "Game Voice",
+  "text": "Choose your {bed}."
+ },
+ {
+  "n": 277,
+  "who": "Game Voice",
+  "text": "{Biscuit} is yours!"
+ },
+ {
+  "n": 278,
+  "who": "Game Voice",
+  "text": "Gumball: {5} tickets"
+ },
+ {
+  "n": 279,
+  "who": "Game Voice",
+  "text": "Now playing, {song name}"
+ },
+ {
+  "n": 280,
+  "who": "Game Voice",
+  "text": "{5} pins that turn."
+ },
+ {
+  "n": 281,
+  "who": "Game Voice",
+  "text": "Splash! {1} mug done!"
+ },
+ {
+  "n": 282,
+  "who": "Game Voice",
+  "text": "You bought the {bed}!"
+ },
+ {
+  "n": 283,
+  "who": "Game Voice",
+  "text": "Grab the {gold} ring!"
+ },
+ {
+  "n": 284,
+  "who": "Game Voice",
+  "text": "Your daily surprise! {the prize}"
+ },
+ {
+  "n": 285,
+  "who": "Game Voice",
+  "text": "Pet treat! {3} of 5."
+ },
+ {
+  "n": 286,
+  "who": "Game Voice",
+  "text": "You already have the {tiara}."
+ },
+ {
+  "n": 287,
+  "who": "Game Voice",
+  "text": "New best time: {21.3} seconds!"
+ },
+ {
+  "n": 288,
+  "who": "Game Voice",
+  "text": "{2} under par! Brilliant putting!"
+ },
+ {
+  "n": 289,
+  "who": "Game Voice",
+  "text": "The GOLDEN gumball! {50} tickets!"
+ },
+ {
+  "n": 290,
+  "who": "Game Voice",
+  "text": "Hole {1}: {The Windmill}. Par {3}!"
+ },
+ {
+  "n": 291,
+  "who": "Game Voice",
+  "text": "{Biscuit} smells a dumpling nearby!"
+ },
+ {
+  "n": 292,
+  "who": "Game Voice",
+  "text": "{15} gummy bears: brilliant running."
+ },
+ {
+  "n": 293,
+  "who": "Game Voice",
+  "text": "New for your house: {the bookshelf}!"
+ },
+ {
+  "n": 294,
+  "who": "Game Voice",
+  "text": "You won the {crown}! It's on."
+ },
+ {
+  "n": 295,
+  "who": "Game Voice",
+  "text": "You found the {crown}! It's on."
+ },
+ {
+  "n": 296,
+  "who": "Game Voice",
+  "text": "You bought the {crown}! It's on."
+ },
+ {
+  "n": 297,
+  "who": "Game Voice",
+  "text": "Prize booth. You have {30} tickets."
+ },
+ {
+  "n": 298,
+  "who": "Game Voice",
+  "text": "You won! {how you did} Plus {4} tickets."
+ },
+ {
+  "n": 299,
+  "who": "Game Voice",
+  "text": "So close! {how you did} Plus {2} tickets."
+ },
+ {
+  "n": 300,
+  "who": "Game Voice",
+  "text": "The sweet shop. You have {30} tickets."
+ },
+ {
+  "n": 301,
+  "who": "Game Voice",
+  "text": "{17} sorted. You were everywhere at once."
+ },
+ {
+  "n": 302,
+  "who": "Game Voice",
+  "text": "{9} gummy bears. That is a good round."
+ },
+ {
+  "n": 303,
+  "who": "Game Voice",
+  "text": "You need {5} more tickets for the {bed}."
+ },
+ {
+  "n": 304,
+  "who": "Game Voice",
+  "text": "Crack! {2} more good stomps should do it."
+ },
+ {
+  "n": 305,
+  "who": "Game Voice",
+  "text": "You need {5} more tickets for the {crown}."
+ },
+ {
+  "n": 306,
+  "who": "Game Voice",
+  "text": "You need {5} more tickets for the {tiara}."
+ },
+ {
+  "n": 307,
+  "who": "Game Voice",
+  "text": "{22} gummy bears! Nobody is faster than you."
+ },
+ {
+  "n": 308,
+  "who": "Game Voice",
+  "text": "Across in {24.5} seconds. Your best is {21.3}."
+ },
+ {
+  "n": 309,
+  "who": "Game Voice",
+  "text": "{10} sorted. That belt gets quick, doesn't it?"
+ },
+ {
+  "n": 310,
+  "who": "Game Voice",
+  "text": "{5} sorted. Watch which colour you are holding!"
+ },
+ {
+  "n": 311,
+  "who": "Game Voice",
+  "text": "The {teddy bear}! Put it anywhere in your house."
+ },
+ {
+  "n": 312,
+  "who": "Game Voice",
+  "text": "No walking on {the flowers}! Find the way through."
+ },
+ {
+  "n": 313,
+  "who": "Game Voice",
+  "text": "You found {the big whisk}! {2} more for the factory."
+ },
+ {
+  "n": 314,
+  "who": "Game Voice",
+  "text": "{4} gummy bears. Try the far side next time!"
+ },
+ {
+  "n": 315,
+  "who": "Game Voice",
+  "text": "In the hole! {3} shots, that's par or better!"
+ },
+ {
+  "n": 316,
+  "who": "Game Voice",
+  "text": "{23} sorted! The factory should give you a job."
+ },
+ {
+  "n": 317,
+  "who": "Game Voice",
+  "text": "You need {20} more tickets to build the {castle}."
+ },
+ {
+  "n": 318,
+  "who": "Game Voice",
+  "text": "{Cherry} sticker! That's {12} in your book. +2 tickets."
+ },
+ {
+  "n": 319,
+  "who": "Game Voice",
+  "text": "The machines will not start: {the big cog} is still missing."
+ },
+ {
+  "n": 320,
+  "who": "Game Voice",
+  "text": "New furniture: the {canopy bed}! It's waiting in your house."
+ },
+ {
+  "n": 321,
+  "who": "Game Voice",
+  "text": "All three mugs with {2} marshmallows to spare! Bonus tickets!"
+ },
+ {
+  "n": 322,
+  "who": "Game Voice",
+  "text": "{Cherry} sticker, and that fills the whole book! +{25} tickets!"
+ },
+ {
+  "n": 323,
+  "who": "Game Voice",
+  "text": "You got {the gummy bear}! {2} still stuck. The princess knows where."
+ },
+ {
+  "n": 324,
+  "who": "Game Voice",
+  "text": "You win 3 tickets! That's {2} of 5 toward his truck."
+ },
+ {
+  "n": 325,
+  "who": "Game Voice",
+  "text": "You crossed the whole {lava} course in {24.5} seconds! +{5} tickets!"
+ },
+ {
+  "n": 326,
+  "who": "Game Voice",
+  "text": "The {sunglasses} are yours. They're on! Change them in your backpack."
+ },
+ {
+  "n": 327,
+  "who": "Game Voice",
+  "text": "You beat him! That's {4} of 5. One more challenge to go."
+ },
+ {
+  "n": 328,
+  "who": "Game Voice",
+  "text": "Checkpoint! {2} of {3}. Fall in now and you come back here."
+ },
+ {
+  "n": 329,
+  "who": "Game Voice",
+  "text": "So close! {13} seconds to beat. Talk to Emmett to try again."
+ },
+ {
+  "n": 330,
+  "who": "Game Voice",
+  "text": "Your house is now a {castle}. Go inside and see the {playroom}!"
+ },
+ {
+  "n": 331,
+  "who": "Game Voice",
+  "text": "You built the {castle}! There is a new room inside: the {playroom}."
+ },
+ {
+  "n": 332,
+  "who": "Game Voice",
+  "text": "A new building piece: the {rainbow arch}! Find it in the Build Yard."
+ },
+ {
+  "n": 333,
+  "who": "Game Voice",
+  "text": "You found {the big cog}! That is all three. Take them to the factory."
+ },
+ {
+  "n": 334,
+  "who": "Game Voice",
+  "text": "{The big race}! Run through every ring. Emmett did it in {13} seconds. 3…"
+ },
+ {
+  "n": 335,
+  "who": "Game Voice",
+  "text": "The {rainbow arch} is {10} tickets. Find sweets and stickers to earn more!"
+ },
+ {
+  "n": 336,
+  "who": "Game Voice",
+  "text": "Turn {1} of {3} on the {green lane}. Stop the arrow straight, then bowl!"
+ },
+ {
+  "n": 337,
+  "who": "Game Voice",
+  "text": "You got {the gummy bear}! All three are yours now. 20 tickets from the princess."
+ },
+ {
+  "n": 338,
+  "who": "Game Voice",
+  "text": "Candy flag lit! {2} of {3}. Fall in now and you come back here."
+ },
+ {
+  "n": 339,
+  "who": "Game Voice",
+  "text": "You bought the {rainbow arch}! Now you can put out as many as you like."
+ },
+ {
+  "n": 340,
+  "who": "Game Voice",
+  "text": "Not behind {the haystack}... but there's a tuft of fur! {2} more places to look."
+ },
+ {
+  "n": 341,
+  "who": "Game Voice",
+  "text": "A gumball is {5} tickets. Find sweets and stickers, or play the fair, to earn more!"
+ },
+ {
+  "n": 342,
+  "who": "Game Voice",
+  "text": "{The obstacle run}! Jump the hurdles and go through every ring, the high one off the ramp. Emmett did it in {13} seconds. 3…"
+ }
+]

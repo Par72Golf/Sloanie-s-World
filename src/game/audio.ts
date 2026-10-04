@@ -285,6 +285,23 @@ export function ipodOutput(): { ctx: AudioContext; out: AudioNode } {
   return { ctx: c, out: ipodBus };
 }
 
+let voiceBus: GainNode | null = null;
+
+/**
+ * Where Sloan's recorded lines play (speech.ts). Straight to the speakers,
+ * not through master: they stand in for the read-aloud voice, which the mute
+ * button doesn't silence either (read aloud has its own switch).
+ */
+export function voiceOutput(): { ctx: AudioContext; out: AudioNode } {
+  const c = ensure();
+  if (!voiceBus) {
+    voiceBus = c.createGain();
+    voiceBus.gain.value = 1.3;
+    voiceBus.connect(c.destination);
+  }
+  return { ctx: c, out: voiceBus };
+}
+
 /** Fade the park's music bed out (true) or back in (false) over roughly `fade` seconds. */
 export function duckMusicBed(ducked: boolean, fade = 0.4) {
   bedDucked = ducked;

@@ -7,7 +7,7 @@ import { Btn } from "./overlays";
 import { PETS, type PetKind } from "./pets";
 import { HIDING_PLACE_NAMES, petsLeft } from "./quest";
 import { HearButton } from "./help-cards";
-import { speak } from "./speech";
+import { sayOwn, speak } from "./speech";
 import { useGame } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -169,9 +169,14 @@ function Farmer() {
     }
   }
 
+  // her answer, in her own voice when she has recorded it
+  const answer = () => {
+    sayOwn(action.label);
+    action.run();
+  };
   useInput((e) => {
     if (e === "b") return closePanel();
-    if (e === "a") action.run();
+    if (e === "a") answer();
   });
   const said = lines.join(" ");
   useEffect(() => speak(said), [said]);
@@ -218,7 +223,7 @@ function Farmer() {
         )}
           <HearButton text={said} className="press ml-auto min-h-12" />
         </div>
-        <Btn onClick={action.run} variant={quest.stage === "none" || quest.stage === "choose" ? "primary" : "go"} className="min-h-16 w-full text-2xl sm:text-3xl">
+        <Btn onClick={answer} variant={quest.stage === "none" || quest.stage === "choose" ? "primary" : "go"} className="min-h-16 w-full text-2xl sm:text-3xl">
           {action.label}
         </Btn>
       </div>

@@ -345,7 +345,7 @@ function Result({
   useEffect(() => {
     speak(
       `${won ? "You won!" : "So close!"} ${line}${tickets > 0 ? ` Plus ${tickets} ticket${tickets === 1 ? "" : "s"}.` : ""}${
-        won && isNew ? ` The ${accessory(booth.prize).name.toLowerCase()} is yours!` : ""
+        won && isNew ? ` The ${accessory(booth.prize).name.toLowerCase()} is yours!` : won ? " Champion again!" : ""
       }`,
     );
   }, [won, line, tickets, isNew, booth]);

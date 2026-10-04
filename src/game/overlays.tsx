@@ -2053,6 +2053,11 @@ function CatchCard() {
 
 function RpsPanel() {
   const rps = useGame((s) => s.rps);
+  // a tie: Emmett says so, and they go again
+  const tie = rps?.result === "tie" ? rps.round : null;
+  useEffect(() => {
+    if (tie != null) speak("Same thing! Go again!");
+  }, [tie]);
   const levelIndex = useGame((s) => s.levelIndex);
   const playRps = useGame((s) => s.playRps);
   const nextRpsRound = useGame((s) => s.nextRpsRound);

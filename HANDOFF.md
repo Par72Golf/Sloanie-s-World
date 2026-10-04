@@ -628,6 +628,17 @@ finished game needs footsteps that vary by surface, ambience per zone (birds, wa
 at the pond, splash pad noise), and positional audio rather than distance-scaled
 gain. Web Audio's `PannerNode` would do it.
 
+**Sloan's voice.** She is recording the game's spoken lines herself. The script is
+the claude.ai artifact "Sloan's Voice Script", numbered easy to hard;
+`tools/voice-script.json` is that numbering (number → speaker, exact text) and must
+never be renumbered. Her finished clips (`NNN.wav`, trimmed and levelled) go through
+`npx jiti tools/voice-clips.ts [dir]`, which writes `public/voice/NNN.mp3` and
+`src/game/voice-lines.ts`. `speech.ts` then plays her clip for any sentence, or run
+of sentences, whose words match a recorded line, and reads the rest with the browser
+voice in order; `sayOwn()` plays her button answers (Farmer Joe's panel) and holds
+the next speech until she has finished. Lines with a changing word (a number, a
+name) can't be clips and stay on the browser voice.
+
 ### 6.3 Performance and the launch path
 
 Untested at the target resolution. Needs a frame budget, an options screen with
