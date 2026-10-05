@@ -35,7 +35,7 @@ for (const f of readdirSync(dir).sort()) {
   const src = join(dir, f);
   const dst = join(out, `${m[1]}.mp3`);
   if (!existsSync(dst) || statSync(dst).mtimeMs < statSync(src).mtimeMs) {
-    execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", src, "-ac", "1", "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "80k", dst]);
+    execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", src, "-ac", "1", "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "128k", dst]);
   }
   lines.push([n, line.who, line.text]);
 }
