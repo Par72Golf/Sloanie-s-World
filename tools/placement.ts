@@ -36,7 +36,9 @@ import * as THREE from "three";
 import { LEVEL, PIECE, PIECES, pieceBoxes, type PieceDef } from "../src/game/build-pieces";
 import { HOUSE_ITEMS, HOUSE_ITEM, houseArea } from "../src/game/house-items";
 import { areaColliders, stackTop, type PlaceArea } from "../src/game/placer";
-import { useBuild } from "../src/game/build-store";
+import { YARD_ORIGIN } from "../src/game/build-store";
+import { useBuild } from "../src/game/yard-store";
+import { SUGAR } from "../src/game/sugar-rush";
 import { rollPrize, type PrizeItem } from "../src/game/gumballs";
 import { useHome } from "../src/game/home-store";
 import { CANDY_ROOMS } from "../src/game/sugar-home-mesh";
@@ -120,6 +122,15 @@ console.log("\nthe house's placing grid");
     check(offered > 0 && bad === 0, `stage ${stage}: ${offered} squares offered, all in rooms she has built`);
   }
   check(HOUSE_ITEMS.every((p) => !!p.prize || !!p.price || !HOUSE_ITEM.get(p.id)?.prize), "every house item is free, for sale or a prize");
+}
+
+console.log("\nthe build yard's corner");
+{
+  const b = SUGAR.buildYard;
+  check(
+    YARD_ORIGIN[0] === b.x - b.cells / 2 && YARD_ORIGIN[1] === b.z - b.cells / 2,
+    `build-store.ts YARD_ORIGIN (${YARD_ORIGIN}) is the yard's corner (${b.x - b.cells / 2},${b.z - b.cells / 2}), so saved builds stay put`,
+  );
 }
 
 console.log("\nthe gumball odds");

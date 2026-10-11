@@ -110,6 +110,24 @@ function glowing(geo: THREE.BufferGeometry, color: string, sx: number, sy: numbe
   return m;
 }
 
+/** A right-angle wedge filling one square, `h` metres high at +x and nothing at -x. */
+function wedge(c: string, h: number) {
+  const geo = once(`wedge${h}`, () => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.5, 0);
+    shape.lineTo(0.5, 0);
+    shape.lineTo(0.5, h);
+    shape.closePath();
+    const e = new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false });
+    e.translate(0, 0, -0.5);
+    return e;
+  });
+  const m = new THREE.Mesh(geo, lam(c, { flat: true, roughness: 0.4 }));
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return g(m);
+}
+
 export const PIECES: PieceDef[] = [
   /* ---------------------------------------------------------- starters */
   {
@@ -177,10 +195,10 @@ export const PIECES: PieceDef[] = [
       ),
   },
   {
-    // A roof you cannot quite stand on: drawn as a wedge, solid as the lower
-    // half of it, so it caps a wall and is a step, never a slide.
+    // The ridge of a roof: a peak, solid as a block, so it caps a wall and is
+    // a step, never a slide. The slopes below make the sides.
     id: "roof",
-    name: "Roof",
+    name: "Roof peak",
     icon: "🔺",
     h: 2,
     colored: true,
@@ -202,6 +220,52 @@ export const PIECES: PieceDef[] = [
       m.receiveShadow = true;
       return g(m);
     },
+  },
+  {
+    // Minecraft's stairs, as a roof: a right-angle wedge a tall block high,
+    // its high side at +x before it is turned, so rows of them stepped up a
+    // block at a time give a sloping roof line, and a peak caps the top. Solid
+    // as two half-metre steps, so she walks up it like stairs.
+    id: "slope",
+    name: "Roof slope",
+    icon: "📐",
+    h: 2,
+    colored: true,
+    turns: true,
+    boxes: [
+      { x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0, y1: 0.5 },
+      { x0: 0, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0.5, y1: 1 },
+    ],
+    make: (c) => wedge(c, 1),
+  },
+  {
+    // Minecraft's stairs: a block's bottom half and its back half on top, so
+    // a run of them climbs half a metre a step, which she walks straight up
+    id: "stairs",
+    name: "Stairs",
+    icon: "🪜",
+    h: 2,
+    colored: true,
+    turns: true,
+    boxes: [
+      { x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0, y1: 0.5 },
+      { x0: 0, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0.5, y1: 1 },
+    ],
+    make: (c) => g(blk(c, 1, LEVEL, 1, 0, LEVEL / 2, 0), blk(c, 0.5, LEVEL, 1, 0.25, LEVEL * 1.5, 0)),
+  },
+  {
+    // the same at half the height, for a gentle roof on the short blocks
+    id: "lowslope",
+    name: "Low slope",
+    icon: "◢",
+    h: 1,
+    colored: true,
+    turns: true,
+    boxes: [
+      { x0: -0.5, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0, y1: 0.25 },
+      { x0: 0, x1: 0.5, z0: -0.5, z1: 0.5, y0: 0.25, y1: 0.5 },
+    ],
+    make: (c) => wedge(c, 0.5),
   },
   {
     id: "fence",

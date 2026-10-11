@@ -334,6 +334,14 @@ export function sugarRushPark(): LevelDef {
     ...boundaryProps(),
     ...skyProps(),
   ];
+  // nothing scattered grows in the build yard: trees, candy floss and gumdrops
+  // planted for a smaller yard would stand in the middle of her builds
+  const yard = buildYardSquare(2.5);
+  const scattered = /^(candy-tree|cotton-candy|rock-candy|gumdrop|swirl-mint|marshmallow|candy-corn)/;
+  for (let i = props.length - 1; i >= 0; i--) {
+    const p = props[i]!;
+    if (p.kind === "model" && scattered.test(p.id) && p.x > yard.minX && p.x < yard.maxX && p.z > yard.minZ && p.z < yard.maxZ) props.splice(i, 1);
+  }
   // The truck yard's dirt is drawn by the yard itself, not a prop, and at the
   // patches' own height: one patch landed on it and the two flickered.
   props.unshift(...frostingProps(spots, props, [yardFootprint(SUGAR_DEN), buildYardSquare(1)]));

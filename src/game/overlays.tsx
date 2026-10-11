@@ -11,7 +11,7 @@ import { WhackOverlay } from "./whack-a-gummy-ui";
 import { useWhack } from "./whack-a-gummy";
 import { SorterOverlay } from "./sweet-sorter-ui";
 import { BuildHud } from "./build-ui";
-import { useBuild } from "./build-store";
+import { useBuild } from "./yard-store";
 import { HOUSE_ITEMS, useHouseBuild } from "./house-items";
 import { GumballCardPanel } from "./gumball-ui";
 import { GUMBALL_PRICE, useGumball } from "./gumballs";

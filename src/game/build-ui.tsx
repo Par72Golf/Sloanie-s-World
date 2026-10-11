@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Hammer, RotateCw, Trash2, Undo2 } from "lucide-react";
 import { sfx } from "./audio";
-import { BUILD_COLORS, PIECES, type PieceDef } from "./build-pieces";
-import { useBuild, type BuildStoreHook } from "./build-store";
-import { activePad } from "./input";
+import { BUILD_COLORS, type PieceDef } from "./build-pieces";
+import { useHouseBuild } from "./house-items";
+import type { BuildStoreHook } from "./build-store";
+import { YARD_CATALOGUE, useBuild, yardPalette } from "./yard-store";
+import { activePad, setTouchHold } from "./input";
 import { Btn } from "./overlays";
 import { cn } from "@/lib/utils";
 
@@ -19,12 +21,23 @@ import { cn } from "@/lib/utils";
  * On a tablet without a controller the same things are big buttons: tap a
  * piece, tap a colour, and Place / Break down the right where a thumb is.
  */
-export function BuildHud({ store = useBuild, catalogue = PIECES }: { store?: BuildStoreHook; catalogue?: PieceDef[] }) {
+/** Pointer handlers that report a button held down for hold-to-repeat (input.ts). */
+const holdable = (what: "place" | "break") => ({
+  onPointerDown: () => setTouchHold(what),
+  onPointerUp: () => setTouchHold(null),
+  onPointerLeave: () => setTouchHold(null),
+  onPointerCancel: () => setTouchHold(null),
+});
+
+export function BuildHud({ store = useBuild, catalogue }: { store?: BuildStoreHook; catalogue?: PieceDef[] }) {
   const building = store((s) => s.building);
   const unlocked = store((s) => s.unlocked);
   const piece = store((s) => s.piece);
   const color = store((s) => s.color);
   const count = store((s) => s.pieces.length);
+  // the yard (no catalogue given) offers its own pieces and her house items;
+  // read up here, before the early return, as every hook must be
+  const houseUnlocked = useHouseBuild((s) => s.unlocked);
   const selected = useRef<HTMLButtonElement | null>(null);
   const [pad, setPad] = useState(false);
   // keep the chosen piece in view as LB and RB walk the hotbar
@@ -41,8 +54,8 @@ export function BuildHud({ store = useBuild, catalogue = PIECES }: { store?: Bui
   if (!building) return null;
   const st = store.getState();
   // prizes appear once won; things with a price are shown with it until bought
-  const palette = catalogue.filter((p) => !p.prize || unlocked.includes(p.id));
-  const def = catalogue.find((p) => p.id === piece);
+  const palette = catalogue ? catalogue.filter((p) => !p.prize || unlocked.includes(p.id)) : yardPalette(unlocked, houseUnlocked);
+  const def = (catalogue ?? YARD_CATALOGUE).find((p) => p.id === piece);
   const forSale = (p: PieceDef) => !!p.price && !unlocked.includes(p.id);
   const tap = (fn: () => void) => () => {
     sfx.click();
@@ -101,19 +114,24 @@ export function BuildHud({ store = useBuild, catalogue = PIECES }: { store?: Bui
         </div>
         {pad && (
           <p className="rounded-full bg-[#3a2f3e]/80 px-3 py-0.5 text-center text-xs font-semibold text-white sm:text-sm">
-            LT place · RT break · LB / RB piece · D-pad colour & turn · A A fly · B done
+            Hold LT to build · RT break · LB / RB piece · D-pad colour & turn · A A fly · B done
           </p>
         )}
       </div>
 
       {/* big buttons for a tablet with no controller */}
       <div className="pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
-        <Btn onClick={() => st.ask("place")} className="min-h-14 min-w-28 gap-2 text-xl">
-          <Hammer className="size-5" /> Place
-        </Btn>
-        <Btn variant="secondary" onClick={() => st.ask("remove")} className="min-h-12 gap-2 text-lg">
-          <Trash2 className="size-5" /> Break
-        </Btn>
+        {/* held down, these keep placing or breaking, like LT and RT */}
+        <span className="grid" {...holdable("place")}>
+          <Btn onClick={() => st.ask("place")} className="min-h-14 min-w-28 gap-2 text-xl">
+            <Hammer className="size-5" /> Place
+          </Btn>
+        </span>
+        <span className="grid" {...holdable("break")}>
+          <Btn variant="secondary" onClick={() => st.ask("remove")} className="min-h-12 gap-2 text-lg">
+            <Trash2 className="size-5" /> Break
+          </Btn>
+        </span>
         {def?.turns && (
           <Btn variant="secondary" onClick={tap(() => st.turn())} className="min-h-12 gap-2 text-lg">
             <RotateCw className="size-5" /> Turn

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { create } from "zustand";
 import { sfx } from "./audio";
 import { PIECE, PRIZE_PIECES } from "./build-pieces";
-import { useBuild } from "./build-store";
+import { useBuild } from "./yard-store";
 import { HOUSE_ITEM, HOUSE_PRIZE_ITEMS, useHouseBuild } from "./house-items";
 import { glowMaterial } from "./furniture";
 import { sphereGeo } from "./meshes";

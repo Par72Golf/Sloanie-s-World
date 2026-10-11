@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { LEVEL, PIECE } from "./build-pieces";
-import { useBuild } from "./build-store";
+import { LEVEL } from "./build-pieces";
+import { YARD_PIECE, useBuild } from "./yard-store";
 import type { AABB } from "./collision";
 import { lam, signBoard } from "./meshes";
 import { Placer, type Aim, type PlaceArea } from "./placer";
@@ -29,7 +29,8 @@ export const YARD_AREA: PlaceArea = {
   rows: Y.cells,
   maxLevel: MAX_LEVEL,
   fits: () => true,
-  catalogue: PIECE,
+  // its own pieces and her house items (yard-store.ts)
+  catalogue: YARD_PIECE,
   store: useBuild,
 };
 

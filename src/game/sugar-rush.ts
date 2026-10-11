@@ -136,11 +136,17 @@ export const SUGAR = {
    */
   princess: { x: -3, z: 28.5 },
   /**
-   * The build yard (build-yard.ts): a 24m square of open ground between the
-   * plaza and the village, clear of every path, prop, hiding place, sticker
-   * and course in the park, where she builds whatever she likes.
+   * The build yard (build-yard.ts): a 40m square of open ground between the
+   * plaza and the village, clear of every path, hiding place, sticker and
+   * course in the park, where she builds whatever she likes. It was 24m and
+   * the kids filled it; at 40 it reaches the flat lawn to the north-west and
+   * the raised lawn by the maze to the south without overlapping either, and
+   * the scattered trees and sweets that grew where it now is are kept off it
+   * (sugar-level.ts). Its corner moved from (72, -20) to (62, -27), and builds
+   * saved against the old corner are moved with it (build-store.ts), so
+   * nothing she built shifts.
    */
-  buildYard: { x: 84, z: -8, cells: 24 },
+  buildYard: { x: 82, z: -7, cells: 40 },
 } as const;
 
 /**

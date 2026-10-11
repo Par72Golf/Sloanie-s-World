@@ -3,6 +3,7 @@ import { sfx } from "./audio";
 import { BUILD_COLORS, LEVEL, pieceBoxes, type PieceDef } from "./build-pieces";
 import { MAX_PIECES, type BuildStoreHook, type Placed } from "./build-store";
 import type { AABB } from "./collision";
+import { breakHeld, placeHeld } from "./input";
 import { mergeStatic } from "./merge";
 import { useGame } from "./store";
 import { PLAYER_H, PLAYER_W } from "./tuning";
@@ -94,6 +95,9 @@ function occupied(a: PlaceArea, pieces: readonly Placed[], x: number, z: number,
   return pieces.some((q) => q.x === x && q.z === z && q.y < y + h && q.y + (a.catalogue.get(q.p)?.h ?? 1) > y);
 }
 
+/** Hold-to-repeat timing for Place and Break: a beat before the second, then steady. */
+const HOLD = { first: 0.3, every: 0.18 };
+
 /**
  * What the crosshair is on: the piece it hits (to break) and where a new piece
  * would go (to place), the Minecraft way. Every piece counts as the whole of
@@ -184,6 +188,11 @@ export class Placer {
   );
   private lastPieces: readonly Placed[] | null = null;
   private t = 0;
+  /** holding Place: the level this hold builds on (-1 when not holding) and seconds to the next */
+  private holdLevel = -1;
+  private placeIn = 0;
+  /** holding Break: seconds to the next (-1 when not holding) */
+  private breakIn = -1;
 
   constructor(
     private scene: THREE.Scene,
@@ -289,7 +298,9 @@ export class Placer {
     for (const c of this.chunks.values()) for (const s of c.spinning) s.rotation.y = this.t * 1.5;
 
     const def = this.area.catalogue.get(store.piece);
-    if (active && aim && def) return this.updateAimed(def, her, aim);
+    if (active && aim && def) return this.updateAimed(def, her, aim, dt);
+    this.holdLevel = -1;
+    this.breakIn = -1;
     this.outline.visible = false;
     const target = active ? targetSquare(this.area, her.x, her.z, her.yaw) : null;
     if (!target || !def) {
@@ -337,7 +348,7 @@ export class Placer {
   }
 
   /** The Minecraft way: the crosshair picks the piece to break and the face to build on. */
-  private updateAimed(def: PieceDef, her: { x: number; y: number; z: number; yaw: number }, aim: Aim) {
+  private updateAimed(def: PieceDef, her: { x: number; y: number; z: number; yaw: number }, aim: Aim, dt: number) {
     const store = this.area.store.getState();
     const { hit, place } = aimAt(this.area, store.pieces, aim, def.h);
     if (!this.outline.parent) this.scene.add(this.outline);
@@ -360,27 +371,60 @@ export class Placer {
 
     const ask = store.take();
     if (ask === "place") {
-      if (place) this.place(def, place.x, place.z, place.y, her);
-      else sfx.wrong();
+      if (place) {
+        // the press places one; holding on keeps placing on the same level
+        this.holdLevel = this.place(def, place.x, place.z, place.y, her) ? place.y : -1;
+        this.placeIn = HOLD.first;
+      } else sfx.wrong();
     } else if (ask === "remove") {
       if (hit >= 0) {
         sfx.boing();
         store.removeAt(hit);
+        this.breakIn = HOLD.first;
       }
     } else if (ask === "undo") {
       sfx.click();
       store.undo();
     }
+
+    // Minecraft's hold: keep LT down and strafe, and a row goes down. Only on
+    // the level the first piece of the hold went on, so looking at the piece
+    // she just laid never stacks a tower in front of her, and quietly: a
+    // repeat with nowhere to go just waits for the next square.
+    if (ask !== "place") {
+      if (this.holdLevel >= 0 && placeHeld()) {
+        this.placeIn -= dt;
+        if (this.placeIn <= 0) {
+          this.placeIn = HOLD.every;
+          if (place && place.y === this.holdLevel) this.place(def, place.x, place.z, place.y, her, true);
+        }
+      } else this.holdLevel = -1;
+    }
+    if (ask !== "remove") {
+      if (this.breakIn >= 0 && breakHeld()) {
+        this.breakIn -= dt;
+        if (this.breakIn <= 0) {
+          this.breakIn = HOLD.every;
+          if (hit >= 0) {
+            sfx.boing();
+            store.removeAt(hit);
+          }
+        }
+      } else this.breakIn = -1;
+    }
   }
 
-  private place(def: PieceDef, gx: number, gz: number, top: number, her: { x: number; y: number; z: number }) {
+  /** Builds the piece if it can go there; says why not unless `quiet`. True if it went down. */
+  private place(def: PieceDef, gx: number, gz: number, top: number, her: { x: number; y: number; z: number }, quiet = false): boolean {
     const store = this.area.store.getState();
     const game = useGame.getState();
     const say = game.setEmmettNotice;
     if (top + def.h > this.area.maxLevel) {
-      sfx.wrong();
-      say("That's as tall as it goes!");
-      return;
+      if (!quiet) {
+        sfx.wrong();
+        say("That's as tall as it goes!");
+      }
+      return false;
     }
     const q: Placed = { p: def.id, x: gx, z: gz, y: top, c: def.colored ? store.color : 0, r: def.turns ? store.rot : 0 };
     const boxes = areaColliders(this.area, [q]);
@@ -390,9 +434,11 @@ export class Placer {
         her.x + PLAYER_W > b.minX && her.x - PLAYER_W < b.maxX && her.z + PLAYER_W > b.minZ && her.z - PLAYER_W < b.maxZ && her.y + PLAYER_H > b.minY && her.y < b.maxY,
     );
     if (inHer) {
-      sfx.wrong();
-      say("Step back a little, you're in the way!");
-      return;
+      if (!quiet) {
+        sfx.wrong();
+        say("Step back a little, you're in the way!");
+      }
+      return false;
     }
     const e = 0.02;
     const clash = boxes.some((b) =>
@@ -408,27 +454,34 @@ export class Placer {
       ),
     );
     if (clash) {
-      sfx.wrong();
-      say("There's no room for it there!");
-      return;
+      if (!quiet) {
+        sfx.wrong();
+        say("There's no room for it there!");
+      }
+      return false;
     }
     if (store.pieces.length >= MAX_PIECES) {
-      sfx.wrong();
-      say(`That's ${MAX_PIECES} pieces — it's full! Take some away to build something new.`);
-      return;
+      if (!quiet) {
+        sfx.wrong();
+        say(`That's ${MAX_PIECES} pieces — it's full! Take some away to build something new.`);
+      }
+      return false;
     }
     // a piece that is sold: the first one is bought as she puts it down
     if (def.price && !store.unlocked.includes(def.id)) {
       if (!game.spendTickets(def.price)) {
-        sfx.wrong();
-        say(`The ${def.name.toLowerCase()} is ${def.price} tickets. Find sweets and stickers to earn more!`);
-        return;
+        if (!quiet) {
+          sfx.wrong();
+          say(`The ${def.name.toLowerCase()} is ${def.price} tickets. Find sweets and stickers to earn more!`);
+        }
+        return false;
       }
       store.unlock(def.id);
       sfx.win();
       say(`You bought the ${def.name.toLowerCase()}! Now you can put out as many as you like.`);
     } else sfx.click();
     store.add(q);
+    return true;
   }
 
   private remove(gx: number, gz: number) {

@@ -25,7 +25,7 @@ import { BuildYard } from "./build-yard";
 import { Placer } from "./placer";
 import { HOUSE_ITEMS, houseArea, useHouseBuild } from "./house-items";
 import { BUILD_COLORS, PIECES } from "./build-pieces";
-import { useBuild } from "./build-store";
+import { useBuild, yardPalette } from "./yard-store";
 import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
 import { candyPrizeFurniture } from "./candy-furniture";
 import { HOUSE_KITS } from "./furniture-kits";
@@ -1280,6 +1280,10 @@ export class GameRuntime {
   whack: WhackWorld | null = null;
   sorter: SorterWorld | null = null;
   buildYard: BuildYard | null = null;
+  /** she was in the build yard last frame (so walking in starts building once) */
+  private wasInYard = false;
+  /** the long how-to has been said once this visit; after that, a short one */
+  private toldBuildYard = false;
   housePlacer: Placer | null = null;
   /** Minecraft's creative flying, while building: double-tap jump to start */
   flying = false;
@@ -2233,8 +2237,8 @@ export class GameRuntime {
   /** The placing store she is building with, the yard's or the house's, or null. */
   buildStore() {
     const yard = useBuild.getState();
-    if (yard.building) return { store: yard, palette: PIECES.filter((p) => !p.prize || yard.unlocked.includes(p.id)) };
     const house = useHouseBuild.getState();
+    if (yard.building) return { store: yard, palette: yardPalette(yard.unlocked, house.unlocked) };
     if (house.building) return { store: house, palette: HOUSE_ITEMS.filter((p) => !p.prize || house.unlocked.includes(p.id)) };
     return null;
   }
@@ -2712,6 +2716,22 @@ export class GameRuntime {
         ? { ox: this.camera.position.x, oy: this.camera.position.y, oz: this.camera.position.z, dx: aimDir.x, dy: aimDir.y, dz: aimDir.z }
         : undefined;
       this.buildYard?.update(dt, { x: this.cap.x, y: this.cap.y, z: this.cap.z, yaw: this.yaw }, paused, aim);
+      // walking into the yard starts building, as stepping into a creative
+      // world does; B (done) stops it, and it starts again next time she
+      // walks in, not while she stays
+      {
+        const yard = useBuild.getState();
+        if (yard.inYard && !this.wasInYard && !yard.building && !paused && !st.driving && !this.carried) {
+          yard.setBuilding(true);
+          st.setEmmettNotice(
+            this.toldBuildYard
+              ? "Build Yard! Hold LT to build, RT to break."
+              : "Build Yard! Aim with the + and hold LT to build, RT to break. LB and RB pick the piece. Double-tap A to fly!",
+          );
+          this.toldBuildYard = true;
+        }
+        this.wasInYard = yard.inYard;
+      }
       if (this.housePlacer) {
         const hb = useHouseBuild.getState();
         if (hb.building && !useHome.getState().inside) hb.setBuilding(false);

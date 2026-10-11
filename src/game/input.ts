@@ -71,6 +71,34 @@ export function flyDownHeld() {
   const pad = usablePad();
   return isDown("ShiftLeft") || isDown("ShiftRight") || (!!pad && !padBusy() && Boolean(pad.buttons[1]?.pressed));
 }
+/** The on-screen Place / Break button being held down (build-ui.tsx). */
+let touchHold: "place" | "break" | null = null;
+export function setTouchHold(v: "place" | "break" | null) {
+  touchHold = v;
+}
+/**
+ * Held: Place (LT, E or F, or the on-screen button) and Break (RT, X), for
+ * Minecraft's hold-to-keep-building (placer.ts). The first piece is the press;
+ * these say whether to keep going.
+ */
+export function placeHeld() {
+  const pad = usablePad();
+  const b = useBindings.getState();
+  return (
+    touchHold === "place" ||
+    b.keys.collect.some((k) => isDown(k)) ||
+    (!!pad && !padBusy() && Boolean(pad.buttons[b.pad.collect]?.pressed))
+  );
+}
+export function breakHeld() {
+  const pad = usablePad();
+  const b = useBindings.getState();
+  return (
+    touchHold === "break" ||
+    b.keys.break.some((k) => isDown(k)) ||
+    (!!pad && !padBusy() && Boolean(pad.buttons[b.pad.break]?.pressed))
+  );
+}
 const PAD_BUTTONS = 20;
 const padPrev = new Uint8Array(PAD_BUTTONS);
 
