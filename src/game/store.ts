@@ -45,6 +45,12 @@ export type GameStore = {
   levelIndex: number;
   unlocked: number;
   collected: string[][];
+  /**
+   * A race while playing together (race.ts): this park's sweets are all back
+   * out for the race, and `real` is what she had actually found, which is
+   * what the save keeps the whole time and what comes back afterwards.
+   */
+  race: { level: number; real: string[] } | null;
   quiz: { dumplingId: string; q: QuizQ; attempts: number } | null;
   temp: TempBand;
   nearestName: string | null;
@@ -403,7 +409,8 @@ function persistSlice(s: GameStore) {
     dress: s.dress,
     hair: s.hair,
     unlocked: s.unlocked,
-    collected: s.collected,
+    // a race's fresh park is never saved: the save keeps what she really found
+    collected: s.race ? s.collected.map((row, i) => (i === s.race!.level ? s.race!.real : row)) : s.collected,
     muted: s.muted,
     levelIndex: s.levelIndex,
     leaderboard: s.leaderboard,
@@ -452,7 +459,14 @@ function wornFromSave(raw: Record<string, string | null>): Worn {
   return worn;
 }
 
+/** Told of every sweet she finds (race.ts sets it, to claim finds in a race). */
+let findHook: ((dumplingId: string) => void) | null = null;
+export function setFindHook(f: typeof findHook) {
+  findHook = f;
+}
+
 export const useGame = create<GameStore>((set, get) => ({
+  race: null,
   phase: "title",
   playerName: saved.playerName,
   dress: saved.dress,
@@ -947,7 +961,9 @@ export const useGame = create<GameStore>((set, get) => ({
     // Every find is worth tickets, once a run: one Emmett took back and she
     // won again does not pay twice.
     const key = `${levelIndex}:${dumplingId}`;
-    const pays = !(collected[levelIndex] ?? []).includes(dumplingId) && !paidFinds.has(key);
+    // in a race the finds are for the race, and the prize is at the end
+    const racing = get().race != null;
+    const pays = !racing && !(collected[levelIndex] ?? []).includes(dumplingId) && !paidFinds.has(key);
     if (pays) paidFinds.add(key);
     set({
       collected: next,
@@ -958,6 +974,9 @@ export const useGame = create<GameStore>((set, get) => ({
       ...(pays ? { emmettNotice: `You found it! +${FIND_TICKETS} tickets.` } : {}),
     });
     persistSlice(get());
+    // told after the find is in: the last find of a race ends it and puts her
+    // own progress back, which a write after it would undo
+    if (racing) findHook?.(dumplingId);
   },
   completeLevel: () => {
     const st = get();

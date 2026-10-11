@@ -47,7 +47,14 @@ type Msg =
   | { t: "full" }
   | { t: "yard"; pieces: Placed[] }
   | { t: "add"; q: Placed; from?: string }
-  | { t: "del"; q: Placed; from?: string };
+  | { t: "del"; q: Placed; from?: string }
+  // the race (race.ts): the host starts it and keeps the score
+  | { t: "race"; level: number; taken: [string, string][] }
+  | { t: "got"; id: string }
+  | { t: "taken"; id: string; by: string }
+  | { t: "raceEnd"; results: RaceResult[] };
+
+export type RaceResult = { id: string; name: string; n: number };
 
 /** Another kid in the room, as this device last heard of them. */
 export type Remote = { look: Look | null; pose: Pose | null; heardAt: number };
@@ -90,6 +97,37 @@ type YardHooks = {
 let yard: YardHooks | null = null;
 export function setYardHooks(h: YardHooks) {
   yard = h;
+}
+
+/** What the race (race.ts) is told, and asked, by the room. */
+type RaceHooks = {
+  /** a race starts (or is under way when she joins), with what is already taken */
+  start: (level: number, taken: [string, string][]) => void;
+  /** host: a guest says she found this sweet */
+  claim: (id: string, by: string) => void;
+  taken: (id: string, by: string) => void;
+  end: (results: RaceResult[]) => void;
+  /** host: the race under way, for someone joining in the middle of it */
+  current: () => { level: number; taken: [string, string][] } | null;
+  /** the room closed or she left: back to free play, no results */
+  stop: () => void;
+};
+let race: RaceHooks | null = null;
+export function setRaceHooks(h: RaceHooks) {
+  race = h;
+}
+
+/** This device's id in the room (the host's is the room's own). */
+export const myId = () => peer?.id ?? "";
+export const isHost = () => useNet.getState().status === "hosting";
+
+/** Host: tell every guest. */
+export function broadcastRace(m: { t: "race"; level: number; taken: [string, string][] } | { t: "taken"; id: string; by: string } | { t: "raceEnd"; results: RaceResult[] }) {
+  broadcast(m);
+}
+/** Guest: tell the host she found one. */
+export function claimSweet(id: string) {
+  broadcast({ t: "got", id });
 }
 
 const refreshNames = () =>
@@ -170,9 +208,12 @@ export function hostRoom(look: Look) {
         if (r.pose) send(c, { t: "pose", p: r.pose, from: id });
       }
       send(c, { t: "yard", pieces: yard?.current() ?? [] });
+      const r = race?.current();
+      if (r) send(c, { t: "race", level: r.level, taken: r.taken });
     });
     c.on("data", (raw) => {
       const m = raw as Msg;
+      if (m.t === "got") return race?.claim(m.id, c.peer);
       heard(c.peer, m);
       if (m.t === "look" || m.t === "pose" || m.t === "add" || m.t === "del") broadcast({ ...m, from: c.peer }, c.peer);
     });
@@ -211,12 +252,17 @@ export function joinRoom(code: string, look: Look) {
         return;
       }
       if (m.t === "yard") return yard?.adopt(m.pieces);
+      if (m.t === "race") return race?.start(m.level, m.taken);
+      if (m.t === "taken") return race?.taken(m.id, m.by);
+      if (m.t === "raceEnd") return race?.end(m.results);
+      if (m.t === "got") return;
       // the host's own words come without a sender; everyone else's are stamped
       heard(m.t === "bye" ? m.from : (m.from ?? c.peer), m);
     });
     c.on("close", () => {
       if (useNet.getState().status !== "joined") return;
       reset();
+      race?.stop();
       yard?.leave();
       useNet.setState({ status: "error", names: [], error: "The game ended." });
     });
@@ -226,6 +272,7 @@ export function joinRoom(code: string, look: Look) {
 /** Leave the room, or close it if hosting. */
 export function leaveRoom() {
   const wasGuest = useNet.getState().status === "joined" || !!hostId;
+  race?.stop();
   reset();
   if (wasGuest) yard?.leave();
   useNet.setState({ status: "off", code: "", names: [], error: "" });

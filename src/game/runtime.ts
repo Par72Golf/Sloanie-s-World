@@ -28,6 +28,7 @@ import { BUILD_COLORS, PIECES } from "./build-pieces";
 import { useBuild, yardPalette } from "./yard-store";
 import { inRoom, sendLook, sendPose } from "./net";
 import { RemotePlayers } from "./remote-players";
+import { goneToSomeoneElse, setRaceRefresh } from "./race";
 import { useAvatar } from "./avatar";
 import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
 import { candyPrizeFurniture } from "./candy-furniture";
@@ -329,6 +330,7 @@ export class GameRuntime {
     const st = useGame.getState();
     this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress], useAvatar.getState().avatar);
     this.lastAvatar = useAvatar.getState().avatar;
+    setRaceRefresh(() => this.syncSweetsQuietly());
     this.girl.castShadow = true;
     this.scene.add(this.girl);
     this.hands = makeHands("#e8b489", DRESS[st.dress]);
@@ -1076,6 +1078,8 @@ export class GameRuntime {
       st.riding ||
       // his own challenges: he watches rather than rides off after her
       st.truckRace != null ||
+      // and he sits out a race with friends: nobody loses a sweet to him in it
+      st.race != null ||
       !!this.gauntlet?.racing ||
       // The other fairground games, the sweet shop, the telescope and the lava
       // course: anywhere her hands are full with something else. Whack-a-Gummy
@@ -1871,8 +1875,11 @@ export class GameRuntime {
   tryCollect() {
     const st = useGame.getState();
     if (st.phase !== "playing") return;
-    // at the top of the mountain, Collect is the looking glass and nothing else
-    if (this.lookingGlass?.toggle(this.cap.x, this.cap.y, this.cap.z)) {
+    // At the top of the mountain, Collect is the looking glass, unless a sweet
+    // is in reach: the Sugar Star sits right by it, and the glass won every
+    // press, so the star could not be picked up. Stepping out of the glass
+    // always works.
+    if ((this.lookingGlass?.active || !st.nearCollect) && this.lookingGlass?.toggle(this.cap.x, this.cap.y, this.cap.z)) {
       sfx.click();
       return;
     }
@@ -2128,7 +2135,8 @@ export class GameRuntime {
       const st = useGame.getState();
       st.setCelebrate(null);
       const have = (st.collected[st.levelIndex] ?? []).length;
-      if (have >= this.level.dumplings.length) {
+      // a race ends when the host says, not when one player has them all
+      if (have >= this.level.dumplings.length && !st.race) {
         sfx.win();
         st.completeLevel();
       }
@@ -2264,6 +2272,24 @@ export class GameRuntime {
       useHouseBuild.getState().setBuilding(true);
       st.setEmmettNotice("Aim with the + and press LT to put it down, RT to take it away. LB and RB pick what.");
     } else st.setEmmettNotice("You can build in the Build Yard, or inside your house.");
+  }
+
+  /**
+   * The park's sweets shown or hidden as the store says, all at once and
+   * without a celebration: when a race starts (all back out) and ends (her own
+   * finds hidden again).
+   */
+  syncSweetsQuietly() {
+    if (!this.world) return;
+    const st = useGame.getState();
+    const collected = st.collected[st.levelIndex] ?? [];
+    for (const d of this.world.dumplings) {
+      if (this.celebrating?.d === d) continue;
+      const got = collected.includes(d.def.id) || (!!st.race && goneToSomeoneElse(d.def.id));
+      d.group.visible = !got;
+      d.spark.intensity = got ? 0 : 0.7;
+      d.beam.visible = false;
+    }
   }
 
   /** Playing together (net.ts): the other kids, drawn; and when this device last told them where she is. */
@@ -3149,6 +3175,15 @@ export class GameRuntime {
     const collectedNow = st.collected[st.levelIndex] ?? [];
     if (this.world) {
       for (const d of this.world.dumplings) {
+        // in a race, one someone else grabbed just goes, without her cheering
+        if (st.race && goneToSomeoneElse(d.def.id)) {
+          if (d.group.visible && this.celebrating?.d !== d) {
+            d.group.visible = false;
+            d.spark.intensity = 0;
+            d.beam.visible = false;
+          }
+          continue;
+        }
         const got = collectedNow.includes(d.def.id);
         // the one mid-celebration is still visible on purpose, so do not
         // re-trigger it every frame

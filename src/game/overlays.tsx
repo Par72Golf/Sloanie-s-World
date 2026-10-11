@@ -83,7 +83,8 @@ import {
   Users,
 } from "lucide-react";
 import { bindingLabel } from "./bindings";
-import { useNet } from "./net";
+import { myId, useNet } from "./net";
+import { RACE_PLAYED, RACE_WIN, closeResults, useRace } from "./race";
 import { AvatarPicker, PlayTogether, TogetherScores } from "./together-panel";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen, useFullscreenArmed } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
@@ -1209,7 +1210,8 @@ function HUD() {
   const whackCard = useWhack((s) => s.card);
   const sorterNear = useSorter((s) => s.near);
   const boatNear = useGame((s) => s.boatNear);
-  const glassNear = useGame((s) => s.glassNear);
+  // a sweet in reach comes first: the Sugar Star sits by the telescope
+  const glassNear = useGame((s) => (s.glassNear === "near" && s.nearCollect ? null : s.glassNear));
   const cupcakesNear = useGame((s) => s.cupcakesNear);
   const sorterCard = useSorter((s) => s.card);
   const gumballNear = useGumball((s) => s.near);
@@ -2644,6 +2646,45 @@ function CompleteScreen() {
   );
 }
 
+/** The end of a race with friends: who found the most, the tickets, and back to free play. */
+function RaceResults() {
+  const results = useRace((s) => s.results);
+  if (!results) return null;
+  const top = results[0]?.n ?? 0;
+  const me = myId();
+  const won = top > 0 && results.some((r) => r.id === me && r.n === top);
+  return (
+    <Layer z="z-30">
+      <Sheet tone="sun" icon={Trophy} eyebrow="Race over" title={won ? "You won the race!" : "Race over!"} className="max-w-md">
+        <ol className="grid gap-2">
+          {results.map((r, i) => (
+            <li
+              key={r.id || i}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border-[3px] px-3 py-2 font-display text-xl font-semibold",
+                r.id === me ? "border-edge bg-teal text-white" : "border-line bg-surface text-ink",
+              )}
+            >
+              <span className="w-7 text-center">{r.n === top && top > 0 ? "👑" : i + 1}</span>
+              <span className="min-w-0 flex-1 truncate">{r.name}</span>
+              <span>
+                {r.n} {r.n === 1 ? "sweet" : "sweets"}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-base font-semibold text-ink-soft">
+          {won ? `+${RACE_PLAYED + RACE_WIN} tickets for winning!` : `+${RACE_PLAYED} tickets for playing.`} Your own park is back,
+          just as you left it.
+        </p>
+        <Btn padDefault onClick={closeResults} className="mt-4 min-h-14 w-full text-xl">
+          <Play className="size-5 fill-current" /> Keep playing
+        </Btn>
+      </Sheet>
+    </Layer>
+  );
+}
+
 function VictoryScreen() {
   const playerName = useGame((s) => s.playerName);
   const replayLevel = useGame((s) => s.replayLevel);
@@ -2721,6 +2762,7 @@ export function Overlays() {
       {phase === "paused" && <PauseScreen />}
       {phase === "complete" && <CompleteScreen />}
       {phase === "victory" && <VictoryScreen />}
+      {phase === "playing" && <RaceResults />}
       {wardrobeOpen && (phase === "title" || phase === "paused") && <Wardrobe />}
       {phase === "playing" && <CarnivalPanel />}
       {phase === "playing" && <GolfOverlay />}

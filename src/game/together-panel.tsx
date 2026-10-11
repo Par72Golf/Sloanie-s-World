@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { LogIn, LogOut, Users } from "lucide-react";
+import { Flag, LogIn, LogOut, Users } from "lucide-react";
 import { sfx } from "./audio";
-import { hostRoom, joinRoom, leaveRoom, remotes, useNet, type Look } from "./net";
+import { hostRoom, joinRoom, leaveRoom, myId, remotes, useNet, type Look } from "./net";
 import { Btn } from "./overlays";
 import { useGame } from "./store";
 import { useAvatar } from "./avatar";
+import { LEVELS } from "./levels";
+import { raceScores, startRace, stopRace, useRace } from "./race";
 import { AVATARS } from "./meshes";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +66,48 @@ export function AvatarPicker() {
   );
 }
 
+/** The race, in the panel: start or stop it (the host), or see it is on. */
+function RaceControls({ host }: { host: boolean }) {
+  const on = useRace((s) => s.on);
+  const level = useRace((s) => s.level);
+  useRace((s) => s.version);
+  const names = useNet((s) => s.names);
+  const phase = useGame((s) => s.phase);
+  if (on) {
+    const total = LEVELS[level]?.dumplings.length ?? 0;
+    const got = raceScores().reduce((n, r) => n + r.n, 0);
+    return (
+      <div className="grid justify-items-start gap-2">
+        <p className="font-display text-lg font-semibold text-teal-deep">Race on! {total - got} left to find.</p>
+        {host && (
+          <Btn variant="secondary" onClick={stopRace}>
+            Stop the race
+          </Btn>
+        )}
+      </div>
+    );
+  }
+  if (!host || !names.length) return null;
+  return (
+    <div className="grid justify-items-start gap-1.5">
+      <Btn
+        onClick={() => {
+          sfx.click();
+          startRace();
+        }}
+        disabled={phase !== "playing"}
+      >
+        <Flag className="size-5" /> Start a race
+      </Btn>
+      <p className="text-sm text-ink-soft">
+        {phase === "playing"
+          ? "Everyone hunts this park from the start, together. Most sweets wins!"
+          : "Go into a park first, then start the race from the pause menu."}
+      </p>
+    </div>
+  );
+}
+
 export function PlayTogether() {
   const status = useNet((s) => s.status);
   const code = useNet((s) => s.code);
@@ -92,6 +136,7 @@ export function PlayTogether() {
               : "Waiting for friends…"}
         </p>
         <p className="text-sm text-ink-soft">Everyone builds in your Build Yard. Up to four can play.</p>
+        <RaceControls host />
         <Btn variant="secondary" onClick={stop}>
           <LogOut className="size-5" /> Stop playing together
         </Btn>
@@ -108,6 +153,7 @@ export function PlayTogether() {
         {status === "joined" && (
           <p className="text-sm text-ink-soft">You're building in their Build Yard. Yours is safe and comes back when you leave.</p>
         )}
+        {status === "joined" && <RaceControls host={false} />}
         <Btn variant="secondary" onClick={stop}>
           <LogOut className="size-5" /> {status === "joining" ? "Cancel" : "Leave the game"}
         </Btn>
@@ -208,6 +254,8 @@ export function TogetherScores() {
   const mine = useGame((s) => (s.collected[s.levelIndex] ?? []).length);
   const name = useGame((s) => s.playerName.trim() || "Explorer");
   const [, tick] = useState(0);
+  const racing = useRace((s) => s.on);
+  useRace((s) => s.version);
   const live = status === "hosting" || status === "joined";
   // the others' counts arrive with their positions, outside React
   useEffect(() => {
@@ -216,14 +264,19 @@ export function TogetherScores() {
     return () => window.clearInterval(t);
   }, [live]);
   if (!live) return null;
-  const rows = [{ name, found: mine, me: true }];
-  for (const r of remotes.values()) {
-    if (r.look && r.pose && r.pose.level === level) rows.push({ name: r.look.name || "A friend", found: r.pose.found ?? 0, me: false });
-  }
+  // in a race, the race's own count (everyone from zero); otherwise totals
+  const rows = racing
+    ? raceScores().map((r) => ({ name: r.name, found: r.n, me: r.id === myId() }))
+    : [{ name, found: mine, me: true }];
+  if (!racing)
+    for (const r of remotes.values()) {
+      if (r.look && r.pose && r.pose.level === level) rows.push({ name: r.look.name || "A friend", found: r.pose.found ?? 0, me: false });
+    }
   if (rows.length < 2) return null;
   rows.sort((a, b) => b.found - a.found);
   return (
     <div className="pointer-events-none flex max-w-full flex-wrap gap-1.5">
+      {racing && <span className="ui-chip bg-sun px-3 py-0.5 text-base font-bold text-ink">🏁 Race</span>}
       {rows.map((r, i) => (
         <span
           key={r.name + i}

@@ -208,8 +208,25 @@ export function makeGirl(skin: string, hair: string, dress: string, style: Avata
   const rightArm = fp(makeArm(1));
   torso.add(leftArm, rightArm);
 
-  // ---- iPod classic in the right hand -----------------------------------
-  {
+  // ---- iPod classic in the right hand (a grown-up carries a wrench) -----
+  if (style === "grownup") {
+    const steel = "#b8c2c8";
+    const w = new THREE.Group();
+    w.position.set(0.02, -0.56, 0.07);
+    w.rotation.set(-0.45, 0.1, 0);
+    // the handle, gripped in the middle, an open jaw at the bottom end and a
+    // ring spanner at the top
+    w.add(part(boxGeo, steel, 0.045, 0.36, 0.02, 0, -0.08, 0, true, 0.3));
+    const jaw = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.02, 6, 14, Math.PI * 1.35), flat(steel, { roughness: 0.3 }));
+    jaw.position.set(0, -0.3, 0);
+    jaw.rotation.z = Math.PI * 0.82;
+    jaw.castShadow = true;
+    w.add(jaw);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.016, 6, 14), flat(steel, { roughness: 0.3 }));
+    ring.position.set(0, 0.12, 0);
+    w.add(ring);
+    rightArm.add(w);
+  } else {
     const ip = makeIpod();
     ip.position.set(0.03, -0.56, 0.08);
     ip.rotation.set(-0.5, 0.15, 0);
@@ -297,8 +314,8 @@ export function makeGirl(skin: string, hair: string, dress: string, style: Avata
     root.scale.setScalar(1.2);
   }
 
-  // ---- headphones -------------------------------------------------------
-  {
+  // ---- headphones (not on a grown-up, who has no iPod) -------------------
+  if (style !== "grownup") {
     const band = new THREE.Mesh(bandGeo, flat(cups, { roughness: 0.4 }));
     band.scale.set(0.33, 0.33, 0.33);
     band.position.set(0, 0.34, 0.0);
@@ -318,7 +335,7 @@ export function makeGirl(skin: string, hair: string, dress: string, style: Avata
     head.add(drop);
   }
   // cord across the shoulder to the arm
-  {
+  if (style !== "grownup") {
     const across = fp(part(cylGeo, cord, 0.008, 0.2, 0.008, 0.32, 0.54, 0.05, false, 0.7));
     across.rotation.z = -0.5;
     torso.add(across);
