@@ -290,16 +290,22 @@ export function makeGirl(skin: string, hair: string, dress: string, style: Avata
 
   // a grown-up: glasses, a beard and a moustache, and a head taller
   if (style === "grownup") {
+    // square frames, out in front of the face (the round ones sat inside
+    // it and barely showed), a bridge, and arms back to the ears
     const frame = "#2a2a2e";
+    const FZ = 0.33;
     for (const side of [-1, 1]) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.064, 0.013, 6, 18), flat(frame, { roughness: 0.3 }));
-      ring.position.set(side * 0.1, 0.32, 0.285);
-      head.add(ring);
-      head.add(part(boxGeo, frame, 0.014, 0.014, 0.2, side * 0.165, 0.33, 0.19, false));
+      const cx = side * 0.105;
+      head.add(part(boxGeo, frame, 0.13, 0.018, 0.018, cx, 0.372, FZ, false, 0.3));
+      head.add(part(boxGeo, frame, 0.13, 0.018, 0.018, cx, 0.278, FZ, false, 0.3));
+      head.add(part(boxGeo, frame, 0.018, 0.112, 0.018, cx - 0.056, 0.325, FZ, false, 0.3));
+      head.add(part(boxGeo, frame, 0.018, 0.112, 0.018, cx + 0.056, 0.325, FZ, false, 0.3));
+      head.add(part(boxGeo, frame, 0.016, 0.016, 0.3, side * 0.29, 0.355, 0.18, false, 0.3));
     }
-    head.add(part(boxGeo, frame, 0.07, 0.014, 0.014, 0, 0.335, 0.29, false));
+    head.add(part(boxGeo, frame, 0.06, 0.016, 0.016, 0, 0.345, FZ, false, 0.3));
     head.add(part(sphereGeo, hair, 0.22, 0.15, 0.15, 0, 0.1, 0.1));
-    head.add(part(boxGeo, hair, 0.13, 0.035, 0.03, 0, 0.235, 0.27, false));
+    // the moustache, out in front of the face like the glasses
+    head.add(part(boxGeo, hair, 0.14, 0.038, 0.03, 0, 0.228, 0.31, false));
     root.scale.setScalar(1.2);
   }
 
