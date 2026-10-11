@@ -210,21 +210,10 @@ export function makeGirl(skin: string, hair: string, dress: string, style: Avata
 
   // ---- iPod classic in the right hand (a grown-up carries a wrench) -----
   if (style === "grownup") {
-    const steel = "#b8c2c8";
-    const w = new THREE.Group();
-    w.position.set(0.02, -0.56, 0.07);
+    // gripped mid-handle, the jaw hanging below the fist
+    const w = makeWrench(0.36);
+    w.position.set(0.02, -0.6, 0.07);
     w.rotation.set(-0.45, 0.1, 0);
-    // the handle, gripped in the middle, an open jaw at the bottom end and a
-    // ring spanner at the top
-    w.add(part(boxGeo, steel, 0.045, 0.36, 0.02, 0, -0.08, 0, true, 0.3));
-    const jaw = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.02, 6, 14, Math.PI * 1.35), flat(steel, { roughness: 0.3 }));
-    jaw.position.set(0, -0.3, 0);
-    jaw.rotation.z = Math.PI * 0.82;
-    jaw.castShadow = true;
-    w.add(jaw);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.016, 6, 14), flat(steel, { roughness: 0.3 }));
-    ring.position.set(0, 0.12, 0);
-    w.add(ring);
     rightArm.add(w);
   } else {
     const ip = makeIpod();
@@ -528,6 +517,26 @@ function ipodKit(): IpodParts {
  * viewmodel. `userData.jack` is the headphone socket in the local frame, for
  * whoever routes the cord.
  */
+/**
+ * A grown-up's spanner: a flat handle, an open jaw at one end and a ring at
+ * the other. Handle along y, the jaw at -y. `len` is the handle's length.
+ */
+export function makeWrench(len = 0.36, shadow = true): THREE.Group {
+  const steel = lam("#b8c2c8", { flat: true, roughness: 0.25 });
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(beveledBox(len * 0.125, len, len * 0.055), steel);
+  g.add(handle);
+  const jaw = new THREE.Mesh(new THREE.TorusGeometry(len * 0.15, len * 0.055, 6, 14, Math.PI * 1.35), steel);
+  jaw.position.y = -len * 0.62;
+  jaw.rotation.z = Math.PI * 0.82;
+  g.add(jaw);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(len * 0.11, len * 0.045, 6, 14), steel);
+  ring.position.y = len * 0.58;
+  g.add(ring);
+  for (const m of [handle, jaw, ring]) m.castShadow = shadow;
+  return g;
+}
+
 export function makeIpod(shadow = false): THREE.Group {
   const { h, d } = IPOD;
   const k = ipodKit();
@@ -638,7 +647,7 @@ const cordMat = new THREE.MeshStandardMaterial({ color: "#f2f2f2", roughness: 0.
  * the hand toward the eye. Both forearms run to an elbow below the frame so
  * nothing floats.
  */
-export function makeHands(skin: string, _dress: string): Hands {
+export function makeHands(skin: string, _dress: string, style: Avatar = "girl"): Hands {
   const group = new THREE.Group();
   const skinMat = handSkin(skin);
 
@@ -646,7 +655,9 @@ export function makeHands(skin: string, _dress: string): Hands {
   const right = new THREE.Group();
   right.position.set(0.17, -0.19, -0.55);
   right.rotation.set(-0.22, -0.26, 0.1);
-  const fpIpod = makeIpod();
+  // a grown-up holds a wrench where she holds the iPod
+  const fpIpod = style === "grownup" ? makeWrench(0.2, false) : makeIpod();
+  if (style === "grownup") fpIpod.rotation.z = -0.25;
   // named so the runtime can put it away when she is holding something else
   fpIpod.name = "fp-ipod";
   right.add(fpIpod);
@@ -696,7 +707,9 @@ export function makeHands(skin: string, _dress: string): Hands {
     right.add(merged(nail, nailMat));
 
     // headphone cord: up out of the jack, over, and down out of the frame
-    const jack = (right.children[0]!.userData.jack as THREE.Vector3).toArray() as V3;
+    // (a grown-up holds a wrench: no iPod, so no jack and no cord)
+    const jackAt = right.children[0]!.userData.jack as THREE.Vector3 | undefined;
+    const jack = (jackAt ?? new THREE.Vector3()).toArray() as V3;
     const pts: V3[] = [
       jack,
       [jack[0], jack[1] + 0.02, jack[2]],
@@ -713,7 +726,7 @@ export function makeHands(skin: string, _dress: string): Hands {
     );
     const cord = new THREE.Mesh(new THREE.TubeGeometry(curve, 80, 0.0024, 8, false), cordMat);
     cord.userData.ownsGeometry = true;
-    right.add(cord);
+    if (jackAt) right.add(cord);
   }
   group.add(right);
 

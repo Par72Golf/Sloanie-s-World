@@ -333,7 +333,7 @@ export class GameRuntime {
     setRaceRefresh(() => this.syncSweetsQuietly());
     this.girl.castShadow = true;
     this.scene.add(this.girl);
-    this.hands = makeHands("#e8b489", DRESS[st.dress]);
+    this.hands = makeHands("#e8b489", DRESS[st.dress], useAvatar.getState().avatar);
     this.hands.group.visible = false;
     this.scene.add(this.hands.group);
     this.blob = new THREE.Mesh(
@@ -1217,7 +1217,7 @@ export class GameRuntime {
     setFirstPersonBody(this.girl, this.firstPerson);
     this.scene.remove(this.hands.group);
     disposeHands(this.hands);
-    this.hands = makeHands("#e8b489", DRESS[st.dress]);
+    this.hands = makeHands("#e8b489", DRESS[st.dress], useAvatar.getState().avatar);
     this.hands.group.visible = this.firstPerson;
     this.scene.add(this.hands.group);
   }
