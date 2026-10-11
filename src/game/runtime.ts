@@ -120,6 +120,32 @@ function sharpPixelRatio() {
   return Math.min(window.devicePixelRatio || 1, 1.5);
 }
 
+/**
+ * Dynamic resolution. Whatever the mode, the drawing resolution follows how
+ * fast frames are actually arriving: the same build runs on a TV, a tablet and
+ * a Retina laptop in a browser pane, and the one setting that moves the frame
+ * time on all of them is the number of pixels (measured: halving the pixel
+ * ratio nearly halves the frame on an M1 Pro, where removing a few hundred
+ * draw calls, the grass or the shadows each changes it by a few percent).
+ */
+const RES = {
+  /** a window of frames is judged on its median interval */
+  window: 40,
+  /** slower than this (about 42 fps) and the resolution steps down */
+  slowMs: 24,
+  /** faster than this for `goodWindows` windows in a row and it steps back up */
+  fastMs: 17.5,
+  goodWindows: 4,
+  down: 0.85,
+  up: 1.1,
+  /** the lowest pixel ratio it will draw at, whatever the screen */
+  minRatio: 0.6,
+  /** a resolution that proved too slow is not tried again for this long */
+  holdSeconds: 30,
+  /** frames right after a park loads compile shaders; they say nothing */
+  settleSeconds: 3,
+};
+
 /** How early before landing a jump press still counts. */
 const JUMP_BUFFER = 0.18;
 
@@ -347,6 +373,68 @@ export class GameRuntime {
   /** The graphics setting currently applied; null until the first apply. */
   graphics: "sharp" | "smooth" | null = null;
 
+  /** Dynamic resolution (RES): the share of the mode's pixel ratio being drawn. */
+  resScale = 1;
+  /** at the lowest resolution and still slow: bloom is off until it recovers */
+  resNoBloom = false;
+  private resFrames: number[] = [];
+  private resGood = 0;
+  private resQuietUntil = 0;
+  private resCeil = 1;
+  private resCeilUntil = 0;
+
+  /** The mode's own pixel ratio, before dynamic resolution. */
+  baseRatio() {
+    return this.graphics === "smooth" ? 1 : sharpPixelRatio();
+  }
+
+  private applyRes() {
+    this.renderer.setPixelRatio(this.baseRatio() * this.resScale);
+    this.bloom.enabled = this.graphics !== "smooth" && !this.resNoBloom;
+    this.resize();
+  }
+
+  /** Called every frame with the wall time since the last one (RES above). */
+  adaptResolution(frameMs: number) {
+    // a hidden tab, a breakpoint or a hitch: not a measure of drawing speed
+    if (!(frameMs > 0) || frameMs > 250) {
+      this.resFrames.length = 0;
+      this.resQuietUntil = Math.max(this.resQuietUntil, this.clock + 1);
+      return;
+    }
+    if (this.clock < this.resQuietUntil) return;
+    this.resFrames.push(frameMs);
+    if (this.resFrames.length < RES.window) return;
+    const sorted = this.resFrames.sort((a, b) => a - b);
+    const median = sorted[sorted.length >> 1]!;
+    this.resFrames = [];
+    const floor = Math.min(1, RES.minRatio / this.baseRatio());
+    if (median > RES.slowMs) {
+      this.resGood = 0;
+      if (this.resScale > floor + 1e-3) {
+        this.resCeil = this.resScale;
+        this.resCeilUntil = this.clock + RES.holdSeconds;
+        this.resScale = Math.max(floor, this.resScale * RES.down);
+      } else if (!this.resNoBloom && this.bloom.enabled) {
+        this.resNoBloom = true;
+      } else return;
+      this.applyRes();
+      this.resQuietUntil = this.clock + 1;
+    } else if (median < RES.fastMs && (this.resScale < 1 || this.resNoBloom)) {
+      if (++this.resGood < RES.goodWindows) return;
+      this.resGood = 0;
+      if (this.resNoBloom) this.resNoBloom = false;
+      else {
+        const cap = this.clock < this.resCeilUntil ? this.resCeil * 0.95 : 1;
+        const next = Math.min(1, cap, this.resScale * RES.up);
+        if (next <= this.resScale + 1e-3) return;
+        this.resScale = next;
+      }
+      this.applyRes();
+      this.resQuietUntil = this.clock + 1;
+    } else this.resGood = 0;
+  }
+
   /**
    * Graphics quality from the pause menu. "sharp" draws at up to 2x on a
    * Retina screen with 4x MSAA, bloom and a 2048 shadow map; "smooth" draws at
@@ -356,7 +444,7 @@ export class GameRuntime {
   applyGraphics(mode: "sharp" | "smooth") {
     const smooth = mode === "smooth";
     this.graphics = mode;
-    this.renderer.setPixelRatio(smooth ? 1 : sharpPixelRatio());
+    this.renderer.setPixelRatio((smooth ? 1 : sharpPixelRatio()) * this.resScale);
     // MSAA samples are fixed when a render target is first allocated, so a
     // change needs new targets; reset() disposes both of the old ones
     const samples = smooth ? 2 : 4;
@@ -368,7 +456,8 @@ export class GameRuntime {
       });
       this.composer.reset(target);
     }
-    this.bloom.enabled = !smooth;
+    this.bloom.enabled = !smooth && !this.resNoBloom;
+    this.resQuietUntil = this.clock + RES.settleSeconds;
     const mapSize = smooth ? 1024 : 2048;
     if (this.sun.shadow.mapSize.x !== mapSize) {
       this.sun.shadow.mapSize.set(mapSize, mapSize);
@@ -469,6 +558,7 @@ export class GameRuntime {
           samples: this.composer.renderTarget1.samples,
           shadowMapSize: this.sun.shadow.mapSize.x,
           pixelRatio: this.renderer.getPixelRatio(),
+          resScale: +this.resScale.toFixed(3),
           size: (() => {
             const v = new THREE.Vector2();
             this.renderer.getDrawingBufferSize(v);
@@ -546,6 +636,7 @@ export class GameRuntime {
   }
 
   loadLevel(index: number) {
+    this.resQuietUntil = this.clock + RES.settleSeconds;
     if (this.world) {
       this.scene.remove(this.world.group);
       disposeWorld(this.world);
@@ -955,6 +1046,12 @@ export class GameRuntime {
   updateEmmett(dt: number) {
     if (!this.emmett || !this.world) return;
     const st = useGame.getState();
+    // the big race: he rides the route against her
+    const pace = this.gauntlet?.pacer();
+    if (pace && st.phase === "playing") {
+      this.emmett.ride(pace.x, pace.z, pace.facing, pace.speed, this.clock);
+      return;
+    }
     const busy =
       st.phase !== "playing" ||
       st.quiz != null ||
@@ -1819,7 +1916,8 @@ export class GameRuntime {
         this.yaw = c.startYaw;
         this.cameraYaw = c.startYaw;
         this.syncCamera(true);
-        if (this.emmett?.state === "home") {
+        // in the race he lines up beside her (pacer); in the run he watches
+        if (this.emmett?.state === "home" && c.id !== "race") {
           this.emmett.group.position.set(c.watch.x, 0, c.watch.z);
           this.emmett.group.rotation.y = Math.atan2(c.start.x - c.watch.x, c.start.z - c.watch.z);
         }
@@ -2846,6 +2944,7 @@ export class GameRuntime {
     const raw = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     this.clock += raw;
+    this.adaptResolution(frameMs);
 
     const st = useGame.getState();
     if (st.graphics !== this.graphics) this.applyGraphics(st.graphics);
@@ -3060,6 +3159,7 @@ declare global {
         samples: number;
         shadowMapSize: number;
         pixelRatio: number;
+        resScale: number;
         size: number[];
       };
       setPixelRatio: (r: number) => void;

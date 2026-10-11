@@ -164,13 +164,19 @@ export function keyName(code: string) {
 // mixed into it, since half its buttons now mean something else.
 const KEY = "sloanies-world-controls-v2";
 
-type Saved = { pad: Record<Action, number>; keys: Record<Action, string[]> };
+type Saved = {
+  pad: Record<Action, number>;
+  keys: Record<Action, string[]>;
+  /** A and B the Switch way round (switchLayout below) */
+  switchAB: boolean;
+};
 
 function load(): Saved {
-  const fresh = { pad: { ...DEFAULT_PAD }, keys: structuredClone(DEFAULT_KEYS) };
+  const fresh: Saved = { pad: { ...DEFAULT_PAD }, keys: structuredClone(DEFAULT_KEYS), switchAB: true };
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<Saved> | null;
     if (!raw) return fresh;
+    if (typeof raw.switchAB === "boolean") fresh.switchAB = raw.switchAB;
     for (const a of Object.keys(DEFAULT_PAD) as Action[]) {
       const p = raw.pad?.[a];
       if (typeof p === "number" && p >= 0 && p < 20 && !PAD_RESERVED.has(p)) fresh.pad[a] = p;
@@ -197,6 +203,7 @@ type BindingStore = Saved & {
   /** Give an action a keyboard key; whatever had it takes this action's old key. */
   setKey: (action: Action, code: string) => void;
   resetDefaults: () => void;
+  setSwitchAB: (on: boolean) => void;
 };
 
 export const useBindings = create<BindingStore>((set, get) => ({
@@ -208,7 +215,7 @@ export const useBindings = create<BindingStore>((set, get) => ({
     for (const a of Object.keys(pad) as Action[]) if (a !== action && pad[a] === button) pad[a] = old;
     pad[action] = button;
     set({ pad });
-    persist({ pad, keys: get().keys });
+    persist({ pad, keys: get().keys, switchAB: get().switchAB });
   },
   setKey: (action, code) => {
     if (KEY_RESERVED.has(code)) return;
@@ -221,14 +228,52 @@ export const useBindings = create<BindingStore>((set, get) => ({
     }
     keys[action] = [code];
     set({ keys });
-    persist({ pad: get().pad, keys });
+    persist({ pad: get().pad, keys, switchAB: get().switchAB });
   },
   resetDefaults: () => {
-    const fresh = { pad: { ...DEFAULT_PAD }, keys: structuredClone(DEFAULT_KEYS) };
+    const fresh: Saved = { pad: { ...DEFAULT_PAD }, keys: structuredClone(DEFAULT_KEYS), switchAB: true };
     set(fresh);
     persist(fresh);
   },
+  setSwitchAB: (switchAB) => {
+    set({ switchAB });
+    persist({ pad: get().pad, keys: get().keys, switchAB });
+  },
 }));
+
+/**
+ * A and B the Switch way round. The kids play Minecraft on a Switch, where A
+ * is the right-hand face button and jumps; their 8BitDo pads print the
+ * letters the Switch way but report themselves to the browser in Xbox order,
+ * with A at the bottom. So every reading of the pad, everywhere in the game
+ * (play, menus, the mini-games' own loops), sees those two buttons swapped:
+ * the button with A printed on it is A. Done once here, where the browser hands
+ * the pad over, rather than in each of the dozen places that read it.
+ */
+function switchLayout() {
+  if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return;
+  const real = navigator.getGamepads.bind(navigator);
+  navigator.getGamepads = () => {
+    const pads = real();
+    if (!useBindings.getState().switchAB) return pads;
+    return Array.from(pads, (p) => {
+      if (!p || p.buttons.length < 2) return p;
+      const buttons = p.buttons.slice();
+      [buttons[0], buttons[1]] = [buttons[1]!, buttons[0]!];
+      return {
+        id: p.id,
+        index: p.index,
+        connected: p.connected,
+        mapping: p.mapping,
+        timestamp: p.timestamp,
+        axes: p.axes,
+        buttons,
+        vibrationActuator: p.vibrationActuator,
+      } as unknown as Gamepad;
+    });
+  };
+}
+switchLayout();
 
 /** Keyboard action for a key code, if any. */
 export function actionForKey(code: string): Action | null {

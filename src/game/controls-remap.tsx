@@ -32,6 +32,7 @@ export function ControlsRemap() {
   const close = () => useGame.getState().setControls(false);
   const pad = useBindings((s) => s.pad);
   const keys = useBindings((s) => s.keys);
+  const switchAB = useBindings((s) => s.switchAB);
   const [device, setDevice] = useState<Device>(() => (firstPad() ? "pad" : "keys"));
   const [listening, setListening] = useState<Action | null>(null);
   const [pressed, setPressed] = useState<number[]>([]);
@@ -230,6 +231,18 @@ export function ControlsRemap() {
               <li>Move: left stick, WASD or arrow keys. Look: right stick. The layout is Minecraft's.</li>
               <li>Look around: right stick or drag</li>
               <li>In menus: A to choose, B to go back</li>
+              <li className="sm:col-span-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.click();
+                    useBindings.getState().setSwitchAB(!switchAB);
+                  }}
+                  className="press rounded-full border-[3px] border-edge bg-surface-2 px-3 py-1 font-display text-ink"
+                >
+                  A and B: {switchAB ? "Switch style (A on the right)" : "Xbox style (A at the bottom)"}
+                </button>
+              </li>
               <li>Keyboard menus: Enter to choose, Esc to go back</li>
             </ul>
           </div>

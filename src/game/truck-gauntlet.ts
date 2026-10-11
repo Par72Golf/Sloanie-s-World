@@ -28,7 +28,10 @@ import { useGame } from "./store";
  * bug is the one way to make a seven-year-old give up. She is racing a time
  * instead — the time Emmett says he did it in — and the time is worked out
  * from the length of the route rather than picked, so moving a gate cannot
- * quietly make it impossible.
+ * quietly make it impossible. In the big race she can see that time: Emmett
+ * rides the route ring to ring at exactly that pace (pacer()), placed rather
+ * than steered, so he cannot get stuck either. Standing still by the finish
+ * he looked broken.
  *
  * Losing never takes anything away: a run she does not beat can be started
  * again straight away, and the wins she has are saved.
@@ -362,7 +365,7 @@ export class TruckGauntlet {
       .setEmmettNotice(
         next.course.hurdles.length
           ? `${next.course.name}! Jump the hurdles and go through every ring — the high one off the ramp. Emmett did it in ${next.course.target} seconds. 3…`
-          : `${next.course.name}! Run through every ring. Emmett did it in ${next.course.target} seconds. 3…`,
+          : `${next.course.name}! Race Emmett through every ring. He takes ${next.course.target} seconds. 3…`,
       );
     this.setHurdles(true);
     this.showGates();
@@ -373,7 +376,9 @@ export class TruckGauntlet {
     const gates = this.live?.gates ?? [];
     this.rings.forEach((ring, i) => {
       const g = gates[i];
-      const on = !!g && this.live != null;
+      // the ring to go through, and a faint one after it to see where next;
+      // eleven at once and she runs to the nearest, which is not the next
+      const on = !!g && this.live != null && i >= this.gate && i <= this.gate + 1;
       ring.visible = on;
       this.posts[i]!.visible = on;
       if (!g) return;
@@ -402,7 +407,11 @@ export class TruckGauntlet {
     st.setTruckRace(null);
     if (!won) {
       sfx.wrong();
-      st.setEmmettNotice(`So close! ${course.target} seconds to beat. Talk to Emmett to try again.`);
+      st.setEmmettNotice(
+        course.id === "race"
+          ? "Emmett got there first! Talk to him to race again."
+          : `So close! ${course.target} seconds to beat. Talk to Emmett to try again.`,
+      );
       return;
     }
     sfx.win();
@@ -414,6 +423,41 @@ export class TruckGauntlet {
     } else {
       st.setEmmettNotice(`You beat him! That's ${wins} of ${TRUCK_STAGES.length}. One more challenge to go.`);
     }
+  }
+
+  /**
+   * Where Emmett is in the big race: on the route from the start line through
+   * every ring, at the one pace that finishes in exactly the time she has to
+   * beat, a little to her left so they don't start on top of each other
+   * (on her right he clipped the toy box by the start line).
+   * Null when there is no race on.
+   */
+  pacer(): { x: number; z: number; facing: number; speed: number } | null {
+    const SIDE = 1.6;
+    const c = this.live;
+    if (!c || c.id !== "race") return null;
+    const pts = [c.start, ...c.gates];
+    const total = courseLength(c.gates, c.start);
+    const speed = total / c.target;
+    let d = this.count > 0 ? 0 : Math.min(total, this.clock * speed);
+    const moving = this.count <= 0 && this.clock * speed < total;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1]!;
+      const b = pts[i]!;
+      const seg = Math.hypot(b.x - a.x, b.z - a.z);
+      if (d <= seg || i === pts.length - 1) {
+        const f = seg > 0 ? Math.min(1, d / seg) : 1;
+        const facing = Math.atan2(b.x - a.x, b.z - a.z);
+        return {
+          x: a.x + (b.x - a.x) * f - Math.cos(facing) * SIDE,
+          z: a.z + (b.z - a.z) * f + Math.sin(facing) * SIDE,
+          facing,
+          speed: moving ? speed : 0,
+        };
+      }
+      d -= seg;
+    }
+    return null;
   }
 
   /** Give up on the run she is in, without losing the wins she has. */
@@ -447,9 +491,15 @@ export class TruckGauntlet {
     }
     this.clock += dt;
     const g = this.live.gates[this.gate]!;
-    if (throughGate(g, her.x, her.y, her.z)) {
+    // only the next ring and a faint one after it are showing; a ring she
+    // clips the edge of and misses is forgiven if she goes through the one
+    // after, so one wobble never leaves her running through rings that
+    // don't count
+    const after = this.live.gates[this.gate + 1];
+    const skip = !!after && throughGate(after, her.x, her.y, her.z);
+    if (skip || throughGate(g, her.x, her.y, her.z)) {
       sfx.correct();
-      this.gate++;
+      this.gate += skip ? 2 : 1;
       if (this.gate >= this.live.gates.length) {
         this.finish(this.clock <= this.live.target);
         return;

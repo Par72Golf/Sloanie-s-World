@@ -476,6 +476,19 @@ export class Emmett {
   /**
    * @returns true on the frame he catches her
    */
+  /**
+   * Riding his own race (truck-gauntlet.ts pacer): put where the pacer says,
+   * not steered, so he can never be stuck on anything while she races him.
+   */
+  ride(x: number, z: number, facing: number, speed: number, t: number) {
+    this.group.position.set(x, 0, z);
+    this.facing = facing;
+    this.group.rotation.y = facing;
+    this.speed = speed;
+    this.turn = 0;
+    animateEmmett(this.rig, speed, t, 0, { mood: this.mood });
+  }
+
   update(
     dt: number,
     t: number,
