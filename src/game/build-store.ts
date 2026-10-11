@@ -104,7 +104,21 @@ export type BuildStore = {
   add: (q: Placed) => void;
   removeAt: (i: number) => Placed | null;
   undo: () => void;
+  /**
+   * Playing together as a guest (net.ts): these are the host's pieces, built
+   * on together, and nothing is saved over her own yard, which comes back
+   * untouched with goHome().
+   */
+  visiting: boolean;
+  visit: (pieces: Placed[]) => void;
+  goHome: () => void;
+  /** a piece another kid put down or took away (not hers to undo) */
+  remoteAdd: (q: Placed) => void;
+  remoteDel: (q: Placed) => void;
 };
+
+/** Two pieces are the same piece if everything about them is. */
+export const samePiece = (a: Placed, b: Placed) => a.p === b.p && a.x === b.x && a.z === b.z && a.y === b.y && a.c === b.c && a.r === b.r;
 
 export type BuildStoreHook = UseBoundStore<StoreApi<BuildStore>>;
 
@@ -114,7 +128,13 @@ export function makeBuildStore(key: string, catalogue: PieceDef[], grid?: Grid):
   const saved = load(key, PIECE, grid);
   /** what was placed, most recent last, so Undo takes back her last press */
   const history: Placed[] = [];
-  const persistNow = (s: BuildSave) => persist(key, grid ? { ...s, origin: grid.origin } : s);
+  /** her own pieces while she is visiting someone else's yard; null at home */
+  let home: Placed[] | null = null;
+  // while visiting, what is saved is still her own yard, never the host's
+  const persistNow = (s: BuildSave) => {
+    const out = home ? { ...s, pieces: home } : s;
+    persist(key, grid ? { ...out, origin: grid.origin } : out);
+  };
   // a save moved onto a new corner is written back at once, so it moves once
   if (grid) persistNow(saved);
   return create<BuildStore>((set, get) => ({
@@ -164,6 +184,35 @@ export function makeBuildStore(key: string, catalogue: PieceDef[], grid?: Grid):
       const q = history.pop();
       if (!q) return;
       const pieces = get().pieces.filter((x) => x !== q);
+      set({ pieces });
+      persistNow({ pieces, unlocked: get().unlocked });
+    },
+    visiting: false,
+    visit: (pieces) => {
+      if (!home) home = get().pieces;
+      history.length = 0;
+      set({ pieces: pieces.slice(0, MAX_PIECES), visiting: true });
+    },
+    goHome: () => {
+      if (!home) return;
+      const pieces = home;
+      home = null;
+      history.length = 0;
+      set({ pieces, visiting: false });
+    },
+    remoteAdd: (q) => {
+      if (get().pieces.length >= MAX_PIECES || get().pieces.some((x) => samePiece(x, q))) return;
+      const pieces = [...get().pieces, q];
+      set({ pieces });
+      persistNow({ pieces, unlocked: get().unlocked });
+    },
+    remoteDel: (q) => {
+      const i = get().pieces.findIndex((x) => samePiece(x, q));
+      if (i < 0) return;
+      const gone = get().pieces[i]!;
+      const pieces = get().pieces.filter((_, k) => k !== i);
+      const h = history.lastIndexOf(gone);
+      if (h >= 0) history.splice(h, 1);
       set({ pieces });
       persistNow({ pieces, unlocked: get().unlocked });
     },

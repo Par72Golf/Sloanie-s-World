@@ -26,6 +26,8 @@ import { Placer } from "./placer";
 import { HOUSE_ITEMS, houseArea, useHouseBuild } from "./house-items";
 import { BUILD_COLORS, PIECES } from "./build-pieces";
 import { useBuild, yardPalette } from "./yard-store";
+import { inRoom, sendLook, sendPose } from "./net";
+import { RemotePlayers } from "./remote-players";
 import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
 import { candyPrizeFurniture } from "./candy-furniture";
 import { HOUSE_KITS } from "./furniture-kits";
@@ -2261,6 +2263,40 @@ export class GameRuntime {
     } else st.setEmmettNotice("You can build in the Build Yard, or inside your house.");
   }
 
+  /** Playing together (net.ts): the other kids, drawn; and when this device last told them where she is. */
+  private remotePlayers: RemotePlayers | null = null;
+  private netSendIn = 0;
+  private lastLookKey = "";
+
+  /** Tell the room where she is and how she looks, and draw everyone else. */
+  netTick(dt: number) {
+    const st = useGame.getState();
+    if (inRoom()) {
+      const look = { name: st.playerName.trim() || "Explorer", dress: st.dress, worn: st.worn };
+      const key = JSON.stringify(look);
+      if (key !== this.lastLookKey) {
+        this.lastLookKey = key;
+        sendLook(look);
+      }
+      this.netSendIn -= dt;
+      if (this.netSendIn <= 0) {
+        this.netSendIn = 1 / 12;
+        sendPose({
+          x: this.cap.x,
+          y: this.cap.y,
+          z: this.cap.z,
+          yaw: this.girl.rotation.y,
+          moving: this.speed > 0.4 && this.grounded,
+          ground: this.grounded,
+          speed: this.speed,
+          level: st.levelIndex,
+        });
+      }
+    } else this.lastLookKey = "";
+    if (!this.remotePlayers) this.remotePlayers = new RemotePlayers(this.scene);
+    this.remotePlayers.update(dt, this.clock, st.levelIndex);
+  }
+
   /** The wheel, either carousel or the boat: something else decides where she is. */
   get carried() {
     return !!this.ride || !!this.carouselRide || !!this.boat?.riding || !!this.cupcakes?.riding;
@@ -3139,6 +3175,9 @@ export class GameRuntime {
       }
     }
     this.flyWas = st.fly;
+    // every frame, whatever the physics did: the others keep moving on screen
+    // during a fly-over or a pause, and they keep hearing where she is
+    this.netTick(raw);
     this.animateWorld(raw);
     this.hud(raw);
     // no hands while building: the crosshair and the piece are what she looks at

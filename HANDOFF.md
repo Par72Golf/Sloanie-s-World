@@ -639,6 +639,19 @@ voice in order; `sayOwn()` plays her button answers (Farmer Joe's panel) and hol
 the next speech until she has finished. Lines with a changing word (a number, a
 name) can't be clips and stay on the browser voice.
 
+### Playing together (net.ts)
+
+Two to four devices in the same park: each kid sees the others run about
+(remote-players.ts) and they share the host's Build Yard; sweets, stickers,
+tickets and houses stay each device's own. WebRTC through PeerJS: the public
+PeerJS broker only introduces the devices (host id `sloanies-world-room-NNNN`),
+then data goes device to device. Star topology: guests talk to the host, the
+host relays. A guest's own yard is kept in memory and never overwritten while
+visiting (BuildStore.visit / goHome). Poses go out 12 times a second from
+`netTick`, which runs every frame outside physics so it keeps going during a
+fly-over. Menus: "Play together" on the title and in the pause menu
+(together-panel.tsx), a keypad for the code so the controller can type it.
+
 ### 6.3 Performance and the launch path
 
 Untested at the target resolution. Needs a frame budget, an options screen with

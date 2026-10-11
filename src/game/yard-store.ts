@@ -1,5 +1,6 @@
 import { PIECES, type PieceDef } from "./build-pieces";
-import { makeBuildStore, YARD_ORIGIN } from "./build-store";
+import { makeBuildStore, YARD_ORIGIN, type Placed } from "./build-store";
+import { sendYard, setYardHooks } from "./net";
 import { HOUSE_ITEMS } from "./house-items";
 import { SIDE_SAVES } from "./save";
 
@@ -37,3 +38,33 @@ export function yardPalette(yardUnlocked: readonly string[], houseUnlocked: read
     ...HOUSE_ITEMS.filter((p) => ownsHouseItem(p, houseUnlocked)).map((p) => YARD_PIECE.get(p.id)!),
   ];
 }
+
+/*
+ * The yard when playing together (net.ts). What she puts down or takes away
+ * goes to the others; what they do comes back through the hooks, applied
+ * without being sent on again. As a guest she builds in the host's yard
+ * (visit) and goes home to her own when she leaves.
+ */
+let applying = false;
+const quietly = (f: () => void) => {
+  applying = true;
+  try {
+    f();
+  } finally {
+    applying = false;
+  }
+};
+useBuild.subscribe((s, prev) => {
+  if (applying || s.pieces === prev.pieces) return;
+  const before = new Set(prev.pieces);
+  const after = new Set(s.pieces);
+  for (const q of s.pieces) if (!before.has(q)) sendYard("add", q);
+  for (const q of prev.pieces) if (!after.has(q)) sendYard("del", q);
+});
+setYardHooks({
+  adopt: (pieces: Placed[]) => quietly(() => useBuild.getState().visit(pieces)),
+  add: (q: Placed) => quietly(() => useBuild.getState().remoteAdd(q)),
+  del: (q: Placed) => quietly(() => useBuild.getState().remoteDel(q)),
+  leave: () => quietly(() => useBuild.getState().goHome()),
+  current: () => useBuild.getState().pieces,
+});

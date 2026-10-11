@@ -80,8 +80,11 @@ import {
   X,
   House,
   Truck,
+  Users,
 } from "lucide-react";
 import { bindingLabel } from "./bindings";
+import { useNet } from "./net";
+import { PlayTogether } from "./together-panel";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen, useFullscreenArmed } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
 import { accessory, allAccessories } from "./accessories";
@@ -416,7 +419,7 @@ const LOGO_SPARKLES = [
   { left: "8%", top: "90%", size: "1.1rem", delay: "1.9s" },
 ];
 
-type TitleDetail = "explorer" | "help" | "times" | "reset" | "grownup" | null;
+type TitleDetail = "explorer" | "help" | "times" | "reset" | "grownup" | "together" | null;
 
 
 /**
@@ -811,6 +814,7 @@ function TitleScreen() {
     times: { icon: Trophy, text: "Best times", tone: "bg-sun text-ink" },
     reset: { icon: RotateCcw, text: "Start over", tone: "bg-berry" },
     grownup: { icon: Lock, text: "Grown-ups", tone: "bg-grape" },
+    together: { icon: Users, text: "Play together", tone: "bg-teal" },
   };
   const D = detail ? detailTitle[detail] : null;
 
@@ -1002,6 +1006,7 @@ function TitleScreen() {
                   }}
                 />
               )}
+              <MenuItem {...rowProps()} icon={Users} tint="text-teal" label="Play together" onClick={() => toggle("together")} />
               <MenuItem {...rowProps()} icon={RotateCcw} tint="text-berry" label="Start over" onClick={() => toggle("reset")} />
               <MenuItem {...rowProps()} icon={Lock} tint="text-grape" label="Grown-ups" onClick={() => toggle("grownup")} />
             </div>
@@ -1121,6 +1126,7 @@ function TitleScreen() {
                   </>
                 )}
                 {detail === "grownup" && <GrownUps onClose={() => setDetail(null)} />}
+                {detail === "together" && <PlayTogether />}
                 {detail === "help" && (
                   <ul className="grid gap-2 text-base leading-snug text-ink 2xl:text-xl">
                     {[
@@ -2393,6 +2399,8 @@ function Quiz() {
 
 function PauseScreen() {
   const resumePlay = useGame((s) => s.resumePlay);
+  const [together, setTogether] = useState(false);
+  const netStatus = useNet((s) => s.status);
   const levelIndex = useGame((s) => s.levelIndex);
   const toTitle = useGame((s) => s.toTitle);
   const fullscreen = useFullscreen();
@@ -2493,6 +2501,15 @@ function PauseScreen() {
               {fullscreen ? <Minimize className="size-5 shrink-0" /> : <Maximize className="size-5 shrink-0" />}
               {fullscreen ? "Exit fullscreen" : fullscreenArmed ? "Tap the screen to go fullscreen" : "Fullscreen"}
             </Btn>
+          )}
+          <Btn variant="secondary" onClick={() => setTogether((v) => !v)} className={item}>
+            <Users className="size-5 shrink-0 text-teal" />
+            {netStatus === "hosting" || netStatus === "joined" ? "Playing together" : "Play together"}
+          </Btn>
+          {together && (
+            <div className="rounded-[1.1rem] border-[3px] border-line bg-surface p-3 sm:col-span-2">
+              <PlayTogether />
+            </div>
           )}
           <Btn variant="secondary" onClick={toTitle} className={item}>
             <LogOut className="size-5 shrink-0 text-berry" />
