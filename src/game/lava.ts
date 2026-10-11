@@ -926,6 +926,16 @@ export function startSpot(s?: LavaState): { x: number; y: number; z: number; yaw
 
 /* ---------------------------------------------------------------- scoring */
 
+/**
+ * How a house-item prize (LavaTheme.houseItem) is looked up and given.
+ * runtime.ts connects it to house-items.ts: importing that from here closes an
+ * import loop through the house's meshes.
+ */
+let houseUnlock: { has: (id: string) => boolean; give: (id: string) => void } | null = null;
+export function setLavaHouseUnlock(h: typeof houseUnlock) {
+  houseUnlock = h;
+}
+
 /** Tickets for reaching the podium: a big first prize, a smaller one after. */
 export function lavaTickets(first: boolean) {
   return first ? 20 : 6;
@@ -975,6 +985,8 @@ export type LavaTheme = {
    * podium hands it over exactly as park 1's does.
    */
   prize: AccessoryId | null;
+  /** a house item won the first time across instead (house-items.ts), and what to call it */
+  houseItem?: { id: string; name: string };
   /** the pool: a dark base, the light that comes out of it, and its crust */
   liquid: {
     color: string;
@@ -1523,7 +1535,12 @@ export class LavaWorld {
       this.shownT = -1;
       st.setLavaTime(null);
       const prize = THEME.prize;
-      const first = prize ? !st.foundAccessories.includes(prize) : st.lavaBest == null;
+      const item = THEME.houseItem;
+      const first = prize
+        ? !st.foundAccessories.includes(prize)
+        : item && houseUnlock
+          ? !houseUnlock.has(item.id)
+          : st.lavaBest == null;
       const tickets = lavaTickets(first);
       const line = lavaLine(seconds, st.lavaBest);
       if (st.lavaBest == null || seconds < st.lavaBest) st.setLavaBest(Math.round(seconds * 10) / 10);
@@ -1532,6 +1549,10 @@ export class LavaWorld {
       // winPrize writes its own notice and puts it on her, so the time goes first
       st.setEmmettNotice(`${line} +${tickets} tickets!`);
       if (first && prize) st.winPrize(prize);
+      else if (first && item && houseUnlock) {
+        houseUnlock.give(item.id);
+        st.setEmmettNotice(`${line} You won the ${item.name}! Put it anywhere in your house. +${tickets} tickets!`);
+      }
     }
   }
 

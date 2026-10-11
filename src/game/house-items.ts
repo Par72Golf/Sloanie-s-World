@@ -393,6 +393,23 @@ export const HOUSE_ITEMS: PieceDef[] = [
     },
   },
   {
+    // won on the Floor is Chocolate course: the bar on its podium, to keep
+    id: "chocobar",
+    name: "Giant chocolate bar",
+    icon: "🍫",
+    h: 3,
+    prize: true,
+    earned: "the Floor is Chocolate course",
+    boxes: [{ x0: -0.3, x1: 0.3, z0: -0.1, z1: 0.1, y0: 0, y1: 1.05 }],
+    make: () =>
+      g(
+        mesh(boxGeo, "#ffd84a", 0.62, 0.9, 0.2, 0, 0.45, 0),
+        mesh(boxGeo, "#e8384f", 0.65, 0.33, 0.23, 0, 0.3, 0),
+        mesh(boxGeo, "#6e3f1e", 0.15, 0.15, 0.22, -0.19, 0.98, 0),
+        mesh(boxGeo, "#6e3f1e", 0.15, 0.15, 0.22, 0.19, 0.98, 0),
+      ),
+  },
+  {
     id: "starprojector",
     name: "Star projector",
     icon: "🌟",
@@ -431,7 +448,8 @@ export const HOUSE_ITEMS: PieceDef[] = [
 ];
 
 export const HOUSE_ITEM = new Map(HOUSE_ITEMS.map((p) => [p.id, p]));
-export const HOUSE_PRIZE_ITEMS = HOUSE_ITEMS.filter((p) => p.prize).map((p) => p.id);
+/** The gumball machines' house prizes: every prize except the ones won somewhere else. */
+export const HOUSE_PRIZE_ITEMS = HOUSE_ITEMS.filter((p) => p.prize && !p.earned).map((p) => p.id);
 
 /** What she has put round her house, saved in its own slot. */
 export const useHouseBuild = makeBuildStore(SIDE_SAVES.houseItems, HOUSE_ITEMS);

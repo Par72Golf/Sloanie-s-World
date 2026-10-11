@@ -9,7 +9,7 @@ import { applyDance, type DanceId } from "./dances";
 import { CHANNELS, beatInfo, currentChannel, setChannel } from "./music";
 import { QuestWorld } from "./quest";
 import { GolfWorld, golfInput, golfPose } from "./minigolf";
-import { LavaWorld, onLavaCourse } from "./lava";
+import { LavaWorld, onLavaCourse, setLavaHouseUnlock } from "./lava";
 import { LookingGlass } from "./looking-glass";
 import { candyStickers } from "./candy-stickers";
 import { ChocFactoryInside, useChocFactory } from "./choc-factory-inside";
@@ -145,6 +145,12 @@ const RES = {
   /** frames right after a park loads compile shaders; they say nothing */
   settleSeconds: 3,
 };
+
+// the chocolate course's prize is a house item (lava.ts can't import the house)
+setLavaHouseUnlock({
+  has: (id) => useHouseBuild.getState().unlocked.includes(id),
+  give: (id) => useHouseBuild.getState().unlock(id),
+});
 
 /** How early before landing a jump press still counts. */
 const JUMP_BUFFER = 0.18;

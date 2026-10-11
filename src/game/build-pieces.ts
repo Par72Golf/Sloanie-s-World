@@ -53,6 +53,11 @@ export type PieceDef = {
   /** ...or as these boxes, in metres in the square's frame before it is turned */
   boxes?: Box[];
   prize?: boolean;
+  /**
+   * A prize won somewhere particular rather than out of a gumball machine
+   * (what it says is where): kept out of the gumball pool.
+   */
+  earned?: string;
   /** tickets to buy it, for the pieces that are sold rather than given */
   price?: number;
   make: (color: string) => THREE.Group;

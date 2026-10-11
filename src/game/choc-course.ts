@@ -286,10 +286,12 @@ export const CHOC_THEME: LavaTheme = {
     "Whoops! Your flag brought you back.",
   ],
   checkpointLine: "Candy flag lit!",
-  // Park 2 has no accessory of its own yet: every hand accessory in
-  // accessories.ts is already a carnival prize. Give this theme a `prize` id
-  // and the podium hands it over exactly as park 1's does.
+  // Park 2 has no accessory of its own (every hand accessory is already a
+  // carnival prize), so the bar standing on the podium is the prize: the
+  // first time across she wins one for her house. It used to pay tickets
+  // only, and the bar looked like a prize she never got.
   prize: null,
+  houseItem: { id: "chocobar", name: "giant chocolate bar" },
   // Chocolate is not molten rock: it takes its colour from the light rather
   // than making its own, so the glow is only enough to keep it warm in shade
   // and it stays well under the bloom threshold.
