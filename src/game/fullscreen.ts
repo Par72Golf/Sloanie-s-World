@@ -48,8 +48,47 @@ export async function exitFullscreen() {
   }
 }
 
-export function toggleFullscreen() {
-  return isFullscreen() ? exitFullscreen() : enterFullscreen();
+/*
+ * A controller can't go fullscreen: the browser only takes a real tap, click
+ * or key, and a press of the pad is none of those. So when the Fullscreen
+ * button is chosen with the pad and the browser says no, the next real tap
+ * or key anywhere does it, and the button says so meanwhile.
+ */
+let armed = false;
+const armWatchers = new Set<() => void>();
+function setArmed(v: boolean) {
+  armed = v;
+  for (const f of armWatchers) f();
+}
+function armForNextTap() {
+  if (armed) return;
+  setArmed(true);
+  const go = () => {
+    window.removeEventListener("pointerup", go, true);
+    window.removeEventListener("keydown", go, true);
+    setArmed(false);
+    void enterFullscreen();
+  };
+  window.addEventListener("pointerup", go, true);
+  window.addEventListener("keydown", go, true);
+}
+
+export async function toggleFullscreen() {
+  if (isFullscreen()) return exitFullscreen();
+  if (!(await enterFullscreen())) armForNextTap();
+}
+
+/** True while fullscreen is waiting for a real tap (chosen with the controller). */
+export function useFullscreenArmed() {
+  const [on, setOn] = useState(armed);
+  useEffect(() => {
+    const f = () => setOn(armed);
+    armWatchers.add(f);
+    return () => {
+      armWatchers.delete(f);
+    };
+  }, []);
+  return on;
 }
 
 /** Current fullscreen state, updated on the browser's change events. */

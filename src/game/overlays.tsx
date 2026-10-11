@@ -82,7 +82,7 @@ import {
   Truck,
 } from "lucide-react";
 import { bindingLabel } from "./bindings";
-import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen } from "./fullscreen";
+import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen, useFullscreenArmed } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
 import { accessory, allAccessories } from "./accessories";
 import { ItemThumb } from "./item-thumbs";
@@ -716,6 +716,7 @@ function TitleScreen() {
   const setDress = useGame((s) => s.setDress);
   const [detail, setDetail] = useState<TitleDetail>(null);
   const fullscreen = useFullscreen();
+  const fullscreenArmed = useFullscreenArmed();
   const toggleWardrobe = useGame((s) => s.toggleWardrobe);
   const setControls = useGame((s) => s.setControls);
 
@@ -994,7 +995,7 @@ function TitleScreen() {
                   {...rowProps()}
                   icon={fullscreen ? Minimize : Maximize}
                   tint="text-ink"
-                  label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  label={fullscreen ? "Exit fullscreen" : fullscreenArmed ? "Tap the screen to go fullscreen" : "Fullscreen"}
                   onClick={() => {
                     sfx.click();
                     void toggleFullscreen();
@@ -2395,6 +2396,7 @@ function PauseScreen() {
   const levelIndex = useGame((s) => s.levelIndex);
   const toTitle = useGame((s) => s.toTitle);
   const fullscreen = useFullscreen();
+  const fullscreenArmed = useFullscreenArmed();
   const toggleWardrobe = useGame((s) => s.toggleWardrobe);
   const setControls = useGame((s) => s.setControls);
   const view = useGame((s) => s.view);
@@ -2489,7 +2491,7 @@ function PauseScreen() {
           {canFullscreen() && (
             <Btn variant="secondary" onClick={() => void toggleFullscreen()} className={item}>
               {fullscreen ? <Minimize className="size-5 shrink-0" /> : <Maximize className="size-5 shrink-0" />}
-              {fullscreen ? "Exit fullscreen" : "Fullscreen"}
+              {fullscreen ? "Exit fullscreen" : fullscreenArmed ? "Tap the screen to go fullscreen" : "Fullscreen"}
             </Btn>
           )}
           <Btn variant="secondary" onClick={toTitle} className={item}>
