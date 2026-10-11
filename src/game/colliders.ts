@@ -17,7 +17,9 @@ import type { BoxProp, LevelDef, Prop } from "./types";
  *
  * Everything is solid except liquid, spray, and props the author marked
  * non-colliding that are also under 0.35m in both horizontal dimensions
- * (handrails, trim, tape). Colliders ignore rotation on purpose: addBox has
+ * (trim, tape). Thin things she should bump into but the camera should see
+ * past (handrails, flag poles, nets, bench backs) are marked `post` instead:
+ * solid, and flagged seeThrough for camera.ts. Colliders ignore rotation on purpose: addBox has
  * always pushed an axis-aligned box at the unrotated size.
  */
 
@@ -45,7 +47,7 @@ export function boxIsBuilt(p: BoxProp) {
 }
 
 export function boxIsSolid(p: BoxProp) {
-  return isSolidProp(p.color) && !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35);
+  return isSolidProp(p.color) && (!!p.post || !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35));
 }
 
 export type LabelledAABB = AABB & { label: string; index: number };
@@ -59,7 +61,8 @@ export function collidersFor(level: LevelDef): LabelledAABB[] {
   level.props.forEach((p: Prop, i: number) => {
     if (p.kind === "box") {
       if (!boxIsBuilt(p) || !boxIsSolid(p)) return;
-      push(aabbFromCenter(p.pos[0], p.pos[1], p.pos[2], p.size[0], p.size[1], p.size[2]), `box ${p.color}`, i);
+      const b = aabbFromCenter(p.pos[0], p.pos[1], p.pos[2], p.size[0], p.size[1], p.size[2]);
+      push(p.post ? { ...b, seeThrough: true } : b, `box ${p.color}`, i);
     } else if (p.kind === "cyl") {
       if (!isSolidProp(p.color)) return;
       push(aabbFromCenter(p.pos[0], p.pos[1], p.pos[2], p.r * 1.6, p.h, p.r * 1.6), `cyl ${p.color}`, i);

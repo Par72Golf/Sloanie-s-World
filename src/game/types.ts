@@ -25,6 +25,11 @@ export type BoxProp = {
   size: Vec3;
   color: string;
   collide?: boolean;
+  /**
+   * A post, rail, net or backrest: solid to her, but thin enough that the
+   * camera looks past it rather than pulling in whenever it passes behind one.
+   */
+  post?: boolean;
   ry?: number;
   opacity?: number;
 };

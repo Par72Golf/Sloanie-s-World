@@ -5,6 +5,8 @@ export type AABB = {
   maxY: number;
   minZ: number;
   maxZ: number;
+  /** solid to her, but the camera looks past it (a thin post or rail; colliders.ts) */
+  seeThrough?: boolean;
 };
 
 export function aabbFromCenter(

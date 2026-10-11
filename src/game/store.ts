@@ -25,6 +25,12 @@ function rollLayout(previous: number) {
   return next;
 }
 
+
+/**
+ * How many parks are on the menus (levels.ts LEVELS). The store can't import
+ * the parks themselves (they pull in all the geometry), so it keeps the count.
+ */
+export const OPEN_PARKS = 2;
 export type Hand = "rock" | "paper" | "scissors";
 const HANDS: Hand[] = ["rock", "paper", "scissors"];
 const BEATS: Record<Hand, Hand> = { rock: "scissors", paper: "rock", scissors: "paper" };
@@ -956,7 +962,7 @@ export const useGame = create<GameStore>((set, get) => ({
   completeLevel: () => {
     const st = get();
     const { levelIndex, unlocked, runActive, runValid, runSeconds, hintsUsedThisRun, playerName } = st;
-    const nextUnlock = Math.max(unlocked, levelIndex + 1);
+    const nextUnlock = Math.min(OPEN_PARKS - 1, Math.max(unlocked, levelIndex + 1));
     const last = levelIndex >= 2;
 
     let board = st.leaderboard.map((row) => row.slice());
@@ -1023,7 +1029,7 @@ export const useGame = create<GameStore>((set, get) => ({
       emmettNotice: "The park is all yours! Carnival, pets, stickers and your house are waiting.",
     }),
   nextLevel: () => {
-    const levelIndex = Math.min(2, get().levelIndex + 1);
+    const levelIndex = Math.min(OPEN_PARKS - 1, get().levelIndex + 1);
     set({
       runSeconds: 0,
       runActive: true,

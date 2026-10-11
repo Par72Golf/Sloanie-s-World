@@ -91,7 +91,7 @@ export const STICKER_SPOTS: StickerSpot[] = [
     id: "chicken",
     pos: [-50, 0.95, -139],
     area: "the farm paddock",
-    hint: "A chicken got into the fenced paddock at the farm. Squeeze between the fence posts to get in.",
+    hint: "A chicken got into the fenced paddock at the farm. Go in through the gap in the fence on the farmhouse side.",
   },
   {
     id: "sunflower",

@@ -60,6 +60,8 @@ export type CameraResult = {
 
 function blockerAt(boxes: AABB[], x: number, y: number, z: number, pad: number): AABB | null {
   for (const b of boxes) {
+    // posts and rails stop her, not the view
+    if (b.seeThrough) continue;
     if (
       x > b.minX - pad &&
       x < b.maxX + pad &&

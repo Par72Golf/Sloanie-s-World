@@ -10,6 +10,10 @@ import { SPLASH_BUCKET, SPLASH_FLOWERS, SPLASH_RADIUS } from "./splash";
  * axis-aligned boxes and a rotated collider would be wrong.
  */
 
+/** Solid to her, but the camera looks past it (types.ts `post`). */
+const POST: Partial<BoxProp> = { post: true };
+
+
 function box(
   x: number,
   y: number,
@@ -117,8 +121,8 @@ export function tennisCourts(cx: number, cz: number, count = 2): Prop[] {
     // net: posts plus a sagging band, plus the white tape along the top
     p.push(box(x - cw / 2 - 0.3, 0.55, cz, 0.28, 1.1, 0.28, "#5a6a70"));
     p.push(box(x + cw / 2 + 0.3, 0.55, cz, 0.28, 1.1, 0.28, "#5a6a70"));
-    p.push(box(x, 0.46, cz, cw + 0.6, 0.86, 0.14, "#3a4448", false));
-    p.push(box(x, 0.9, cz, cw + 0.6, 0.1, 0.14, C.line, false));
+    p.push(box(x, 0.46, cz, cw + 0.6, 0.86, 0.14, "#3a4448", true, POST));
+    p.push(box(x, 0.9, cz, cw + 0.6, 0.1, 0.14, C.line, true, POST));
 
     // a ball or two left behind
     p.push(cyl(x + 3.2, 0.14, cz + 7.4, 0.16, 0.28, "#d8e84a", false));
@@ -235,9 +239,9 @@ export function baseballDiamond(cx: number, cz: number, flip = false): Prop[] {
     p.push(box(cx, 0.4 + i * 0.44, z, 12, 0.18, 0.85, "#b8a890"));
     p.push(box(cx, (0.4 + i * 0.44) / 2, z + (flip ? 0.42 : -0.42), 12, 0.4 + i * 0.44, 0.14, "#8a9aa4"));
   }
-  // side rails so the stand reads as a structure
+  // side rails, so the stand reads as a structure and she can't walk off its ends
   for (const sx of [-1, 1]) {
-    p.push(box(cx + sx * 6.1, 1.5, Z(10.5), 0.16, 1.1, 4.4, "#6f8288", false));
+    p.push(box(cx + sx * 6.1, 1.5, Z(10.5), 0.16, 1.1, 4.4, "#6f8288", true, POST));
   }
 
   return p;
@@ -321,7 +325,7 @@ export function campground(cx: number, cz: number): Prop[] {
   // cooler and lantern
   p.push(box(tx + 2.4, 0.3, tz + 0.2, 0.8, 0.6, 0.55, "#4f93c4"));
   p.push(box(tx + 2.4, 0.64, tz + 0.2, 0.82, 0.08, 0.57, "#f7f3ee", false));
-  p.push(box(tx - 0.4, 0.98, tz, 0.3, 0.28, 0.3, "#d8d0c4", false));
+  p.push(box(tx - 0.4, 0.98, tz, 0.3, 0.28, 0.3, "#d8d0c4", true, POST));
   // hammock between two posts
   const hx = cx + 10;
   const hz = cz + 5;
@@ -398,8 +402,8 @@ export function swimmingPool(cx: number, cz: number): Prop[] {
   p.push(box(cx - w / 2 - 2.6, 0.75, cz, 0.4, 0.3, 0.4, C.chrome, false));
   // ladders
   for (const s of [-1, 1]) {
-    p.push(box(cx + w / 2 + 0.9, 0.6, cz + s * 3, 0.08, 1.2, 0.08, C.chrome, false));
-    p.push(box(cx + w / 2 + 0.9, 0.6, cz + s * 3 + 0.5, 0.08, 1.2, 0.08, C.chrome, false));
+    p.push(box(cx + w / 2 + 0.9, 0.6, cz + s * 3, 0.08, 1.2, 0.08, C.chrome, true, POST));
+    p.push(box(cx + w / 2 + 0.9, 0.6, cz + s * 3 + 0.5, 0.08, 1.2, 0.08, C.chrome, true, POST));
   }
   // lifeguard chair
   p.push(box(cx + 6, 1.4, cz - d / 2 - 3, 0.9, 2.8, 0.9, "#f7f3ee"));
@@ -409,7 +413,7 @@ export function swimmingPool(cx: number, cz: number): Prop[] {
   for (let i = 0; i < 4; i++) {
     const lx = cx - 7 + i * 4.5;
     p.push(box(lx, 0.3, cz + d / 2 + 3, 0.9, 0.2, 2.2, "#f7f3ee"));
-    p.push(box(lx, 0.65, cz + d / 2 + 3.9, 0.9, 0.5, 0.2, "#f7f3ee", false));
+    p.push(box(lx, 0.65, cz + d / 2 + 3.9, 0.9, 0.5, 0.2, "#f7f3ee", true, POST));
     p.push(box(lx, 0.42, cz + d / 2 + 3, 0.8, 0.06, 2.0, i % 2 ? "#4f93c4" : "#ffc53d", false));
   }
   // kiddie pool
@@ -509,7 +513,7 @@ export function farm(cx: number, cz: number): Prop[] {
   const p: Prop[] = [];
   p.push(surf(cx, TOP.lawn, cz, 52, 36, "#8fbf62"));
   p.push({ kind: "house", x: cx - 16, z: cz - 8, body: "#c9442f", roof: "#6a3a28", w: 10, d: 8 });
-  // paddock: posts solid, rails thin
+  // paddock: posts and rails solid; she goes in through the gap on the house side
   const px = cx + 8;
   const pz = cz - 6;
   const pw = 22;
@@ -524,12 +528,12 @@ export function farm(cx: number, cz: number): Prop[] {
     post(px + pw / 2, pz - pd / 2 + (i * pd) / 5);
   }
   for (const y of [0.4, 0.8]) {
-    p.push(box(px, y, pz - pd / 2, pw, 0.08, 0.08, C.woodLight, false));
-    p.push(box(px, y, pz + pd / 2, pw, 0.08, 0.08, C.woodLight, false));
+    p.push(box(px, y, pz - pd / 2, pw, 0.08, 0.08, C.woodLight, true, POST));
+    p.push(box(px, y, pz + pd / 2, pw, 0.08, 0.08, C.woodLight, true, POST));
     // the gate side has a gap in the middle so she can walk in
-    p.push(box(px - pw / 2, y, pz - pd / 4 - 0.75, 0.08, 0.08, pd / 2 - 1.5, C.woodLight, false));
-    p.push(box(px - pw / 2, y, pz + pd / 4 + 0.75, 0.08, 0.08, pd / 2 - 1.5, C.woodLight, false));
-    p.push(box(px + pw / 2, y, pz, 0.08, 0.08, pd, C.woodLight, false));
+    p.push(box(px - pw / 2, y, pz - pd / 4 - 0.75, 0.08, 0.08, pd / 2 - 1.5, C.woodLight, true, POST));
+    p.push(box(px - pw / 2, y, pz + pd / 4 + 0.75, 0.08, 0.08, pd / 2 - 1.5, C.woodLight, true, POST));
+    p.push(box(px + pw / 2, y, pz, 0.08, 0.08, pd, C.woodLight, true, POST));
   }
   p.push(surf(px, TOP.apron, pz, pw - 1, pd - 1, "#c7a97a"));
   p.push(box(px + 6, 0.3, pz + 3, 2.2, 0.6, 0.8, C.chrome));
@@ -744,8 +748,8 @@ export function miniGolf(cx: number, cz: number): Prop[] {
     // tee mat and the hole with its flag
     p.push(surf(hx, TOP.line, cz + g.teeDz, 1.2, 1.2, "#2f6f8f", 0.05));
     p.push(disc(hx, TOP.line, cz + g.cupDz, g.cupR, "#2f2a26", 0.05));
-    p.push(box(hx, 0.9, cz + g.cupDz, 0.06, 1.8, 0.06, C.chrome, false));
-    p.push(box(hx + 0.35, 1.55, cz + g.cupDz, 0.6, 0.35, 0.05, g.flags[i]!, false));
+    p.push(box(hx, 0.9, cz + g.cupDz, 0.06, 1.8, 0.06, C.chrome, true, POST));
+    p.push(box(hx + 0.35, 1.55, cz + g.cupDz, 0.6, 0.35, 0.05, g.flags[i]!, true, POST));
     // the tee marker, so she can tell the holes apart
     p.push(box(hx - 1.5, 0.3, cz + g.teeDz, 0.5, 0.6, 0.12, g.flags[i]!));
     // whatever stands on this green
@@ -762,11 +766,11 @@ export function miniGolf(cx: number, cz: number): Prop[] {
     const hx = cx + g.laneDx[w.hole]!;
     const span = w.legDx * 2 + w.postW;
     for (const s of [-1, 1]) {
-      p.push(box(hx + s * w.legDx, (w.legH + w.postH) / 2, cz, w.postW, w.postH - w.legH, w.postW, "#a05040", false));
+      p.push(box(hx + s * w.legDx, (w.legH + w.postH) / 2, cz, w.postW, w.postH - w.legH, w.postW, "#a05040", true, POST));
     }
     p.push(box(hx, w.postH + w.beamH / 2, cz, span, w.beamH, w.postW, "#a05040", false));
     // the post the hub hangs from, in front of the beam, and the hub itself
-    p.push(box(hx, (w.hubY + w.postH + w.beamH) / 2, cz + w.dz - 0.28, 0.16, w.postH + w.beamH - w.hubY, 0.16, "#a05040", false));
+    p.push(box(hx, (w.hubY + w.postH + w.beamH) / 2, cz + w.dz - 0.28, 0.16, w.postH + w.beamH - w.hubY, 0.16, "#a05040", true, POST));
     p.push(cyl(hx, w.hubY, cz + w.dz, 0.17, 0.3, "#c8a040", false));
   }
   // the log's run: a sandy strip so it is clear where the log will come from
@@ -799,13 +803,13 @@ export function soccerPitch(cx: number, cz: number): Prop[] {
   p.push(surf(cx, TOP.line, cz, 0.2, d, C.line, 0.05));
   p.push(disc(cx, TOP.line, cz, 4, C.line, 0.05));
   p.push(disc(cx, TOP.mark, cz, 3.8, "#5fb05a", 0.05));
-  // goals: posts solid, crossbar and net thin
+  // goals: posts and the back of the net solid, crossbar and roof thin
   for (const s of [-1, 1]) {
     const gx = cx + (s * w) / 2;
     p.push(box(gx, 1.2, cz - 3, 0.16, 2.4, 0.16, C.line));
     p.push(box(gx, 1.2, cz + 3, 0.16, 2.4, 0.16, C.line));
     p.push(box(gx, 2.4, cz, 0.12, 0.12, 6.2, C.line, false));
-    p.push(box(gx + s * 0.9, 1.2, cz, 0.06, 2.4, 6.2, "#e8f0f4", false, { opacity: 0.5 }));
+    p.push(box(gx + s * 0.9, 1.2, cz, 0.06, 2.4, 6.2, "#e8f0f4", true, { opacity: 0.5, post: true }));
     p.push(box(gx + s * 0.9, 2.4, cz, 1.9, 0.06, 6.2, "#e8f0f4", false, { opacity: 0.5 }));
   }
   // benches and corner flags
@@ -814,8 +818,8 @@ export function soccerPitch(cx: number, cz: number): Prop[] {
     p.push(box(cx + s * 8 - 1.7, 0.2, cz + d / 2 + 4, 0.2, 0.4, 0.5, C.wood));
     p.push(box(cx + s * 8 + 1.7, 0.2, cz + d / 2 + 4, 0.2, 0.4, 0.5, C.wood));
     for (const t of [-1, 1]) {
-      p.push(box(cx + (s * w) / 2, 0.8, cz + (t * d) / 2, 0.06, 1.6, 0.06, C.chrome, false));
-      p.push(box(cx + (s * w) / 2 + 0.25, 1.45, cz + (t * d) / 2, 0.5, 0.3, 0.04, "#e8455f", false));
+      p.push(box(cx + (s * w) / 2, 0.8, cz + (t * d) / 2, 0.06, 1.6, 0.06, C.chrome, true, POST));
+      p.push(box(cx + (s * w) / 2 + 0.25, 1.45, cz + (t * d) / 2, 0.5, 0.3, 0.04, "#e8455f", true, POST));
     }
   }
   return p;
@@ -1067,14 +1071,14 @@ export function playCorner(): Prop[] {
   p.push(box(cx, TOP.inner + 0.44, cz, 1.05, 0.24, 1.05, CASTLE));
   p.push(box(cx - 0.4, TOP.inner + 0.7, cz - 0.38, 0.44, 0.28, 0.44, CASTLE));
   p.push(box(cx + 0.4, TOP.inner + 0.7, cz + 0.38, 0.44, 0.28, 0.44, CASTLE));
-  // flag: pole and pennant are decoration, thin and non-colliding
-  p.push(box(cx, TOP.inner + 0.84, cz, 0.12, 0.56, 0.12, "#d45a4a", false));
-  p.push(box(cx + 0.25, TOP.inner + 1.04, cz, 0.42, 0.26, 0.05, "#d45a4a", false));
+  // flag: pole and pennant, solid to her if she climbs the castle
+  p.push(box(cx, TOP.inner + 0.84, cz, 0.12, 0.56, 0.12, "#d45a4a", true, POST));
+  p.push(box(cx + 0.25, TOP.inner + 1.04, cz, 0.42, 0.26, 0.05, "#d45a4a", true, POST));
 
   // --- bucket and spade, left where a seven-year-old would leave them
   p.push(box(24.3, TOP.inner + 0.21, 15.4, 0.6, 0.42, 0.6, "#4f93c4"));
   p.push(box(24.3, TOP.inner + 0.46, 15.4, 0.66, 0.1, 0.1, FENCE, false));
-  p.push(box(23.3, TOP.inner + 0.45, 14.2, 0.12, 0.9, 0.12, "#d45a4a", false));
+  p.push(box(23.3, TOP.inner + 0.45, 14.2, 0.12, 0.9, 0.12, "#d45a4a", true, POST));
   p.push(box(23.3, TOP.inner + 0.08, 14.2, 0.34, 0.16, 0.26, FENCE, false));
 
   // --- footprints leading away from the bottom of the slide. Big enough to be
@@ -1106,8 +1110,9 @@ export function playCorner(): Prop[] {
   // only in the sense that it merges with the posts; nothing can touch it
   p.push(box(30.2, 2.02, 9.4, 0.32, 0.24, 3.0, DARKWOOD));
 
-  // --- picket fence. The rail is the only solid part and its top is 0.45, so
-  // the edge is something she steps over rather than something that traps her.
+  // --- picket fence. The rail's top is 0.45, so the edge is something she
+  // steps over between the pickets rather than something that traps her; the
+  // pickets themselves stop her, the way a fence post would.
   const fence = (x1: number, z1: number, x2: number, z2: number) => {
     const alongX = Math.abs(x2 - x1) > Math.abs(z2 - z1);
     const len = Math.abs(alongX ? x2 - x1 : z2 - z1);
@@ -1134,7 +1139,8 @@ export function playCorner(): Prop[] {
           0.92,
           alongX ? 0.16 : 0.28,
           FENCE,
-          false,
+          true,
+          POST,
         ),
       );
     }

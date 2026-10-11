@@ -34,6 +34,10 @@ import {
   treeLine,
 } from "./park";
 
+/** Solid to her, but the camera looks past it (types.ts `post`). */
+const POST: Partial<BoxProp> = { post: true };
+
+
 function box(
   x: number,
   y: number,
@@ -237,10 +241,10 @@ function climbStairs(
     const hz = cz + pz * (width * 0.5 + 0.08);
     const hx2 = cx - px * (width * 0.5 + 0.08);
     const hz2 = cz - pz * (width * 0.5 + 0.08);
-    // handrails are decoration; at 0.12m square they are invisible edge-on
-    // and would stand as unexplained walls wherever a path meets a stair top
-    out.push(box(hx, top + 0.45, hz, 0.12, 0.9, 0.12, rail, false));
-    out.push(box(hx2, top + 0.45, hz2, 0.12, 0.9, 0.12, rail, false));
+    // handrail posts stand outside the treads, so they stop her stepping off
+    // the side without ever being in the way of the stairs themselves
+    out.push(box(hx, top + 0.45, hz, 0.12, 0.9, 0.12, rail, true, POST));
+    out.push(box(hx2, top + 0.45, hz2, 0.12, 0.9, 0.12, rail, true, POST));
   }
   const endX = x + nx * (steps - 1) * run;
   const endZ = z + nz * (steps - 1) * run;
@@ -630,9 +634,9 @@ function picnicPark(): LevelDef {
     // two 1.4m blocks used to stand here with nothing on them. Benches facing
     // the gazebo instead, which is also where the sticker book sits.
     box(4.6, 0.45, -2.4, 0.8, 0.2, 3.0, "#c49a62"),
-    box(4.28, 0.85, -2.4, 0.16, 0.7, 3.0, "#c49a62", false),
+    box(4.28, 0.85, -2.4, 0.16, 0.7, 3.0, "#c49a62", true, POST),
     box(11.4, 0.45, -2.4, 0.8, 0.2, 3.0, "#c49a62"),
-    box(11.72, 0.85, -2.4, 0.16, 0.7, 3.0, "#c49a62", false),
+    box(11.72, 0.85, -2.4, 0.16, 0.7, 3.0, "#c49a62", true, POST),
 
 
     // stairs stop at the treehouse deck; the structure itself is a mesh now
@@ -746,7 +750,7 @@ function picnicPark(): LevelDef {
     box(CLEARING.x - 3, 0.3, CLEARING.z + 4, 2.4, 0.6, 0.7, "#8a5a32"),
     box(CLEARING.x + 4, 0.3, CLEARING.z - 3, 0.9, 0.6, 0.9, "#7a5232"),
     // a little signpost at the trail head
-    box(-108, 1.0, 3.2, 0.14, 2.0, 0.14, "#8a5a32", false),
+    box(-108, 1.0, 3.2, 0.14, 2.0, 0.14, "#8a5a32", true, POST),
     box(-108, 1.8, 3.2, 1.2, 0.4, 0.08, "#e8d7b8", false),
   ];
   const trailRects = [
@@ -1449,7 +1453,7 @@ const skyDumplings: DumplingDef[] = [
   },
 ];
 
-function cloudCastle(): LevelDef {
+export function cloudCastle(): LevelDef {
   const maze = mazeAt(0, 0, "#d8f0e0", SKY_MAZE_LAYOUT);
   skyDumplings.find((d) => d.id === "hedge")!.pos = [maze.dumpling[0] + 22, 0.55, maze.dumpling[1]];
 
@@ -1551,7 +1555,13 @@ function cloudCastle(): LevelDef {
   };
 }
 
-export const LEVELS: LevelDef[] = [picnicPark(), sugarRushPark(), cloudCastle()];
+/**
+ * The parks on the menus, in order. Cloud Castle (cloudCastle below) is built
+ * but kept off them until it is up to the other two's standard, so the game
+ * never shows a park that feels unfinished. To bring it back, add it here and
+ * raise OPEN_PARKS in store.ts.
+ */
+export const LEVELS: LevelDef[] = [picnicPark(), sugarRushPark()];
 
 export function levelByIndex(i: number) {
   return LEVELS[Math.max(0, Math.min(LEVELS.length - 1, i))]!;

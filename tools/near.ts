@@ -28,7 +28,7 @@ const near = (minX: number, maxX: number, minZ: number, maxZ: number) => {
 for (const p of level.props) {
   if (p.kind === "box") {
     if (p.size[0] < 0.15 && p.size[1] < 0.15) continue;
-    const solid = isSolidProp(p.color) && !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35);
+    const solid = isSolidProp(p.color) && (!!p.post || !(p.collide === false && Math.min(p.size[0], p.size[2]) <= 0.35));
     if (!solid) continue;
     const [w, h, dd] = p.size;
     const d = near(p.pos[0] - w / 2, p.pos[0] + w / 2, p.pos[2] - dd / 2, p.pos[2] + dd / 2);

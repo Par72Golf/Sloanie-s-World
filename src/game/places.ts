@@ -81,6 +81,10 @@ const GOLD = "#ffc53d";
 const BLUE = "#4f93c4";
 const GREEN = "#2f7d5b";
 
+/** Solid to her, but the camera looks past it (types.ts `post`). */
+const POST: Partial<BoxProp> = { post: true };
+
+
 function box(
   x: number,
   y: number,
@@ -90,8 +94,9 @@ function box(
   sz: number,
   color: string,
   collide = true,
+  extra?: Partial<BoxProp>,
 ): BoxProp {
-  return { kind: "box", pos: [x, y, z], size: [sx, sy, sz], color, collide };
+  return { kind: "box", pos: [x, y, z], size: [sx, sy, sz], color, collide, ...extra };
 }
 
 /** Flat slab described by the height of its visible top face. */
@@ -108,8 +113,9 @@ function bench(x: number, z: number, along: "x" | "z", facing: number): Prop[] {
   const w = along === "x" ? 3.0 : 0.8;
   const d = along === "x" ? 0.8 : 3.0;
   const out: Prop[] = [box(x, 0.45, z, w, 0.2, d, BENCH)];
-  if (along === "x") out.push(box(x, 0.85, z - facing * 0.32, w, 0.7, 0.16, BENCH, false));
-  else out.push(box(x - facing * 0.32, 0.85, z, 0.16, 0.7, d, BENCH, false));
+  // the backrest stops her; it used to be decoration she walked straight through
+  if (along === "x") out.push(box(x, 0.85, z - facing * 0.32, w, 0.7, 0.16, BENCH, true, POST));
+  else out.push(box(x - facing * 0.32, 0.85, z, 0.16, 0.7, d, BENCH, true, POST));
   for (const s of [-1, 1]) {
     const lx = along === "x" ? x + s * 1.3 : x;
     const lz = along === "x" ? z : z + s * 1.3;
@@ -278,7 +284,7 @@ export function duckPondProps(): Prop[] {
   // the jetty, reaching over the west edge of the water. Its top is 0.27, the
   // same band as the big pond's dock, so the step onto it is a step.
   out.push(box(9.5, 0.16, z, 5.4, 0.22, 2.6, DECK));
-  for (const s of [-1, 1]) out.push(box(11.7, 0.5, z + s * 1.1, 0.24, 0.9, 0.24, WOOD, false));
+  for (const s of [-1, 1]) out.push(box(11.7, 0.5, z + s * 1.1, 0.24, 0.9, 0.24, WOOD, true, POST));
 
   // the duck house, on the bank south-east of the water
   out.push(box(x + 3.4, 0.5, z + r + 1.1, 1.5, 1.0, 1.2, CREAM));
