@@ -2,6 +2,7 @@ import Peer, { type DataConnection } from "peerjs";
 import { create } from "zustand";
 import type { Worn } from "./accessories";
 import type { Placed } from "./build-store";
+import type { Avatar } from "./meshes";
 import type { DressId } from "./types";
 
 /**
@@ -33,9 +34,11 @@ export type Pose = {
   speed: number;
   /** which park she is in: someone in the other park is not drawn */
   level: number;
+  /** sweets (or dumplings) she has found in that park: the race */
+  found?: number;
 };
 
-export type Look = { name: string; dress: DressId; worn: Worn };
+export type Look = { name: string; dress: DressId; worn: Worn; avatar?: Avatar };
 
 type Msg =
   | { t: "look"; look: Look; from?: string }

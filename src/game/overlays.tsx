@@ -84,7 +84,7 @@ import {
 } from "lucide-react";
 import { bindingLabel } from "./bindings";
 import { useNet } from "./net";
-import { PlayTogether } from "./together-panel";
+import { AvatarPicker, PlayTogether, TogetherScores } from "./together-panel";
 import { canFullscreen, enterFullscreen, toggleFullscreen, useFullscreen, useFullscreenArmed } from "./fullscreen";
 import { HITCH_MS, debugEnabled, perf } from "./debug";
 import { accessory, allAccessories } from "./accessories";
@@ -956,6 +956,7 @@ function TitleScreen() {
 
               <div className="mx-3 my-0.5 h-[3px] rounded-full bg-[linear-gradient(90deg,rgb(46_24_86/0),rgb(46_24_86/0.14),rgb(46_24_86/0))]" aria-hidden />
 
+              <MenuItem {...rowProps()} icon={Users} tint="text-teal" label="Play together" onClick={() => toggle("together")} />
               <MenuItem
                 {...rowProps()}
                 icon={UserRound}
@@ -1006,7 +1007,6 @@ function TitleScreen() {
                   }}
                 />
               )}
-              <MenuItem {...rowProps()} icon={Users} tint="text-teal" label="Play together" onClick={() => toggle("together")} />
               <MenuItem {...rowProps()} icon={RotateCcw} tint="text-berry" label="Start over" onClick={() => toggle("reset")} />
               <MenuItem {...rowProps()} icon={Lock} tint="text-grape" label="Grown-ups" onClick={() => toggle("grownup")} />
             </div>
@@ -1054,6 +1054,9 @@ function TitleScreen() {
                         className="chunk-sm mt-2 block h-12 w-full bg-surface-2 px-4 font-display text-xl font-semibold text-ink outline-none placeholder:text-muted 2xl:h-16 2xl:text-3xl"
                       />
                     </label>
+                    <div className="mt-3">
+                      <AvatarPicker />
+                    </div>
                     <p className="mt-3 flex items-center gap-2 font-display text-base font-semibold text-ink-soft 2xl:mt-5 2xl:text-xl">
                       <Palette className="size-5 text-accent" />
                       Dress
@@ -1441,6 +1444,9 @@ function HUD() {
               </div>
             </div>
           </div>
+
+          {/* playing together: the race, under the treasure card */}
+          {!golfPlaying && !bowlsPlaying && <TogetherScores />}
 
           {/* while she is putting or bowling, only that game's messages belong on screen */}
           {(golfPlaying || bowlsPlaying ? !!emmettNotice : emmettNotice || fleeNotice || nearCollect || boardReady || rideNear || close) && (
@@ -2434,6 +2440,15 @@ function PauseScreen() {
             <Play className="size-6 fill-current" />
             Keep hunting
           </Btn>
+          <Btn variant="secondary" onClick={() => setTogether((v) => !v)} className={item}>
+            <Users className="size-5 shrink-0 text-teal" />
+            {netStatus === "hosting" || netStatus === "joined" ? "Playing together" : "Play together"}
+          </Btn>
+          {together && (
+            <div className="rounded-[1.1rem] border-[3px] border-line bg-surface p-3 sm:col-span-3">
+              <PlayTogether />
+            </div>
+          )}
           <Btn variant="secondary" onClick={toggleWardrobe} className={item}>
             <Shirt className="size-5 shrink-0 text-grape" />
             Wardrobe
@@ -2501,15 +2516,6 @@ function PauseScreen() {
               {fullscreen ? <Minimize className="size-5 shrink-0" /> : <Maximize className="size-5 shrink-0" />}
               {fullscreen ? "Exit fullscreen" : fullscreenArmed ? "Tap the screen to go fullscreen" : "Fullscreen"}
             </Btn>
-          )}
-          <Btn variant="secondary" onClick={() => setTogether((v) => !v)} className={item}>
-            <Users className="size-5 shrink-0 text-teal" />
-            {netStatus === "hosting" || netStatus === "joined" ? "Playing together" : "Play together"}
-          </Btn>
-          {together && (
-            <div className="rounded-[1.1rem] border-[3px] border-line bg-surface p-3 sm:col-span-2">
-              <PlayTogether />
-            </div>
           )}
           <Btn variant="secondary" onClick={toTitle} className={item}>
             <LogOut className="size-5 shrink-0 text-berry" />

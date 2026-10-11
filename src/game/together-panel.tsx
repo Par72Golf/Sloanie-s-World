@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogIn, LogOut, Users } from "lucide-react";
 import { sfx } from "./audio";
-import { hostRoom, joinRoom, leaveRoom, useNet, type Look } from "./net";
+import { hostRoom, joinRoom, leaveRoom, remotes, useNet, type Look } from "./net";
 import { Btn } from "./overlays";
 import { useGame } from "./store";
+import { useAvatar } from "./avatar";
+import { AVATARS } from "./meshes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 function myLook(): Look {
   const st = useGame.getState();
-  return { name: st.playerName.trim() || "Explorer", dress: st.dress, worn: st.worn };
+  return { name: st.playerName.trim() || "Explorer", dress: st.dress, worn: st.worn, avatar: useAvatar.getState().avatar };
 }
 
 function Digits({ value, length = 4, big }: { value: string; length?: number; big?: boolean }) {
@@ -31,6 +33,32 @@ function Digits({ value, length = 4, big }: { value: string; length?: number; bi
         >
           {value[i] ?? ""}
         </span>
+      ))}
+    </div>
+  );
+}
+
+/** Girl, boy or grown-up: who this player is drawn as, here and on everyone else's screen. */
+export function AvatarPicker() {
+  const avatar = useAvatar((s) => s.avatar);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-base font-semibold text-ink-soft">You are:</span>
+      {AVATARS.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          onClick={() => {
+            sfx.click();
+            useAvatar.getState().setAvatar(a.id);
+          }}
+          className={cn(
+            "press rounded-full border-[3px] px-3 py-1 font-display text-lg font-semibold",
+            a.id === avatar ? "border-edge bg-teal text-white" : "border-line bg-surface text-ink",
+          )}
+        >
+          {a.name}
+        </button>
       ))}
     </div>
   );
@@ -144,6 +172,7 @@ export function PlayTogether() {
       <p className="text-base font-semibold text-ink 2xl:text-xl">
         Play in the same park as your friends, each on your own screen, and build together in the Build Yard.
       </p>
+      <AvatarPicker />
       <div className="flex flex-wrap gap-2.5">
         <Btn
           onClick={() => {
@@ -164,6 +193,49 @@ export function PlayTogether() {
         </Btn>
       </div>
       <p className="text-sm text-ink-soft">Your sweets, stickers, tickets and house stay your own.</p>
+    </div>
+  );
+}
+
+/**
+ * The race, while playing together: everyone in this park and how many
+ * they have found, most first. Each player hunts for herself, so it is
+ * a race whether anyone means it to be or not; this makes it one.
+ */
+export function TogetherScores() {
+  const status = useNet((s) => s.status);
+  const level = useGame((s) => s.levelIndex);
+  const mine = useGame((s) => (s.collected[s.levelIndex] ?? []).length);
+  const name = useGame((s) => s.playerName.trim() || "Explorer");
+  const [, tick] = useState(0);
+  const live = status === "hosting" || status === "joined";
+  // the others' counts arrive with their positions, outside React
+  useEffect(() => {
+    if (!live) return;
+    const t = window.setInterval(() => tick((n) => n + 1), 700);
+    return () => window.clearInterval(t);
+  }, [live]);
+  if (!live) return null;
+  const rows = [{ name, found: mine, me: true }];
+  for (const r of remotes.values()) {
+    if (r.look && r.pose && r.pose.level === level) rows.push({ name: r.look.name || "A friend", found: r.pose.found ?? 0, me: false });
+  }
+  if (rows.length < 2) return null;
+  rows.sort((a, b) => b.found - a.found);
+  return (
+    <div className="pointer-events-none flex max-w-full flex-wrap gap-1.5">
+      {rows.map((r, i) => (
+        <span
+          key={r.name + i}
+          className={cn(
+            "ui-chip px-3 py-0.5 text-base font-bold",
+            r.me ? "bg-teal text-white" : "bg-surface text-ink",
+          )}
+        >
+          {i === 0 && r.found > 0 ? "👑 " : ""}
+          {r.name} {r.found}
+        </span>
+      ))}
     </div>
   );
 }

@@ -96,7 +96,21 @@ const bandGeo = new THREE.TorusGeometry(1, 0.06, 6, 20, Math.PI);
  *
  * The rig keys on userData are what animateGirl drives; keep them.
  */
-export function makeGirl(skin: string, hair: string, dress: string) {
+/**
+ * Who she is drawn as: Sloan (a girl in a dress and braids), a boy (shorts,
+ * no braids) or a grown-up (trousers, glasses, a beard, taller), for playing
+ * together, where Dad joins in and the others should be able to tell.
+ */
+export type Avatar = "girl" | "boy" | "grownup";
+export const AVATARS: { id: Avatar; name: string }[] = [
+  { id: "girl", name: "Girl" },
+  { id: "boy", name: "Boy" },
+  { id: "grownup", name: "Grown-up" },
+];
+const SHORTS = "#4a5f8a";
+const TROUSERS = "#3d4a63";
+
+export function makeGirl(skin: string, hair: string, dress: string, style: Avatar = "girl") {
   const root = new THREE.Group();
   const sock = "#fff8f0";
   const sneaker = "#f7f4ee";
@@ -137,8 +151,10 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   const makeLeg = (side: number) => {
     const g = new THREE.Group();
     g.position.set(side * 0.13, 0, 0);
-    // thigh and shin in skin, a sock, and a sneaker with a sole and a tongue
-    g.add(part(cylGeo, skin, 0.105, 0.36, 0.105, 0, -0.16, 0));
+    // thigh and shin in skin (trousers on a grown-up, shorts on a boy), a
+    // sock, and a sneaker with a sole and a tongue
+    g.add(part(cylGeo, style === "grownup" ? TROUSERS : skin, 0.105, 0.36, 0.105, 0, -0.16, 0));
+    if (style === "boy") g.add(part(cylGeo, SHORTS, 0.12, 0.2, 0.12, 0, -0.06, 0));
     g.add(part(cylGeo, sock, 0.1, 0.16, 0.1, 0, -0.42, 0));
     g.add(part(boxGeo, sneaker, 0.19, 0.11, 0.3, 0, -0.58, 0.06));
     g.add(part(boxGeo, sole, 0.2, 0.04, 0.31, 0, -0.65, 0.06, false));
@@ -162,6 +178,12 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   torso.add(skirt);
+  // a boy or a grown-up: the skirt is kept (the walk animates it) but hidden,
+  // and the shirt tucks into shorts or trousers
+  if (style !== "girl") {
+    skirt.visible = false;
+    torso.add(part(boxGeo, style === "grownup" ? TROUSERS : SHORTS, 0.42, 0.24, 0.27, 0, -0.12, 0));
+  }
   // upper body parts are tagged so first person can hide everything from the
   // shoulders up (and the arms), leaving the skirt and legs when she looks down
   const fp = <T extends THREE.Object3D>(o: T): T => {
@@ -230,6 +252,8 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   const braidL = makeBraid(-1);
   const braidR = makeBraid(1);
   head.add(braidL, braidR);
+  // short hair: the braids stay (the walk swings them) but out of sight
+  if (style !== "girl") braidL.visible = braidR.visible = false;
 
   // eyes: smaller whites, brown iris, dark pupil, one catchlight
   const makeEye = (side: number) => {
@@ -257,6 +281,21 @@ export function makeGirl(skin: string, hair: string, dress: string) {
   smile.rotation.z = Math.PI;
   smile.castShadow = false;
   head.add(smile);
+
+  // a grown-up: glasses, a beard and a moustache, and a head taller
+  if (style === "grownup") {
+    const frame = "#2a2a2e";
+    for (const side of [-1, 1]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.064, 0.013, 6, 18), flat(frame, { roughness: 0.3 }));
+      ring.position.set(side * 0.1, 0.32, 0.285);
+      head.add(ring);
+      head.add(part(boxGeo, frame, 0.014, 0.014, 0.2, side * 0.165, 0.33, 0.19, false));
+    }
+    head.add(part(boxGeo, frame, 0.07, 0.014, 0.014, 0, 0.335, 0.29, false));
+    head.add(part(sphereGeo, hair, 0.22, 0.15, 0.15, 0, 0.1, 0.1));
+    head.add(part(boxGeo, hair, 0.13, 0.035, 0.03, 0, 0.235, 0.27, false));
+    root.scale.setScalar(1.2);
+  }
 
   // ---- headphones -------------------------------------------------------
   {

@@ -50,12 +50,12 @@ function nameTag(name: string) {
   tex.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
   sprite.scale.set(1.6, 0.4, 1);
-  sprite.position.y = 2.2;
+  sprite.position.y = 2.5;
   sprite.renderOrder = 10;
   return sprite;
 }
 
-const keyOf = (l: Look) => `${l.name}|${l.dress}|${JSON.stringify(l.worn)}`;
+const keyOf = (l: Look) => `${l.name}|${l.dress}|${l.avatar ?? "girl"}|${JSON.stringify(l.worn)}`;
 
 export class RemotePlayers {
   private avatars = new Map<string, Avatar>();
@@ -63,7 +63,7 @@ export class RemotePlayers {
   constructor(private scene: THREE.Scene) {}
 
   private build(look: Look): Pick<Avatar, "girl" | "tag"> {
-    const girl = makeGirl(SKIN, HAIR.brown, DRESS[look.dress] ?? DRESS.coral);
+    const girl = makeGirl(SKIN, HAIR.brown, DRESS[look.dress] ?? DRESS.coral, look.avatar ?? "girl");
     applyWorn(girl, look.worn);
     return { girl, tag: nameTag(look.name || "A friend") };
   }

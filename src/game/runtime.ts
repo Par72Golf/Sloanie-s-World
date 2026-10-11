@@ -28,6 +28,7 @@ import { BUILD_COLORS, PIECES } from "./build-pieces";
 import { useBuild, yardPalette } from "./yard-store";
 import { inRoom, sendLook, sendPose } from "./net";
 import { RemotePlayers } from "./remote-players";
+import { useAvatar } from "./avatar";
 import { GumballWorld, setFurniturePrizes, today, useGumball } from "./gumballs";
 import { candyPrizeFurniture } from "./candy-furniture";
 import { HOUSE_KITS } from "./furniture-kits";
@@ -47,7 +48,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { DEFAULT_SKY, animateGirl, disposeHands, makeGirl, makeHands, makeSky, setFirstPersonBody, type Hands } from "./meshes";
+import { DEFAULT_SKY, animateGirl, disposeHands, makeGirl, makeHands, makeSky, setFirstPersonBody, type Avatar, type Hands } from "./meshes";
 import { buildWorld, disposeWorld, type BuiltWorld, type DumplingHandle } from "./world-build";
 import { featuresFor } from "./features";
 import { applyLevelOrigins } from "./level-origins";
@@ -326,7 +327,8 @@ export class GameRuntime {
     pmrem.dispose();
 
     const st = useGame.getState();
-    this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress]);
+    this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress], useAvatar.getState().avatar);
+    this.lastAvatar = useAvatar.getState().avatar;
     this.girl.castShadow = true;
     this.scene.add(this.girl);
     this.hands = makeHands("#e8b489", DRESS[st.dress]);
@@ -1201,8 +1203,9 @@ export class GameRuntime {
   rebuildGirl() {
     const st = useGame.getState();
     this.scene.remove(this.girl);
-    this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress]);
+    this.girl = makeGirl("#e8b489", HAIR.brown, DRESS[st.dress], useAvatar.getState().avatar);
     this.scene.add(this.girl);
+    this.lastAvatar = useAvatar.getState().avatar;
     this.lastDress = st.dress;
     this.lastHair = st.hair;
     applyWorn(this.girl, st.worn);
@@ -2265,6 +2268,8 @@ export class GameRuntime {
 
   /** Playing together (net.ts): the other kids, drawn; and when this device last told them where she is. */
   private remotePlayers: RemotePlayers | null = null;
+  /** who she was last drawn as (avatar.ts), so a change rebuilds her */
+  private lastAvatar: Avatar = "girl";
   private netSendIn = 0;
   private lastLookKey = "";
 
@@ -2272,7 +2277,7 @@ export class GameRuntime {
   netTick(dt: number) {
     const st = useGame.getState();
     if (inRoom()) {
-      const look = { name: st.playerName.trim() || "Explorer", dress: st.dress, worn: st.worn };
+      const look = { name: st.playerName.trim() || "Explorer", dress: st.dress, worn: st.worn, avatar: useAvatar.getState().avatar };
       const key = JSON.stringify(look);
       if (key !== this.lastLookKey) {
         this.lastLookKey = key;
@@ -2290,6 +2295,7 @@ export class GameRuntime {
           ground: this.grounded,
           speed: this.speed,
           level: st.levelIndex,
+          found: (st.collected[st.levelIndex] ?? []).length,
         });
       }
     } else this.lastLookKey = "";
@@ -3019,7 +3025,7 @@ export class GameRuntime {
       this.syncCamera(true);
     }
     this.wasTitle = st.phase === "title";
-    if (st.dress !== this.lastDress || st.hair !== this.lastHair) this.rebuildGirl();
+    if (st.dress !== this.lastDress || st.hair !== this.lastHair || useAvatar.getState().avatar !== this.lastAvatar) this.rebuildGirl();
     if (st.wornGen !== this.lastWornGen) {
       this.lastWornGen = st.wornGen;
       applyWorn(this.girl, st.worn);
