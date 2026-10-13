@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { boxGeo, coneGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
+import { boxGeo, coneGeo, cylGeo, lam, mesh, sphereGeo, fadeNearCamera } from "./meshes";
 import type { BoxProp, Prop } from "./types";
 
 /**
@@ -593,7 +593,8 @@ export function makeFairGreen() {
     const merged = mergeGeometries(geos.map(forMerge), false);
     for (const gg of geos) gg.dispose();
     if (!merged) continue;
-    const m = new THREE.Mesh(merged, lam(color, { flat: true, roughness: 0.75 }));
+    // bunting hangs at camera height: it fades as the camera comes near
+    const m = new THREE.Mesh(merged, fadeNearCamera(color, { flat: true, roughness: 0.75 }));
     m.castShadow = false;
     m.receiveShadow = true;
     g.add(m);

@@ -156,6 +156,30 @@ setLavaHouseUnlock({
   give: (id) => useHouseBuild.getState().unlock(id),
 });
 
+/**
+ * How to build, said the way this player builds: with a controller, on a
+ * touch screen or at a keyboard. The kids with 8BitDo pads get Minecraft's
+ * buttons; a cousin on a phone gets taps, not "hold LT".
+ */
+function buildHowTo(house: boolean, short = false) {
+  if (activePad()) {
+    if (short) return "Hold LT to build, RT to break.";
+    return house
+      ? "Aim with the + and press LT to put it down, RT to take it away. LB and RB pick what."
+      : "Aim with the + and hold LT to build, RT to break. LB and RB pick the piece. Double-tap A to fly!";
+  }
+  if (typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches) {
+    if (short) return "Tap Place to build where the + points.";
+    return house
+      ? "Point the + where you want it and tap Place. Tap a picture at the bottom to pick what."
+      : "Point the + where you want it and tap Place, or hold it to keep building. Tap a piece at the bottom to pick it.";
+  }
+  if (short) return "Hold E to build, X to break.";
+  return house
+    ? "Aim with the + and press E to put it down, X to take it away. [ and ] pick what."
+    : "Aim with the + and hold E to build, X to break. [ and ] pick the piece. Double-tap Space to fly!";
+}
+
 /** How early before landing a jump press still counts. */
 const JUMP_BUFFER = 0.18;
 
@@ -2267,10 +2291,10 @@ export class GameRuntime {
     }
     if (useBuild.getState().inYard) {
       useBuild.getState().setBuilding(true);
-      st.setEmmettNotice("Aim with the + and press LT to place, RT to break. LB and RB pick the piece. Double-tap A to fly!");
+      st.setEmmettNotice(buildHowTo(false));
     } else if (this.housePlacer && useHome.getState().inside) {
       useHouseBuild.getState().setBuilding(true);
-      st.setEmmettNotice("Aim with the + and press LT to put it down, RT to take it away. LB and RB pick what.");
+      st.setEmmettNotice(buildHowTo(true));
     } else st.setEmmettNotice("You can build in the Build Yard, or inside your house.");
   }
 
@@ -2791,11 +2815,7 @@ export class GameRuntime {
         const yard = useBuild.getState();
         if (yard.inYard && !this.wasInYard && !yard.building && !paused && !st.driving && !this.carried) {
           yard.setBuilding(true);
-          st.setEmmettNotice(
-            this.toldBuildYard
-              ? "Build Yard! Hold LT to build, RT to break."
-              : "Build Yard! Aim with the + and hold LT to build, RT to break. LB and RB pick the piece. Double-tap A to fly!",
-          );
+          st.setEmmettNotice(`Build Yard! ${this.toldBuildYard ? buildHowTo(false, true) : buildHowTo(false)}`);
           this.toldBuildYard = true;
         }
         this.wasInYard = yard.inYard;

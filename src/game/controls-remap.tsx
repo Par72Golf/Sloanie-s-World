@@ -184,7 +184,9 @@ export function ControlsRemap() {
             </p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          {/* minmax(0, 1fr) and min-w-0: on a phone the one-line details made
+              the grid wider than the screen and pushed the keys off it */}
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
             {ACTIONS.map(({ id, label, detail }) => {
               const live = device === "pad" && pressed.includes(pad[id]);
               const waiting = listening === id;
@@ -197,7 +199,7 @@ export function ControlsRemap() {
                     setListening(waiting ? null : id);
                   }}
                   className={cn(
-                    "press chunk-sm flex min-h-16 items-center gap-3 px-3 py-2 text-left",
+                    "press chunk-sm flex min-h-16 w-full min-w-0 items-center gap-3 px-3 py-2 text-left",
                     waiting ? "gloss bg-sun" : live ? "bg-surface-3" : flash === id ? "bg-[#e3f7ee]" : "bg-surface",
                   )}
                 >

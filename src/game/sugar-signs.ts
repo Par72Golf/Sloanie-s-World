@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { CANDY, makeLollipopTree } from "./candy-scenery";
-import { boxGeo, cone4Geo, cylGeo, mesh, signBoard, sphereGeo } from "./meshes";
+import { boxGeo, cone4Geo, cylGeo, mesh, signBoard, sphereGeo, fadeNearCamera } from "./meshes";
 import { registerModel, type ModelBox } from "./models";
 import { model } from "./sugar-models";
 import { SUGAR } from "./sugar-rush";
@@ -399,6 +399,8 @@ function makeBunting(span: number) {
     const y = sag(t);
     const len = Math.hypot(x - px, y - py);
     const m = mesh(boxGeo, CREAM, len * 1.06, 0.07, 0.07, (x + px) / 2, (y + py) / 2, 0, false);
+    // flags and cord at camera height: they fade as the camera comes near
+    m.material = fadeNearCamera(CREAM);
     m.rotation.z = Math.atan2(y - py, x - px);
     g.add(m);
     px = x;
@@ -412,6 +414,7 @@ function makeBunting(span: number) {
     const x = -span / 2 + t * span;
     const y = sag(t);
     const f = mesh(cone4Geo, PARTY[i % PARTY.length]!, 0.34, 0.55, 0.04, x, y - 0.3, 0, false);
+    f.material = fadeNearCamera(PARTY[i % PARTY.length]!);
     // point down: a pennant hangs off the cord, it does not stand on it
     f.rotation.x = Math.PI;
     f.rotation.y = Math.PI / 4;

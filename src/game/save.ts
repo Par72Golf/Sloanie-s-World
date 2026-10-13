@@ -76,7 +76,8 @@ export type SaveData = {
 
 const DEFAULT: SaveData = {
   version: SAVE_VERSION,
-  playerName: "Sloan",
+  // a new player names herself (Explorer, on the title); Sloan's save has hers
+  playerName: "",
   dress: "coral",
   hair: "brown",
   unlocked: 0,

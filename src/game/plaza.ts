@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { boxGeo, cylGeo, lam, mesh, sphereGeo } from "./meshes";
+import { boxGeo, cylGeo, lam, mesh, sphereGeo, fadeNearCamera } from "./meshes";
 import { bannerTexture } from "./signs";
 import type { Prop } from "./types";
 
@@ -417,7 +417,8 @@ export function makeArrivalPlaza() {
   for (const [color, geos] of strings) {
     const merged = mergeAll(geos);
     if (!merged) continue;
-    const m = new THREE.Mesh(merged, lam(color, { flat: true, roughness: 0.75 }));
+    // bunting hangs at camera height: it fades as the camera comes near
+    const m = new THREE.Mesh(merged, fadeNearCamera(color, { flat: true, roughness: 0.75 }));
     m.castShadow = false;
     m.receiveShadow = true;
     g.add(m);

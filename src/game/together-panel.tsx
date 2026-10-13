@@ -113,6 +113,7 @@ export function PlayTogether() {
   const code = useNet((s) => s.code);
   const names = useNet((s) => s.names);
   const error = useNet((s) => s.error);
+  const playerName = useGame((s) => s.playerName);
   const [joining, setJoining] = useState(false);
   const [entry, setEntry] = useState("");
 
@@ -218,6 +219,16 @@ export function PlayTogether() {
       <p className="text-base font-semibold text-ink 2xl:text-xl">
         Play in the same park as your friends, each on your own screen, and build together in the Build Yard.
       </p>
+      {/* so the scoreboard and the tag over her head say who she is */}
+      <label className="grid w-full gap-1.5 text-base font-semibold text-ink-soft">
+        Your name:
+        <input
+          value={playerName}
+          onChange={(e) => useGame.getState().setName(e.target.value.slice(0, 18))}
+          placeholder="Type your name"
+          className="chunk-sm block h-12 w-full max-w-xs bg-surface-2 px-4 font-display text-xl font-semibold text-ink outline-none placeholder:text-muted"
+        />
+      </label>
       <AvatarPicker />
       <div className="flex flex-wrap gap-2.5">
         <Btn

@@ -792,6 +792,16 @@ function TitleScreen() {
     setDetail((cur) => (cur === d ? null : d));
   };
 
+  // a phone held upright stacks the card under the menu, off the bottom of
+  // the screen: bring it up, or the tap looks like it did nothing
+  const detailRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = detailRef.current;
+    if (!detail || !el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 0 || r.top > window.innerHeight * 0.6) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [detail]);
+
   const dressHex = DRESS_OPTS.find((o) => o.id === dress)?.hex ?? DRESS_OPTS[0]!.hex;
   const unlockedParks = LEVELS.map((lv, i) => ({ lv, i })).filter(({ i }) => i <= unlocked);
   const lockedCount = LEVELS.length - unlockedParks.length;
@@ -965,7 +975,7 @@ function TitleScreen() {
                 label="Explorer"
                 side={
                   <span className="flex min-w-0 max-w-[45%] items-center gap-2 font-display text-base font-semibold text-ink-soft 2xl:text-2xl">
-                    <span className="truncate">{playerName || "Sloan"}</span>
+                    <span className="truncate">{playerName || "Your name"}</span>
                     <span className="size-5 shrink-0 rounded-full border-[2.5px] border-edge 2xl:size-7" style={{ backgroundColor: dressHex }} />
                   </span>
                 }
@@ -1022,7 +1032,7 @@ function TitleScreen() {
               each one. Parks unlock one at a time.
             </p>
           ) : (
-            <div key={detail} className="chunk animate-ui-pop flex max-h-full min-h-0 w-full max-w-md flex-col overflow-hidden bg-surface text-left 2xl:max-w-xl">
+            <div key={detail} ref={detailRef} className="chunk animate-ui-pop scroll-mt-4 flex max-h-full min-h-0 w-full max-w-md flex-col overflow-hidden bg-surface text-left 2xl:max-w-xl">
               <div className={cn("ui-ribbon flex shrink-0 items-center gap-2.5 px-3 py-2 text-white 2xl:px-5 2xl:py-3", D.tone)}>
                 <span className="chunk-sm gloss grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink 2xl:size-12">
                   <D.icon className="size-5 2xl:size-7" strokeWidth={2.4} />
@@ -1051,7 +1061,7 @@ function TitleScreen() {
                       <input
                         value={playerName}
                         onChange={(e) => setName(e.target.value.slice(0, 18))}
-                        placeholder="Sloan"
+                        placeholder="Your name"
                         className="chunk-sm mt-2 block h-12 w-full bg-surface-2 px-4 font-display text-xl font-semibold text-ink outline-none placeholder:text-muted 2xl:h-16 2xl:text-3xl"
                       />
                     </label>
@@ -1586,7 +1596,8 @@ function HUD() {
                 Collect
               </Btn>
             )}
-            <Btn
+            {/* not while building: the hotbar needs the room, and there is nothing to hunt */}
+            {!building && !placing && <Btn
               variant="sun"
               onClick={useHint}
               disabled={hintsLeft <= 0}
@@ -1600,7 +1611,7 @@ function HUD() {
               >
                 {hintsLeft}
               </span>
-            </Btn>
+            </Btn>}
             <button
               type="button"
               aria-label="Jump"
@@ -2541,7 +2552,9 @@ function CompleteScreen() {
   const next = LEVELS[levelIndex + 1];
   // The first park is the one she will finish on her birthday, so it gets the
   // party treatment: the crown she just earned, and her name in lights.
-  const party = levelIndex === 0;
+  // Sloan's birthday build: the party is hers. Her cousins finishing it get
+  // a well done, not someone else's birthday.
+  const party = levelIndex === 0 && isSloan(playerName);
   // park 2 hides sweets, not dumplings, and the last thing she reads should know it
   const sugar = LEVELS[levelIndex]?.id === "sugar";
   return (
@@ -2552,7 +2565,7 @@ function CompleteScreen() {
         eyebrow="Park complete"
         title={
           party
-            ? `Happy birthday${playerName ? `, ${playerName}` : ", Sloan"}!`
+            ? `Happy birthday, ${playerName}!`
             : playerName
               ? `${playerName} found them all`
               : sugar
@@ -2647,6 +2660,9 @@ function CompleteScreen() {
 }
 
 /** The end of a race with friends: who found the most, the tickets, and back to free play. */
+/** Is this Sloan's own save (the birthday build is hers). */
+const isSloan = (name: string) => /^sloan(ie)?$/i.test(name.trim());
+
 function RaceResults() {
   const results = useRace((s) => s.results);
   if (!results) return null;
@@ -2696,7 +2712,7 @@ function VictoryScreen() {
           <Cake className="size-11 text-ink sm:size-14 [@media(max-height:520px)]:size-7" strokeWidth={2.2} />
         </span>
         <h2 className="ui-title animate-ui-pop mt-4 text-5xl leading-[0.95] sm:text-7xl [@media(max-height:520px)]:mt-2 [@media(max-height:520px)]:text-5xl">
-          Happy birthday{playerName ? `, ${playerName}` : ", Sloan"}
+          {isSloan(playerName) ? `Happy birthday, ${playerName}` : `You did it${playerName ? `, ${playerName}` : ""}!`}
         </h2>
         <div className="chunk animate-ui-rise ui-dots mt-6 w-full max-w-xl bg-surface p-5 sm:p-6 [@media(max-height:520px)]:mt-3 [@media(max-height:520px)]:p-4">
           <p className="ui-chip gloss bg-teal text-base text-white">
@@ -2741,6 +2757,8 @@ export function Overlays() {
   const hintText = useGame((s) => s.hintText);
   const celebrate = useGame((s) => s.celebrate);
   const flyingOver = useGame((s) => s.flyover);
+  const yardBuilding = useBuild((s) => s.building);
+  const housePlacing = useHouseBuild((s) => s.building);
   useEffect(() => setSpeechEnabled(readAloud), [readAloud]);
   const voiceName = useGame((s) => s.voice);
   useEffect(() => setVoiceName(voiceName), [voiceName]);
@@ -2756,7 +2774,7 @@ export function Overlays() {
       {flyingOver && <FlyoverHud />}
       {(phase === "playing" || phase === "paused" || phase === "quiz") && <HUD />}
       {phase === "quiz" && <Quiz />}
-      {(phase === "playing" || phase === "quiz") && <MiniMap />}
+      {(phase === "playing" || phase === "quiz") && <MiniMap tucked={yardBuilding || housePlacing} />}
       <CatchCard />
       {(phase === "playing" || phase === "quiz") && <RpsPanel />}
       {phase === "paused" && <PauseScreen />}

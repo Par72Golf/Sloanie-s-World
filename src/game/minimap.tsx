@@ -268,7 +268,8 @@ function drawCompass(g: CanvasRenderingContext2D, size: number, north: number, e
   g.restore();
 }
 
-export function MiniMap() {
+/** `tucked`: building on a touch screen held sideways, where the build buttons need its corner. */
+export function MiniMap({ tucked = false }: { tucked?: boolean }) {
   const phase = useGame((s) => s.phase);
   const levelIndex = useGame((s) => s.levelIndex);
   const open = useGame((s) => s.mapOpen);
@@ -443,7 +444,8 @@ export function MiniMap() {
                * map on top of those buttons, so a short screen keeps it high
                * whatever its width.
                */
-              "pointer-events-auto absolute right-[max(1rem,calc(env(safe-area-inset-right)+0.5rem))] top-[calc(5rem+env(safe-area-inset-top))] z-20 sm:bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:top-auto [@media(max-height:560px)]:bottom-auto [@media(max-height:560px)]:top-[calc(4.5rem+env(safe-area-inset-top))]"
+              "pointer-events-auto absolute right-[max(1rem,calc(env(safe-area-inset-right)+0.5rem))] top-[calc(5rem+env(safe-area-inset-top))] z-20 [@media(min-width:640px)_and_(hover:hover)_and_(pointer:fine)]:bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] [@media(min-width:640px)_and_(hover:hover)_and_(pointer:fine)]:top-auto [@media(max-height:560px)]:bottom-auto [@media(max-height:560px)]:top-[calc(4.5rem+env(safe-area-inset-top))]" +
+              (tucked ? " [@media(pointer:coarse)_and_(orientation:landscape)]:hidden" : "")
         }
         onClick={() => open && setOpen(false)}
       >
@@ -476,7 +478,7 @@ export function MiniMap() {
               open
                 ? "block size-[min(88vw,calc(88dvh-5.5rem),620px)] bg-surface [@media(max-height:480px)]:size-[min(88vw,calc(90dvh-4rem),620px)]"
                 : // a bezel: navy rim, white ring, navy ring, and a hard base shadow like the other chunky pieces
-                  "block size-[112px] cursor-pointer rounded-full border-[3px] border-edge bg-surface shadow-[0_0_0_4px_#fff,0_0_0_7px_var(--color-edge),0_9px_0_4px_var(--color-edge),0_20px_30px_-12px_rgb(29_36_82/0.55)] sm:size-[168px]"
+                  "block size-[112px] cursor-pointer rounded-full border-[3px] border-edge bg-surface shadow-[0_0_0_4px_#fff,0_0_0_7px_var(--color-edge),0_9px_0_4px_var(--color-edge),0_20px_30px_-12px_rgb(29_36_82/0.55)] sm:size-[168px] [@media(max-height:480px)]:size-[100px]"
             }
           />
           {!open && (

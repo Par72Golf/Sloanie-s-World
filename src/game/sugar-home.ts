@@ -85,7 +85,8 @@ export class SugarHomeWorld {
     scene.add(this.house);
     this.rebuildColliders();
 
-    this.sign = signBoard(`${useGame.getState().playerName || "Sloan"}'s House`, 3.6, 0.8);
+    const owner = useGame.getState().playerName.trim();
+    this.sign = signBoard(owner ? `${owner}'s House` : "My House", 3.6, 0.8);
     this.sign.position.set(CANDY_HOUSE_AT.x, 3.5, CANDY_HOUSE_AT.z + CANDY_HOUSE.d / 2 + 0.3);
     scene.add(this.sign);
 

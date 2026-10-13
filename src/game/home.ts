@@ -57,7 +57,8 @@ export class HomeWorld {
     this.rebuildColliders();
 
     // outside: a name board over her front door and a glowing doorstep
-    this.sign = signBoard(`${useGame.getState().playerName || "Sloan"}'s House`, 3.2, 0.7);
+    const owner = useGame.getState().playerName.trim();
+    this.sign = signBoard(owner ? `${owner}'s House` : "My House", 3.2, 0.7);
     this.sign.position.set(HOUSE.x, 3.35, HOUSE.z - 3.35);
     this.sign.rotation.y = Math.PI;
     scene.add(this.sign);

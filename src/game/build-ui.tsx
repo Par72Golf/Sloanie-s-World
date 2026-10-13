@@ -72,7 +72,9 @@ export function BuildHud({ store = useBuild, catalogue }: { store?: BuildStoreHo
       </div>
 
       {/* the hotbar, the colours above it, the piece's name above those */}
-      <div className="pointer-events-auto absolute inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-[min(68vw,56rem)] flex-col items-center gap-1.5 px-2">
+      {/* On a touch screen the joystick and Jump own the bottom corners: held
+          upright the hotbar sits above them, held sideways it stays between */}
+      <div className="pointer-events-auto absolute inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-[min(68vw,56rem)] flex-col items-center gap-1.5 px-2 [@media(pointer:coarse)_and_(orientation:landscape)]:max-w-[calc(100vw-21rem)] [@media(pointer:coarse)_and_(orientation:portrait)]:bottom-[calc(10.5rem+env(safe-area-inset-bottom))] [@media(pointer:coarse)_and_(orientation:portrait)]:max-w-[94vw]">
         <p className="ui-chip bg-surface px-3 py-0.5 text-base font-semibold text-ink 2xl:text-lg">
           {def?.name ?? ""}
           {def && forSale(def) ? ` · ${def.price} tickets` : ""} &middot; {count} placed
@@ -119,8 +121,9 @@ export function BuildHud({ store = useBuild, catalogue }: { store?: BuildStoreHo
         )}
       </div>
 
-      {/* big buttons for a tablet with no controller */}
-      <div className="pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
+      {/* big buttons for a tablet with no controller; two across when held
+          sideways, so they end above Jump */}
+      <div className="pointer-events-auto absolute right-[max(0.75rem,env(safe-area-inset-right))] top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2 [@media(pointer:coarse)_and_(orientation:landscape)]:top-[calc(4.25rem+env(safe-area-inset-top))] [@media(pointer:coarse)_and_(orientation:landscape)]:grid [@media(pointer:coarse)_and_(orientation:landscape)]:translate-y-0 [@media(pointer:coarse)_and_(orientation:landscape)]:grid-cols-2 [@media(pointer:coarse)_and_(orientation:portrait)]:top-[40%]">
         {/* held down, these keep placing or breaking, like LT and RT */}
         <span className="grid" {...holdable("place")}>
           <Btn onClick={() => st.ask("place")} className="min-h-14 min-w-28 gap-2 text-xl">

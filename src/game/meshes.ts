@@ -55,6 +55,44 @@ export function lam(
   return m;
 }
 
+/**
+ * A material that thins out and vanishes as the camera comes within a couple
+ * of metres, for bunting. Flags hang at about camera height, and on a phone
+ * held upright (a tall view) one close to the lens filled half the screen.
+ * Screen-door dithered rather than see-through, so it stays opaque, merges and
+ * sorts like everything else. Its own copy of the colour: lam() materials are
+ * shared, and the change must not reach anything else that colour.
+ */
+const fadeMats = new Map<string, THREE.MeshStandardMaterial>();
+export function fadeNearCamera(color: string, extras?: Parameters<typeof lam>[1]) {
+  const key = `${color}|${JSON.stringify(extras ?? {})}`;
+  let m = fadeMats.get(key);
+  if (!m) {
+    const base = lam(color, extras).clone();
+    base.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vNearFade;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvNearFade = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vNearFade;")
+        .replace(
+          "void main() {",
+          `void main() {
+  {
+    float k = clamp((distance(vNearFade, cameraPosition) - 1.4) / 1.4, 0.0, 1.0);
+    vec2 cell = mod(floor(gl_FragCoord.xy), 4.0);
+    float bayer = mod(cell.x * 2.0 + cell.y * 3.0, 4.0) / 4.0 + 0.125;
+    if (k < bayer) discard;
+  }`,
+        );
+    };
+    base.customProgramCacheKey = () => "fade-near-camera";
+    m = base;
+    fadeMats.set(key, m);
+  }
+  return m;
+}
+
 export function mesh(
   geo: THREE.BufferGeometry,
   color: string,
