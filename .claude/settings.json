@@ -1,0 +1,18 @@
+{
+  "model": "opus",
+  "effortLevel": "medium",
+  "outputStyle": "Concise",
+  "disableWorkflows": true,
+  "ultracode": false,
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  },
+  "permissions": {
+    "deny": [
+      "Read(./package-lock.json)",
+      "Read(./dist/**)",
+      "Read(./house-dist/**)",
+      "Read(./node_modules/**)"
+    ]
+  }
+}
