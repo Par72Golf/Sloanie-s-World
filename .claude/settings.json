@@ -14,5 +14,67 @@
       "Read(./house-dist/**)",
       "Read(./node_modules/**)"
     ]
-  }
+  },
+  "deniedMcpServers": [
+    {
+      "serverName": "claude.ai Gmail"
+    },
+    {
+      "serverName": "Gmail"
+    },
+    {
+      "serverName": "claude.ai Todoist"
+    },
+    {
+      "serverName": "Todoist"
+    },
+    {
+      "serverName": "claude.ai Google Calendar"
+    },
+    {
+      "serverName": "Google Calendar"
+    },
+    {
+      "serverName": "claude.ai Google Docs"
+    },
+    {
+      "serverName": "Google Docs"
+    },
+    {
+      "serverName": "claude.ai Google Drive"
+    },
+    {
+      "serverName": "Google Drive"
+    },
+    {
+      "serverName": "claude.ai Claude Docs"
+    },
+    {
+      "serverName": "Claude Docs"
+    },
+    {
+      "serverName": "claude.ai Google_Calendar"
+    },
+    {
+      "serverName": "Google_Calendar"
+    },
+    {
+      "serverName": "claude.ai Google_Docs"
+    },
+    {
+      "serverName": "Google_Docs"
+    },
+    {
+      "serverName": "claude.ai Google_Drive"
+    },
+    {
+      "serverName": "Google_Drive"
+    },
+    {
+      "serverName": "claude.ai Claude_Docs"
+    },
+    {
+      "serverName": "Claude_Docs"
+    }
+  ]
 }
