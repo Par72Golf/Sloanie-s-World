@@ -775,7 +775,8 @@ Review <file> and tell me what is weakest about it. Be honest, do not be nice.
 
 ### 7.8 Working in Claude Code specifically
 
-- Keep this file in the repo root so it is read as context.
+- `CLAUDE.md` is what Claude Code reads automatically; it points here. Ask for a
+  section of this file by number rather than the whole file, which is 56 KB.
 - Ask it to run `npx jiti tools/check-layout.ts` after any geometry change, and to
   paste the output.
 - `npx tsc --noEmit` and `npx vite build` both pass today. Treat either failing as a
